@@ -1,0 +1,29 @@
+{
+  "name": "roku-test",
+  "version": "0.1.0",
+  "description": "Unified BrightScript test runner — write Rooibos specs once, run headless (default) or on-device with coverage.",
+  "bin": {
+    "roku-test": "bin/cli.js"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "brs",
+    "README.md"
+  ],
+  "scripts": {
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
+  },
+  "dependencies": {
+    "brighterscript": "^0.73.0",
+    "brs-node": "^2.2.0",
+    "rooibos-roku": "^5.16.4"
+  },
+  "devDependencies": {
+    "mermaid": "^11.4.1",
+    "vitepress": "^1.6.3",
+    "vitepress-plugin-mermaid": "^2.0.17"
+  }
+}
