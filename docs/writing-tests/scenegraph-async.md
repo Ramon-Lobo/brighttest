@@ -1,16 +1,27 @@
 # 8. SceneGraph & async tests
 
 Most of your tests should be pure logic that runs headless. But some behavior only exists inside a **real
-SceneGraph node** — the UI layer of a Roku app. Those tests are **device-only**. This page explains when
-you need them, how to write them, and how to keep them rare.
+SceneGraph node** — the UI layer of a Roku app. This page explains when you need them, how to write them,
+and how to keep them rare.
 
 ::: tip How it runs
-The headless lane **detects and skips** `@SGNode` suites automatically (they need a device), so they
-never break a headless run. On the **device lane** they run for real — deployed to hardware, executed on
-the render thread, and reported back. roku-test sets the required `autoImportComponentScript` compiler
-option for you (see the note below); without it, generated node components don't link their own script and
-node tests hang. Even so, prefer extracting logic into pure functions and testing *those* headless — keep
-`@SGNode` for genuinely UI-coupled behavior.
+`@SGNode` suites run in two of the three lanes:
+
+- **Default lane** (`roku-test`) — runs `@SGNode` suites headless when your project has them (it boots a
+  SceneGraph scene). Pass `--no-sgnode` to skip them and use the faster SceneGraph-off driver (handy for a
+  quick pure-logic inner loop).
+- **Coverage lane** (`roku-test --coverage`) — a **headless** lane (no device) with SceneGraph enabled, so
+  `@SGNode` suites run in full: component logic, computed state, **and** XML `onChange` observer cascades.
+  This works via two patches roku-test ships — a [rooibos-roku patch](/maintainers#sgnode-headless-patch)
+  (node suites complete headless) and a [brs-node patch](/maintainers#brs-node-onchange-patch) (`onChange`
+  fires synchronously). The default lane runs the same node suites; `--coverage` just adds LCOV.
+- **Device lane** (`roku-test --device`) — runs them for real on hardware.
+
+roku-test sets the required `autoImportComponentScript` compiler option for you (see the note below);
+without it, generated node components don't link their own script and node tests hang. Even with headless
+node tests working, still prefer extracting logic into pure functions and testing *those* in the fast
+default lane — keep `@SGNode` for genuinely UI-coupled behavior, and treat the **device lane as the fidelity
+reference** for anything that leans on real render-thread timing.
 :::
 
 ## What is a SceneGraph (RSG) node?
@@ -20,9 +31,21 @@ code on a separate render thread, and reacts to field changes via observers. Nod
 field observation, `createChild`, focus, animations) requires the real Roku runtime; a simulator can't
 faithfully reproduce it.
 
-::: warning These run on a device only
-Node tests use the real render thread, so they run in the **device lane** (`--device`), not headless. The
-headless simulator's SceneGraph support is experimental and won't run them.
+::: tip Node tests are headless too — including `onChange` observers
+Stress-testing a complex widget (ButtonEx: layout math, key handling, opacity interpolation, **and field
+observers**) through `--cross-check` gave **95/95 with 0 divergence** — headless matches the device
+exactly. Both of these now work headless in `--coverage`:
+
+- Calling the component's own functions/subs, reading/writing fields, pure computation.
+- **XML `onChange` cascades**: "set `padding` → all four sides update", "set `text` → the label mirrors
+  it", "set `focusPercent` → layers cross-fade". These fire on the simulator, matching hardware.
+
+This needed a small [brs-node patch](/maintainers#brs-node-onchange-patch) roku-test ships — brs-node
+normally batches field-change notifications and wouldn't fire `onChange` mid-test; the patch dispatches
+them synchronously, like real Roku. What's still genuinely device-only: behavior that depends on **real
+wall-clock render timing** (animations playing out, Task-node I/O, live remote input). Run
+[`--cross-check`](/writing-tests/headless-vs-device#verifying-fidelity-cross-check) to confirm the two
+lanes agree for your component.
 :::
 
 ## `@SGNode` — running a test inside a node
@@ -98,18 +121,34 @@ wires the field through.
 ## Running node tests
 
 ```bash
+# Headless (no device) — the default run already includes @SGNode suites:
+npx roku-test
+
+# Headless + coverage (no device):
+npx roku-test --coverage
+
+# On hardware — the fidelity reference for render-thread behavior:
 npx roku-test --device --host <roku-ip> --password <dev-pw>
 ```
 
-They run alongside your headless-capable tests on the device (the device lane runs *everything*). In CI,
+Node suites run headless by default (and under `--coverage`) — great for CI with no hardware. The device
+lane runs *everything* on real hardware and is the source of truth for timing-sensitive behavior. In CI,
 gate the device lane to merges/nightly on a self-hosted runner — see [CI integration](/guide/ci).
 
 ## Rule of thumb
 
 | Behavior | Where to test |
 |---|---|
-| Calculations, parsing, formatting, validation, state transitions | Headless (pure functions) |
-| Field observers, rendering, focus, `createChild`, node lifecycle | Device (`@SGNode`) |
+| Calculations, parsing, formatting, validation, state transitions | Default headless (pure functions) |
+| A node's own functions/subs + computed state (call directly, assert) | Headless `--coverage` or device |
+| **`onChange` observer cascades** (set field → handler reacts) | Headless `--coverage` or device |
+| Real wall-clock render timing — animations, Task I/O, live remote input | Device (`@SGNode`) — the fidelity reference |
+
+::: tip Assert floats against floats
+Rooibos `assertEqual` is **type-strict**: a `float` field (`opacity`, `translation`, `width`, padding)
+never equals an `Integer` literal. Write `m.assertEqual(node.opacity, 0.5)` and `translation[0], 150.0` —
+not `150`. Values bound to `as float` test params are already floats.
+:::
 
 If you find yourself writing many node tests, that's usually a signal to move logic out of nodes. Next:
 the full picture of what runs headless vs on device.

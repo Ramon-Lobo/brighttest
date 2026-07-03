@@ -105,10 +105,44 @@ function greet(name, clock) : hour = clock.nowHour() : ...
 haven't seen fail isn't protecting you. (We did this deliberately in
 [Your first test](/writing-tests/first-test).)
 
-## Expecting coverage from the headless lane
+## Expecting coverage from the *default* lane
 
 **Symptom:** no coverage numbers from `npx roku-test`.
 
-**Cause:** coverage is device-only by platform design.
+**Cause:** the default lane skips coverage for speed.
 
-**Fix:** run `npx roku-test --device … --lcov coverage/lcov.info`. See [CI](/guide/ci).
+**Fix:** run `npx roku-test --coverage` — coverage + LCOV, no device required. (`--device` also produces
+coverage.) See [CI](/guide/ci).
+
+## Comparing a float field to an integer literal
+
+**Symptom:** an assertion fails with `expected "150 (Float)" to equal "150 (Integer)"` even though the
+numbers look identical.
+
+**Cause:** Rooibos `assertEqual` is **type-strict**. SceneGraph numeric fields (`opacity`, `width`,
+`translation`, padding, any `float` field) come back as floats, and `150.0 <> 150`.
+
+**Fix:** compare floats to float literals — `m.assertEqual(node.opacity, 0.5)`,
+`m.assertEqual(t[0], 150.0)`. Values passed via `as float` test params are already floats, so
+parameterized tests sidestep this.
+
+## Very long `@it` / `@describe` names
+
+**Symptom:** a test seems to vanish from the results — counts don't add up, and it's neither passed nor
+failed.
+
+**Cause:** Rooibos prints results to a fixed-width console line. A very long name pushes the trailing
+`(PASS)`/`(FAIL)` marker off the end, so the result parser can't classify it.
+
+**Fix:** keep test names short and to the point. It reads better in reports anyway.
+
+## Surprised the default run boots a scene
+
+**Symptom:** `npx roku-test` is slower than expected on a project that has `@SGNode` specs.
+
+**Cause:** the default lane runs `@SGNode` suites headless (no device), which means booting a SceneGraph
+scene. That's slower than the pure SceneGraph-off driver used when there are no node specs.
+
+**Fix:** nothing's wrong — node tests run by default on purpose. For the quickest pure-logic inner loop,
+add `--no-sgnode` to skip node suites and use the faster driver. Node behaviour (incl. `onChange`
+cascades) is still fully covered by the default/`--coverage`/`--device` runs.

@@ -61,12 +61,16 @@ Then walk through it in detail in the [Writing tests guide](/writing-tests/).
 ## Run
 
 ```bash
-# Headless (default) — no device, fast:
+# Headless (default) — no device. Runs everything, including @SGNode node suites:
 npx roku-test
 npx roku-test --junit reports/junit.xml        # also write a JUnit report
+npx roku-test --no-sgnode                      # skip @SGNode for the fastest inner loop
 
-# On a real Roku (adds code coverage):
-npx roku-test --device --host <roku-ip> --password <dev-pw>
+# Headless WITH coverage — still no device (writes LCOV):
+npx roku-test --coverage
+npx roku-test --coverage --lcov coverage/lcov.info
+
+# On a real Roku (coverage + @SGNode, the fidelity reference):
 npx roku-test --device --host <roku-ip> --password <dev-pw> --lcov coverage/lcov.info
 ```
 
@@ -89,14 +93,21 @@ fails the run, so CI never silently loses coverage.
 ## CLI reference
 
 ```
-roku-test [--junit <path>] [--config <path>]                     Headless run (default)
-roku-test --device --host <ip> --password <pw> [--lcov [path]]   On-device run + coverage
+roku-test [--junit <path>] [--config <path>]                     Headless run (default); runs @SGNode too
+roku-test --no-sgnode                                            Headless run, skipping @SGNode (fastest)
+roku-test --coverage [--lcov [path]] [--junit <path>]            Headless run + coverage (no device)
+roku-test --device --host <ip> --password <pw> [--lcov [path]]   On-device run + coverage + node tests
+roku-test --cross-check --host <ip> --password <pw>              Diff headless vs device (fidelity)
 
   -d, --device          Run on a Roku device (deploys + runs Rooibos, reports coverage)
-      --host <ip>       Roku device IP (device mode)
-      --password <pw>   Roku developer password (device mode)
-      --lcov [path]     Write LCOV from the device run (default: coverage/lcov.info)
-      --junit <path>    Write a JUnit XML report (headless mode)
+      --coverage        Headless coverage via the brs-node simulator (no device); writes LCOV
+      --no-sgnode       Skip @SGNode node suites; use the faster SceneGraph-off driver
+      --cross-check     Run every suite headless AND on device; fail on any divergence
+      --host <ip>       Roku device IP (device / cross-check mode)
+      --password <pw>   Roku developer password (device / cross-check mode)
+      --lcov [path]     Write LCOV (device or --coverage; default: coverage/lcov.info)
+      --junit <path>    Write a JUnit XML report (headless / --coverage)
+      --timeout <sec>   Watchdog (default: headless 300s, device 900s)
   -c, --config <path>   Path to roku-test.json (default: ./roku-test.json)
   -h, --help            Show help
 ```
