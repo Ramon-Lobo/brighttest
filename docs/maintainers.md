@@ -191,14 +191,60 @@ simulator *more* device-faithful, not less. Verified: the 87 non-observer tests 
 tests flip to pass, coverage rose 26% → 34% (the handler code now actually executes), and `--cross-check`
 went to **0 divergent**. Re-run all three lanes after touching it.
 
+## brs-node `roTextToSpeech` bundle {#brs-node-createobject-patch}
+
+The third fix. Unlike the string-patches, this replaces the **core bundle** `brs.node.js` with a rebuild of
+brs-node@2.2.0 that implements the `roTextToSpeech` component. `lib/patch-brs-node.js` copies the vendored
+bundle (`vendor/brs-node/brs.node.js`) into `node_modules/brs-node/bin/` on postinstall (version-gated to
+2.2.0). `brs-sg.node.js` delegates its component registry to `brs.node.js`, so swapping the core bundle
+covers the SceneGraph lane too.
+
+### Root cause
+
+brs-node is a simulator and doesn't implement `roTextToSpeech`, which cbs-roku's shared audio-guide helper
+(`components/shared/audioGuide.brs`) creates in most focusable widgets' init/focus path. `CreateObject`
+returns `invalid` for the unknown class (brs-node@2.2.0 already does this — source `CreateObject.ts` returns
+`BrsInvalid.Instance`), then the widget derefs it (`m.tts.say(...)`) → a fatal `EXIT_BRIGHTSCRIPT_CRASH`
+during node *init*, which is uncatchable and aborts the whole run. Verified against cbs-roku: `roTextToSpeech`
+is the **only** class it instantiates that brs-node lacks (roSGNode/roSGScreen are in the SG bundle).
+
+### The fix
+
+Implemented a headless `RoTextToSpeech` component in the brs-engine source
+(`src/core/brsTypes/components/RoTextToSpeech.ts`, registered in `BrsObjects.ts`) and rebuilt the minified
+bundle (`npm run release --prefix packages/node`). It's a functional no-op: no audio, `IsEnabled()` returns
+false (so callers that gate speech on it cleanly skip), `Say`/`Silence` return an incrementing request id,
+`Flush`/voice/language methods are no-ops. Widgets that create it now instantiate and run headless instead
+of crashing. Verified: ButtonExGroup went from a hard TTS crash to **16/0 headless**; a 7-widget TTS batch
+had 6 widgets instantiate and run (35 pass) where all previously hard-crashed.
+
+### Source & rebuild (to regenerate the vendored bundle)
+
+- Source clone: `Roku/brs-engine` (lvcabral/brs-engine) checked out at tag `v2.2.0`.
+- The class: `src/core/brsTypes/components/RoTextToSpeech.ts` (+ one import and one registry line in
+  `src/core/brsTypes/components/BrsObjects.ts`).
+- Build: `npm install` then `npm run build:api && npm run release --prefix packages/node` → produces
+  `packages/node/bin/brs.node.js` (minified). Copy it to `roku-test/vendor/brs-node/brs.node.js`.
+- **Preferred long-term:** upstream `RoTextToSpeech.ts` as a PR to lvcabral/brs-engine; once released, bump
+  `brs-node` and delete the vendored bundle + this install step.
+
+### Remaining limitation (not TTS)
+
+Implementing roTextToSpeech does **not** fix components whose `init()` needs real field context that a bare
+Rooibos node doesn't provide (e.g. `cbsStandardKeyboardDialog.brs:52` derefs `buttonsEx`, `metadataGroup.brs:178`
+Type Mismatch). Those still crash node creation and must be handled per-component (wrapper/field setup) or
+run on `--device`. Many widget *tests* also crash per-test (caught) when they exercise methods needing
+context — a test-authoring concern for the fix pass, not a platform gap.
+
 ### Why a script, not patch-package {#why-a-script-not-patch-package}
 
-`brs-sg.node.js` is a 370 KB **single minified line**. patch-package uses line-based diffs, so a one-token
-change would embed the entire line twice (~750 KB) in the patch. `lib/patch-brs-node.js` instead does a
-targeted, **idempotent**, version-aware string replacement: it no-ops if already applied, and if the target
+The brs-node bundles are 370 KB **single minified lines**. patch-package uses line-based diffs, so a
+one-token change would embed the entire line twice (~750 KB) in the patch. `lib/patch-brs-node.js` instead
+applies **both** brs-node patches (onChange in `brs-sg.node.js`, CreateObject-tolerance in `brs.node.js`) as
+targeted, **idempotent**, version-aware string replacements: each no-ops if already applied, and if a target
 string isn't found (brs-node changed) it prints a warning and exits 0 — **never failing `npm install`**.
 The `postinstall` hook runs it after patch-package: `patch-package && node lib/patch-brs-node.js`. If you
-bump `brs-node`, re-verify the `FIND` string still matches and re-run the lanes.
+bump `brs-node`, re-verify the `FIND` strings still match and re-run the lanes.
 
 ### patch-package mechanics {#patch-package-mechanics}
 

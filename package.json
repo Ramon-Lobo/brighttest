@@ -10,6 +10,7 @@
     "lib",
     "brs",
     "patches",
+    "vendor",
     "README.md"
   ],
   "scripts": {
