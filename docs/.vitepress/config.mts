@@ -53,8 +53,9 @@ export default withMermaid({
           { text: '7. Mocks, stubs & spies', link: '/writing-tests/test-doubles' },
           { text: '8. SceneGraph & async tests', link: '/writing-tests/scenegraph-async' },
           { text: '9. Headless vs device', link: '/writing-tests/headless-vs-device' },
-          { text: '10. Cookbook', link: '/writing-tests/cookbook' },
-          { text: '11. Common mistakes', link: '/writing-tests/mistakes' },
+          { text: '10. Global context (seeding)', link: '/writing-tests/global-context' },
+          { text: '11. Cookbook', link: '/writing-tests/cookbook' },
+          { text: '12. Common mistakes', link: '/writing-tests/mistakes' },
         ],
       },
       {

@@ -1,4 +1,4 @@
-# 11. Common mistakes
+# 12. Common mistakes
 
 The errors nearly everyone hits when starting, what they look like, and the fix. (For tool/setup issues
 rather than test-writing, see [Troubleshooting & how it works](/guide/troubleshooting).)
