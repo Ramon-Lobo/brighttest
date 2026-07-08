@@ -79,8 +79,47 @@ flowchart TD
   q -->|Yes| d["Device — run with --device.<br/>Gate to merge/nightly in CI."]
 ```
 
-You don't mark tests for a lane — a test runs headless if the code it exercises works on the simulator.
-The device lane simply runs *everything* (including the headless-capable tests) and adds coverage.
+You usually don't mark tests for a lane — a test runs headless if the code it exercises works on the
+simulator, and the device lane simply runs *everything* (including the headless-capable tests) and adds
+coverage. The one exception is a test you *know* only makes sense on hardware: mark it
+[`@deviceOnly`](#device-only-tests-deviceonly) so the headless lanes skip it instead of failing on a
+simulator-vs-firmware difference.
+
+## Device-only tests (`@deviceOnly`) {#device-only-tests-deviceonly}
+
+Some behaviour is real only on hardware — a value that depends on actual render/animation timing, a
+firmware quirk the simulator doesn't reproduce, or a node that only initializes correctly on a device.
+Rather than quarantine the whole spec file, mark the individual test (or group, or suite) `@deviceOnly`:
+
+```brightscript
+@it("plays the fade-in over real frames")
+@deviceOnly
+function _()
+    ...
+end function
+```
+
+- **Headless lanes** (`roku-test`, `roku-test --coverage`) **skip** `@deviceOnly` tests.
+- **The device lane** (`roku-test --device`) **runs** them.
+- **`--cross-check`** reports them as *device-only* (they ran on the device but not headless) — which is
+  expected, not a divergence.
+
+It works on any level — a whole suite, a `@describe` group, or a single `@it`:
+
+```brightscript
+@suite("Real playback")
+@deviceOnly                      ' every test in this suite is device-only
+class PlaybackTests extends rooibos.BaseTestSuite
+```
+
+`@deviceOnly` is exactly equivalent to `@tags("deviceOnly")` — it's just a clearer name. Under the hood
+the headless lanes pass `tags: ['!deviceOnly']` to Rooibos, which excludes anything carrying that tag.
+
+::: tip Reach for this sparingly
+Prefer extracting logic into a pure function you can test headless (see
+[Designing for the fast lane](#designing-for-the-fast-lane)). `@deviceOnly` is for the residue that
+genuinely can't be a faithful headless test — not a way to avoid a failing assertion.
+:::
 
 ## Designing for the fast lane
 
