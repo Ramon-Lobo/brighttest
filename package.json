@@ -16,6 +16,7 @@
     "LICENSE"
   ],
   "scripts": {
+    "skills:manifest": "node scripts/gen-skills-manifest.js",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs"

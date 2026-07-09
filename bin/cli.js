@@ -27,21 +27,48 @@ function parseArgs(argv) {
   return opts;
 }
 
-// `brighttest skills [install|export] …` — a positional subcommand with its own small parser.
+// `brighttest skills [install|update|export|list|uninstall] …` — a positional subcommand with its own parser.
+const SKILLS_ACTIONS = ['install', 'update', 'export', 'list', 'uninstall'];
 function parseSkillsArgs(rest) {
-  const opts = { skillsAction: 'install', agent: null, out: null, force: false, help: false };
+  const opts = { skillsAction: 'install', agent: null, skill: null, out: null, ref: null, skillsDir: null, force: false, help: false };
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
-    if (a === 'install' || a === 'export') opts.skillsAction = a;
+    if (SKILLS_ACTIONS.includes(a)) opts.skillsAction = a;
     else if (a === '--agent') opts.agent = rest[++i];
     else if (a.startsWith('--agent=')) opts.agent = a.slice(8);
+    else if (a === '--skill') opts.skill = rest[++i];
+    else if (a.startsWith('--skill=')) opts.skill = a.slice(8);
     else if (a === '--out' || a === '-o') opts.out = rest[++i];
     else if (a.startsWith('--out=')) opts.out = a.slice(6);
+    else if (a === '--ref') opts.ref = rest[++i];
+    else if (a.startsWith('--ref=')) opts.ref = a.slice(6);
+    else if (a === '--skills-dir') opts.skillsDir = rest[++i];
+    else if (a.startsWith('--skills-dir=')) opts.skillsDir = a.slice(13);
     else if (a === '--force' || a === '-f') opts.force = true;
     else if (a === '--help' || a === '-h') opts.help = true;
   }
   return opts;
 }
+
+// `brighttest init [--force]`
+function parseInitArgs(rest) {
+  const opts = { force: false, help: false };
+  for (const a of rest) {
+    if (a === '--force' || a === '-f') opts.force = true;
+    else if (a === '--help' || a === '-h') opts.help = true;
+  }
+  return opts;
+}
+
+const INIT_HELP = `
+brighttest init — scaffold a project for testing
+
+  Creates brighttest.json, a first spec at source/tests/Example.spec.bs, git-ignore entries, and an npm
+  test script. Existing files are kept unless --force is given.
+
+Usage:
+  brighttest init [--force]
+`;
 
 const SKILLS_HELP = `
 brighttest skills — install AI-agent skills for writing Rooibos tests
@@ -50,21 +77,27 @@ brighttest skills — install AI-agent skills for writing Rooibos tests
   that teaches AI coding agents how to write correct tests for this project.
 
 Usage:
-  brighttest skills install [--agent <a>] [--force]   Install into detected agents
-  brighttest skills export  [--out <dir>] [--force]   Dump the raw skill files to place manually
+  brighttest skills install   [--agent <a>] [--skill <name>] [--force]   Install into detected agents
+  brighttest skills update    [--ref <branch|tag>] [--agent <a>] ...      Pull the latest skills from the repo
+  brighttest skills export    [--out <dir>] [--force]                     Dump the raw skill folders
+  brighttest skills list                                                  List available skills + detected agents
+  brighttest skills uninstall [--agent <a>] [--skill <name>] [--force]    Remove installed skills
 
 Options:
-  --agent claude|cursor|agents|copilot|all   Override auto-detection and target specific agent(s)
-  -o, --out <dir>   Export destination (default: ./brighttest-skills)
-  -f, --force       Overwrite brighttest-owned files that already exist
+  --agent <a>       Target agent(s): claude, cursor, agents, copilot, windsurf, cline, zed, agentskills,
+                    opencode, hermes, or all. Omit to auto-detect from the project.
+  --skill <name>    Limit to one skill (default: all). e.g. writing-rooibos-tests
+  --ref <ref>       (update) Git branch/tag to fetch from (default: main)
+  --skills-dir <d>  (agentskills target) Skill folder root (default: .agents/skills)
+  -o, --out <dir>   (export) Destination (default: ./brighttest-skills)
+  -f, --force       Overwrite files not created by brighttest
   -h, --help        Show this help
 
-Auto-detection (install with no --agent): writes to whichever of these the project already uses —
-  .claude/  → Claude Code skill (.claude/skills/writing-rooibos-tests/)
-  .cursor/  → Cursor rule (.cursor/rules/writing-rooibos-tests.mdc)
-  AGENTS.md → managed block appended to AGENTS.md
-  .github/  → managed block in .github/copilot-instructions.md
-AGENTS.md and copilot-instructions.md are updated in place inside a managed block — your other content is preserved.
+Skills (Agent Skills / agentskills.io format): writing-rooibos-tests, setting-up-brighttest, debugging-failing-tests.
+
+Auto-detection (no --agent) writes to whichever the project already uses: .claude/, .cursor/, .windsurf/,
+.clinerules, .rules (Zed), .agents/ (agentskills), AGENTS.md/opencode, .github/ (Copilot). Shared files
+(AGENTS.md, .rules, copilot-instructions.md) are updated in place inside a managed block — other content preserved.
 `;
 
 const HELP = `
@@ -79,6 +112,7 @@ Usage:
   brighttest --device --host <ip> --password <pw>    On-device run with code coverage
   brighttest --device --host <ip> --password <pw> --lcov coverage/lcov.info   + write LCOV
   brighttest --cross-check --host <ip> --password <pw>   Diff headless vs device (fidelity check)
+  brighttest init                                    Scaffold a project for testing (see: init --help)
   brighttest skills install                          Install AI-agent test-writing skills (see: skills --help)
 
 Options:
@@ -104,7 +138,13 @@ Config (brighttest.json, all optional):
 async function main() {
   const argv = process.argv.slice(2);
 
-  // Positional subcommands (skills). The flag-only lanes below are untouched.
+  // Positional subcommands (init, skills). The flag-only lanes below are untouched.
+  if (argv[0] === 'init') {
+    const iOpts = parseInitArgs(argv.slice(1));
+    if (iOpts.help) { console.log(INIT_HELP); process.exit(0); }
+    const code = await require('../lib/init').run(null, iOpts);
+    process.exit(code);
+  }
   if (argv[0] === 'skills') {
     const sOpts = parseSkillsArgs(argv.slice(1));
     if (sOpts.help) { console.log(SKILLS_HELP); process.exit(0); }

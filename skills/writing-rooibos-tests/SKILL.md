@@ -1,6 +1,9 @@
 ---
 name: writing-rooibos-tests
 description: Use when writing or editing Rooibos test specs (*.spec.bs) for a Roku/BrightScript project that uses brighttest. Covers suite/test annotations, assertions, test doubles, parameterized tests, headless-vs-device rules, and the common pitfalls that make specs silently fail or not run.
+license: MIT
+metadata:
+  source: brighttest
 ---
 
 # Writing Rooibos tests with brighttest
@@ -75,10 +78,13 @@ needed for behavior tied to real wall-clock timing. See [limitations.md](limitat
 
 ## Reference files — read the one you need
 
-- **[pitfalls.md](pitfalls.md)** — every common mistake as Symptom → Cause → Fix. Read this when a spec
-  won't build, a test doesn't appear in results, or an assertion fails on values that look equal.
-- **[limitations.md](limitations.md)** — what the headless lane can't do and the workaround: `@deviceOnly`,
-  coverage lanes, `@SGNode` scene needs, `globalFields` seeding for widgets that read global context.
-- **[examples.md](examples.md)** — copy-paste-ready suites: pure-logic, parameterized, setup/teardown,
-  test doubles (stub/spy/mock), and `@SGNode` node tests.
-- **[cheatsheet.md](cheatsheet.md)** — quick tables of every annotation and every assertion, with "use when".
+- **[references/pitfalls.md](references/pitfalls.md)** — every common mistake as Symptom → Cause → Fix.
+  Read this when a spec won't build, a test doesn't appear in results, or an assertion fails on values that
+  look equal.
+- **[references/limitations.md](references/limitations.md)** — what the headless lane can't do and the
+  workaround: `@deviceOnly`, coverage lanes, `@SGNode` scene needs, `globalFields` seeding for widgets that
+  read global context.
+- **[references/examples.md](references/examples.md)** — copy-paste-ready suites: pure-logic, parameterized,
+  setup/teardown, test doubles (stub/spy/mock), and `@SGNode` node tests.
+- **[references/cheatsheet.md](references/cheatsheet.md)** — quick tables of every annotation and every
+  assertion, with "use when".
