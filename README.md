@@ -1,4 +1,4 @@
-# roku-test
+# brighttest
 
 📚 **Full documentation** lives in [`docs/`](docs/) (VitePress site). Preview it with:
 
@@ -22,17 +22,17 @@ Only tests that touch real SceneGraph nodes (`@SGNode`) are device-only; everyth
 ## Install
 
 ```bash
-npm i -D roku-test        # pulls brighterscript, rooibos-roku, brs-node
+npm i -D brighttest        # pulls brighterscript, rooibos-roku, brs-node
 ```
 
 ## Use
 
 ```bash
-npx roku-test                                   # headless (default)
-npx roku-test --junit reports/junit.xml         # headless + JUnit report
-npx roku-test --device --host <ip> --password <pw>              # on-device + coverage
-npx roku-test --device --host <ip> --password <pw> --lcov       # + write coverage/lcov.info
-npx roku-test --device --host <ip> --password <pw> --lcov cov/lcov.info   # custom path
+npx brighttest                                   # headless (default)
+npx brighttest --junit reports/junit.xml         # headless + JUnit report
+npx brighttest --device --host <ip> --password <pw>              # on-device + coverage
+npx brighttest --device --host <ip> --password <pw> --lcov       # + write coverage/lcov.info
+npx brighttest --device --host <ip> --password <pw> --lcov cov/lcov.info   # custom path
 ```
 
 Exit code is non-zero on any failure (CI-ready). With `--lcov`, a missing coverage report also
@@ -56,14 +56,14 @@ namespace tests
 end namespace
 ```
 
-## Config (`roku-test.json`, optional)
+## Config (`brighttest.json`, optional)
 
 ```json
 {
   "rootDir": ".",
   "sourceGlobs": ["manifest", "source/**/*", "components/**/*"],
   "testsFilePattern": "**/*.spec.bs",
-  "stagingDir": ".roku-test"
+  "stagingDir": ".brighttest"
 }
 ```
 

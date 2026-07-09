@@ -2,7 +2,7 @@
 layout: home
 
 hero:
-  name: roku-test
+  name: brighttest
   text: Unified BrightScript testing
   tagline: Write a test once in Rooibos syntax. Run it headless for fast CI, or on a real Roku for coverage.
   actions:
@@ -27,16 +27,16 @@ features:
     details: The exact same .spec.bs runs headless and on-device — including @SGNode node suites headless.
 ---
 
-## What is roku-test?
+## What is brighttest?
 
 A thin, config-driven CLI over a mature stack — **BrighterScript + Rooibos + brs-node** — for testing
 **plain BrightScript** Roku projects. You write tests once in [Rooibos](https://github.com/rokucommunity/rooibos)
-syntax; roku-test runs them in whichever lane you need.
+syntax; brighttest runs them in whichever lane you need.
 
 ```bash
-npm i -D roku-test
-npx roku-test                                              # headless (no device) — default
-npx roku-test --device --host <roku-ip> --password <dev-pw> --lcov   # on-device + coverage
+npm i -D brighttest
+npx brighttest                                              # headless (no device) — default
+npx brighttest --device --host <roku-ip> --password <dev-pw> --lcov   # on-device + coverage
 ```
 
 New to testing on Roku? Start with the **[Writing tests guide](/writing-tests/)** — it assumes no prior

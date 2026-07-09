@@ -7,17 +7,17 @@ and how to keep them rare.
 ::: tip How it runs
 `@SGNode` suites run in two of the three lanes:
 
-- **Default lane** (`roku-test`) — runs `@SGNode` suites headless when your project has them (it boots a
+- **Default lane** (`brighttest`) — runs `@SGNode` suites headless when your project has them (it boots a
   SceneGraph scene). Pass `--no-sgnode` to skip them and use the faster SceneGraph-off driver (handy for a
   quick pure-logic inner loop).
-- **Coverage lane** (`roku-test --coverage`) — a **headless** lane (no device) with SceneGraph enabled, so
+- **Coverage lane** (`brighttest --coverage`) — a **headless** lane (no device) with SceneGraph enabled, so
   `@SGNode` suites run in full: component logic, computed state, **and** XML `onChange` observer cascades.
-  This works via two patches roku-test ships — a [rooibos-roku patch](/maintainers#sgnode-headless-patch)
+  This works via two patches brighttest ships — a [rooibos-roku patch](/maintainers#sgnode-headless-patch)
   (node suites complete headless) and a [brs-node patch](/maintainers#brs-node-onchange-patch) (`onChange`
   fires synchronously). The default lane runs the same node suites; `--coverage` just adds LCOV.
-- **Device lane** (`roku-test --device`) — runs them for real on hardware.
+- **Device lane** (`brighttest --device`) — runs them for real on hardware.
 
-roku-test sets the required `autoImportComponentScript` compiler option for you (see the note below);
+brighttest sets the required `autoImportComponentScript` compiler option for you (see the note below);
 without it, generated node components don't link their own script and node tests hang. Even with headless
 node tests working, still prefer extracting logic into pure functions and testing *those* in the fast
 default lane — keep `@SGNode` for genuinely UI-coupled behavior, and treat the **device lane as the fidelity
@@ -40,7 +40,7 @@ exactly. Both of these now work headless in `--coverage`:
 - **XML `onChange` cascades**: "set `padding` → all four sides update", "set `text` → the label mirrors
   it", "set `focusPercent` → layers cross-fade". These fire on the simulator, matching hardware.
 
-This needed a small [brs-node patch](/maintainers#brs-node-onchange-patch) roku-test ships — brs-node
+This needed a small [brs-node patch](/maintainers#brs-node-onchange-patch) brighttest ships — brs-node
 normally batches field-change notifications and wouldn't fire `onChange` mid-test; the patch dispatches
 them synchronously, like real Roku. What's still genuinely device-only: behavior that depends on **real
 wall-clock render timing** (animations playing out, Task-node I/O, live remote input). Run
@@ -122,13 +122,13 @@ wires the field through.
 
 ```bash
 # Headless (no device) — the default run already includes @SGNode suites:
-npx roku-test
+npx brighttest
 
 # Headless + coverage (no device):
-npx roku-test --coverage
+npx brighttest --coverage
 
 # On hardware — the fidelity reference for render-thread behavior:
-npx roku-test --device --host <roku-ip> --password <dev-pw>
+npx brighttest --device --host <roku-ip> --password <dev-pw>
 ```
 
 Node suites run headless by default (and under `--coverage`) — great for CI with no hardware. The device

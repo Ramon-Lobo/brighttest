@@ -7,12 +7,12 @@ you keep the vast majority of tests in the fast headless lane.
 
 | Command | Device? | Coverage? | Node (`@SGNode`) tests? | Speed |
 |---|---|---|---|---|
-| `roku-test` (default) | no | no | **yes (headless)** | fast¹ |
-| `roku-test --no-sgnode` | no | no | skipped | fastest |
-| `roku-test --coverage` | no | **yes (+LCOV)** | **yes (headless)** | slower (runs a scene) |
-| `roku-test --coverage --no-sgnode` | no | yes (+LCOV) | skipped | slower |
-| `roku-test --device …` | yes | yes (+LCOV) | **yes** | slowest |
-| `roku-test --cross-check …` | yes | — | both lanes | slowest (both lanes) |
+| `brighttest` (default) | no | no | **yes (headless)** | fast¹ |
+| `brighttest --no-sgnode` | no | no | skipped | fastest |
+| `brighttest --coverage` | no | **yes (+LCOV)** | **yes (headless)** | slower (runs a scene) |
+| `brighttest --coverage --no-sgnode` | no | yes (+LCOV) | skipped | slower |
+| `brighttest --device …` | yes | yes (+LCOV) | **yes** | slowest |
+| `brighttest --cross-check …` | yes | — | both lanes | slowest (both lanes) |
 
 ¹ The default lane runs `@SGNode` suites headless when your project has them (it boots a SceneGraph scene
 for that). With no node specs — or with `--no-sgnode` — it uses the faster SceneGraph-off driver. So
@@ -47,9 +47,9 @@ out over frames, Task-node I/O, live remote input. The device lane is the **fide
 `--cross-check` polices it.
 
 ::: tip Headless coverage + node tests — no device required
-`roku-test --coverage` runs the **stock Rooibos runner on the brs-node simulator** (SceneGraph enabled),
+`brighttest --coverage` runs the **stock Rooibos runner on the brs-node simulator** (SceneGraph enabled),
 writes LCOV, **and** runs `@SGNode` node suites — the latter via a small [rooibos-roku
-patch](/maintainers#sgnode-headless-patch) roku-test ships. It's slower than the default lane (it boots a
+patch](/maintainers#sgnode-headless-patch) brighttest ships. It's slower than the default lane (it boots a
 scene), so use the default for the fast inner loop and `--coverage` when you want coverage and/or node
 tests — including in CI, with no hardware.
 :::
@@ -61,7 +61,7 @@ tests — including in CI, with no hardware.
 - The **`--coverage`** lane enables brs-node's SceneGraph and runs Rooibos's real scene-based runner, so the
   coverage collector's field observers work — yielding coverage + LCOV headless.
 - **`@SGNode` node tests** also run in the `--coverage` lane, in full. Two brs-node/Rooibos gaps had to be
-  closed, both via patches roku-test ships: node suites didn't *complete* (Rooibos's promise library relies
+  closed, both via patches brighttest ships: node suites didn't *complete* (Rooibos's promise library relies
   on a field observer brs-node rejects → [rooibos-roku patch](/maintainers#sgnode-headless-patch)), and XML
   `onChange` handlers didn't *fire* mid-test (brs-node batches notifications →
   [brs-node patch](/maintainers#brs-node-onchange-patch) dispatches them synchronously, like real Roku).
@@ -99,8 +99,8 @@ function _()
 end function
 ```
 
-- **Headless lanes** (`roku-test`, `roku-test --coverage`) **skip** `@deviceOnly` tests.
-- **The device lane** (`roku-test --device`) **runs** them.
+- **Headless lanes** (`brighttest`, `brighttest --coverage`) **skip** `@deviceOnly` tests.
+- **The device lane** (`brighttest --device`) **runs** them.
 - **`--cross-check`** reports them as *device-only* (they ran on the device but not headless) — which is
   expected, not a divergence.
 
@@ -163,7 +163,7 @@ can behave differently on device (e.g. `roEVPDigest` returns `""` for an empty-s
 the correct hash on the simulator). To keep the fast headless lane trustworthy, run the cross-check:
 
 ```bash
-npx roku-test --cross-check --host <roku-ip> --password <dev-pw>
+npx brighttest --cross-check --host <roku-ip> --password <dev-pw>
 ```
 
 It runs every non-node suite **both** headless and on the device, matches tests by name, and reports:
@@ -184,15 +184,15 @@ code. This turns "the simulator might differ" from an unknown risk into a monito
 
 ## Practical workflow
 
-- **Every change:** run `npx roku-test` (headless, no device) — runs everything, `@SGNode` included. For a
+- **Every change:** run `npx brighttest` (headless, no device) — runs everything, `@SGNode` included. For a
   sub-second pure-logic loop, add `--no-sgnode` to skip the scene boot.
-- **Coverage in CI (no device):** `npx roku-test --coverage --lcov coverage/lcov.info`.
-- **Before merge / nightly:** `npx roku-test --device …` for on-device coverage + real render timing, and
-  `npx roku-test --cross-check …` to confirm headless still matches the device.
+- **Coverage in CI (no device):** `npx brighttest --coverage --lcov coverage/lcov.info`.
+- **Before merge / nightly:** `npx brighttest --device …` for on-device coverage + real render timing, and
+  `npx brighttest --cross-check …` to confirm headless still matches the device.
 
 ## Common questions
 
-**"Can I get coverage headless?"** Yes — `roku-test --coverage` produces coverage + LCOV with no device.
+**"Can I get coverage headless?"** Yes — `brighttest --coverage` produces coverage + LCOV with no device.
 
 **"My crypto test — headless or device?"** Headless works: brs-node implements `roEVPDigest`/`roHMAC`.
 
@@ -200,7 +200,7 @@ code. This turns "the simulator might differ" from an unknown risk into a monito
 `--coverage`, including `onChange` cascades. Only real wall-clock timing (animations, Task I/O) needs
 `--device`; use `--cross-check` to confirm fidelity.
 
-**"Can I skip `@SGNode` suites for a faster run?"** Yes — `npx roku-test --no-sgnode` skips them and uses
+**"Can I skip `@SGNode` suites for a faster run?"** Yes — `npx brighttest --no-sgnode` skips them and uses
 the SceneGraph-off driver. That's the only case where the default lane won't run your node tests.
 
 Next: a cookbook of ready-to-adapt recipes.

@@ -1,6 +1,6 @@
 # Motivation & decisions
 
-Why roku-test is shaped the way it is — the problem, the options we weighed, and the decisions we made.
+Why brighttest is shaped the way it is — the problem, the options we weighed, and the decisions we made.
 If you just want to use it, jump to the [Quick start](/guide/getting-started).
 
 ## The problem
@@ -49,10 +49,10 @@ both lanes.** (See [Architecture](/architecture).)
 ## The boundary we accept
 
 There is **no desktop Roku emulator** — Roku testing runs on real hardware or a simulator. Two limits
-follow, and they are inherent to the platform, not to roku-test:
+follow, and they are inherent to the platform, not to brighttest:
 
 - **Code coverage requires a real device.** Coverage is tallied at runtime by an on-device SceneGraph
-  collector; the simulator can't run it. (roku-test still writes the LCOV file *from* the device run.)
+  collector; the simulator can't run it. (brighttest still writes the LCOV file *from* the device run.)
 - **SceneGraph-bound tests (`@SGNode`, node observers) are device-only.** Keep business logic in pure
   functions and it stays in the fast headless lane.
 

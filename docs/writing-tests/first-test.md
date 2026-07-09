@@ -50,18 +50,18 @@ For now: the `@it` function calls your code and asserts the result equals `5`.
 From your project root:
 
 ```bash
-npx roku-test
+npx brighttest
 ```
 
 You should see something like:
 
 ```
-roku-test: headless lane
+brighttest: headless lane
 
   ✓ addNumbers > adds two positive numbers
 
 ====================================================
-  roku-test (headless): 1 passed, 0 failed
+  brighttest (headless): 1 passed, 0 failed
 ====================================================
 ```
 
@@ -81,7 +81,7 @@ Run again:
 ```
   ✗ addNumbers > adds two positive numbers  — expected "5 (Integer)" to equal "6 (Integer)"
 
-  roku-test (headless): 0 passed, 1 failed
+  brighttest (headless): 0 passed, 1 failed
 ```
 
 The command also **exits non-zero**, which is how CI knows the build is broken. Notice the message shows
@@ -94,7 +94,7 @@ Now put it back to `5` and confirm it passes again.
 If you have a Roku in developer mode, the *same file* runs on hardware and reports coverage:
 
 ```bash
-npx roku-test --device --host <roku-ip> --password <dev-pw> --lcov coverage/lcov.info
+npx brighttest --device --host <roku-ip> --password <dev-pw> --lcov coverage/lcov.info
 ```
 
 You'll get the same pass/fail result plus a coverage summary and a `coverage/lcov.info` file. You don't
@@ -106,7 +106,7 @@ to test SceneGraph nodes.
 ```mermaid
 flowchart LR
   w[Write / change code] --> t[Write / update a test]
-  t --> r[npx roku-test]
+  t --> r[npx brighttest]
   r -->|pass| w
   r -->|fail| f[Read the message, fix]
   f --> r

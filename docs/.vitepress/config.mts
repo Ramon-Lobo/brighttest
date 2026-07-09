@@ -1,9 +1,9 @@
 import { withMermaid } from 'vitepress-plugin-mermaid'
 
-// VitePress site config for the roku-test docs. Mermaid diagrams are enabled via
+// VitePress site config for the brighttest docs. Mermaid diagrams are enabled via
 // vitepress-plugin-mermaid (```mermaid fenced blocks render to SVG).
 export default withMermaid({
-  title: 'roku-test',
+  title: 'brighttest',
   description:
     'Unified BrightScript test runner — write Rooibos specs once, run headless or on-device with coverage.',
   cleanUrls: true,
@@ -32,7 +32,7 @@ export default withMermaid({
         ],
       },
       {
-        text: 'Using roku-test',
+        text: 'Using brighttest',
         items: [
           { text: 'Quick start', link: '/guide/getting-started' },
           { text: 'CI integration', link: '/guide/ci' },

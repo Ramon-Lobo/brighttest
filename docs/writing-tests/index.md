@@ -63,6 +63,6 @@ Read in order the first time; later, use it as a reference.
 11. **[Common mistakes](/writing-tests/mistakes)** — the errors everyone hits, and their fixes.
 
 ::: tip Prerequisites
-You need roku-test installed and a project set up. If you haven't done that, do the
+You need brighttest installed and a project set up. If you haven't done that, do the
 [Quick start](/guide/getting-started) first (about five minutes), then come back here.
 :::

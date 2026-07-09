@@ -28,17 +28,17 @@ function parseArgs(argv) {
 }
 
 const HELP = `
-roku-test — unified BrightScript test runner
+brighttest — unified BrightScript test runner
 
   Write Rooibos specs once; run them headless (default) or on a Roku device with coverage.
 
 Usage:
-  roku-test [--junit <path>] [--config <path>]      Headless run (no device) — runs @SGNode suites too
-  roku-test --no-sgnode                             Headless run, skipping @SGNode (faster SceneGraph-off path)
-  roku-test --coverage [--lcov <path>] [--junit <p>] Headless run WITH coverage + LCOV (no device)
-  roku-test --device --host <ip> --password <pw>    On-device run with code coverage
-  roku-test --device --host <ip> --password <pw> --lcov coverage/lcov.info   + write LCOV
-  roku-test --cross-check --host <ip> --password <pw>   Diff headless vs device (fidelity check)
+  brighttest [--junit <path>] [--config <path>]      Headless run (no device) — runs @SGNode suites too
+  brighttest --no-sgnode                             Headless run, skipping @SGNode (faster SceneGraph-off path)
+  brighttest --coverage [--lcov <path>] [--junit <p>] Headless run WITH coverage + LCOV (no device)
+  brighttest --device --host <ip> --password <pw>    On-device run with code coverage
+  brighttest --device --host <ip> --password <pw> --lcov coverage/lcov.info   + write LCOV
+  brighttest --cross-check --host <ip> --password <pw>   Diff headless vs device (fidelity check)
 
 Options:
   -d, --device          Run on a Roku device (deploys + runs Rooibos, reports coverage)
@@ -52,12 +52,12 @@ Options:
       --lcov [path]     Write an LCOV report from the device run (device mode;
                         default path: coverage/lcov.info)
       --junit <path>    Write a JUnit XML report (headless mode)
-  -c, --config <path>   Path to roku-test.json (default: ./roku-test.json)
+  -c, --config <path>   Path to brighttest.json (default: ./brighttest.json)
   -h, --help            Show this help
 
-Config (roku-test.json, all optional):
+Config (brighttest.json, all optional):
   { "rootDir": ".", "sourceGlobs": ["manifest","source/**/*","components/**/*"],
-    "testsFilePattern": "**/*.spec.bs", "stagingDir": ".roku-test" }
+    "testsFilePattern": "**/*.spec.bs", "stagingDir": ".brighttest" }
 `;
 
 async function main() {
@@ -70,7 +70,7 @@ async function main() {
   else if (opts.device) { lane = require('../lib/device'); label = 'device (coverage)'; }
   else if (opts.coverage) { lane = require('../lib/coverage-headless'); label = 'headless coverage'; }
   else { lane = require('../lib/headless'); label = 'headless'; }
-  console.log(`roku-test: ${label} lane\n`);
+  console.log(`brighttest: ${label} lane\n`);
   const code = await lane.run(cfg, opts);
   process.exit(code);
 }

@@ -9,21 +9,21 @@
 ## Install
 
 ```bash
-npm i -D roku-test
+npm i -D brighttest
 ```
 
 This brings the toolchain with it (`brighterscript`, `rooibos-roku`, `brs-node`) — nothing else to install.
 
 ## Configure (optional)
 
-Defaults work for a conventional layout. To customize, add `roku-test.json` at your project root:
+Defaults work for a conventional layout. To customize, add `brighttest.json` at your project root:
 
 ```json
 {
   "rootDir": ".",
   "sourceGlobs": ["manifest", "source/**/*", "components/**/*"],
   "testsFilePattern": "**/*.spec.bs",
-  "stagingDir": ".roku-test"
+  "stagingDir": ".brighttest"
 }
 ```
 
@@ -32,10 +32,10 @@ Defaults work for a conventional layout. To customize, add `roku-test.json` at y
 | `rootDir` | Project root that globs resolve against. | `.` |
 | `sourceGlobs` | Files compiled into the test build. Roku only executes `source/` and `components/`. | `["manifest","source/**/*","components/**/*"]` |
 | `testsFilePattern` | Where Rooibos looks for specs. | `**/*.spec.bs` |
-| `stagingDir` | Scratch dir for generated builds/config. Git-ignore it. | `.roku-test` |
+| `stagingDir` | Scratch dir for generated builds/config. Git-ignore it. | `.brighttest` |
 
 ::: tip Git-ignore the scratch dirs
-Add `.roku-test/`, `coverage/`, and `reports/` to your `.gitignore`.
+Add `.brighttest/`, `coverage/`, and `reports/` to your `.gitignore`.
 :::
 
 ## Write your first test
@@ -62,16 +62,16 @@ Then walk through it in detail in the [Writing tests guide](/writing-tests/).
 
 ```bash
 # Headless (default) — no device. Runs everything, including @SGNode node suites:
-npx roku-test
-npx roku-test --junit reports/junit.xml        # also write a JUnit report
-npx roku-test --no-sgnode                      # skip @SGNode for the fastest inner loop
+npx brighttest
+npx brighttest --junit reports/junit.xml        # also write a JUnit report
+npx brighttest --no-sgnode                      # skip @SGNode for the fastest inner loop
 
 # Headless WITH coverage — still no device (writes LCOV):
-npx roku-test --coverage
-npx roku-test --coverage --lcov coverage/lcov.info
+npx brighttest --coverage
+npx brighttest --coverage --lcov coverage/lcov.info
 
 # On a real Roku (coverage + @SGNode, the fidelity reference):
-npx roku-test --device --host <roku-ip> --password <dev-pw> --lcov coverage/lcov.info
+npx brighttest --device --host <roku-ip> --password <dev-pw> --lcov coverage/lcov.info
 ```
 
 Add scripts to `package.json`:
@@ -79,8 +79,8 @@ Add scripts to `package.json`:
 ```json
 {
   "scripts": {
-    "test": "roku-test --junit reports/junit.xml",
-    "test:device": "roku-test --device"
+    "test": "brighttest --junit reports/junit.xml",
+    "test:device": "brighttest --device"
   }
 }
 ```
@@ -93,11 +93,11 @@ fails the run, so CI never silently loses coverage.
 ## CLI reference
 
 ```
-roku-test [--junit <path>] [--config <path>]                     Headless run (default); runs @SGNode too
-roku-test --no-sgnode                                            Headless run, skipping @SGNode (fastest)
-roku-test --coverage [--lcov [path]] [--junit <path>]            Headless run + coverage (no device)
-roku-test --device --host <ip> --password <pw> [--lcov [path]]   On-device run + coverage + node tests
-roku-test --cross-check --host <ip> --password <pw>              Diff headless vs device (fidelity)
+brighttest [--junit <path>] [--config <path>]                     Headless run (default); runs @SGNode too
+brighttest --no-sgnode                                            Headless run, skipping @SGNode (fastest)
+brighttest --coverage [--lcov [path]] [--junit <path>]            Headless run + coverage (no device)
+brighttest --device --host <ip> --password <pw> [--lcov [path]]   On-device run + coverage + node tests
+brighttest --cross-check --host <ip> --password <pw>              Diff headless vs device (fidelity)
 
   -d, --device          Run on a Roku device (deploys + runs Rooibos, reports coverage)
       --coverage        Headless coverage via the brs-node simulator (no device); writes LCOV
@@ -108,6 +108,6 @@ roku-test --cross-check --host <ip> --password <pw>              Diff headless v
       --lcov [path]     Write LCOV (device or --coverage; default: coverage/lcov.info)
       --junit <path>    Write a JUnit XML report (headless / --coverage)
       --timeout <sec>   Watchdog (default: headless 300s, device 900s)
-  -c, --config <path>   Path to roku-test.json (default: ./roku-test.json)
+  -c, --config <path>   Path to brighttest.json (default: ./brighttest.json)
   -h, --help            Show help
 ```

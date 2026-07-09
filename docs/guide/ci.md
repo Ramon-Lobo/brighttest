@@ -5,16 +5,16 @@ coverage** on a self-hosted runner or a schedule.
 
 ```mermaid
 flowchart LR
-  push[Push / PR] --> hl[headless job<br/>npx roku-test]
+  push[Push / PR] --> hl[headless job<br/>npx brighttest]
   hl -->|pass| merge{Merge to main?}
   hl -->|fail| block[Block the PR]
-  merge -->|yes / nightly| dev[device job<br/>npx roku-test --device --lcov]
+  merge -->|yes / nightly| dev[device job<br/>npx brighttest --device --lcov]
   dev --> cov[Upload coverage]
 ```
 
 ## Exit codes & reports
 
-- `roku-test` exits non-zero on any test failure — fail the job on it.
+- `brighttest` exits non-zero on any test failure — fail the job on it.
 - `--junit <path>` writes a JUnit XML report for test-result UIs.
 - `--lcov [path]` (device lane) writes an LCOV file for coverage services (Coveralls/Codecov) or `genhtml`.
 
@@ -35,7 +35,7 @@ jobs:
         with:
           node-version: '20'
       - run: npm ci
-      - run: npx roku-test --junit reports/junit.xml
+      - run: npx brighttest --junit reports/junit.xml
       - if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -63,7 +63,7 @@ device (or a device farm). Gate it to merges or a nightly schedule to avoid cont
         env:
           ROKU_HOST: ${{ secrets.ROKU_HOST }}
           ROKU_PASSWORD: ${{ secrets.ROKU_PASSWORD }}
-        run: npx roku-test --device --host "$ROKU_HOST" --password "$ROKU_PASSWORD" --lcov coverage/lcov.info
+        run: npx brighttest --device --host "$ROKU_HOST" --password "$ROKU_PASSWORD" --lcov coverage/lcov.info
       - name: Upload coverage
         uses: coverallsapp/github-action@v2
         with:
@@ -90,5 +90,5 @@ via `env:`, as above. Don't inline them in the workflow or commit them.
 genhtml coverage/lcov.info --output-directory coverage/html
 ```
 
-roku-test filters framework-internal records out of the LCOV automatically, so reported coverage reflects
+brighttest filters framework-internal records out of the LCOV automatically, so reported coverage reflects
 *your* code.

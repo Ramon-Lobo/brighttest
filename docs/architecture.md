@@ -1,6 +1,6 @@
 # Architecture
 
-roku-test is a thin orchestration layer over three mature tools. You write Rooibos specs once; the tool
+brighttest is a thin orchestration layer over three mature tools. You write Rooibos specs once; the tool
 runs them in one of two lanes.
 
 ```mermaid
@@ -22,7 +22,7 @@ flowchart TD
 | **BrighterScript (`bsc`)** | Compiles/transpiles plain `.brs` + `.bs`; hosts the Rooibos plugin; builds/deploys. | No (compiler) |
 | **rooibos-roku** (bsc plugin) | Turns `@suite/@it/@params` specs into runnable suites; injects the runtime + coverage instrumentation. | No (build-time) |
 | **brs-node** (`brs-cli`) | BrightScript simulator that runs `.brs` headlessly in Node. Broad component set incl. crypto. | Yes (headless) |
-| **roku-test** | The CLI/orchestrator: generates configs, builds, runs the right lane, parses results, writes JUnit/LCOV. | — |
+| **brighttest** | The CLI/orchestrator: generates configs, builds, runs the right lane, parses results, writes JUnit/LCOV. | — |
 
 ## The two lanes
 
@@ -30,7 +30,7 @@ flowchart TD
 
 ```mermaid
 sequenceDiagram
-  participant U as npx roku-test
+  participant U as npx brighttest
   participant B as bsc + rooibos plugin
   participant D as headless_runner.brs
   participant S as brs-node simulator
@@ -49,15 +49,15 @@ sequenceDiagram
    map, instantiates each suite (constructors are node-free), walks its `groupsData → testCases`, sets
    `m.currentResult`, invokes each test method (handling `@params`), and reads the pass/fail state —
    reusing **Rooibos's own assertions**.
-3. Runs on **brs-node** (`brs-cli -n`, SceneGraph disabled). roku-test parses `PASS`/`FAIL`/`__RESULT__`
+3. Runs on **brs-node** (`brs-cli -n`, SceneGraph disabled). brighttest parses `PASS`/`FAIL`/`__RESULT__`
    lines, writes optional JUnit, and sets a CI exit code.
 
 ### Device (opt-in)
 
 1. `bsc` builds with the Rooibos plugin and **coverage on**.
-2. roku-test hands off to the **stock Rooibos CLI**, which deploys to the Roku and runs the scene-based
+2. brighttest hands off to the **stock Rooibos CLI**, which deploys to the Roku and runs the scene-based
    runner on hardware.
-3. Results and a **coverage report** come back over the network. With `--lcov`, roku-test scrapes the
+3. Results and a **coverage report** come back over the network. With `--lcov`, brighttest scrapes the
    printed LCOV blocks and writes `lcov.info` locally.
 
 ## Why one spec works in both

@@ -1,14 +1,14 @@
 # Maintainer internals
 
-For anyone hacking on roku-test itself. It's a small orchestration layer — no framework code of its own.
+For anyone hacking on brighttest itself. It's a small orchestration layer — no framework code of its own.
 
 ## Package layout
 
 ```
-roku-test/
+brighttest/
 ├── bin/cli.js               # arg parsing, lane dispatch, exit code
 ├── lib/
-│   ├── config.js            # load roku-test.json; generate per-lane bsconfig
+│   ├── config.js            # load brighttest.json; generate per-lane bsconfig
 │   ├── headless.js          # build (coverage off) → drive on brs-node → parse → JUnit
 │   ├── coverage-headless.js # build (coverage on) → stock Rooibos on brs-node → LCOV + node tests
 │   ├── device.js            # build (coverage on) → stock Rooibos CLI → scrape LCOV
@@ -26,7 +26,7 @@ roku-test/
 
 `resolveBin(pkg, binName)` and `resolvePackageMain(pkg)` use `require.resolve` with
 `paths: [process.cwd(), __dirname, ..]`, so the toolchain resolves whether it's hoisted into the
-consumer's `node_modules` (published install) or nested under roku-test (local `file:` link). The Rooibos
+consumer's `node_modules` (published install) or nested under brighttest (local `file:` link). The Rooibos
 plugin is passed to `bsc` as an **absolute path** for the same reason.
 
 ## Config generation (`config.js`)
@@ -39,7 +39,7 @@ plugin is passed to `bsc` as an **absolute path** for the same reason.
 - both lanes also set **`failFast: false`**. Rooibos's `failFast` defaults *on* in this build, which means
   one failing suite silently halts every suite that sorts after it (we hit this: a widget suite with 8
   failures hid 71 passing tests and dropped coverage from ~26% to ~2%). A runner must run everything.
-- `diagnosticFilters` = `[1107]` merged with any codes from `roku-test.json`'s `diagnosticFilters`. 1107
+- `diagnosticFilters` = `[1107]` merged with any codes from `brighttest.json`'s `diagnosticFilters`. 1107
   (redundant `<script>`) is always silenced because `autoImportComponentScript` makes it noise. Projects
   add more as needed — common ones for `@SGNode` specs: **1140** ("cannot find function") when a spec calls
   the component's own subs (they resolve at runtime inside the generated node but not in the spec's static
@@ -61,7 +61,7 @@ flowchart TD
   e --> f[for each suite: instantiate → groupsData → testCases]
   f --> g[m.currentResult = rooibos_TestResult; call funcName; read isFail]
   g --> h[print PASS/FAIL + __RESULT__]
-  h --> i[roku-test parses → JUnit + exit code]
+  h --> i[brighttest parses → JUnit + exit code]
 ```
 
 - **SceneGraph-off fast driver** (no node specs, or `--no-sgnode`): `brs-cli -n` + `headless_runner.brs`.
@@ -224,7 +224,7 @@ had 6 widgets instantiate and run (35 pass) where all previously hard-crashed.
 - The class: `src/core/brsTypes/components/RoTextToSpeech.ts` (+ one import and one registry line in
   `src/core/brsTypes/components/BrsObjects.ts`).
 - Build: `npm install` then `npm run build:api && npm run release --prefix packages/node` → produces
-  `packages/node/bin/brs.node.js` (minified). Copy it to `roku-test/vendor/brs-node/brs.node.js`.
+  `packages/node/bin/brs.node.js` (minified). Copy it to `brighttest/vendor/brs-node/brs.node.js`.
 - **Preferred long-term:** upstream `RoTextToSpeech.ts` as a PR to lvcabral/brs-engine; once released, bump
   `brs-node` and delete the vendored bundle + this install step.
 
@@ -257,7 +257,7 @@ bump `brs-node`, re-verify the `FIND` strings still match and re-run the lanes.
 - **Version pinning:** the patch filename encodes `5.16.4`. If you bump `rooibos-roku`, patch-package will
   warn that the patch doesn't match; regenerate it against the new version (and re-check the two hunks still
   apply — the promise library and `TestRunner` are internal and can move).
-- **Distribution caveat:** patch-package patches a package's *own* `node_modules`. When roku-test is
+- **Distribution caveat:** patch-package patches a package's *own* `node_modules`. When brighttest is
   installed as a dependency and its deps are hoisted, the postinstall may not find the nested
   `rooibos-roku` to patch. This works cleanly for local/`file:` development (our current setup). For robust
   distribution the real fix is [Option A below](#alternatives-if-we-revert) (upstream PR) — decide before
@@ -298,15 +298,15 @@ in `docs/.vitepress/config.mts`.
 
 ## Publishing
 
-`dependencies` (not devDependencies) list the runtime toolchain so a normal `npm i -D roku-test` pulls it
+`dependencies` (not devDependencies) list the runtime toolchain so a normal `npm i -D brighttest` pulls it
 transitively — including `patch-package`, which the `postinstall` hook runs to apply the [@SGNode headless
 patch](#sgnode-headless-patch). Docs tooling (`vitepress`, `mermaid`) are devDependencies and aren't
 shipped. `patches/` **is** in the `files` array so the patch ships. For local development use `file:`
-linking and run `npm install` inside `roku-test/` once so its `node_modules` is populated (and patched).
+linking and run `npm install` inside `brighttest/` once so its `node_modules` is populated (and patched).
 
 ::: warning Before publishing
 Resolve the patch-package [distribution caveat](#patch-package-mechanics): a hoisted `rooibos-roku` in a
-consumer install may not be re-patched by roku-test's `postinstall`. Prefer landing the [upstream
+consumer install may not be re-patched by brighttest's `postinstall`. Prefer landing the [upstream
 PR](#alternatives-if-we-revert) so the dep can be bumped and the patch dropped. This is an open decision,
 not a solved problem.
 :::

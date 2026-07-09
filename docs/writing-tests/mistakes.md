@@ -66,7 +66,7 @@ m.assertTrue(value = 2147483647)
 
 ## Trying to run a SceneGraph node test headless
 
-**Symptom:** a crash / no result for an `@SGNode` test under `npx roku-test`.
+**Symptom:** a crash / no result for an `@SGNode` test under `npx brighttest`.
 
 **Cause:** node tests need the real render thread; the headless simulator can't provide it.
 
@@ -107,11 +107,11 @@ haven't seen fail isn't protecting you. (We did this deliberately in
 
 ## Expecting coverage from the *default* lane
 
-**Symptom:** no coverage numbers from `npx roku-test`.
+**Symptom:** no coverage numbers from `npx brighttest`.
 
 **Cause:** the default lane skips coverage for speed.
 
-**Fix:** run `npx roku-test --coverage` — coverage + LCOV, no device required. (`--device` also produces
+**Fix:** run `npx brighttest --coverage` — coverage + LCOV, no device required. (`--device` also produces
 coverage.) See [CI](/guide/ci).
 
 ## Comparing a float field to an integer literal
@@ -138,7 +138,7 @@ failed.
 
 ## Surprised the default run boots a scene
 
-**Symptom:** `npx roku-test` is slower than expected on a project that has `@SGNode` specs.
+**Symptom:** `npx brighttest` is slower than expected on a project that has `@SGNode` specs.
 
 **Cause:** the default lane runs `@SGNode` suites headless (no device), which means booting a SceneGraph
 scene. That's slower than the pure SceneGraph-off driver used when there are no node specs.

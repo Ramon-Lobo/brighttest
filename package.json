@@ -1,9 +1,9 @@
 {
-  "name": "roku-test",
+  "name": "brighttest",
   "version": "0.1.0",
   "description": "Unified BrightScript test runner — write Rooibos specs once, run headless (default) or on-device with coverage.",
   "bin": {
-    "roku-test": "bin/cli.js"
+    "brighttest": "bin/cli.js"
   },
   "files": [
     "bin",

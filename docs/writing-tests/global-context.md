@@ -6,7 +6,7 @@ so the reads come back `invalid`. Headless brs-node shrugs that off, but a **rea
 widget crashes while constructing. That mismatch is a top reason a widget spec is green headless yet
 device-only.
 
-**Global-field seeding** fixes it: you declare the globals a suite needs, roku-test hands them to the test
+**Global-field seeding** fixes it: you declare the globals a suite needs, brighttest hands them to the test
 scene *before* the widget is built, and the widget constructs exactly as it would in-app.
 
 ## When you need it
@@ -26,7 +26,7 @@ Type Mismatch. Operator "+" can't be applied to "Invalid" and "String". (runtime
 
 ## The `globalFields` option
 
-Add `globalFields` to your `roku-test.json`. It's **keyed by `@SGNode` type name**, with a special `"*"`
+Add `globalFields` to your `brighttest.json`. It's **keyed by `@SGNode` type name**, with a special `"*"`
 key for values applied to *every* suite:
 
 ```json
@@ -57,7 +57,7 @@ Say `EpgTile` is quarantined as device-only. Let's bring it back.
 **1. Confirm the crash and read the error.** Run just that suite against the device:
 
 ```sh
-roku-test --device --host $ROKU_IP --password $ROKU_PW --config epg-only.json
+brighttest --device --host $ROKU_IP --password $ROKU_PW --config epg-only.json
 ```
 
 ```
@@ -76,7 +76,7 @@ So it needs `config.images.staticBaseUrl` — a **nested** value. Seeding `confi
 > **Read the real code, not a guess.** The crash tells you the exact field. Chained access
 > (`config.images.staticBaseUrl`) means you must seed the whole path.
 
-**3. Seed it.** In `roku-test.json`:
+**3. Seed it.** In `brighttest.json`:
 
 ```json
 "globalFields": {
@@ -89,7 +89,7 @@ So it needs `config.images.staticBaseUrl` — a **nested** value. Seeding `confi
 **4. Verify.** Cross-check the suite — headless and device should now agree:
 
 ```sh
-roku-test --cross-check --host $ROKU_IP --password $ROKU_PW --config epg-only.json
+brighttest --cross-check --host $ROKU_IP --password $ROKU_PW --config epg-only.json
 ```
 
 ```
@@ -121,7 +121,7 @@ baseline.
 
 ## How it works
 
-1. roku-test writes your `globalFields` to `pkg:/rooibos_global_seed.json` and injects it into the built
+1. brighttest writes your `globalFields` to `pkg:/rooibos_global_seed.json` and injects it into the built
    channel (via a build-time file entry — **your app source is never modified**).
 2. Rooibos reads it at startup and, **before creating each `@SGNode` node**, applies `"*"` then that
    node's entry to the test scene.

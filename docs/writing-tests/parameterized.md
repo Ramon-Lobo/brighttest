@@ -79,7 +79,7 @@ end function
 ```
 
 ::: info Headless arity limit
-roku-test's headless driver passes up to **6** parameters per case. If you need more (rare), split the
+brighttest's headless driver passes up to **6** parameters per case. If you need more (rare), split the
 test or bundle args into a single associative-array parameter.
 :::
 
