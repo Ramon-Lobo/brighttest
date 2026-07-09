@@ -17,8 +17,8 @@
     "docs:preview": "vitepress preview docs"
   },
   "dependencies": {
-    "@ramon-lobo/brs-node": "^2.2.0",
-    "@ramon-lobo/rooibos-roku": "^5.16.4",
+    "@ramonlobo/brs-node": "^2.2.0",
+    "@ramonlobo/rooibos-roku": "^5.16.4",
     "brighterscript": "^0.73.0"
   },
   "devDependencies": {
