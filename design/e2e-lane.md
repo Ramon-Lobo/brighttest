@@ -2,6 +2,15 @@
 
 Status: **draft / RFC** · Branch: `feat/e2e` · Prereq spike: `experiments/FINDINGS.md` (confirmed on device)
 
+## Decisions (resolved)
+
+- **Selectors: support both a dedicated `testId` and the built-in `id`.** `testId` is the recommended,
+  test-only hook (doesn't affect app behaviour); `id` is supported too and gets the fast
+  `sgnodes/nodes?node-id=` lookup. See [Test IDs](#test-ids--making-the-app-selectable).
+- **Flow format: YAML or Gherkin/Cucumber** (dropping the earlier JSON-core idea). Both compile to one
+  internal step model, so the front-end is pluggable. See [The flow format](#the-flow-format-author-first).
+  Remaining sub-decision: ship YAML first, Gherkin first, or both.
+
 ## Context & goal
 
 brighttest today runs Rooibos **unit/integration** specs (headless + on-device coverage). This adds a
@@ -30,8 +39,8 @@ Two hard requirements from the request:
 ## Architecture
 
 ```
-flow (.yaml/.json)
-   │  parse
+flow (.yaml / .feature)
+   │  parse → shared step model
    ▼
 Flow runner ──uses──> Device driver (ECP over HTTP: keypress / launch / input / screenshot)
    │                     │
@@ -49,13 +58,19 @@ New modules (all core `fs`/`path` + global `fetch`, matching the no-dependency e
   (two consecutive identical trees or a stable focused node), parse XML → a lightweight node tree.
 - `lib/e2e/select.js` — selector matching over the tree.
 - `lib/e2e/navigate.js` — focus path-finding.
-- `lib/e2e/flow.js` — parse + validate a flow file into steps.
+- `lib/e2e/flow.js` — front-ends (YAML and Gherkin) that parse + validate a flow file into the shared step
+  model; the runner never sees the source format.
 - `lib/e2e/run.js` — the lane: execute steps, assert, report, exit code. Wired into `bin/cli.js` as
   `brighttest e2e …` (a positional subcommand, like `skills`/`init`).
 
-## The flow DSL (author-first)
+## The flow format (author-first)
 
-YAML (or JSON), one ordered list of steps. Deterministic and readable:
+Two candidate front-ends, **YAML** and **Gherkin/Cucumber**, both parsing to one internal **step model**
+(the IR the runner executes). Keeping the runner format-agnostic means we can ship one now and add the
+other later without touching the executor — and teams can even mix per-file by extension
+(`*.e2e.yaml` / `*.feature`).
+
+### Option A — YAML (Maestro-style, imperative)
 
 ```yaml
 # flows/home-to-settings.e2e.yaml
@@ -63,18 +78,48 @@ appId: dev            # dev channel (default), or a published channel id
 config: {}            # optional per-flow overrides (timeouts, device)
 
 steps:
-  - launch                                     # launch appId (optionally: launch: { contentId, mediaType })
-  - assertVisible: { id: homeScreen }          # poll sgnodes until present (timeout) else fail
-  - focus:        { id: settingsTile }         # arrow-key path-find to this node
+  - launch                                       # launch appId (optionally: launch: { contentId, mediaType })
+  - assertVisible: { testId: homeScreen }        # poll sgnodes until present (timeout) else fail
+  - focus:        { testId: settingsTile }       # arrow-key path-find to this node
   - press: Select
-  - assertVisible: { id: settingsScreen }
-  - assertText:   { id: headerLabel, equals: "Settings" }
+  - assertVisible: { testId: settingsScreen }
+  - assertText:   { testId: headerLabel, equals: "Settings" }
   - press: Back
-  - assertVisible: { id: homeScreen }
-  - screenshot: back-home.png                  # artifact (optional)
+  - assertVisible: { testId: homeScreen }
+  - screenshot: back-home.png                    # artifact (optional)
 ```
 
-Step vocabulary (Phase 1 unless noted):
+Direct, low-ceremony, closest to the Maestro analogy. Needs a YAML parser (lazy-loaded `yaml` dep, or a
+small subset parser) — pulled in only for the e2e lane.
+
+### Option B — Gherkin / Cucumber (Given/When/Then, BA-readable)
+
+```gherkin
+# flows/home-to-settings.feature
+Feature: Settings navigation
+
+  Scenario: Open settings from home
+    Given the app is launched
+    And I see "homeScreen"
+    When I focus "settingsTile" and press Select
+    Then I see "settingsScreen"
+    And "headerLabel" shows "Settings"
+    When I press Back
+    Then I see "homeScreen"
+```
+
+Reads like spec English and suits non-devs writing flows, at the cost of a **step-definition layer** that
+maps each phrase to an action. We ship a built-in step library (the phrases above) covering the standard
+vocabulary; projects can add their own step defs later. Parser: the official `@cucumber/gherkin` (lighter
+than full `@cucumber/cucumber`) or a minimal Gherkin reader — lazy-loaded for the e2e lane.
+
+**Recommendation:** build the internal step model + runner first, add **YAML** as the initial front-end
+(fastest to a working demo, matches the Maestro mental model), then layer **Gherkin** on the same IR for
+teams who want the Cucumber style. Either can be first — this is the one remaining sub-decision.
+
+### Step vocabulary (the shared model — both front-ends target this)
+
+Phase 1 unless noted:
 
 | Step | Meaning |
 |---|---|
@@ -95,29 +140,41 @@ Step vocabulary (Phase 1 unless noted):
 A selector matches nodes in the parsed tree:
 
 ```yaml
-{ id: settingsTile }                 # → GET /query/sgnodes/nodes?node-id=settingsTile (direct, fastest)
+{ testId: settingsTile }             # dedicated test hook (preferred) — matched from the sgnodes tree
+{ id: settingsTile }                 # built-in id → GET /query/sgnodes/nodes?node-id=settingsTile (fast path)
 { subtype: Poster, text: "Play" }    # by node type + field
 { text: "Continue watching" }        # by visible text
 { subtype: RowList, index: 0 }       # nth match
 ```
 
-Every selector can be constrained by `visible: true` / `focusable: true`. `id` is preferred (stable,
-directly queryable); the others are fallbacks so flows can be written before ids are added.
+Resolution:
+
+- **`{ id }`** uses the direct `sgnodes/nodes?node-id=` endpoint (fastest, exact) and falls back to
+  matching the `id` attribute in the full tree.
+- **`{ testId }`** matches the `testId` attribute in the fetched tree (no dedicated endpoint — the
+  `node-id` query only targets the built-in `id`).
+- The rest (`subtype`, `text`, `uri`, `index`) work with no app changes, so flows can be written before
+  any ids exist. Any selector can be constrained by `visible: true` / `focusable: true`.
+
+Preference order for stability: `testId` → `id` → text/subtype.
 
 ## Test IDs — making the app selectable
 
-The spike found **zero `id`s** in the live tree, so this is a real prerequisite. Options, in order of
-effort:
+The spike found **zero `id`s** in the live tree, so this is a real prerequisite. **We support both a
+dedicated `testId` and the built-in `id`** (decision above):
 
-1. **Manual `id` on key nodes** — set `id="settingsTile"` in the component XML/BrightScript for the nodes a
-   flow targets. Small, explicit, and immediately queryable via `sgnodes/nodes?node-id=`.
-2. **A `testId` convention** — if teams don't want to reuse `id` (some code keys off it), add a custom
-   `testId` field to base components; the selector engine reads it like any field. Slightly more work in
-   the app.
-3. **Auto-injection at build (Phase 3, optional)** — brighttest already runs a BrighterScript build for
-   its other lanes. A bsc plugin could stamp `id`s onto nodes (derived from the field/variable name that
-   holds them) in an E2E build, so teams get selectors without hand-annotating everything. Investigate
-   feasibility; keep manual ids as the baseline.
+1. **`testId` — the recommended hook.** Add a custom `testId` field to base components (or the specific
+   nodes flows target) and set it in XML/BrightScript. It's test-only, so it never collides with app code
+   that keys off `id`. The selector engine reads it from the `sgnodes` tree like any other field.
+   - **Verify (Phase 1):** confirm custom fields like `testId` actually surface in `sgnodes/all` on the
+     target firmware. If a plain custom field isn't dumped, fall back to declaring `testId` in the
+     component **interface** (`<field id="testId" type="string" />`) or to option 2.
+2. **`id` — supported and fast.** Where a node already has a meaningful `id`, use it: `{ id: … }` resolves
+   through the direct `sgnodes/nodes?node-id=` endpoint. Good when an id already exists and is stable.
+3. **Auto-injection at build (Phase 3, optional).** brighttest already runs a BrighterScript build for its
+   other lanes; a bsc plugin could stamp `testId`s onto nodes (derived from the field/variable name that
+   holds them) in an E2E build, so teams get selectors without hand-annotating everything. Keep manual
+   `testId`/`id` as the baseline.
 
 ## Focus navigation (the interesting part)
 
@@ -170,12 +227,15 @@ and the positional-subcommand pattern already added for `skills`/`init`.
 
 ## Open questions
 
-- **Test IDs policy:** reuse `id` vs a dedicated `testId` field vs build-time auto-injection — which do we
-  standardize on? (Affects app-side changes.)
-- **Screenshots:** worth the dev-password round-trip per step, or only on failure?
-- **Flow format:** YAML (needs a tiny parser or a dep) vs JSON (zero-dep, less pretty). Leaning JSON core
-  with an optional YAML front-end to keep the no-dependency promise.
-- **Scope of the first milestone:** ship Phase 1 against one flow + `inspect`, then iterate.
+- **Flow front-end order:** ship **YAML** first, **Gherkin/Cucumber** first, or both together? (Runner/IR
+  is shared either way — recommendation: YAML first, then Gherkin.)
+- **`testId` visibility:** confirm on the spike that a custom `testId` field appears in `sgnodes/all`;
+  decide interface-declared field vs plain field if not (see Test IDs).
+- **Screenshots:** per-step (dev-password round-trip each time) or only on failure?
+- **First milestone scope:** Phase 1 against one real flow + `e2e inspect`, then iterate.
+
+_Resolved: selectors support both `testId` (preferred) and `id`; flow format is YAML or Gherkin over a
+shared step model (JSON-core idea dropped)._
 
 ## Non-goals (for now)
 
