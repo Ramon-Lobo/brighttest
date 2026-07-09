@@ -32,7 +32,12 @@ jobs:
           node-version: "20"
       - uses: actions/configure-pages@v5
       - name: Install docs toolchain
-        run: npm install --no-save vitepress@^1.6.3 vitepress-plugin-mermaid@^2.0.17 mermaid@^11.4.1
+        # The docs build only needs the VitePress devDependencies. Drop the runtime `dependencies`
+        # (@ramonlobo/* etc.) from the manifest first — npm would otherwise try to resolve them and
+        # fail while they're unpublished, even though the docs don't use them.
+        run: |
+          npm pkg delete dependencies
+          npm install --no-save --no-package-lock
       - name: Build docs
         run: npm run docs:build
       - uses: actions/upload-pages-artifact@v3
