@@ -9,21 +9,17 @@
     "bin",
     "lib",
     "brs",
-    "patches",
-    "vendor",
     "README.md"
   ],
   "scripts": {
-    "postinstall": "patch-package && node lib/patch-brs-node.js",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs"
   },
   "dependencies": {
-    "brighterscript": "^0.73.0",
-    "brs-node": "^2.2.0",
-    "patch-package": "^8.0.1",
-    "rooibos-roku": "^5.16.4"
+    "@ramon-lobo/brs-node": "^2.2.0",
+    "@ramon-lobo/rooibos-roku": "^5.16.4",
+    "brighterscript": "^0.73.0"
   },
   "devDependencies": {
     "mermaid": "^11.4.1",
