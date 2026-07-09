@@ -41,6 +41,7 @@ export default withMermaid({
         items: [
           { text: 'Quick start', link: '/guide/getting-started' },
           { text: 'CI integration', link: '/guide/ci' },
+          { text: 'Agent skills', link: '/guide/agent-skills' },
           { text: 'Troubleshooting & how it works', link: '/guide/troubleshooting' },
         ],
       },

@@ -27,6 +27,46 @@ function parseArgs(argv) {
   return opts;
 }
 
+// `brighttest skills [install|export] …` — a positional subcommand with its own small parser.
+function parseSkillsArgs(rest) {
+  const opts = { skillsAction: 'install', agent: null, out: null, force: false, help: false };
+  for (let i = 0; i < rest.length; i++) {
+    const a = rest[i];
+    if (a === 'install' || a === 'export') opts.skillsAction = a;
+    else if (a === '--agent') opts.agent = rest[++i];
+    else if (a.startsWith('--agent=')) opts.agent = a.slice(8);
+    else if (a === '--out' || a === '-o') opts.out = rest[++i];
+    else if (a.startsWith('--out=')) opts.out = a.slice(6);
+    else if (a === '--force' || a === '-f') opts.force = true;
+    else if (a === '--help' || a === '-h') opts.help = true;
+  }
+  return opts;
+}
+
+const SKILLS_HELP = `
+brighttest skills — install AI-agent skills for writing Rooibos tests
+
+  Ships a "writing-rooibos-tests" skill (authoring rules, pitfalls, limitations, examples)
+  that teaches AI coding agents how to write correct tests for this project.
+
+Usage:
+  brighttest skills install [--agent <a>] [--force]   Install into detected agents
+  brighttest skills export  [--out <dir>] [--force]   Dump the raw skill files to place manually
+
+Options:
+  --agent claude|cursor|agents|copilot|all   Override auto-detection and target specific agent(s)
+  -o, --out <dir>   Export destination (default: ./brighttest-skills)
+  -f, --force       Overwrite brighttest-owned files that already exist
+  -h, --help        Show this help
+
+Auto-detection (install with no --agent): writes to whichever of these the project already uses —
+  .claude/  → Claude Code skill (.claude/skills/writing-rooibos-tests/)
+  .cursor/  → Cursor rule (.cursor/rules/writing-rooibos-tests.mdc)
+  AGENTS.md → managed block appended to AGENTS.md
+  .github/  → managed block in .github/copilot-instructions.md
+AGENTS.md and copilot-instructions.md are updated in place inside a managed block — your other content is preserved.
+`;
+
 const HELP = `
 brighttest — unified BrightScript test runner
 
@@ -39,6 +79,7 @@ Usage:
   brighttest --device --host <ip> --password <pw>    On-device run with code coverage
   brighttest --device --host <ip> --password <pw> --lcov coverage/lcov.info   + write LCOV
   brighttest --cross-check --host <ip> --password <pw>   Diff headless vs device (fidelity check)
+  brighttest skills install                          Install AI-agent test-writing skills (see: skills --help)
 
 Options:
   -d, --device          Run on a Roku device (deploys + runs Rooibos, reports coverage)
@@ -61,7 +102,17 @@ Config (brighttest.json, all optional):
 `;
 
 async function main() {
-  const opts = parseArgs(process.argv.slice(2));
+  const argv = process.argv.slice(2);
+
+  // Positional subcommands (skills). The flag-only lanes below are untouched.
+  if (argv[0] === 'skills') {
+    const sOpts = parseSkillsArgs(argv.slice(1));
+    if (sOpts.help) { console.log(SKILLS_HELP); process.exit(0); }
+    const code = await require('../lib/skills').run(null, sOpts);
+    process.exit(code);
+  }
+
+  const opts = parseArgs(argv);
   if (opts.help) { console.log(HELP); process.exit(0); }
 
   const cfg = loadConfig(process.cwd(), opts.config);
