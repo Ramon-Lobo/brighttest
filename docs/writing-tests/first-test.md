@@ -89,17 +89,21 @@ both the actual value (`5`) and what you expected (`6`) — that's what makes fa
 
 Now put it back to `5` and confirm it passes again.
 
-## Step 5 — (Optional) run on a device with coverage
+## Step 5 — (Optional) coverage, and running on a device
 
-If you have a Roku in developer mode, the *same file* runs on hardware and reports coverage:
+Coverage doesn't need a device — the `--coverage` lane runs headless and writes LCOV:
 
 ```bash
-npx brighttest --device --host <roku-ip> --password <dev-pw> --lcov coverage/lcov.info
+npx brighttest --coverage --lcov coverage/lcov.info
 ```
 
-You'll get the same pass/fail result plus a coverage summary and a `coverage/lcov.info` file. You don't
-need this for day-to-day work — headless is the fast loop — but it's there when you want coverage or need
-to test SceneGraph nodes.
+The *same file* also runs on real hardware if you have a Roku in developer mode. You don't need it for
+day-to-day work — headless is the fast loop and even runs SceneGraph node tests — but the device lane is
+the fidelity reference, and `--cross-check` diffs the two to keep the fast lane honest:
+
+```bash
+npx brighttest --cross-check --host <roku-ip> --password <dev-pw>
+```
 
 ## The loop you'll repeat forever
 

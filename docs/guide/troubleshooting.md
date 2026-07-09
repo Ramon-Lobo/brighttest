@@ -27,9 +27,9 @@ Several distinct causes, all handled by the tool now:
 - **Interpreter can't parse the Rooibos runtime.** The lightweight `@rokucommunity/brs` interpreter errors
   with `Expected property name after '.'` on Rooibos's own `.brs`. brighttest uses **`brs-node`**, whose
   parser handles it.
-- **Coverage-on build crashes headless.** With coverage enabled, instrumented code calls an on-device
-  SceneGraph collector that doesn't exist headless (`CodeCoverage.brs … EXIT_BRIGHTSCRIPT_CRASH`).
-  brighttest builds the headless lane with **coverage off**.
+- **Default lane builds coverage off (for speed).** The everyday `brighttest` lane skips coverage
+  instrumentation. Coverage runs headless via **`--coverage`**, which boots the scene-based Rooibos runner
+  on the simulator so the collector's field observers work — no device, real LCOV.
 - **Component scripts collide.** Loading `components/**` `.brs` flat causes duplicate `Init`. The headless
   driver loads **only `source/**`** (plus itself).
 - **Line endings.** brs-node separates lines with `\r`; the result parser splits on `\r\n|\r|\n`.
@@ -43,9 +43,9 @@ Several distinct causes, all handled by the tool now:
 ## `--printLcov` produced no file (and how LCOV actually works)
 
 `printLcov` is a **bsconfig `rooibos` option**, not just a CLI flag — and even then Rooibos **prints** the
-LCOV to the device console; it never writes a file. brighttest's `--lcov`:
+LCOV to the run's console; it never writes a file. brighttest's `--lcov`:
 
-1. sets `rooibos.printLcov: true` on the device build,
+1. sets `rooibos.printLcov: true` on the coverage build (headless `--coverage` or device),
 2. captures the run output,
 3. scrapes the `TN:/SF:/DA:/LF:/LH:/end_of_record` blocks,
 4. drops framework-internal (`…/rooibos/…`) records,
@@ -57,9 +57,11 @@ If `--lcov` is requested but no coverage comes back, the run fails on purpose (s
 
 - **`@rokucommunity/brs`** — lightweight, fast; good for pure logic. **Does not** implement crypto and
   **cannot parse the Rooibos runtime**. Not used by brighttest's Rooibos lane.
-- **`brs-node`** (`brs-cli`) — fuller component set incl. crypto; parses the Rooibos runtime. This is the
-  headless interpreter brighttest uses. Its **SceneGraph support is experimental**, so it does *not* run
-  the scene-based Rooibos runner — which is why brighttest ships its own headless driver.
+- **`brs-node`** (`brs-cli`) — fuller component set incl. crypto and a **SceneGraph engine**; parses the
+  Rooibos runtime. This is the headless interpreter brighttest uses (shipped as `@ramonlobo/brs-node`). The
+  **default** lane uses a lightweight SceneGraph-off driver for speed; the **`--coverage`** lane runs the
+  full scene-based Rooibos runner on brs-node's SceneGraph engine, so `@SGNode` suites and coverage run
+  headless.
 
 ## `@SGNode` node tests hang forever (device lane)
 

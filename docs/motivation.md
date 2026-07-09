@@ -48,13 +48,17 @@ both lanes.** (See [Architecture](/architecture).)
 
 ## The boundary we accept
 
-There is **no desktop Roku emulator** — Roku testing runs on real hardware or a simulator. Two limits
-follow, and they are inherent to the platform, not to brighttest:
+There is **no desktop Roku emulator** — Roku testing runs on real hardware or a simulator. But the
+device-only boundary is much narrower than it first appears:
 
-- **Code coverage requires a real device.** Coverage is tallied at runtime by an on-device SceneGraph
-  collector; the simulator can't run it. (brighttest still writes the LCOV file *from* the device run.)
-- **SceneGraph-bound tests (`@SGNode`, node observers) are device-only.** Keep business logic in pure
-  functions and it stays in the fast headless lane.
+- **Coverage runs headless.** `brighttest --coverage` produces real LCOV on the simulator with no device
+  attached. (The device lane produces coverage too, and serves as the reference.)
+- **`@SGNode` node tests run headless.** Real SceneGraph nodes and their `onChange` observer cascades
+  execute on the simulator — in the default and `--coverage` lanes — made faithful by a handful of
+  simulator fidelity fixes and policed by `--cross-check`.
+- **Only behavior tied to real wall-clock timing is genuinely device-only** — animations played out over
+  frames, Task-node I/O, live remote input. The device stays the fidelity reference; `--cross-check`
+  proves the fast lane matches it, and a test that truly needs hardware can be marked `@deviceOnly`.
 
 ## What we evaluated and rejected
 
@@ -68,5 +72,6 @@ follow, and they are inherent to the platform, not to brighttest:
 ## Outcome
 
 A thin tool over a mature stack: **BrighterScript + Rooibos + brs-node**, with a headless driver that
-unifies authoring. It was validated end-to-end against a real production BrightScript codebase — both
-lanes green on the same specs, coverage + LCOV produced on real hardware.
+unifies authoring. It was validated end-to-end against a large production BrightScript codebase — both
+lanes green on the same specs, with coverage + LCOV produced **headless** and fidelity confirmed on real
+hardware via `--cross-check`.

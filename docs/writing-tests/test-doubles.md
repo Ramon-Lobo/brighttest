@@ -121,4 +121,4 @@ function _()
 end function
 ```
 
-Next: the one category that can't run headless — SceneGraph and async node tests.
+Next: SceneGraph and async node tests — which run headless too, with a few things to know.

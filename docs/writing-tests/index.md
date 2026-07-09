@@ -27,11 +27,13 @@ flowchart LR
   spec --> dev["Device lane<br/>(real Roku, adds coverage)"]
 ```
 
-- **Headless** is your everyday loop: instant feedback, runs in CI, no hardware. Most tests live here.
-- **Device** is for code that needs a real Roku (SceneGraph UI nodes) and for producing **code coverage**.
+- **Headless** is your everyday loop: instant feedback, runs in CI, no hardware. Nearly everything lives
+  here — including `@SGNode` node tests and **code coverage** (`--coverage`), all with no device.
+- **Device** is the fidelity reference: it runs everything on real hardware, and `--cross-check` diffs the
+  two lanes so you can trust the fast one. Only behavior that leans on real render-thread timing needs it.
 
-The same file works in both. You don't write two kinds of tests — you write one kind, and some of them
-simply can't run headless (we'll show you exactly which).
+The same file works in both. You write one kind of test; the rare one that genuinely needs hardware you
+mark `@deviceOnly`, and the fast lanes skip it.
 
 ## Vocabulary you'll see
 
@@ -57,7 +59,7 @@ Read in order the first time; later, use it as a reference.
 5. **[Parameterized tests](/writing-tests/parameterized)** — run one test over many inputs.
 6. **[Setup & teardown](/writing-tests/setup-teardown)** — shared fixtures and cleanup.
 7. **[Mocks, stubs & spies](/writing-tests/test-doubles)** — isolating the unit under test.
-8. **[SceneGraph & async tests](/writing-tests/scenegraph-async)** — testing nodes (device-only).
+8. **[SceneGraph & async tests](/writing-tests/scenegraph-async)** — testing nodes (they run headless).
 9. **[Headless vs device](/writing-tests/headless-vs-device)** — what runs where, and designing for it.
 10. **[Cookbook](/writing-tests/cookbook)** — copy-paste recipes for common situations.
 11. **[Common mistakes](/writing-tests/mistakes)** — the errors everyone hits, and their fixes.

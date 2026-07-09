@@ -9,18 +9,36 @@ brighttest/
 ├── bin/cli.js               # arg parsing, lane dispatch, exit code
 ├── lib/
 │   ├── config.js            # load brighttest.json; generate per-lane bsconfig
-│   ├── headless.js          # build (coverage off) → drive on brs-node → parse → JUnit
+│   ├── headless.js          # build (SceneGraph off) → drive on brs-node → parse → JUnit
 │   ├── coverage-headless.js # build (coverage on) → stock Rooibos on brs-node → LCOV + node tests
 │   ├── device.js            # build (coverage on) → stock Rooibos CLI → scrape LCOV
 │   ├── cross-check.js       # run headless + device, diff the overlap for fidelity
-│   ├── patch-brs-node.js    # postinstall: brs-node onChange synchronous-dispatch patch (idempotent)
 │   └── tools.js             # resolve dependency bins / plugin path regardless of hoisting
 ├── brs/headless_runner.brs  # the headless Rooibos driver (runs on the simulator)
-├── patches/                 # patch-package patches applied on install (see @SGNode headless patch)
-│   └── rooibos-roku+5.16.4.patch
 ├── docs/                    # this VitePress site (not published to npm)
-└── package.json             # deps: brighterscript, rooibos-roku, brs-node, patch-package
+└── package.json             # deps: @ramonlobo/brs-node, @ramonlobo/rooibos-roku, brighterscript
 ```
+
+## Delivery model
+
+brighttest depends on two **published, scoped fork packages** that carry the engine and framework changes
+which make headless SceneGraph testing work:
+
+- **`@ramonlobo/brs-node`** — the brs-engine simulator with the SceneGraph field-fidelity fixes.
+- **`@ramonlobo/rooibos-roku`** — Rooibos with the headless + resilient-device support, global-context
+  seeding, and the `@deviceOnly` annotation.
+
+A plain `npm i -D brighttest` pulls both from npm — there is **no vendoring, no `patch-package`, and no
+postinstall step**. To change engine or framework behavior, edit the corresponding fork
+([Ramon-Lobo/brs-engine](https://github.com/Ramon-Lobo/brs-engine),
+[Ramon-Lobo/rooibos](https://github.com/Ramon-Lobo/rooibos)), bump its version and publish, then bump the
+dependency here. The eventual goal is to upstream these fixes and depend on the stock packages.
+
+::: warning Historical sections below
+The sections on `patch-package` and vendored `brs-node` bundles describe the **pre-publication** model.
+Those fixes now live in the fork sources and ship inside the published packages above — brighttest no
+longer patches or vendors anything at install time. They're kept for context on *what* the fixes were.
+:::
 
 ## Dependency resolution (`tools.js`)
 

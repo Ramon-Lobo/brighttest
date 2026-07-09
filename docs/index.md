@@ -4,7 +4,7 @@ layout: home
 hero:
   name: brighttest
   text: Unified BrightScript testing
-  tagline: Write a test once in Rooibos syntax. Run it headless for fast CI, or on a real Roku for coverage.
+  tagline: Write a test once in Rooibos syntax. Run it headless — fast CI, coverage, even SceneGraph nodes, no device — or on a real Roku to confirm fidelity.
   actions:
     - theme: brand
       text: Quick start
@@ -36,7 +36,8 @@ syntax; brighttest runs them in whichever lane you need.
 ```bash
 npm i -D brighttest
 npx brighttest                                              # headless (no device) — default
-npx brighttest --device --host <roku-ip> --password <dev-pw> --lcov   # on-device + coverage
+npx brighttest --coverage --lcov coverage/lcov.info        # headless + coverage (no device)
+npx brighttest --device --host <roku-ip> --password <dev-pw>          # on real hardware (fidelity)
 ```
 
 New to testing on Roku? Start with the **[Writing tests guide](/writing-tests/)** — it assumes no prior
