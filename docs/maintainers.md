@@ -201,12 +201,12 @@ covers the SceneGraph lane too.
 
 ### Root cause
 
-brs-node is a simulator and doesn't implement `roTextToSpeech`, which cbs-roku's shared audio-guide helper
-(`components/shared/audioGuide.brs`) creates in most focusable widgets' init/focus path. `CreateObject`
-returns `invalid` for the unknown class (brs-node@2.2.0 already does this — source `CreateObject.ts` returns
-`BrsInvalid.Instance`), then the widget derefs it (`m.tts.say(...)`) → a fatal `EXIT_BRIGHTSCRIPT_CRASH`
-during node *init*, which is uncatchable and aborts the whole run. Verified against cbs-roku: `roTextToSpeech`
-is the **only** class it instantiates that brs-node lacks (roSGNode/roSGScreen are in the SG bundle).
+brs-node is a simulator and doesn't implement `roTextToSpeech`, which some apps create from a shared
+audio-guide helper on most focusable widgets' init/focus path. `CreateObject` returns `invalid` for the
+unknown class (brs-node@2.2.0 already does this — source `CreateObject.ts` returns `BrsInvalid.Instance`),
+then the widget derefs it (`m.tts.say(...)`) → a fatal `EXIT_BRIGHTSCRIPT_CRASH` during node *init*, which
+is uncatchable and aborts the whole run. Verified against a large production app: `roTextToSpeech` was the
+**only** class it instantiated that brs-node lacked (roSGNode/roSGScreen are in the SG bundle).
 
 ### The fix
 
@@ -231,8 +231,8 @@ had 6 widgets instantiate and run (35 pass) where all previously hard-crashed.
 ### Remaining limitation (not TTS)
 
 Implementing roTextToSpeech does **not** fix components whose `init()` needs real field context that a bare
-Rooibos node doesn't provide (e.g. `cbsStandardKeyboardDialog.brs:52` derefs `buttonsEx`, `metadataGroup.brs:178`
-Type Mismatch). Those still crash node creation and must be handled per-component (wrapper/field setup) or
+Rooibos node doesn't provide (e.g. a dialog whose `init()` derefs a not-yet-built child, or a Type Mismatch
+from an unset field). Those still crash node creation and must be handled per-component (wrapper/field setup) or
 run on `--device`. Many widget *tests* also crash per-test (caught) when they exercise methods needing
 context — a test-authoring concern for the fix pass, not a platform gap.
 
