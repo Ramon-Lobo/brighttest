@@ -1,0 +1,51 @@
+name: Deploy Docs
+
+# Builds the VitePress docs site and deploys it to GitHub Pages.
+# Enable once in the repo: Settings → Pages → "Build and deployment" → Source: "GitHub Actions".
+#
+# NOTE: the docs build only needs the VitePress toolchain, so this installs just those packages
+# (not the project's runtime deps). That keeps the docs deploy independent of whether the runtime
+# packages are published to npm yet.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+# Permissions required by actions/deploy-pages.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow one concurrent deployment; don't cancel an in-progress one.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - uses: actions/configure-pages@v5
+      - name: Install docs toolchain
+        run: npm install --no-save vitepress@^1.6.3 vitepress-plugin-mermaid@^2.0.17 mermaid@^11.4.1
+      - name: Build docs
+        run: npm run docs:build
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/.vitepress/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

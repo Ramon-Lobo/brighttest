@@ -2,6 +2,8 @@
   "name": "brighttest",
   "version": "0.1.0",
   "description": "Unified BrightScript test runner — write Rooibos specs once, run headless (default) or on-device with coverage.",
+  "license": "MIT",
+  "author": "Ramon Lobo",
   "bin": {
     "brighttest": "bin/cli.js"
   },
@@ -9,7 +11,8 @@
     "bin",
     "lib",
     "brs",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "docs:dev": "vitepress dev docs",

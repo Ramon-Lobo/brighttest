@@ -9,6 +9,11 @@ export default withMermaid({
   cleanUrls: true,
   lastUpdated: true,
 
+  // GitHub Pages serves a project site under /<repo>/, so assets must be prefixed with the repo name.
+  // Set to '/brighttest/' assuming the repo is named `brighttest`. Change to match your repo name, or
+  // to '/' if you deploy to a user/org site (<user>.github.io) or a custom domain.
+  base: '/brighttest/',
+
   // Shiki has no 'brightscript' grammar; VB is the closest for keywords like function/sub/if/then/end.
   markdown: {
     languageAlias: { brightscript: 'vb' },
