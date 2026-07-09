@@ -1,0 +1,27 @@
+{
+  "schema": "brighttest-skills/v1",
+  "skills": [
+    {
+      "name": "debugging-failing-tests",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "setting-up-brighttest",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "writing-rooibos-tests",
+      "files": [
+        "SKILL.md",
+        "references/cheatsheet.md",
+        "references/examples.md",
+        "references/limitations.md",
+        "references/pitfalls.md"
+      ]
+    }
+  ]
+}
