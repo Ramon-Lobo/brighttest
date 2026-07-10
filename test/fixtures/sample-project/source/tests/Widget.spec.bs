@@ -1,0 +1,18 @@
+namespace tests
+  ' Hosted inside a real Widget node (m.top). Runs headless in the default and --coverage lanes.
+  @suite("Widget component")
+  @SGNode("Widget")
+  class WidgetTests extends rooibos.BaseTestSuite
+
+    @describe("onChange cascade + seeded global")
+
+    @it("doubles count via seeded multiplier")
+    function _()
+      ' Seed sets config.multiplier = 2, so 3 * 2 = 6. A value of 3 would mean the seed
+      ' wasn't read; anything but 6 means the onChange observer didn't fire.
+      m.top.count = 3
+      m.assertEqual(m.top.doubled, 6)
+    end function
+
+  end class
+end namespace

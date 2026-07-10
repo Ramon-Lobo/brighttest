@@ -1,0 +1,22 @@
+' A thin SceneGraph node exercising two headless capabilities at once:
+'   - globalFields seeding: init() reads a seeded scene-level `config`
+'   - onChange cascade: setting `count` fires onCount(), which derives `doubled`
+sub init()
+  m.multiplier = 1
+  cfg = getSeededConfig()
+  if cfg <> invalid and cfg.multiplier <> invalid
+    m.multiplier = cfg.multiplier
+  end if
+end sub
+
+function getSeededConfig() as object
+  scene = m.top.getScene()
+  if scene <> invalid
+    return scene.getField("config")
+  end if
+  return invalid
+end function
+
+sub onCount()
+  m.top.doubled = m.top.count * m.multiplier
+end sub
