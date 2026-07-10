@@ -56,18 +56,21 @@ real Roku project. Run `npm unlink -g brighttest` when you're done.
 
 1. **Branch off `main`:** `git checkout -b fix/short-description`
 2. **Match the surrounding style** — plain Node.js (CommonJS), no build step, no linter; keep it simple.
-3. **Run the unit suite** ([Vitest](https://vitest.dev), covers config, LCOV parsing, the reporter, and
-   CLI args). CI runs it on Node 18, 20, and 22:
+3. **Run the tests** ([Vitest](https://vitest.dev), two tiers):
    ```bash
-   npm test           # run once
-   npm run test:watch # while developing
+   npm run test:unit         # fast unit tests
+   npm run test:integration  # end-to-end: real CLI + bsc + simulator against a fixture project
+   npm test                  # both
+   npm run test:watch        # unit tests while developing
    ```
-   Add or update tests under `test/` for behaviour you change.
-4. **Also verify end to end** by running the CLI against a real or sample Roku project and note what you
-   ran in your PR:
+   Unit tests are in `test/`; integration tests and their fixture live in `test/integration/` and
+   `test/fixtures/`. CI runs unit on Node 18/20/22 and integration on Node 20. Add or update tests for
+   behaviour you change.
+4. **For device-lane changes, also verify on hardware** — the integration suite covers everything that
+   runs without a device; `--device` / `--cross-check` can only be confirmed on a real Roku. Note what
+   you ran in your PR:
    ```bash
-   brighttest                 # headless (default)
-   brighttest --coverage      # headless + coverage + LCOV
+   brighttest --device --host <ip> --password <pw>
    ```
 5. **If you touched `skills/`,** run `npm run skills:manifest`.
 6. **If you touched docs,** run `npm run docs:dev` to preview and `npm run docs:build` to confirm the build.

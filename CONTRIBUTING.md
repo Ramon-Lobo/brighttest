@@ -59,19 +59,21 @@ checkout, so you can test changes against a real Roku project. Run `npm unlink -
    ```
 2. **Make your change.** Match the style of the surrounding code — this repo is plain Node.js (CommonJS),
    no build step, no linter config; keep it simple and readable.
-3. **Run the unit suite.** brighttest has a [Vitest](https://vitest.dev) suite covering its own logic
-   (config resolution, LCOV parsing, the reporter, CLI arg parsing):
+3. **Run the tests.** brighttest uses [Vitest](https://vitest.dev) in two tiers:
    ```bash
-   npm test           # run once (CI runs this on Node 18, 20, and 22)
-   npm run test:watch # re-run on change while developing
+   npm run test:unit         # fast unit tests (config, LCOV parsing, reporter, CLI args)
+   npm run test:integration  # end-to-end: spawns the real CLI, compiles fixtures, runs the simulator
+   npm test                  # both
+   npm run test:watch        # unit tests, re-run on change while developing
    ```
-   Add or update tests under `test/` for any behaviour you change.
-4. **Also verify end to end** by running the CLI against a real or sample Roku project — the unit suite
-   doesn't exercise the full compile/run pipeline:
+   Unit tests live in `test/`; integration tests and their fixture project live in `test/integration/`
+   and `test/fixtures/`. Add or update tests for any behaviour you change. CI runs the unit suite on
+   Node 18/20/22 and the integration suite on Node 20.
+4. **For device-lane changes, also verify on hardware** — the integration suite covers everything that
+   runs without a device, but `--device` / `--cross-check` can only be confirmed on a real Roku:
    ```bash
-   brighttest                 # headless (default)
-   brighttest --coverage      # headless + coverage + LCOV
-   brighttest --cross-check --host <ip> --password <pw>   # if you have a device
+   brighttest --device --host <ip> --password <pw>
+   brighttest --cross-check --host <ip> --password <pw>
    ```
    Describe in your PR exactly what you ran and what you observed.
 5. **If you touched `skills/`,** regenerate the manifest:

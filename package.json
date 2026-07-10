@@ -24,7 +24,9 @@
     "LICENSE"
   ],
   "scripts": {
-    "test": "vitest run",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.mjs",
     "test:watch": "vitest",
     "skills:manifest": "node scripts/gen-skills-manifest.js",
     "docs:dev": "vitepress dev docs",

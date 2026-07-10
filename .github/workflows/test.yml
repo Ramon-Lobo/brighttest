@@ -8,6 +8,7 @@ on:
   pull_request:
 
 jobs:
+  # Fast unit suite across the supported Node versions. These are the checks required to merge.
   test:
     runs-on: ubuntu-latest
     strategy:
@@ -22,4 +23,19 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: npm
       - run: npm ci
-      - run: npm test
+      - run: npm run test:unit
+
+  # Slower end-to-end suite: spawns the real CLI, compiles fixtures with bsc, runs them on the
+  # brs-node simulator. Node 20 only — the pipeline shells out to bsc/brs-node and isn't sensitive
+  # to the runner's Node version.
+  integration:
+    runs-on: ubuntu-latest
+    name: integration (node 20)
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      - run: npm run test:integration

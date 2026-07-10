@@ -1,0 +1,20 @@
+namespace tests
+  @suite("math")
+  class MathTests extends rooibos.BaseTestSuite
+
+    @describe("add")
+
+    @it("adds two numbers")
+    function _()
+      m.assertEqual(add(2, 3), 5)
+    end function
+
+    @describe("multiply")
+
+    @it("multiplies two numbers")
+    function _()
+      m.assertEqual(multiply(4, 5), 20)
+    end function
+
+  end class
+end namespace

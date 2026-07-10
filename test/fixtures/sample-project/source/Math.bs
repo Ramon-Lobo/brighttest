@@ -1,0 +1,8 @@
+' Plain source under test — gives the coverage lane real DA: line records to report.
+function add(a as integer, b as integer) as integer
+  return a + b
+end function
+
+function multiply(a as integer, b as integer) as integer
+  return a * b
+end function
