@@ -1,5 +1,11 @@
 # brighttest
 
+[![npm](https://img.shields.io/npm/v/brighttest.svg)](https://www.npmjs.com/package/brighttest)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![GitHub](https://img.shields.io/badge/GitHub-Ramon--Lobo%2Fbrighttest-181717?logo=github)](https://github.com/Ramon-Lobo/brighttest)
+
+**Repository:** <https://github.com/Ramon-Lobo/brighttest> · **Docs:** <https://ramon-lobo.github.io/brighttest/> · **Issues:** <https://github.com/Ramon-Lobo/brighttest/issues>
+
 **A unified test runner for BrightScript / Roku SceneGraph apps.** Write your tests once in
 [Rooibos](https://github.com/rokucommunity/rooibos) syntax and run them two ways from the same spec files:
 
@@ -192,6 +198,16 @@ npm run docs:build    # static site → docs/.vitepress/dist
 Highlights: [Getting started](docs/guide/getting-started.md) ·
 [Writing tests](docs/writing-tests/index.md) · [Headless vs device](docs/writing-tests/headless-vs-device.md) ·
 [CI](docs/guide/ci.md) · [Troubleshooting](docs/guide/troubleshooting.md).
+
+## Contributing
+
+Contributions are welcome — bug reports, docs fixes, and pull requests. Start with
+[`CONTRIBUTING.md`](CONTRIBUTING.md) for the dev setup, how to run the test suite and docs locally, the
+branch/commit conventions, and the PR checklist. For the internals behind the headless SceneGraph lane,
+see [Maintainers](docs/maintainers.md).
+
+- **Bugs / feature requests:** <https://github.com/Ramon-Lobo/brighttest/issues>
+- **Questions / ideas:** <https://github.com/Ramon-Lobo/brighttest/discussions>
 
 ## Acknowledgements
 

@@ -6,9 +6,17 @@ name: Deploy Docs
 # NOTE: the docs build only needs the VitePress toolchain, so this installs just those packages
 # (not the project's runtime deps). That keeps the docs deploy independent of whether the runtime
 # packages are published to npm yet.
+# Only run when something that affects the docs site actually changed. A push to `main` that
+# doesn't touch any of these paths skips the workflow entirely (no build, no deploy). Manual
+# `workflow_dispatch` runs ignore the paths filter, so you can always force a redeploy.
 on:
   push:
     branches: [main]
+    paths:
+      - "docs/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/docs.yml"
   workflow_dispatch: {}
 
 # Permissions required by actions/deploy-pages.
