@@ -1,0 +1,56 @@
+name: Bug report
+description: Report a problem with brighttest
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for taking the time to file a bug! A minimal reproduction helps enormously.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: The smallest `.spec.bs` and `brighttest.json` that shows the problem, and the exact command you ran.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Full output
+      description: The complete CLI output (paste as text, not a screenshot).
+      render: shell
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: brighttest version
+      description: Output of `npx brighttest --version` (or the version in package.json).
+    validations:
+      required: true
+  - type: input
+    id: node
+    attributes:
+      label: Node.js version & OS
+      description: Output of `node --version` and your operating system.
+    validations:
+      required: true
+  - type: dropdown
+    id: lane
+    attributes:
+      label: Which lane?
+      options:
+        - Headless (default)
+        - Headless + coverage
+        - Device
+        - Cross-check
+    validations:
+      required: true

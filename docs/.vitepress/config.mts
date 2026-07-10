@@ -25,7 +25,17 @@ export default withMermaid({
       { text: 'Quick start', link: '/guide/getting-started' },
       { text: 'Writing tests', link: '/writing-tests/' },
       { text: 'CI', link: '/guide/ci' },
+      { text: 'Contributing', link: '/contributing' },
     ],
+
+    socialLinks: [
+      { icon: 'github', link: 'https://github.com/Ramon-Lobo/brighttest' },
+    ],
+
+    editLink: {
+      pattern: 'https://github.com/Ramon-Lobo/brighttest/edit/main/docs/:path',
+      text: 'Edit this page on GitHub',
+    },
 
     sidebar: [
       {
@@ -66,7 +76,10 @@ export default withMermaid({
       },
       {
         text: 'Contributing',
-        items: [{ text: 'Maintainer internals', link: '/maintainers' }],
+        items: [
+          { text: 'Contributing guide', link: '/contributing' },
+          { text: 'Maintainer internals', link: '/maintainers' },
+        ],
       },
     ],
 

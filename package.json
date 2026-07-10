@@ -4,6 +4,14 @@
   "description": "Unified BrightScript test runner — write Rooibos specs once, run headless (default) or on-device with coverage.",
   "license": "MIT",
   "author": "Ramon Lobo",
+  "homepage": "https://ramon-lobo.github.io/brighttest/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ramon-Lobo/brighttest.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Ramon-Lobo/brighttest/issues"
+  },
   "bin": {
     "brighttest": "bin/cli.js"
   },

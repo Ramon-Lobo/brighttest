@@ -15,6 +15,9 @@ hero:
     - theme: alt
       text: Why it exists
       link: /motivation
+    - theme: alt
+      text: View on GitHub
+      link: https://github.com/Ramon-Lobo/brighttest
 
 features:
   - title: CI without devices
