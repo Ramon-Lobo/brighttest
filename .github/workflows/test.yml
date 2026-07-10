@@ -26,16 +26,16 @@ jobs:
       - run: npm run test:unit
 
   # Slower end-to-end suite: spawns the real CLI, compiles fixtures with bsc, runs them on the
-  # brs-node simulator. Node 20 only — the pipeline shells out to bsc/brs-node and isn't sensitive
-  # to the runner's Node version.
+  # brs-node simulator. Pinned to Node 22 — the brs-node runtime crashes on load under Node 18/20
+  # (18: global crypto.randomUUID; 20: an internal load error), and works on 22+.
   integration:
     runs-on: ubuntu-latest
-    name: integration (node 20)
+    name: integration (node 22)
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
       - run: npm ci
       - run: npm run test:integration
