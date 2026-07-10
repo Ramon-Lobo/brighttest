@@ -166,4 +166,7 @@ async function main() {
   process.exit(code);
 }
 
-main();
+// Only run the CLI when executed directly (not when required by tests).
+if (require.main === module) main();
+
+module.exports = { parseArgs, parseSkillsArgs, parseInitArgs, SKILLS_ACTIONS };
