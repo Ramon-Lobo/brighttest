@@ -1,6 +1,7 @@
 # brighttest
 
 [![npm](https://img.shields.io/npm/v/brighttest.svg)](https://www.npmjs.com/package/brighttest)
+[![Test](https://github.com/Ramon-Lobo/brighttest/actions/workflows/test.yml/badge.svg)](https://github.com/Ramon-Lobo/brighttest/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![GitHub](https://img.shields.io/badge/GitHub-Ramon--Lobo%2Fbrighttest-181717?logo=github)](https://github.com/Ramon-Lobo/brighttest)
 

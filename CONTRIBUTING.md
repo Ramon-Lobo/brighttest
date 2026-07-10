@@ -59,19 +59,26 @@ checkout, so you can test changes against a real Roku project. Run `npm unlink -
    ```
 2. **Make your change.** Match the style of the surrounding code — this repo is plain Node.js (CommonJS),
    no build step, no linter config; keep it simple and readable.
-3. **Test it manually.** There is no self-test suite (brighttest tests *other* projects), so verify your
-   change by running the CLI against a real or sample Roku project:
+3. **Run the unit suite.** brighttest has a [Vitest](https://vitest.dev) suite covering its own logic
+   (config resolution, LCOV parsing, the reporter, CLI arg parsing):
+   ```bash
+   npm test           # run once (CI runs this on Node 18, 20, and 22)
+   npm run test:watch # re-run on change while developing
+   ```
+   Add or update tests under `test/` for any behaviour you change.
+4. **Also verify end to end** by running the CLI against a real or sample Roku project — the unit suite
+   doesn't exercise the full compile/run pipeline:
    ```bash
    brighttest                 # headless (default)
    brighttest --coverage      # headless + coverage + LCOV
    brighttest --cross-check --host <ip> --password <pw>   # if you have a device
    ```
    Describe in your PR exactly what you ran and what you observed.
-4. **If you touched `skills/`,** regenerate the manifest:
+5. **If you touched `skills/`,** regenerate the manifest:
    ```bash
    npm run skills:manifest
    ```
-5. **If you touched docs,** preview them locally:
+6. **If you touched docs,** preview them locally:
    ```bash
    npm run docs:dev      # local preview at http://localhost:5173
    npm run docs:build    # confirm the static build succeeds
@@ -89,6 +96,7 @@ checkout, so you can test changes against a real Roku project. Run `npm unlink -
 ### PR checklist
 
 - [ ] Change is scoped to one thing and the branch is up to date with `main`.
+- [ ] `npm test` passes, and new/changed behaviour has test coverage under `test/`.
 - [ ] Ran the CLI against a real/sample project and confirmed the expected behaviour.
 - [ ] Regenerated the skills manifest if `skills/` changed (`npm run skills:manifest`).
 - [ ] `npm run docs:build` succeeds if docs changed.

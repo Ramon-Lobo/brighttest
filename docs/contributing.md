@@ -56,14 +56,21 @@ real Roku project. Run `npm unlink -g brighttest` when you're done.
 
 1. **Branch off `main`:** `git checkout -b fix/short-description`
 2. **Match the surrounding style** — plain Node.js (CommonJS), no build step, no linter; keep it simple.
-3. **Test manually.** There is no self-test suite (brighttest tests *other* projects), so verify by running
-   the CLI against a real or sample Roku project and note what you ran in your PR:
+3. **Run the unit suite** ([Vitest](https://vitest.dev), covers config, LCOV parsing, the reporter, and
+   CLI args). CI runs it on Node 18, 20, and 22:
+   ```bash
+   npm test           # run once
+   npm run test:watch # while developing
+   ```
+   Add or update tests under `test/` for behaviour you change.
+4. **Also verify end to end** by running the CLI against a real or sample Roku project and note what you
+   ran in your PR:
    ```bash
    brighttest                 # headless (default)
    brighttest --coverage      # headless + coverage + LCOV
    ```
-4. **If you touched `skills/`,** run `npm run skills:manifest`.
-5. **If you touched docs,** run `npm run docs:dev` to preview and `npm run docs:build` to confirm the build.
+5. **If you touched `skills/`,** run `npm run skills:manifest`.
+6. **If you touched docs,** run `npm run docs:dev` to preview and `npm run docs:build` to confirm the build.
 
 ## Commit & PR conventions
 

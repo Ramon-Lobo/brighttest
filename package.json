@@ -24,6 +24,8 @@
     "LICENSE"
   ],
   "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
     "skills:manifest": "node scripts/gen-skills-manifest.js",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
@@ -37,6 +39,7 @@
   "devDependencies": {
     "mermaid": "^11.4.1",
     "vitepress": "^1.6.3",
-    "vitepress-plugin-mermaid": "^2.0.17"
+    "vitepress-plugin-mermaid": "^2.0.17",
+    "vitest": "^2.1.9"
   }
 }
