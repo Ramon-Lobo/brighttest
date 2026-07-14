@@ -258,7 +258,10 @@ and the positional-subcommand pattern already added for `skills`/`init`.
   `id` auto-injection (`stamp-ids.js` plugin + `e2e stamp`), multi-device parallel runs (`--host` accepts
   a comma list; flows shard across devices), deep-link matrices (`--content-id a,b,…` runs each flow per
   contentId), and a CI recipe (`.github/workflows/e2e-device.yml` — manual, self-hosted runner near a
-  device). Note: multi-device sharding is unit-tested; a live 2-device run is pending hardware.
+  device). Multi-device sharding is verified live on two Roku Ultras (3 flows across 2 devices in
+  parallel, 35/35 steps). Known limitation: one shared `--password` for all hosts, so screenshots/video
+  across devices with **different** dev passwords need `--screenshots-mode off` (ECP itself needs no
+  auth); per-host passwords are a possible follow-up.
 
 ## Open questions
 
