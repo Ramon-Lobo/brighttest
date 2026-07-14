@@ -57,7 +57,7 @@ function parseE2eArgs(rest) {
   const opts = {
     e2eAction: 'run', flows: [], host: null, password: null, app: null,
     timeout: undefined, screenshots: null, screenshotsMode: 'all', out: null,
-    contentIds: null, mediaType: null, help: false,
+    contentIds: null, mediaType: null, video: null, help: false,
   };
   const splitList = (v) => String(v).split(',').map((s) => s.trim()).filter(Boolean);
   for (let i = 0; i < rest.length; i++) {
@@ -81,6 +81,8 @@ function parseE2eArgs(rest) {
     else if (a.startsWith('--content-id=')) opts.contentIds = splitList(a.slice(13));
     else if (a === '--media-type') opts.mediaType = rest[++i];
     else if (a.startsWith('--media-type=')) opts.mediaType = a.slice(13);
+    else if (a === '--video') { const n = rest[i + 1]; opts.video = (n && !n.startsWith('-')) ? rest[++i] : 'mp4'; }
+    else if (a.startsWith('--video=')) opts.video = a.slice(8);
     else if (a === '--help' || a === '-h') opts.help = true;
     else if (a.startsWith('-')) { /* ignore unknown flags */ }
     else opts.flows.push(a);
@@ -110,6 +112,7 @@ Options:
   --timeout <sec>        Per-assertion wait timeout (default 10)
   --screenshots <dir>    Where to write screenshots (default: <stagingDir>/e2e/screenshots)
   --screenshots-mode <m> all (per-step, default) | failure (only on fail) | off
+  --video [mp4|gif]      Assemble the per-step screenshots into a session video (needs ffmpeg on PATH)
   -o, --out <file>       (record) Write the scaffolded flow here (default: stdout)
   -h, --help             Show this help
 `;
