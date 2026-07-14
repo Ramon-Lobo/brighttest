@@ -175,10 +175,12 @@ the hook is the **built-in `id`**, which `sgnodes` dumps as `name=` and resolves
      off `id`. A convention like an `e2e_`/`qa_` prefix keeps test hooks obvious and namespaced.
 2. **Text / subtype / index — zero-annotation fallback.** Works with no app changes, so flows can be
    written before any ids exist; less stable across copy/layout changes.
-3. **Auto-injection at build (Phase 3, optional).** brighttest already runs a BrighterScript build for its
-   other lanes; a bsc plugin could stamp `id`s onto nodes (derived from the field/variable name that holds
-   them) in an E2E build, so teams get selectors without hand-annotating everything. Must write the
-   built-in `id` (not a custom field) to be visible. Keep manual `id` as the baseline.
+3. **Auto-injection at build (Phase 3 — _implemented_).** `lib/e2e/stamp-ids.js` stamps a stable
+   `id` (`e2e_<Subtype>_<n>`) onto every id-less SceneGraph node in a component's `<children>`, so an
+   un-annotated app becomes fully selectable. Two entry points: a **BrighterScript plugin** (add to a
+   bsconfig's `plugins`; rewrites XML in `beforeFileParse`) and a **source transform** exposed as
+   `brighttest e2e stamp <src> --out <dir>`. Nodes that already have an `id` are left alone (manual ids
+   win; re-running is idempotent). Verified on device: injected ids surface as `name=` and are selectable.
 
 ## Focus navigation (the interesting part)
 
@@ -226,7 +228,8 @@ capture is a device round-trip, `--screenshots-mode` tunes the cost:
 brighttest e2e run <flow...>        # run one or more flow files
 brighttest e2e run flows/           # a directory of *.e2e.yaml
 brighttest e2e inspect              # dump the live sgnodes tree (authoring aid: find ids/text/subtypes)
-brighttest e2e record               # (Phase 3) capture keypresses → scaffold a flow
+brighttest e2e record [-o <file>]   # interactively drive the device → scaffold a flow
+brighttest e2e stamp <src> -o <dir> # copy a project, injecting ids onto un-annotated nodes (E2E build)
 
 Options: --host <ip> --password <pw> (reuse --device conventions; also ROKU_HOST/ROKU_PASSWORD env),
          --app <id> (default dev), --timeout <sec>, --screenshots <dir>,

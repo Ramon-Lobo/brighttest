@@ -51,7 +51,7 @@ function parseSkillsArgs(rest) {
 }
 
 // `brighttest e2e [run|inspect] <flow…> [options]` — the on-device UI test lane.
-const E2E_ACTIONS = ['run', 'inspect', 'record'];
+const E2E_ACTIONS = ['run', 'inspect', 'record', 'stamp'];
 const SCREENSHOT_MODES = ['all', 'failure', 'off'];
 function parseE2eArgs(rest) {
   const opts = {
@@ -93,6 +93,7 @@ Usage:
   brighttest e2e run <flow…>        Run one or more *.e2e.yaml files (or a directory of them)
   brighttest e2e inspect            Dump a summary of the live tree (find ids/text/subtypes)
   brighttest e2e record [-o <file>] Interactively drive the device and scaffold a flow file
+  brighttest e2e stamp <src> -o <d> Copy a project, injecting ids onto un-annotated nodes (E2E build)
 
 Options:
   --host <ip>            Roku device IP (or ROKU_HOST)
@@ -213,6 +214,14 @@ async function main() {
     if (!SCREENSHOT_MODES.includes(eOpts.screenshotsMode)) {
       console.error(`[brighttest e2e] --screenshots-mode must be one of: ${SCREENSHOT_MODES.join(', ')}`);
       process.exit(2);
+    }
+    if (eOpts.e2eAction === 'stamp') {
+      const src = eOpts.flows[0];
+      if (!src || !eOpts.out) { console.error('[brighttest e2e] stamp needs <srcDir> and --out <dir>'); process.exit(2); }
+      const { stampProject } = require('../lib/e2e/stamp-ids');
+      const { files, nodes } = stampProject(src, eOpts.out, {});
+      console.log(`brighttest e2e stamp: injected ${nodes} id(s) across ${files} component(s) → ${eOpts.out}`);
+      process.exit(0);
     }
     const cfg = loadConfig(process.cwd(), null);
     console.log('brighttest: e2e lane\n');
