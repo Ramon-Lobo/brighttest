@@ -51,12 +51,12 @@ function parseSkillsArgs(rest) {
 }
 
 // `brighttest e2e [run|inspect] <flow…> [options]` — the on-device UI test lane.
-const E2E_ACTIONS = ['run', 'inspect'];
+const E2E_ACTIONS = ['run', 'inspect', 'record'];
 const SCREENSHOT_MODES = ['all', 'failure', 'off'];
 function parseE2eArgs(rest) {
   const opts = {
     e2eAction: 'run', flows: [], host: null, password: null, app: null,
-    timeout: undefined, screenshots: null, screenshotsMode: 'all', help: false,
+    timeout: undefined, screenshots: null, screenshotsMode: 'all', out: null, help: false,
   };
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
@@ -73,6 +73,8 @@ function parseE2eArgs(rest) {
     else if (a.startsWith('--screenshots=')) opts.screenshots = a.slice(14);
     else if (a === '--screenshots-mode') opts.screenshotsMode = rest[++i];
     else if (a.startsWith('--screenshots-mode=')) opts.screenshotsMode = a.slice(19);
+    else if (a === '--out' || a === '-o') opts.out = rest[++i];
+    else if (a.startsWith('--out=')) opts.out = a.slice(6);
     else if (a === '--help' || a === '-h') opts.help = true;
     else if (a.startsWith('-')) { /* ignore unknown flags */ }
     else opts.flows.push(a);
@@ -90,6 +92,7 @@ brighttest e2e — deterministic on-device UI tests (author-first, no AI in the 
 Usage:
   brighttest e2e run <flow…>        Run one or more *.e2e.yaml files (or a directory of them)
   brighttest e2e inspect            Dump a summary of the live tree (find ids/text/subtypes)
+  brighttest e2e record [-o <file>] Interactively drive the device and scaffold a flow file
 
 Options:
   --host <ip>            Roku device IP (or ROKU_HOST)
@@ -98,6 +101,7 @@ Options:
   --timeout <sec>        Per-assertion wait timeout (default 10)
   --screenshots <dir>    Where to write screenshots (default: <stagingDir>/e2e/screenshots)
   --screenshots-mode <m> all (per-step, default) | failure (only on fail) | off
+  -o, --out <file>       (record) Write the scaffolded flow here (default: stdout)
   -h, --help             Show this help
 `;
 
