@@ -1,0 +1,17 @@
+# Open Search and type a query on the on-screen keyboard.
+appId: dev
+config: { timeout: 8 }
+steps:
+  - launch
+  - back                               # normalize to Home
+  - assertVisible: { id: homeTitle }
+  - focus: { id: searchButton }
+  - press: Select
+  - assertVisible: { id: searchHeader }
+  - focus: { id: searchKeyboard }
+  - press: { key: Backspace, count: 40 }   # a Keyboard persists text across relaunches — clear first
+  - text: "the wire"
+  - assertText: { id: searchQuery, equals: "Query: the wire" }
+  - screenshot: search-typed.png
+  - back                                    # return Home so the next flow starts from a known screen
+  - assertVisible: { id: homeTitle }

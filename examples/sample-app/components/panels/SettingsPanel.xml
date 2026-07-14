@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="SettingsPanel" extends="Group">
+  <interface>
+    <field id="action" type="string" value="" />
+    <field id="focusEnter" type="boolean" value="false" onChange="onFocusEnter" />
+  </interface>
+  <script type="text/brightscript" uri="SettingsPanel.brs" />
+  <children>
+    <Label id="settingsHeader" text="Settings" translation="[80, 60]" />
+    <Button id="captionsToggle" text="Captions" translation="[80, 160]" minWidth="260" />
+    <Label id="captionsState" text="Captions: off" translation="[80, 260]" />
+  </children>
+</component>

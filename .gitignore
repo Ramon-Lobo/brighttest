@@ -4,3 +4,6 @@ docs/.vitepress/cache/
 *.env
 .brighttest/
 coverage/
+
+# brs-node HTTP temp files
+.node-xhr-content-*

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="HomeScene" extends="Scene">
+  <script type="text/brightscript" uri="HomeScene.brs" />
+  <children>
+    <!-- Only the active panel is ever parented here, so e2e assertVisible/assertGone are exact. -->
+    <Group id="stage" />
+  </children>
+</component>

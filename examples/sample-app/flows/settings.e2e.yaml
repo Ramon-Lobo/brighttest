@@ -1,0 +1,16 @@
+# Open Settings and toggle a control.
+appId: dev
+config: { timeout: 8 }
+steps:
+  - launch
+  - back                               # normalize to Home
+  - assertVisible: { id: homeTitle }
+  - focus: { id: settingsButton }
+  - press: Select
+  - assertText: { id: settingsHeader, equals: "Settings" }
+  - assertText: { id: captionsState, equals: "Captions: off" }
+  - focus: { id: captionsToggle }
+  - press: Select
+  - assertText: { id: captionsState, equals: "Captions: on" }
+  - back
+  - assertVisible: { id: homeTitle }

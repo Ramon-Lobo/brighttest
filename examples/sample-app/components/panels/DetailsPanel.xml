@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="DetailsPanel" extends="Group">
+  <interface>
+    <field id="title" type="string" value="" onChange="onTitle" />
+    <field id="action" type="string" value="" />
+    <field id="focusEnter" type="boolean" value="false" />
+  </interface>
+  <script type="text/brightscript" uri="DetailsPanel.brs" />
+  <children>
+    <Label id="detailsTitle" text="" translation="[80, 60]" />
+    <Label id="detailsHint" text="Press Back to return" translation="[80, 140]" />
+  </children>
+</component>

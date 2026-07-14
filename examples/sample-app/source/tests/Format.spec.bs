@@ -1,0 +1,49 @@
+namespace tests
+  ' Pure-logic unit suite — runs headless (no device), and feeds coverage of source/lib/Format.brs.
+  @suite("Format helpers")
+  class FormatTests extends rooibos.BaseTestSuite
+
+    @describe("titleCase")
+
+    @it("capitalizes each word")
+    function _()
+      m.assertEqual(Format_titleCase("the wire"), "The Wire")
+    end function
+
+    @it("lowercases the rest of each word")
+    function _()
+      m.assertEqual(Format_titleCase("bREAKING nEWS"), "Breaking News")
+    end function
+
+    @describe("duration")
+
+    @it("formats minutes:seconds")
+    @params(61, "1:01")
+    @params(5, "0:05")
+    function _(seconds as integer, expected as string)
+      m.assertEqual(Format_duration(seconds), expected)
+    end function
+
+    @it("formats hours:minutes:seconds")
+    function _()
+      m.assertEqual(Format_duration(3661), "1:01:01")
+    end function
+
+    @it("clamps a negative duration to zero")
+    function _()
+      m.assertEqual(Format_duration(-10), "0:00")
+    end function
+
+    @describe("clampIndex")
+
+    @it("clamps into range without wrapping")
+    @params(-1, 3, 0)
+    @params(5, 3, 2)
+    @params(1, 3, 1)
+    @params(0, 0, 0)
+    function _(index as integer, length as integer, expected as integer)
+      m.assertEqual(Format_clampIndex(index, length), expected)
+    end function
+
+  end class
+end namespace
