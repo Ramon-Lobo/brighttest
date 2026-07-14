@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="SearchPanel" extends="Group">
+  <interface>
+    <field id="action" type="string" value="" />
+    <field id="focusEnter" type="boolean" value="false" onChange="onFocusEnter" />
+  </interface>
+  <script type="text/brightscript" uri="SearchPanel.brs" />
+  <children>
+    <Label id="searchHeader" text="Search" translation="[80, 60]" />
+    <Label id="searchQuery" text="Query: " translation="[80, 130]" />
+    <Keyboard id="searchKeyboard" translation="[80, 200]" />
+  </children>
+</component>

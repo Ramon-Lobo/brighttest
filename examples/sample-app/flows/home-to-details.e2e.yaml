@@ -1,0 +1,14 @@
+# Navigate Home → a content tile → Details, then back Home.
+appId: dev
+config: { timeout: 8 }
+steps:
+  - launch
+  - back                               # normalize to Home (Back always returns Home, never exits)
+  - assertVisible: { id: homeTitle }
+  - focus: { id: tileMovies }          # D-pad path-finding across the grid
+  - press: Select
+  - assertVisible: { id: detailsTitle }
+  - assertText: { id: detailsTitle, equals: "Movies" }
+  - back
+  - assertVisible: { id: homeTitle }
+  - assertGone: { id: detailsTitle }

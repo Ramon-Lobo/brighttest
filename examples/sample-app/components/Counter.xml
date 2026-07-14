@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="Counter" extends="Node">
+  <interface>
+    <field id="count" type="integer" value="0" onChange="onCount" />
+    <field id="doubled" type="integer" value="0" />
+  </interface>
+  <script type="text/brightscript" uri="Counter.brs" />
+</component>

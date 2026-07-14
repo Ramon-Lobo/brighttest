@@ -1,0 +1,20 @@
+namespace tests
+  ' Hosted inside a real Counter node (m.top) — exercises the onChange cascade. Runs headless in the
+  ' default and --coverage lanes (SceneGraph-on), and on hardware with --device.
+  @suite("Counter component")
+  @SGNode("Counter")
+  class CounterTests extends rooibos.BaseTestSuite
+
+    @describe("onChange cascade")
+
+    @it("doubles count when it changes")
+    @params(3, 6)
+    @params(0, 0)
+    @params(21, 42)
+    function _(count as integer, expected as integer)
+      m.top.count = count
+      m.assertEqual(m.top.doubled, expected)
+    end function
+
+  end class
+end namespace

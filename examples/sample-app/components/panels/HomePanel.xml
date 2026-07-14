@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="HomePanel" extends="Group">
+  <interface>
+    <field id="action" type="string" value="" />
+    <field id="focusEnter" type="boolean" value="false" onChange="onFocusEnter" />
+  </interface>
+  <script type="text/brightscript" uri="HomePanel.brs" />
+  <children>
+    <Label id="homeTitle" text="Home" translation="[80, 60]" />
+    <!-- top nav row -->
+    <Button id="searchButton"   text="Search"   translation="[80, 150]"  minWidth="220" />
+    <Button id="settingsButton" text="Settings" translation="[320, 150]" minWidth="220" />
+    <!-- content tiles -->
+    <Button id="tileNews"   text="News"   translation="[80, 320]"  minWidth="260" />
+    <Button id="tileSports" text="Sports" translation="[380, 320]" minWidth="260" />
+    <Button id="tileMovies" text="Movies" translation="[680, 320]" minWidth="260" />
+  </children>
+</component>
