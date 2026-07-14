@@ -231,8 +231,9 @@ brighttest e2e inspect              # dump the live sgnodes tree (authoring aid:
 brighttest e2e record [-o <file>]   # interactively drive the device → scaffold a flow
 brighttest e2e stamp <src> -o <dir> # copy a project, injecting ids onto un-annotated nodes (E2E build)
 
-Options: --host <ip[,ip…]> --password <pw> (reuse --device conventions; also ROKU_HOST/ROKU_PASSWORD env;
-         multiple hosts shard flows across devices in parallel), --app <id> (default dev),
+Options: --host <ip[:pw][,ip[:pw]…]> --password <pw> (reuse --device conventions; also ROKU_HOST/
+         ROKU_PASSWORD env; multiple hosts shard flows across devices in parallel; inline ip:pw gives a
+         per-device password), --app <id> (default dev),
          --content-id <a,b,…> --media-type <t> (deep-link matrix), --timeout <sec>, --screenshots <dir>,
          --screenshots-mode <all|failure|off> (default all), --out <file> (record).
 ```
@@ -259,9 +260,8 @@ and the positional-subcommand pattern already added for `skills`/`init`.
   a comma list; flows shard across devices), deep-link matrices (`--content-id a,b,…` runs each flow per
   contentId), and a CI recipe (`.github/workflows/e2e-device.yml` — manual, self-hosted runner near a
   device). Multi-device sharding is verified live on two Roku Ultras (3 flows across 2 devices in
-  parallel, 35/35 steps). Known limitation: one shared `--password` for all hosts, so screenshots/video
-  across devices with **different** dev passwords need `--screenshots-mode off` (ECP itself needs no
-  auth); per-host passwords are a possible follow-up.
+  parallel, 35/35 steps). Devices with different dev passwords are supported via inline `--host ip:pw`
+  (falling back to `--password`), so screenshots/video work across a mixed fleet — also verified live.
 
 ## Open questions
 

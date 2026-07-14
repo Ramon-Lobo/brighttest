@@ -104,8 +104,9 @@ Usage:
   brighttest e2e stamp <src> -o <d> Copy a project, injecting ids onto un-annotated nodes (E2E build)
 
 Options:
-  --host <ip[,ip…]>      Roku device IP(s) (or ROKU_HOST). Multiple → flows shard across devices in parallel
-  --password <pw>        Roku dev password (or ROKU_PASSWORD) — enables screenshots
+  --host <ip[:pw][,…]>   Roku device IP(s) (or ROKU_HOST). Multiple → flows shard across devices in parallel.
+                         Give a per-device password inline as ip:pw (else --password/ROKU_PASSWORD applies)
+  --password <pw>        Roku dev password (or ROKU_PASSWORD) — enables screenshots; shared by hosts w/o ip:pw
   --app <id>            Channel to launch (default: dev; also the flow's appId)
   --content-id <a,b,…>   Deep-link matrix: run each flow once per contentId
   --media-type <t>       Media type paired with --content-id (e.g. movie, series)
