@@ -1,11 +1,14 @@
 import { describe, it, expect, afterEach } from 'vitest'
-import { parseHosts, buildPlan } from '../lib/e2e/run.js'
+import { parseHosts, parseTargets, buildPlan } from '../lib/e2e/run.js'
 
-afterEach(() => { delete process.env.ROKU_HOST })
+afterEach(() => { delete process.env.ROKU_HOST; delete process.env.ROKU_PASSWORD })
 
 describe('parseHosts', () => {
   it('splits a comma list, trims, and de-dupes', () => {
     expect(parseHosts({ host: '10.0.0.1, 10.0.0.2 ,10.0.0.1' })).toEqual(['10.0.0.1', '10.0.0.2'])
+  })
+  it('strips inline passwords from the host list', () => {
+    expect(parseHosts({ host: '10.0.0.1:Test1234,10.0.0.2:0000' })).toEqual(['10.0.0.1', '10.0.0.2'])
   })
   it('falls back to ROKU_HOST', () => {
     process.env.ROKU_HOST = 'a,b'
@@ -13,6 +16,29 @@ describe('parseHosts', () => {
   })
   it('returns [] when nothing is set', () => {
     expect(parseHosts({})).toEqual([])
+  })
+})
+
+describe('parseTargets — per-host passwords', () => {
+  it('reads an inline password per host (ip:pw)', () => {
+    const { hosts, passwords } = parseTargets({ host: '10.0.0.1:Test1234,10.0.0.2:0000' })
+    expect(hosts).toEqual(['10.0.0.1', '10.0.0.2'])
+    expect(passwords.get('10.0.0.1')).toBe('Test1234')
+    expect(passwords.get('10.0.0.2')).toBe('0000')
+  })
+  it('falls back to --password for a host without an inline one', () => {
+    const { passwords } = parseTargets({ host: '10.0.0.1:abc,10.0.0.2', password: 'shared' })
+    expect(passwords.get('10.0.0.1')).toBe('abc')   // inline wins
+    expect(passwords.get('10.0.0.2')).toBe('shared') // fallback
+  })
+  it('falls back to ROKU_PASSWORD when no --password', () => {
+    process.env.ROKU_PASSWORD = 'envpw'
+    const { passwords } = parseTargets({ host: '10.0.0.9' })
+    expect(passwords.get('10.0.0.9')).toBe('envpw')
+  })
+  it('leaves password null when none is available', () => {
+    const { passwords } = parseTargets({ host: '10.0.0.1' })
+    expect(passwords.get('10.0.0.1')).toBeNull()
   })
 })
 
