@@ -54,7 +54,7 @@ It is a thin orchestrator over a proven stack, not a new BrightScript engine:
 
 ## Requirements
 
-- **Node.js** 18+ (for the headless and coverage lanes).
+- **Node.js** 22+ (the headless and coverage lanes run on the brs-node simulator, which requires Node 22+).
 - **A Roku device in developer mode** — only for `--device` and `--cross-check`.
 
 ## Install

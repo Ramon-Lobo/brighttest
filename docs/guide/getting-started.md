@@ -2,7 +2,7 @@
 
 ## Requirements
 
-- **Node.js** 18+ (the whole toolchain is Node-based).
+- **Node.js** 22+ (the whole toolchain is Node-based; the brs-node simulator requires Node 22+).
 - A Roku project containing plain BrightScript under `source/` (and optionally `components/`).
 - For the **device lane only**: a Roku in developer mode (its IP + developer password).
 

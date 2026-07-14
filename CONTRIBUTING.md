@@ -23,7 +23,7 @@ By participating, you agree to abide by our [Code of Conduct](CODE_OF_CONDUCT.md
 
 ## Development setup
 
-You need **Node.js 18+** and **git**.
+You need **Node.js 22+** and **git**. (The brs-node simulator behind the headless lanes requires Node 22+.)
 
 ```bash
 # 1. Fork the repo on GitHub, then clone your fork
@@ -68,7 +68,7 @@ checkout, so you can test changes against a real Roku project. Run `npm unlink -
    ```
    Unit tests live in `test/`; integration tests and their fixture project live in `test/integration/`
    and `test/fixtures/`. Add or update tests for any behaviour you change. CI runs the unit suite on
-   Node 18/20/22 and the integration suite on Node 20.
+   Node 22 and 24 and the integration suite on Node 22.
 4. **For device-lane changes, also verify on hardware** — the integration suite covers everything that
    runs without a device, but `--device` / `--cross-check` can only be confirmed on a real Roku:
    ```bash
