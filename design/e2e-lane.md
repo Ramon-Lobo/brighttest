@@ -4,12 +4,15 @@ Status: **draft / RFC** · Branch: `feat/e2e` · Prereq spike: `experiments/FIND
 
 ## Decisions (resolved)
 
-- **Selectors: support both a dedicated `testId` and the built-in `id`.** `testId` is the recommended,
-  test-only hook (doesn't affect app behaviour); `id` is supported too and gets the fast
-  `sgnodes/nodes?node-id=` lookup. See [Test IDs](#test-ids--making-the-app-selectable).
-- **Flow format: YAML or Gherkin/Cucumber** (dropping the earlier JSON-core idea). Both compile to one
-  internal step model, so the front-end is pluggable. See [The flow format](#the-flow-format-author-first).
-  Remaining sub-decision: ship YAML first, Gherkin first, or both.
+- **Selectors: the built-in `id` is the hook.** Probe 2 (see FINDINGS.md) proved a dedicated `testId`
+  field is **invisible to `sgnodes`** — custom fields aren't dumped, however they're declared. Only a
+  fixed set of built-in fields surface, and the node's `id` appears there as the **`name=`** attribute
+  *and* resolves via the fast `sgnodes/nodes?node-id=` path. So the earlier "prefer a test-only `testId`"
+  decision is dropped: teams set the built-in `id`. See [Test IDs](#test-ids--making-the-app-selectable).
+- **Flow format: YAML first, Gherkin/Cucumber later** (dropping the earlier JSON-core idea). Both compile
+  to one internal step model, so the front-end is pluggable; **YAML ships first** (fastest to a working
+  demo, matches the Maestro mental model), Gherkin layers on the same IR afterward. See
+  [The flow format](#the-flow-format-author-first).
 
 ## Context & goal
 
@@ -29,12 +32,14 @@ Two hard requirements from the request:
 ## Confirmed primitives (see FINDINGS.md)
 
 - Read screen: `GET /query/sgnodes/all` → full node tree (subtype, `focused`, `bounds`, `translation`,
-  `visible`, `text`, `uri`, `children`). `roots` and `nodes?node-id=<id>` variants too.
+  `visible`, `text`, `uri`, `children`, and the node's `id` as **`name=`**). `roots` and
+  `nodes?node-id=<id>` variants too. Only built-in fields are dumped — custom fields do not appear.
 - Act: `POST /keypress/<key>` (Up/Down/Left/Right/Select/Back/Home/Play/Info/Search/Enter/Backspace,
   `Lit_<char>` for text, Volume/Input keys). `POST /launch/<dev|id>?contentID=…&MediaType=…` for deep links.
 - Visual proof: dev screenshot endpoint (needs dev password) for per-step / on-failure PNGs.
 - Constraints: channel must be running; `sgnodes` is a render-thread RPC that **times out when busy** →
-  retry+settle; app should set `id`s; dev mode + host/password (already used by `--device`).
+  retry+settle; app should set `id`s; dev mode + host/password (already used by `--device`); ECP
+  **network access must be Permissive** or `sgnodes`/`keypress` are refused (Limited-mode 403).
 
 ## Architecture
 
@@ -79,13 +84,13 @@ config: {}            # optional per-flow overrides (timeouts, device)
 
 steps:
   - launch                                       # launch appId (optionally: launch: { contentId, mediaType })
-  - assertVisible: { testId: homeScreen }        # poll sgnodes until present (timeout) else fail
-  - focus:        { testId: settingsTile }       # arrow-key path-find to this node
+  - assertVisible: { id: homeScreen }            # poll sgnodes until present (timeout) else fail
+  - focus:        { id: settingsTile }           # arrow-key path-find to this node
   - press: Select
-  - assertVisible: { testId: settingsScreen }
-  - assertText:   { testId: headerLabel, equals: "Settings" }
+  - assertVisible: { id: settingsScreen }
+  - assertText:   { id: headerLabel, equals: "Settings" }
   - press: Back
-  - assertVisible: { testId: homeScreen }
+  - assertVisible: { id: homeScreen }
   - screenshot: back-home.png                    # artifact (optional)
 ```
 
@@ -113,9 +118,9 @@ maps each phrase to an action. We ship a built-in step library (the phrases abov
 vocabulary; projects can add their own step defs later. Parser: the official `@cucumber/gherkin` (lighter
 than full `@cucumber/cucumber`) or a minimal Gherkin reader — lazy-loaded for the e2e lane.
 
-**Recommendation:** build the internal step model + runner first, add **YAML** as the initial front-end
+**Decided:** build the internal step model + runner first, ship **YAML** as the initial front-end
 (fastest to a working demo, matches the Maestro mental model), then layer **Gherkin** on the same IR for
-teams who want the Cucumber style. Either can be first — this is the one remaining sub-decision.
+teams who want the Cucumber style.
 
 ### Step vocabulary (the shared model — both front-ends target this)
 
@@ -140,7 +145,6 @@ Phase 1 unless noted:
 A selector matches nodes in the parsed tree:
 
 ```yaml
-{ testId: settingsTile }             # dedicated test hook (preferred) — matched from the sgnodes tree
 { id: settingsTile }                 # built-in id → GET /query/sgnodes/nodes?node-id=settingsTile (fast path)
 { subtype: Poster, text: "Play" }    # by node type + field
 { text: "Continue watching" }        # by visible text
@@ -150,31 +154,31 @@ A selector matches nodes in the parsed tree:
 Resolution:
 
 - **`{ id }`** uses the direct `sgnodes/nodes?node-id=` endpoint (fastest, exact) and falls back to
-  matching the `id` attribute in the full tree.
-- **`{ testId }`** matches the `testId` attribute in the fetched tree (no dedicated endpoint — the
-  `node-id` query only targets the built-in `id`).
+  matching the **`name=`** attribute in the full tree — because `sgnodes` serializes a node's `id` as
+  `name` (proven in probe 2). This is the only stable named hook; a dedicated `testId` field is **not**
+  available (custom fields aren't dumped).
 - The rest (`subtype`, `text`, `uri`, `index`) work with no app changes, so flows can be written before
   any ids exist. Any selector can be constrained by `visible: true` / `focusable: true`.
 
-Preference order for stability: `testId` → `id` → text/subtype.
+Preference order for stability: `id` → text/subtype.
 
 ## Test IDs — making the app selectable
 
-The spike found **zero `id`s** in the live tree, so this is a real prerequisite. **We support both a
-dedicated `testId` and the built-in `id`** (decision above):
+Probe 2 settled how this must work: a custom `testId` field is **invisible to `sgnodes`** (tested five
+ways — interface-declared, runtime `addField`, inline attribute, code-created node — none surfaced), so
+the hook is the **built-in `id`**, which `sgnodes` dumps as `name=` and resolves via `node-id=`.
 
-1. **`testId` — the recommended hook.** Add a custom `testId` field to base components (or the specific
-   nodes flows target) and set it in XML/BrightScript. It's test-only, so it never collides with app code
-   that keys off `id`. The selector engine reads it from the `sgnodes` tree like any other field.
-   - **Verify (Phase 1):** confirm custom fields like `testId` actually surface in `sgnodes/all` on the
-     target firmware. If a plain custom field isn't dumped, fall back to declaring `testId` in the
-     component **interface** (`<field id="testId" type="string" />`) or to option 2.
-2. **`id` — supported and fast.** Where a node already has a meaningful `id`, use it: `{ id: … }` resolves
-   through the direct `sgnodes/nodes?node-id=` endpoint. Good when an id already exists and is stable.
+1. **`id` — the hook.** Set a stable, meaningful `id` on the nodes flows target (in XML or BrightScript).
+   `{ id: … }` resolves through the direct `sgnodes/nodes?node-id=` endpoint and matches `name=` in the
+   full tree. This is the only reliable named selector.
+   - Caveat: `id` is a real SceneGraph field, so pick values that don't collide with app logic that keys
+     off `id`. A convention like an `e2e_`/`qa_` prefix keeps test hooks obvious and namespaced.
+2. **Text / subtype / index — zero-annotation fallback.** Works with no app changes, so flows can be
+   written before any ids exist; less stable across copy/layout changes.
 3. **Auto-injection at build (Phase 3, optional).** brighttest already runs a BrighterScript build for its
-   other lanes; a bsc plugin could stamp `testId`s onto nodes (derived from the field/variable name that
-   holds them) in an E2E build, so teams get selectors without hand-annotating everything. Keep manual
-   `testId`/`id` as the baseline.
+   other lanes; a bsc plugin could stamp `id`s onto nodes (derived from the field/variable name that holds
+   them) in an E2E build, so teams get selectors without hand-annotating everything. Must write the
+   built-in `id` (not a custom field) to be visible. Keep manual `id` as the baseline.
 
 ## Focus navigation (the interesting part)
 
@@ -197,8 +201,24 @@ app exposes a "jump to id" affordance, `pressUntil` is a simpler alternative.
 - **Settle-wait**: after an action, poll until two consecutive trees agree (or the focused node is stable)
   before asserting — screens transition over frames.
 - **Preflight**: verify the device is reachable and a channel is running; fail fast with guidance if
-  `sgnodes` reports `Channel not running`.
+  `sgnodes` reports `Channel not running`, and if it reports `ECP command not allowed in Limited mode`
+  (or `keypress` returns 403) point the user at **Control by mobile apps → Network access → Permissive**.
 - **Not the test build**: E2E targets the normal app build (the test build pegs the thread). Document this.
+
+## Screenshots
+
+**Decided: per-step by default, configurable down to on-failure-only.** Each captured step saves a PNG
+from the dev screenshot endpoint (dev-password round-trip) into `--screenshots <dir>`, giving a visual
+filmstrip of the run; the reporter links the failing step's shot in its failure detail. Because every
+capture is a device round-trip, `--screenshots-mode` tunes the cost:
+
+```
+--screenshots-mode all       # default — one PNG per step (filmstrip)
+--screenshots-mode failure   # only capture when a step fails (cheapest)
+--screenshots-mode off       # never capture
+```
+
+(`--screenshots <dir>` sets the output dir; absent → a run-scoped default under the artifacts dir.)
 
 ## CLI surface
 
@@ -209,7 +229,8 @@ brighttest e2e inspect              # dump the live sgnodes tree (authoring aid:
 brighttest e2e record               # (Phase 3) capture keypresses → scaffold a flow
 
 Options: --host <ip> --password <pw> (reuse --device conventions; also ROKU_HOST/ROKU_PASSWORD env),
-         --app <id> (default dev), --timeout <sec>, --screenshots <dir>, --json/--junit (reuse reporters).
+         --app <id> (default dev), --timeout <sec>, --screenshots <dir>,
+         --screenshots-mode <all|failure|off> (default all), --json/--junit (reuse reporters).
 ```
 
 Reuses: device host/password handling, `lib/reporter.js` (grouped ✓/✗, failure detail), JUnit output,
@@ -218,24 +239,24 @@ and the positional-subcommand pattern already added for `skills`/`init`.
 ## Phasing & effort
 
 - **Phase 1 — scripted E2E (small).** `ecp.js`, `sgnodes.js` (retry+settle+parse), `select.js`,
-  `flow.js`, `run.js`; steps: launch/press/pressUntil/assertVisible/assertGone/assertText/waitFor/
-  screenshot/back/home; `e2e inspect`. Delivers Maestro-like scripted flows end to end.
-- **Phase 2 — smart navigation (medium).** `focus:` path-finding, `assertFocused`, text entry, per-step
-  screenshots + on-failure artifacts, richer settle heuristics.
+  `flow.js` (YAML front-end), `run.js`; steps: launch/press/pressUntil/assertVisible/assertGone/
+  assertText/waitFor/screenshot/back/home; `id`/text/subtype selectors; screenshots (`all` default +
+  `failure`/`off` modes); `e2e inspect`. Delivers Maestro-like scripted flows end to end.
+- **Phase 2 — smart navigation (medium).** `focus:` path-finding, `assertFocused`, text entry, richer
+  settle heuristics, Gherkin front-end on the shared IR.
 - **Phase 3 — authoring & scale (medium).** `e2e record`, optional build-time `id` auto-injection,
   parallel/multi-device, deep-link matrices, CI recipe (self-hosted runner near a device).
 
 ## Open questions
 
-- **Flow front-end order:** ship **YAML** first, **Gherkin/Cucumber** first, or both together? (Runner/IR
-  is shared either way — recommendation: YAML first, then Gherkin.)
-- **`testId` visibility:** confirm on the spike that a custom `testId` field appears in `sgnodes/all`;
-  decide interface-declared field vs plain field if not (see Test IDs).
-- **Screenshots:** per-step (dev-password round-trip each time) or only on failure?
 - **First milestone scope:** Phase 1 against one real flow + `e2e inspect`, then iterate.
+- **Real-app `id` coverage:** re-audit the actual CBS build for `name=` (i.e. set `id`s) — the old "0 ids"
+  was a grep artifact — to gauge how much manual `id` annotation Phase 1 needs before flows are stable.
 
-_Resolved: selectors support both `testId` (preferred) and `id`; flow format is YAML or Gherkin over a
-shared step model (JSON-core idea dropped)._
+_Resolved: selectors use the built-in **`id`** (surfaced as `name=`, resolved via `node-id=`); a dedicated
+`testId` field is not viable — custom fields aren't dumped by `sgnodes` (probe 2). Flow format is YAML
+first, Gherkin later, over a shared step model (JSON-core idea dropped). Screenshots per-step by default,
+configurable to `failure`/`off`._
 
 ## Non-goals (for now)
 
