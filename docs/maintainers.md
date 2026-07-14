@@ -6,18 +6,25 @@ For anyone hacking on brighttest itself. It's a small orchestration layer — no
 
 ```
 brighttest/
-├── bin/cli.js               # arg parsing, lane dispatch, exit code
+├── bin/cli.js               # arg parsing, lane dispatch, exit code (flag lanes + `skills`/`init`/`e2e` subcommands)
 ├── lib/
 │   ├── config.js            # load brighttest.json; generate per-lane bsconfig
 │   ├── headless.js          # build (SceneGraph off) → drive on brs-node → parse → JUnit
 │   ├── coverage-headless.js # build (coverage on) → stock Rooibos on brs-node → LCOV + node tests
 │   ├── device.js            # build (coverage on) → stock Rooibos CLI → scrape LCOV
 │   ├── cross-check.js       # run headless + device, diff the overlap for fidelity
+│   ├── e2e/                 # the on-device UI test lane (see "E2E lane" below)
 │   └── tools.js             # resolve dependency bins / plugin path regardless of hoisting
 ├── brs/headless_runner.brs  # the headless Rooibos driver (runs on the simulator)
 ├── docs/                    # this VitePress site (not published to npm)
+├── experiments/             # spike scripts + device FINDINGS (not shipped) — see "E2E lane"
+├── design/                  # RFC/design notes, e.g. design/e2e-lane.md (not shipped)
+├── examples/sample-app/     # runnable sample exercising every lane (not shipped)
 └── package.json             # deps: @ramonlobo/brs-node, @ramonlobo/rooibos-roku, brighterscript
 ```
+
+Only `bin`, `lib`, `brs`, `skills`, `README.md`, `LICENSE` (+ `patches`) are in the `files` array, so
+`docs/`, `experiments/`, `design/`, `examples/`, and `test/` **do not ship to npm** — they're repo-only.
 
 ## Delivery model
 
@@ -100,6 +107,66 @@ flowchart TD
   - drop records whose `SF:` path matches `(^|/)rooibos/` (framework-injected);
   - join and write to the `--lcov` path.
 - `extractLcov` is exported for unit testing.
+
+## E2E lane (`lib/e2e/`)
+
+A separate, self-contained subsystem from the Rooibos lanes: it drives a **running** app on a real device
+over stock ECP and asserts on the live SceneGraph. No brs-node, no Rooibos, **no new runtime deps** — only
+core `fs`/`path`/`crypto` + global `fetch`. User-facing docs are under [E2E](/e2e/); this is the internals.
+
+### Module map
+
+| Module | Role |
+|---|---|
+| `ecp.js` | ECP driver: `launch`/`keypress`/`text`/`deviceInfo`, and dev **screenshots over HTTP Digest** (hand-rolled with `node:crypto` — `fetch` has no digest — + a manual multipart body) |
+| `sgnodes.js` | fetch `query/sgnodes/all` with retry/backoff on render-thread RPC timeouts; settle-wait; tolerant XML→tree parser; typed errors (`LIMITED_MODE`, `CHANNEL_NOT_RUNNING`) |
+| `select.js` | selector matching over the parsed tree (`id`→`name=`, subtype, text, uri, index, filters) |
+| `navigate.js` | focus path-finding: geometry-driven D-pad loop with edge/convergence guards |
+| `flow.js` | YAML-subset parser → shared step model, line-referenced errors (no `yaml` dep) |
+| `run.js` | the lane: preflight, `buildPlan` (matrix × device sharding), per-device `runHost`, step exec, reporting, exit codes; `parseTargets` resolves per-host passwords |
+| `record.js` | interactive TTY recorder → scaffolds a flow (`Recorder` is pure/testable) |
+| `stamp-ids.js` | build-time `id` injection — a **bsc plugin** (`beforeFileParse` rewrites component XML) + a source transform |
+| `video.js` | optional `--video`: assemble per-step screenshots into mp4/gif via **ffmpeg** (external, optional; skipped with a note if absent) |
+
+The pure parts (parser, selector, navigator algorithm against a simulated grid, recorder, id-stamper, run
+planner, digest/multipart helpers) are unit-tested under `test/e2e*.test.js`; device behaviour is validated
+on a real Roku.
+
+### Device/ECP facts that shaped it {#e2e-device-facts}
+
+These were established on real hardware (Roku Ultra, fw 15.2.4) and are recorded in
+`experiments/FINDINGS.md`, `experiments/VIDEO-FINDINGS.md`, and `design/e2e-lane.md`. A maintainer touching
+this lane should know them:
+
+- **A node's `id` is serialized as the `name=` attribute** in `sgnodes`, and **custom fields are not
+  dumped at all** — so a dedicated `testId` is invisible. The only reliable named hook is the built-in
+  `id` (matched as `name=`); `stamp-ids.js` injects `id`, never a custom field.
+- **ECP Network access must be Permissive** (Settings → System → Advanced → Control by mobile apps) or
+  `sgnodes`/`keypress` are refused (`Limited mode` / HTTP 403). The lane preflight surfaces this.
+- **`sgnodes` is a render-thread RPC**: it times out when the thread is busy (retry+settle) and fails with
+  `Channel not running`/`not ready` right after launch (waited out). A **crash drops the app into the
+  BrightScript debugger, which pegs the render thread** → every `sgnodes` read then times out; if you see
+  persistent timeouts, telnet `:8085` for a runtime error, not a lane bug.
+- **Screenshots cap at ~1 fps** (dev endpoint: generate + digest fetch ≈ 1.1s). Hence `--video` is an
+  assembled slideshow, not motion capture; true video needs external HDMI capture.
+- **`Lit_` text must be URL-encoded exactly once** — a space double-encoded to `Lit_%2520` returns 400
+  (letters are unaffected, which masks it). `ecp.text()` passes the raw char; `keypress()` encodes once.
+- **Render-thread components cannot call `pkg:/source` globals** (`func_name_resolver` fails → &h91). Share
+  code with a component via an explicit `<script>` include, not a source global. (The sample app keeps a
+  local `clamp` for this reason.)
+- **Relaunching a running channel does not reset its scene**, and a `Keyboard` **persists its text** across
+  relaunches. Flows should drive to a known state (e.g. a Back-to-Home preamble) rather than assume it.
+
+### Multi-device & the app-vs-test-build split
+
+- `run.js` runs one device per host in parallel; a single host streams live, multiple buffer per device and
+  flush in host order. `parseTargets` accepts `--host ip:pw,ip2:pw2` so a mixed-password fleet can capture
+  screenshots (ECP navigation needs no auth; the screenshot endpoint does).
+- The e2e lane **does not build/deploy** — it assumes the app is already sideloaded. For a project that also
+  has Rooibos specs, the app build for e2e must be plain `.brs`/`.xml` and **exclude `main.brs` from the
+  Rooibos test build** (Rooibos owns the entry; the app's `Main()` would hang the runner). See the
+  [sample app](https://github.com/Ramon-Lobo/brighttest/tree/main/examples/sample-app) and its README,
+  which encode these constraints as working patterns and are the place to extend as the lane grows.
 
 ## Rooibos coupling & upgrade risk
 
@@ -321,6 +388,12 @@ transitively — including `patch-package`, which the `postinstall` hook runs to
 patch](#sgnode-headless-patch). Docs tooling (`vitepress`, `mermaid`) are devDependencies and aren't
 shipped. `patches/` **is** in the `files` array so the patch ships. For local development use `file:`
 linking and run `npm install` inside `brighttest/` once so its `node_modules` is populated (and patched).
+
+Release flow: bump with `npm version <patch|minor|major>` (commits + tags `vX.Y.Z` on `main`), push the
+branch **and the tag**, then `npm publish --access public`. The npm account has **2FA enabled**, so publish
+prompts for a one-time password — pass it with `--otp=<code>` (it can't be automated interactively; use an
+automation token for unattended CI releases). `npm pack --dry-run` before publishing to confirm the tarball
+contents. `v0.3.0` was the first release carrying the e2e lane.
 
 ::: warning Before publishing
 Resolve the patch-package [distribution caveat](#patch-package-mechanics): a hoisted `rooibos-roku` in a
