@@ -57,6 +57,36 @@ describe('a failing spec fails the run', () => {
   })
 })
 
+describe('a long-named failing test is still counted (scene lane, no false green)', () => {
+  let res
+  beforeAll(() => {
+    const dir = makeProject()
+    // A test name long enough that Rooibos truncates its END-It marker's (FAIL). The tally must still
+    // come out as a failure — this is the regression guard for the reporter's authoritative summary.
+    const longName = 'this is a very long failing test name that definitely exceeds the eighty one character marker width'
+    fs.writeFileSync(path.join(dir, 'source', 'tests', 'LongFail.spec.bs'), [
+      'namespace tests',
+      '  @suite("longfail")',
+      '  class LongFailTests extends rooibos.BaseTestSuite',
+      '    @describe("long")',
+      `    @it("${longName}")`,
+      '    function _()',
+      '      m.assertEqual(1, 2)',
+      '    end function',
+      '  end class',
+      'end namespace',
+      '',
+    ].join('\n'))
+    // Default lane → scene runner (project has @SGNode specs), which is where the truncation bug lived.
+    res = runCli(dir)
+  })
+
+  it('exits non-zero and reports the failure in the tally', () => {
+    expect(res.status).not.toBe(0)
+    expect(res.output).toContain('1 failed')
+  })
+})
+
 describe('--no-sgnode skips @SGNode suites', () => {
   let res
   beforeAll(() => { res = runCli(makeProject(), ['--no-sgnode']) })

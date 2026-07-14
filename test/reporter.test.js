@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { palette, relLoc, lineSplitter, failureMessages, makeReporter } from '../lib/reporter.js'
+import { palette, relLoc, lineSplitter, parseSummary, failureMessages, makeReporter } from '../lib/reporter.js'
 
 describe('palette', () => {
   it('wraps strings in ANSI codes when enabled', () => {
@@ -73,6 +73,44 @@ describe('failureMessages', () => {
 
   it('returns an empty object when there are no failures', () => {
     expect(failureMessages('all good\nno failures here')).toEqual({})
+  })
+})
+
+describe('parseSummary', () => {
+  const block = (extra = '') => [
+    '[START TEST REPORT]',
+    '  Total: 5',
+    '  Passed: 4',
+    '  Crashed: 0',
+    '  Failed: 1',
+    '  Ignored: 0',
+    '  Time: 46ms',
+    extra,
+    ' RESULT: Fail',
+    '[END TEST REPORT]',
+  ].join('\n')
+
+  it('reads the authoritative totals', () => {
+    expect(parseSummary(block())).toEqual({ total: 5, passed: 4, crashed: 0, failed: 1, ignored: 0 })
+  })
+
+  it('counts crashes separately (caller treats them as failures)', () => {
+    const s = parseSummary('Total: 3\nPassed: 1\nCrashed: 2\nFailed: 0\nIgnored: 0')
+    expect(s.crashed).toBe(2)
+    expect(s.failed + s.crashed).toBe(2)
+  })
+
+  it('does not mistake "Total Coverage:" for the totals block', () => {
+    expect(parseSummary('Total Coverage: 46.15385% (18/39)')).toBeNull()
+  })
+
+  it('returns null when there is no summary block', () => {
+    expect(parseSummary('some output\nno report here')).toBeNull()
+  })
+
+  it('takes the last (grand total) block when several appear', () => {
+    const out = 'Total: 2\nPassed: 2\nFailed: 0\n---\nTotal: 9\nPassed: 7\nFailed: 2'
+    expect(parseSummary(out)).toMatchObject({ total: 9, passed: 7, failed: 2 })
   })
 })
 
