@@ -17,6 +17,10 @@
 Both lanes produce **code coverage (LCOV)**, and a **cross-check** mode runs your suites on *both* lanes
 and diffs the results so you can trust the fast headless lane as a faithful proxy for the device.
 
+For **UI journeys**, the additive [`brighttest e2e`](docs/e2e/index.md) lane drives a real Roku like a
+user — launch the channel, move the D-pad, type, and assert on the live SceneGraph — from readable YAML
+flow files. Deterministic (no AI in the loop), with focus path-finding, screenshots, and session video.
+
 > brighttest is an independent, community tool for testing BrightScript apps. It is **not** affiliated
 > with, endorsed by, or sponsored by Roku, Inc. "Roku" and "BrightScript" are trademarks of their
 > respective owners and are used here only to describe what this tool works with.
@@ -51,6 +55,9 @@ It is a thin orchestrator over a proven stack, not a new BrightScript engine:
 - **Standard Rooibos syntax** — no lock-in; if you already use Rooibos, your tests work as-is.
 - **CI-ready** — non-zero exit on failure, JUnit and LCOV reporters, zero device needed for the default
   and coverage lanes.
+- **On-device E2E** — a deterministic UI-testing lane (`brighttest e2e`) that drives a real Roku via ECP:
+  YAML flows, D-pad focus path-finding, text entry, `id`/text/subtype selectors, per-step screenshots and
+  session video, plus `inspect`/`record`/`stamp` authoring tools and multi-device + deep-link matrix runs.
 
 ## Requirements
 
@@ -145,6 +152,33 @@ npx brighttest --coverage --lcov coverage/lcov.info
 genhtml coverage/lcov.info -o coverage/html
 ```
 
+## On-device E2E
+
+A separate, additive lane drives a **real Roku** through the remote and asserts on the live SceneGraph —
+deterministic UI journeys from readable YAML flows. It needs a device in developer mode with ECP
+**Network access = Permissive**.
+
+```bash
+npx brighttest e2e inspect --host <ip> --app dev              # see the live screen (find ids/text)
+npx brighttest e2e run flows/ --host <ip> --password <pw>     # run *.e2e.yaml flows
+npx brighttest e2e record --host <ip> --out flows/new.e2e.yaml  # scaffold a flow interactively
+npx brighttest e2e stamp ./app --out ./app-e2e               # inject ids onto un-annotated nodes
+```
+
+```yaml
+# flows/home.e2e.yaml
+appId: dev
+steps:
+  - launch
+  - focus: { id: settingsTile }     # arrow-key path-finding to the node
+  - press: Select
+  - assertText: { id: headerLabel, equals: "Settings" }
+  - back
+```
+
+Add `--video` for a session replay, `--host a,b,c` to shard across devices, or
+`--content-id x,y,z` for a deep-link matrix. Full guide: **[docs/e2e/](docs/e2e/index.md)**.
+
 ## Configuration
 
 All optional — sensible defaults apply. Drop a `brighttest.json` at your project root:
@@ -171,8 +205,8 @@ All optional — sensible defaults apply. Drop a `brighttest.json` at your proje
 - **Unit tests** — pure functions, parsing, formatting, data models, crypto: the fast, headless sweet spot.
 - **Integration tests** — `@SGNode` components with their children and `onChange` wiring (headless), and
   the request/response logic of Task/API code via HTTP fixtures.
-- **Not end-to-end** — brighttest exercises components and logic; it does not drive the full app through
-  the remote / navigation. For UI-journey E2E, pair it with a device-automation tool.
+- **End-to-end UI** — the [`brighttest e2e`](docs/e2e/index.md) lane drives the full app through the
+  remote (launch, D-pad navigation, text entry) and asserts on the live screen, on real hardware.
 
 ## How it works
 
@@ -198,7 +232,10 @@ npm run docs:build    # static site → docs/.vitepress/dist
 
 Highlights: [Getting started](docs/guide/getting-started.md) ·
 [Writing tests](docs/writing-tests/index.md) · [Headless vs device](docs/writing-tests/headless-vs-device.md) ·
-[CI](docs/guide/ci.md) · [Troubleshooting](docs/guide/troubleshooting.md).
+[On-device E2E](docs/e2e/index.md) · [CI](docs/guide/ci.md) · [Troubleshooting](docs/guide/troubleshooting.md).
+
+A runnable [example project](examples/sample-app/) exercises every lane (unit, `@SGNode`, coverage,
+device, and E2E flows) end to end.
 
 ## Contributing
 

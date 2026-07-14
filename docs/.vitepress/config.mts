@@ -24,6 +24,7 @@ export default withMermaid({
       { text: 'Home', link: '/' },
       { text: 'Quick start', link: '/guide/getting-started' },
       { text: 'Writing tests', link: '/writing-tests/' },
+      { text: 'E2E (device)', link: '/e2e/' },
       { text: 'CI', link: '/guide/ci' },
       { text: 'Contributing', link: '/contributing' },
     ],
@@ -72,6 +73,16 @@ export default withMermaid({
           { text: '10. Global context (seeding)', link: '/writing-tests/global-context' },
           { text: '11. Cookbook', link: '/writing-tests/cookbook' },
           { text: '12. Common mistakes', link: '/writing-tests/mistakes' },
+        ],
+      },
+      {
+        text: 'End-to-end (on device)',
+        collapsed: false,
+        items: [
+          { text: 'Overview', link: '/e2e/' },
+          { text: 'Flow reference', link: '/e2e/flows' },
+          { text: 'Authoring flows', link: '/e2e/authoring' },
+          { text: 'Scaling & CI', link: '/e2e/scaling' },
         ],
       },
       {
