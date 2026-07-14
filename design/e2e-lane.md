@@ -231,9 +231,10 @@ brighttest e2e inspect              # dump the live sgnodes tree (authoring aid:
 brighttest e2e record [-o <file>]   # interactively drive the device → scaffold a flow
 brighttest e2e stamp <src> -o <dir> # copy a project, injecting ids onto un-annotated nodes (E2E build)
 
-Options: --host <ip> --password <pw> (reuse --device conventions; also ROKU_HOST/ROKU_PASSWORD env),
-         --app <id> (default dev), --timeout <sec>, --screenshots <dir>,
-         --screenshots-mode <all|failure|off> (default all), --json/--junit (reuse reporters).
+Options: --host <ip[,ip…]> --password <pw> (reuse --device conventions; also ROKU_HOST/ROKU_PASSWORD env;
+         multiple hosts shard flows across devices in parallel), --app <id> (default dev),
+         --content-id <a,b,…> --media-type <t> (deep-link matrix), --timeout <sec>, --screenshots <dir>,
+         --screenshots-mode <all|failure|off> (default all), --out <file> (record).
 ```
 
 Reuses: device host/password handling, `lib/reporter.js` (grouped ✓/✗, failure detail), JUnit output,
@@ -253,8 +254,11 @@ and the positional-subcommand pattern already added for `skills`/`init`.
     `Select`, char by char — slow and brittle but works when a custom keyboard ignores `Lit_`. Verify
     (1) against a real `Keyboard`/input on the target firmware; keep (2) as a fallback (e.g. a
     `typeOnKeyboard` step) only if (1) proves insufficient. See open questions.
-- **Phase 3 — authoring & scale (medium).** `e2e record`, optional build-time `id` auto-injection,
-  parallel/multi-device, deep-link matrices, CI recipe (self-hosted runner near a device).
+- **Phase 3 — authoring & scale (_implemented_).** `e2e record` (interactive scaffolder), build-time
+  `id` auto-injection (`stamp-ids.js` plugin + `e2e stamp`), multi-device parallel runs (`--host` accepts
+  a comma list; flows shard across devices), deep-link matrices (`--content-id a,b,…` runs each flow per
+  contentId), and a CI recipe (`.github/workflows/e2e-device.yml` — manual, self-hosted runner near a
+  device). Note: multi-device sharding is unit-tested; a live 2-device run is pending hardware.
 
 ## Open questions
 
