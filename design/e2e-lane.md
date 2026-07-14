@@ -9,9 +9,9 @@ Status: **draft / RFC** · Branch: `feat/e2e` · Prereq spike: `experiments/FIND
   fixed set of built-in fields surface, and the node's `id` appears there as the **`name=`** attribute
   *and* resolves via the fast `sgnodes/nodes?node-id=` path. So the earlier "prefer a test-only `testId`"
   decision is dropped: teams set the built-in `id`. See [Test IDs](#test-ids--making-the-app-selectable).
-- **Flow format: YAML first, Gherkin/Cucumber later** (dropping the earlier JSON-core idea). Both compile
-  to one internal step model, so the front-end is pluggable; **YAML ships first** (fastest to a working
-  demo, matches the Maestro mental model), Gherkin layers on the same IR afterward. See
+- **Flow format: YAML** (dropping the earlier JSON-core idea). Compiles to one internal step model, so
+  the front-end stays pluggable. **YAML is the shipping front-end**; a **Gherkin/Cucumber** front-end on
+  the same IR is parked in a *maybe* bucket — revisit only if teams ask for the BA-readable style. See
   [The flow format](#the-flow-format-author-first).
 
 ## Context & goal
@@ -242,8 +242,14 @@ and the positional-subcommand pattern already added for `skills`/`init`.
   `flow.js` (YAML front-end), `run.js`; steps: launch/press/pressUntil/assertVisible/assertGone/
   assertText/waitFor/screenshot/back/home; `id`/text/subtype selectors; screenshots (`all` default +
   `failure`/`off` modes); `e2e inspect`. Delivers Maestro-like scripted flows end to end.
-- **Phase 2 — smart navigation (medium).** `focus:` path-finding, `assertFocused`, text entry, richer
-  settle heuristics, Gherkin front-end on the shared IR.
+- **Phase 2 — smart navigation (medium).** `focus:` path-finding, `assertFocused`, **text entry into
+  input fields**, richer settle heuristics. (Gherkin front-end moved to a *maybe* bucket.)
+  - **Text entry — two approaches to weigh.** (1) *Keyboard-less* `Lit_` direct injection (the Phase 1
+    `text` step) — fast, no navigation; relies on the focused field/keyboard accepting ECP character
+    keys. (2) *On-screen keyboard navigation* — `focus` each key on the virtual keyboard grid and
+    `Select`, char by char — slow and brittle but works when a custom keyboard ignores `Lit_`. Verify
+    (1) against a real `Keyboard`/input on the target firmware; keep (2) as a fallback (e.g. a
+    `typeOnKeyboard` step) only if (1) proves insufficient. See open questions.
 - **Phase 3 — authoring & scale (medium).** `e2e record`, optional build-time `id` auto-injection,
   parallel/multi-device, deep-link matrices, CI recipe (self-hosted runner near a device).
 
@@ -252,6 +258,9 @@ and the positional-subcommand pattern already added for `skills`/`init`.
 - **First milestone scope:** Phase 1 against one real flow + `e2e inspect`, then iterate.
 - **Real-app `id` coverage:** re-audit the actual CBS build for `name=` (i.e. set `id`s) — the old "0 ids"
   was a grep artifact — to gauge how much manual `id` annotation Phase 1 needs before flows are stable.
+- _(Resolved, probe 3)_ **Text entry:** keyboard-less `Lit_` injection lands text in a real `Keyboard`
+  on fw 15.2.4 (spaces + Backspace included) — the `text` step suffices; no `typeOnKeyboard` fallback
+  needed unless a custom keyboard ignores `Lit_`.
 
 _Resolved: selectors use the built-in **`id`** (surfaced as `name=`, resolved via `node-id=`); a dedicated
 `testId` field is not viable — custom fields aren't dumped by `sgnodes` (probe 2). Flow format is YAML

@@ -47,6 +47,25 @@ then read `sgnodes/all`. Result: **only the built-in `id` surfaces (as `name=`);
 selector hook must be the built-in **`id`**, matched against `name=` in the tree, with `node-id=` as the
 fast path. Any build-time stamping must write `id`, not a custom field.
 
+## Probe 3 — text entry: keyboard-less `Lit_` vs on-screen navigation (verified on device)
+
+Sideloaded a `Keyboard` fixture (`scratchpad/kb-fixture`) and typed into it purely via ECP `Lit_`
+keypresses — **without** moving focus over the on-screen key grid. Result: **keyboard-less injection
+works**, including spaces and `Backspace`.
+
+- `POST /keypress/Lit_<char>` types directly into the focused `Keyboard`; its `text` updated to
+  `hello world` with the D-pad cursor never touching a key (visual proof captured).
+- **Gotcha:** the char must be URL-encoded **exactly once**. Pre-encoding then re-encoding turns a space
+  into `Lit_%2520` → **HTTP 400** (letters were unaffected, which masked the bug). Fixed in `ecp.js`.
+- `Backspace` clears the field; useful because a `Keyboard` **persists its text** across relaunches
+  (launch doesn't re-init), so deterministic flows should clear before typing.
+- A `Keyboard` expands to internal nodes (`VKBGrid`, posters); the deepest focused node is the grid, so
+  target the `Keyboard`'s own `id` when focusing it.
+
+**Consequence for the design:** the Phase 1 `text` step (Lit_ injection) is sufficient for the standard
+Roku keyboard — no key-grid navigation needed. An on-screen `typeOnKeyboard` fallback is only warranted
+if a custom keyboard ignores `Lit_`; not needed here.
+
 ## Key constraints discovered (shape the design)
 
 1. **`sgnodes` only works while a channel is running.** On the Roku home screen it returns
