@@ -56,8 +56,10 @@ const SCREENSHOT_MODES = ['all', 'failure', 'off'];
 function parseE2eArgs(rest) {
   const opts = {
     e2eAction: 'run', flows: [], host: null, password: null, app: null,
-    timeout: undefined, screenshots: null, screenshotsMode: 'all', out: null, help: false,
+    timeout: undefined, screenshots: null, screenshotsMode: 'all', out: null,
+    contentIds: null, mediaType: null, help: false,
   };
+  const splitList = (v) => String(v).split(',').map((s) => s.trim()).filter(Boolean);
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
     if (i === 0 && E2E_ACTIONS.includes(a)) opts.e2eAction = a;
@@ -75,6 +77,10 @@ function parseE2eArgs(rest) {
     else if (a.startsWith('--screenshots-mode=')) opts.screenshotsMode = a.slice(19);
     else if (a === '--out' || a === '-o') opts.out = rest[++i];
     else if (a.startsWith('--out=')) opts.out = a.slice(6);
+    else if (a === '--content-id') opts.contentIds = splitList(rest[++i]);
+    else if (a.startsWith('--content-id=')) opts.contentIds = splitList(a.slice(13));
+    else if (a === '--media-type') opts.mediaType = rest[++i];
+    else if (a.startsWith('--media-type=')) opts.mediaType = a.slice(13);
     else if (a === '--help' || a === '-h') opts.help = true;
     else if (a.startsWith('-')) { /* ignore unknown flags */ }
     else opts.flows.push(a);
@@ -96,9 +102,11 @@ Usage:
   brighttest e2e stamp <src> -o <d> Copy a project, injecting ids onto un-annotated nodes (E2E build)
 
 Options:
-  --host <ip>            Roku device IP (or ROKU_HOST)
+  --host <ip[,ip…]>      Roku device IP(s) (or ROKU_HOST). Multiple → flows shard across devices in parallel
   --password <pw>        Roku dev password (or ROKU_PASSWORD) — enables screenshots
   --app <id>            Channel to launch (default: dev; also the flow's appId)
+  --content-id <a,b,…>   Deep-link matrix: run each flow once per contentId
+  --media-type <t>       Media type paired with --content-id (e.g. movie, series)
   --timeout <sec>        Per-assertion wait timeout (default 10)
   --screenshots <dir>    Where to write screenshots (default: <stagingDir>/e2e/screenshots)
   --screenshots-mode <m> all (per-step, default) | failure (only on fail) | off

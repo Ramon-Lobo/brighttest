@@ -1,0 +1,51 @@
+name: E2E (on device)
+
+# On-device end-to-end UI tests. These need a REAL Roku on the same LAN as the runner, so they cannot
+# run on GitHub-hosted runners — they run only on a self-hosted runner labelled `roku`, and only when
+# triggered manually (workflow_dispatch). A normal push/PR never starts this workflow.
+#
+# One-time setup:
+#   1. Register a self-hosted runner (Settings → Actions → Runners) on a machine near a Roku, and give it
+#      the label `roku`. Put the Roku in developer mode and set Network access = Permissive.
+#   2. Add repository secrets ROKU_HOST (device IP, or a comma list for several devices) and
+#      ROKU_PASSWORD (dev password). Screenshots need the password.
+#   3. Put your flow files under flows/ (or pass a different path via the `flows` input).
+on:
+  workflow_dispatch:
+    inputs:
+      flows:
+        description: "Flow path (file or directory of *.e2e.yaml)"
+        default: "flows/"
+      screenshots-mode:
+        description: "all | failure | off"
+        default: "failure"
+
+jobs:
+  e2e:
+    runs-on: [self-hosted, roku]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci
+      - name: Run on-device E2E flows
+        # Pass user-controlled workflow inputs through env vars (never interpolate ${{ }} into the shell)
+        # to avoid command injection. FLOWS/MODE are quoted when used below.
+        env:
+          ROKU_HOST: ${{ secrets.ROKU_HOST }}
+          ROKU_PASSWORD: ${{ secrets.ROKU_PASSWORD }}
+          FLOWS: ${{ inputs.flows }}
+          MODE: ${{ inputs['screenshots-mode'] }}
+        run: |
+          case "$MODE" in all|failure|off) ;; *) echo "invalid screenshots-mode: $MODE" >&2; exit 2 ;; esac
+          npx brighttest e2e run "$FLOWS" \
+            --screenshots "e2e-artifacts" \
+            --screenshots-mode "$MODE"
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-screenshots
+          path: e2e-artifacts
+          if-no-files-found: ignore
