@@ -50,6 +50,57 @@ function parseSkillsArgs(rest) {
   return opts;
 }
 
+// `brighttest e2e [run|inspect] <flow…> [options]` — the on-device UI test lane.
+const E2E_ACTIONS = ['run', 'inspect'];
+const SCREENSHOT_MODES = ['all', 'failure', 'off'];
+function parseE2eArgs(rest) {
+  const opts = {
+    e2eAction: 'run', flows: [], host: null, password: null, app: null,
+    timeout: undefined, screenshots: null, screenshotsMode: 'all', help: false,
+  };
+  for (let i = 0; i < rest.length; i++) {
+    const a = rest[i];
+    if (i === 0 && E2E_ACTIONS.includes(a)) opts.e2eAction = a;
+    else if (a === '--host') opts.host = rest[++i];
+    else if (a.startsWith('--host=')) opts.host = a.slice(7);
+    else if (a === '--password' || a === '--pass') opts.password = rest[++i];
+    else if (a.startsWith('--password=')) opts.password = a.slice(11);
+    else if (a === '--app') opts.app = rest[++i];
+    else if (a.startsWith('--app=')) opts.app = a.slice(6);
+    else if (a === '--timeout') opts.timeout = parseInt(rest[++i], 10) || undefined;
+    else if (a.startsWith('--timeout=')) opts.timeout = parseInt(a.slice(10), 10) || undefined;
+    else if (a === '--screenshots') opts.screenshots = rest[++i];
+    else if (a.startsWith('--screenshots=')) opts.screenshots = a.slice(14);
+    else if (a === '--screenshots-mode') opts.screenshotsMode = rest[++i];
+    else if (a.startsWith('--screenshots-mode=')) opts.screenshotsMode = a.slice(19);
+    else if (a === '--help' || a === '-h') opts.help = true;
+    else if (a.startsWith('-')) { /* ignore unknown flags */ }
+    else opts.flows.push(a);
+  }
+  return opts;
+}
+
+const E2E_HELP = `
+brighttest e2e — deterministic on-device UI tests (author-first, no AI in the loop)
+
+  Drives a real Roku over ECP (launch, D-pad keypresses, text) and asserts on the live SceneGraph tree
+  read via query/sgnodes. Flows are YAML files; selectors use a node's built-in id (dumped as name=),
+  or text/subtype. The device must be in developer mode with ECP Network access = Permissive.
+
+Usage:
+  brighttest e2e run <flow…>        Run one or more *.e2e.yaml files (or a directory of them)
+  brighttest e2e inspect            Dump a summary of the live tree (find ids/text/subtypes)
+
+Options:
+  --host <ip>            Roku device IP (or ROKU_HOST)
+  --password <pw>        Roku dev password (or ROKU_PASSWORD) — enables screenshots
+  --app <id>            Channel to launch (default: dev; also the flow's appId)
+  --timeout <sec>        Per-assertion wait timeout (default 10)
+  --screenshots <dir>    Where to write screenshots (default: <stagingDir>/e2e/screenshots)
+  --screenshots-mode <m> all (per-step, default) | failure (only on fail) | off
+  -h, --help             Show this help
+`;
+
 // `brighttest init [--force]`
 function parseInitArgs(rest) {
   const opts = { force: false, help: false };
@@ -114,6 +165,7 @@ Usage:
   brighttest --cross-check --host <ip> --password <pw>   Diff headless vs device (fidelity check)
   brighttest init                                    Scaffold a project for testing (see: init --help)
   brighttest skills install                          Install AI-agent test-writing skills (see: skills --help)
+  brighttest e2e run <flow…> --host <ip>             On-device UI e2e tests from YAML flows (see: e2e --help)
 
 Options:
   -d, --device          Run on a Roku device (deploys + runs Rooibos, reports coverage)
@@ -151,6 +203,18 @@ async function main() {
     const code = await require('../lib/skills').run(null, sOpts);
     process.exit(code);
   }
+  if (argv[0] === 'e2e') {
+    const eOpts = parseE2eArgs(argv.slice(1));
+    if (eOpts.help) { console.log(E2E_HELP); process.exit(0); }
+    if (!SCREENSHOT_MODES.includes(eOpts.screenshotsMode)) {
+      console.error(`[brighttest e2e] --screenshots-mode must be one of: ${SCREENSHOT_MODES.join(', ')}`);
+      process.exit(2);
+    }
+    const cfg = loadConfig(process.cwd(), null);
+    console.log('brighttest: e2e lane\n');
+    const code = await require('../lib/e2e/run').run(cfg, eOpts);
+    process.exit(code);
+  }
 
   const opts = parseArgs(argv);
   if (opts.help) { console.log(HELP); process.exit(0); }
@@ -169,4 +233,4 @@ async function main() {
 // Only run the CLI when executed directly (not when required by tests).
 if (require.main === module) main();
 
-module.exports = { parseArgs, parseSkillsArgs, parseInitArgs, SKILLS_ACTIONS };
+module.exports = { parseArgs, parseSkillsArgs, parseInitArgs, parseE2eArgs, SKILLS_ACTIONS, E2E_ACTIONS, SCREENSHOT_MODES };
