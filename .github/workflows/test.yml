@@ -1,20 +1,20 @@
 name: Test
 
-# Runs the unit suite on every push to main and on every pull request, across the
-# supported Node.js versions (README advertises Node 18+).
+# Runs the test suites on every push to main and on every pull request, across the
+# supported Node.js versions (brighttest requires Node 22+ — brs-node crashes on older).
 on:
   push:
     branches: [main]
   pull_request:
 
 jobs:
-  # Fast unit suite across the supported Node versions. These are the checks required to merge.
+  # Fast unit suite across the supported Node versions (22 LTS + 24 current). Required to merge.
   test:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        node-version: ["18", "20", "22"]
+        node-version: ["22", "24"]
     name: test (node ${{ matrix.node-version }})
     steps:
       - uses: actions/checkout@v4
@@ -26,8 +26,7 @@ jobs:
       - run: npm run test:unit
 
   # Slower end-to-end suite: spawns the real CLI, compiles fixtures with bsc, runs them on the
-  # brs-node simulator. Pinned to Node 22 — the brs-node runtime crashes on load under Node 18/20
-  # (18: global crypto.randomUUID; 20: an internal load error), and works on 22+.
+  # brs-node simulator. Node 22 (the LTS floor) is enough — this exercises the runtime pipeline.
   integration:
     runs-on: ubuntu-latest
     name: integration (node 22)

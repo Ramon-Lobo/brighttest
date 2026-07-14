@@ -24,7 +24,7 @@ The canonical, always-current version of this guide lives in
 
 ## Development setup
 
-You need **Node.js 18+** and **git**.
+You need **Node.js 22+** and **git**. (The brs-node simulator behind the headless lanes requires Node 22+.)
 
 ```bash
 # 1. Fork the repo on GitHub, then clone your fork
@@ -64,7 +64,7 @@ real Roku project. Run `npm unlink -g brighttest` when you're done.
    npm run test:watch        # unit tests while developing
    ```
    Unit tests are in `test/`; integration tests and their fixture live in `test/integration/` and
-   `test/fixtures/`. CI runs unit on Node 18/20/22 and integration on Node 20. Add or update tests for
+   `test/fixtures/`. CI runs unit on Node 22 and 24 and integration on Node 22. Add or update tests for
    behaviour you change.
 4. **For device-lane changes, also verify on hardware** — the integration suite covers everything that
    runs without a device; `--device` / `--cross-check` can only be confirmed on a real Roku. Note what

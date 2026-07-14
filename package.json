@@ -12,6 +12,9 @@
   "bugs": {
     "url": "https://github.com/Ramon-Lobo/brighttest/issues"
   },
+  "engines": {
+    "node": ">=22"
+  },
   "bin": {
     "brighttest": "bin/cli.js"
   },
