@@ -28,6 +28,8 @@ features:
     details: Sub-second local runs (--no-sgnode). No more package → sideload → ECP → telnet cycle.
   - title: One spec, every lane
     details: The exact same .spec.bs runs headless and on-device — including @SGNode node suites headless.
+  - title: On-device E2E
+    details: Deterministic UI tests on a real Roku — launch, drive the D-pad, type, and assert on the live SceneGraph. YAML flows, focus path-finding, screenshots &amp; video.
 ---
 
 ## What is brighttest?
@@ -45,3 +47,15 @@ npx brighttest --device --host <roku-ip> --password <dev-pw>          # on real 
 
 New to testing on Roku? Start with the **[Writing tests guide](/writing-tests/)** — it assumes no prior
 experience with any of these tools.
+
+## Two kinds of testing
+
+- **Logic** — Rooibos unit/integration specs, run headless (fast CI, coverage) or on device. This is the
+  bulk of your tests. Start at the [Writing tests guide](/writing-tests/).
+- **UI journeys** — the [on-device E2E lane](/e2e/) drives a real Roku like a user (launch, D-pad, text)
+  and asserts on the live screen. Additive — for the critical flows only a real device can prove.
+
+```bash
+npx brighttest e2e inspect --host <roku-ip> --app dev     # see the live screen
+npx brighttest e2e run flows/ --host <roku-ip> --password <dev-pw>   # run YAML flows
+```

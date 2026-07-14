@@ -88,6 +88,12 @@ via `env:`, as above. Don't inline them in the workflow or commit them.
 |---|---|---|
 | Every push / PR | Headless `--coverage` | Fast, hardware-free gate; blocks broken logic immediately, and produces coverage. |
 | Nightly / pre-release | Device `--cross-check` | Needs hardware. Confirms the fast lane is still a faithful proxy for real firmware. |
+| Manual / pre-release | [`e2e run`](/e2e/scaling) | UI journeys on a real device. Self-hosted runner near a Roku; can't run on GitHub-hosted runners. |
+
+::: tip On-device E2E in CI
+The e2e lane needs a real Roku on the runner's LAN, so it runs only on a **self-hosted** runner. The repo
+ships a ready workflow at `.github/workflows/e2e-device.yml` — see [E2E → Scaling & CI](/e2e/scaling).
+:::
 
 ## Coverage services
 
