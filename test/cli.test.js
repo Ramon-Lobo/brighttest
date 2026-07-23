@@ -20,6 +20,8 @@ describe('parseArgs', () => {
     expect(parseArgs(['--skip-sgnode']).noSgnode).toBe(true)
     expect(parseArgs(['--help']).help).toBe(true)
     expect(parseArgs(['-h']).help).toBe(true)
+    expect(parseArgs(['--version']).version).toBe(true)
+    expect(parseArgs(['-v']).version).toBe(true)
   })
 
   it('parses space- and equals-separated value flags equivalently', () => {
