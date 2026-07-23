@@ -70,6 +70,7 @@ Node  Button #playButton "Play"
     focused = true
     visible = true
     bounds  = {820, 400, 280, 64}
+  children: 0
   match: unique (1 node)
 
   Suggested assertions (copy into a flow):
@@ -77,6 +78,10 @@ Node  Button #playButton "Play"
     - assertText: { id: playButton, equals: Play }
     - assertFocused: { id: playButton }
 ```
+
+The `children:` line reports how many child nodes it has (direct, and the total descendant count when they
+differ) — handy for a container like a row or grid. And **any field in the dump is assertable** with
+`assertField` (see the flow reference); `inspect` is where you discover the field names.
 
 If the node's best selector isn't unique, the suggestion is disambiguated with `index:` automatically, and
 the `match:` line says how many nodes share it — so the user can confirm they're asserting on the right one
@@ -87,7 +92,8 @@ npx brighttest e2e inspect --host <ip> --id playButton --out flows/home.e2e.yaml
 #   → appended to flows/home.e2e.yaml   - assertText: { id: playButton, equals: Play }
 ```
 
-`--assert` picks which one: `visible` (default) · `text` · `focused` · `gone`. As the agent, the good loop
+`--assert` picks which one: `visible` (default) · `text` · `focused` · `gone` · `field` (with `--field <name>`,
+capturing that field's current value as `equals:`). As the agent, the good loop
 is: run `inspect <selector>` → show the user the fields and the suggested assertions → on their confirmation
 append the one they want (or paste it at the right point in the flow yourself). Full detail in
 [authoring.md](references/authoring.md).

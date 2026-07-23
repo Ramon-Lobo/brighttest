@@ -47,6 +47,7 @@ Node  Button #playButton "Play"
     focused = true
     visible = true
     bounds  = {820, 400, 280, 64}
+  children: 0
   match: unique (1 node)
 
   Suggested assertions (copy into a flow):
@@ -58,10 +59,12 @@ Node  Button #playButton "Play"
 The suggested selector is chosen for stability (`id` → `text` → `subtype`); if it still matches several
 nodes it's disambiguated with `index:` and the `match:` line reports the count. Which assertions appear
 depends on the node: `assertVisible` always, `assertText` when it has text (its current text becomes
-`equals:`), `assertFocused` when it's focused.
+`equals:`), `assertFocused` when it's focused. Any other field in the dump is assertable too — take its
+name and use [`assertField`](/e2e/flows#asserting-arbitrary-node-fields).
 
 Append the chosen assertion straight into a flow with `--out` (created as a minimal flow if missing);
-`--assert` selects the kind (`visible` default · `text` · `focused` · `gone`):
+`--assert` selects the kind (`visible` default · `text` · `focused` · `gone` · `field`, the last with
+`--field <name>` capturing that field's current value as `equals:`):
 
 ```bash
 npx brighttest e2e inspect --host <roku-ip> --id playButton --out flows/home.e2e.yaml --assert text

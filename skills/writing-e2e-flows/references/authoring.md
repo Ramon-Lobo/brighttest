@@ -47,6 +47,7 @@ Node  Button #playButton "Play"
     focused = true
     visible = true
     bounds  = {820, 400, 280, 64}
+  children: 0
   match: unique (1 node)
 
   Suggested assertions (copy into a flow):
@@ -60,6 +61,11 @@ Node  Button #playButton "Play"
   you're asserting on the right one.
 - **Which assertions appear** depends on the node: `assertVisible` always; `assertText` when it has text
   (its current text becomes `equals:`); `assertFocused` when it's focused.
+- **Any field in the dump is assertable.** Beyond the suggested snippets, take any line under *fields* and
+  assert it with `assertField: { …selector, field: <name>, equals|contains: … }` — see the
+  [flow reference](flow-reference.md).
+- **The `children:` line** reports the node's child count (direct, plus the total descendant count when
+  they differ) — a quick way to check a row/grid populated.
 
 ### Append straight into a flow
 
@@ -69,7 +75,8 @@ npx brighttest e2e inspect --host <ip> --id playButton --out flows/home.e2e.yaml
 ```
 
 `--out <file>` appends the chosen assertion (created as a minimal flow if the file is missing). `--assert`
-selects the kind: `visible` (default) · `text` · `focused` · `gone`. If several nodes match, it appends for
+selects the kind: `visible` (default) · `text` · `focused` · `gone` · `field` (with `--field <name>`, which
+captures that field's current value as `equals:`). If several nodes match, it appends for
 the first and warns — narrow the selector or add `--index` to target another. Appends land at end-of-file,
 so the flow's `steps:` block should be the last thing in the file (the normal layout).
 

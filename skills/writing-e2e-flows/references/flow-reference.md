@@ -30,13 +30,18 @@ This is a deliberately small YAML subset — anything outside it raises a clear,
 | `assertVisible: <selector>` | Poll until the selector is present (else fail) |
 | `assertGone: <selector>` | Poll until the selector is absent |
 | `assertText: { …selector, equals \| contains }` | Assert a node's text |
+| `assertField: { …selector, field, equals \| contains }` | Assert **any** field the node exposes (any value `inspect` shows) |
 | `assertFocused: <selector>` | Assert the node currently has focus |
+| `wait: <ms>` / `wait: { ms }` | Pause a fixed number of **milliseconds** (not seconds — cf. `timeout`) |
 | `waitFor: { …selector, timeout }` | Explicit wait for a selector |
 | `screenshot: <name>` | Save a PNG/JPG artifact (always captures unless `--screenshots-mode off`) |
 | `back` / `home` | Convenience for `press: Back` / `press: Home` |
 
 Assertions **poll** until satisfied or the step timeout elapses (`config.timeout`, `--timeout`, default
-10s), so you rarely need explicit waits. A flow stops at its first failing step (fail-fast within a flow).
+10s), so you rarely need explicit waits — prefer `assertVisible`/`waitFor` over a fixed `wait`. Reach for
+`wait: <ms>` only when a step must pause for a *fixed* duration with nothing to poll on (a timed splash,
+an animation, a debounce). Note the units: `wait` is **milliseconds**, while `timeout`/`waitFor` are
+seconds. A flow stops at its first failing step (fail-fast within a flow).
 
 ## Selectors
 
@@ -58,6 +63,26 @@ dumps a fixed set of built-in fields, and a node's `id` surfaces there as `name=
 is the built-in **`id`**. No ids? Use `text`/`subtype`, or auto-inject ids at build time (see authoring).
 
 Stability preference: `id` → `text`/`subtype`. Prefer ids for anything you assert on repeatedly.
+
+## Asserting arbitrary node fields
+
+`assertText` covers the common case; `assertField` generalizes it to **any** field a node exposes — exactly
+the fields `e2e inspect --id <x>` prints. Give it a selector, a `field:` name, and `equals:` or `contains:`.
+
+```yaml
+- assertField: { id: hero, field: uri, equals: "pkg:/images/hero.png" }
+- assertField: { id: title, field: opacity, equals: 1 }
+- assertField: { id: progressBar, field: width, contains: "480" }
+- assertField: { id: playButton, field: name, equals: playButton }   # the built-in id surfaces as `name`
+```
+
+- **Discover field names with `inspect`.** Run `e2e inspect --id <x>`; every line under *fields* is a name
+  you can assert on (`uri`, `opacity`, `bounds`, `width`, `translation`, `visible`, `color`, …).
+- **Values compare as strings.** sgnodes reports fields as text, so `equals` is an exact string match
+  (`equals: 1` matches the field `"1"`) and `contains` is a substring — handy for tuples like
+  `bounds="{820, 400, 280, 64}"` where `contains: "820"` checks just the x. Like the other assertions it
+  **polls** until it matches or the step timeout elapses.
+- A wrong value and an absent field fail with different messages (`got "…"` vs `field "…" not present`).
 
 ## Focus navigation
 
