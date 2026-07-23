@@ -4,6 +4,7 @@ import { matchAll, matchOne, describe as describeSel } from '../lib/e2e/select.j
 import { parseFlow, normalizeStep, FlowError } from '../lib/e2e/flow.js'
 import { parseChallenge, buildDigestHeader, multipart } from '../lib/e2e/ecp.js'
 import { parseE2eArgs } from '../bin/cli.js'
+import { execStep } from '../lib/e2e/run.js'
 
 // A trimmed but faithful sgnodes/all response, mirroring what probe 2 captured on real hardware
 // (id serialized as name=, {x,y,w,h} bounds, focused flags, nested children).
@@ -143,6 +144,44 @@ steps:
     Object.defineProperty(item, '__line', { value: 7 })
     expect(() => normalizeStep(item)).toThrow(/needs equals: or contains:/)
   })
+  it('parses a millisecond wait as a scalar or a { ms } map', () => {
+    const flow = parseFlow('steps:\n  - launch\n  - wait: 500\n  - wait: { ms: 1200 }\n')
+    expect(flow.steps.map((s) => s.op)).toEqual(['launch', 'wait', 'wait'])
+    expect(flow.steps[1]).toMatchObject({ op: 'wait', ms: 500 })
+    expect(flow.steps[2]).toMatchObject({ op: 'wait', ms: 1200 })
+  })
+  it('rejects a missing or negative wait duration', () => {
+    expect(() => parseFlow('steps:\n  - wait:\n')).toThrow(/wait needs a duration in ms/)
+    expect(() => parseFlow('steps:\n  - wait: -5\n')).toThrow(/non-negative number of milliseconds/)
+  })
+  it('parses assertField with a field and equals/contains', () => {
+    const flow = parseFlow('steps:\n  - assertField: { id: hero, field: uri, equals: "pkg:/hero.png" }\n  - assertField: { subtype: Label, field: opacity, contains: "0.5" }\n')
+    expect(flow.steps[0]).toMatchObject({ op: 'assertField', selector: { id: 'hero' }, field: 'uri', equals: 'pkg:/hero.png' })
+    expect(flow.steps[1]).toMatchObject({ op: 'assertField', selector: { subtype: 'Label' }, field: 'opacity', contains: '0.5' })
+  })
+  it('rejects assertField without a field or a comparison', () => {
+    expect(() => parseFlow('steps:\n  - assertField: { id: x, equals: 1 }\n')).toThrow(/assertField needs field:/)
+    expect(() => parseFlow('steps:\n  - assertField: { id: x, field: uri }\n')).toThrow(/needs equals: or contains:/)
+  })
+})
+
+describe('execStep assertField (fake device)', () => {
+  const XML = '<sgnodes><All_Nodes><Default name="" />' +
+    '<Scene name="root"><Poster name="hero" uri="pkg:/hero.png" opacity="0.5" /></Scene>' +
+    '</All_Nodes><status>OK</status></sgnodes>'
+  const ctx = (timeoutMs = 400) => ({ device: { async ecpGet() { return { status: 200, text: XML } } }, stepTimeoutMs: timeoutMs })
+
+  it('passes on a matching field (equals string, equals number, contains)', async () => {
+    await expect(execStep({ op: 'assertField', selector: { id: 'hero' }, field: 'uri', equals: 'pkg:/hero.png' }, ctx())).resolves.toBeTruthy()
+    await expect(execStep({ op: 'assertField', selector: { id: 'hero' }, field: 'opacity', equals: 0.5 }, ctx())).resolves.toBeTruthy()
+    await expect(execStep({ op: 'assertField', selector: { id: 'hero' }, field: 'uri', contains: 'hero' }, ctx())).resolves.toBeTruthy()
+  })
+  it('fails distinctly on a wrong value vs an absent field', async () => {
+    await expect(execStep({ op: 'assertField', selector: { id: 'hero' }, field: 'uri', equals: 'nope' }, ctx(300)))
+      .rejects.toThrow(/got "pkg:\/hero\.png"/)
+    await expect(execStep({ op: 'assertField', selector: { id: 'hero' }, field: 'color', equals: 'x' }, ctx(300)))
+      .rejects.toThrow(/field "color" not present/)
+  })
 })
 
 describe('ecp digest + multipart helpers', () => {
@@ -200,5 +239,10 @@ describe('cli parseE2eArgs', () => {
   it('keeps --text-contains distinct from --text', () => {
     expect(parseE2eArgs(['inspect', '--text-contains', 'Continue']).sel).toEqual({ textContains: 'Continue' })
     expect(parseE2eArgs(['inspect', '--text=Play']).sel).toEqual({ text: 'Play' })
+  })
+  it('parses --assert field with --field', () => {
+    const o = parseE2eArgs(['inspect', '--id', 'hero', '--assert', 'field', '--field', 'uri', '--out', 'flows/x.e2e.yaml'])
+    expect(o).toMatchObject({ assert: 'field', field: 'uri', out: 'flows/x.e2e.yaml' })
+    expect(o.sel).toEqual({ id: 'hero' })
   })
 })

@@ -58,7 +58,7 @@ function parseE2eArgs(rest) {
     e2eAction: 'run', flows: [], host: null, password: null, app: null,
     timeout: undefined, screenshots: null, screenshotsMode: 'all', out: null,
     contentIds: null, mediaType: null, video: null, help: false,
-    sel: {}, assert: null,
+    sel: {}, assert: null, field: null,
   };
   const splitList = (v) => String(v).split(',').map((s) => s.trim()).filter(Boolean);
   for (let i = 0; i < rest.length; i++) {
@@ -100,6 +100,8 @@ function parseE2eArgs(rest) {
     else if (a === '--focused') opts.sel.focused = true;
     else if (a === '--assert') opts.assert = rest[++i];
     else if (a.startsWith('--assert=')) opts.assert = a.slice(9);
+    else if (a === '--field') opts.field = rest[++i];
+    else if (a.startsWith('--field=')) opts.field = a.slice(8);
     else if (a === '--help' || a === '-h') opts.help = true;
     else if (a.startsWith('-')) { /* ignore unknown flags */ }
     else opts.flows.push(a);
@@ -125,7 +127,8 @@ Node detail (inspect with a selector — targets a node you see on screen):
   --id <x> / --subtype <s> / --text <t> / --text-contains <t> / --uri <u> / --focused / --index <n>
                          Any combination narrows the match (AND). Prints all of the node's fields plus
                          suggested assertions built from its actual state.
-  --assert <kind>        With --out, which assertion to append: visible (default) | text | focused | gone
+  --assert <kind>        With --out, which assertion to append: visible (default) | text | focused | gone | field
+  --field <name>         With --assert field, the field to capture (its current value becomes equals:)
   -o, --out <file>       Append the assertion to this flow file (created if missing)
 
 Options:

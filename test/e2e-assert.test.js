@@ -36,6 +36,12 @@ describe('buildAssertion', () => {
     expect(() => buildAssertion('text', node({ id: 'x' }), [node({ id: 'x' })])).toThrow(/no text/)
     expect(() => buildAssertion('bogus', n, all)).toThrow(/unknown assertion kind/)
   })
+  it('builds an assertField capturing the node\'s current field value', () => {
+    const hero = { ...node({ id: 'hero', subtype: 'Poster' }), attrs: { name: 'hero', uri: 'pkg:/hero.png' } }
+    expect(buildAssertion('field', hero, [hero], { field: 'uri' })).toBe('- assertField: { id: hero, field: uri, equals: "pkg:/hero.png" }')
+    expect(() => buildAssertion('field', hero, [hero])).toThrow(/needs a field name/)
+    expect(() => buildAssertion('field', hero, [hero], { field: 'color' })).toThrow(/no field "color"/)
+  })
 })
 
 describe('displayAssertions', () => {

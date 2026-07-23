@@ -31,14 +31,18 @@ error rather than being silently misparsed.
 | `assertVisible: <selector>` | Poll until the selector is present (else fail) |
 | `assertGone: <selector>` | Poll until the selector is absent |
 | `assertText: { …selector, equals \| contains }` | Assert a node's text |
+| `assertField: { …selector, field, equals \| contains }` | Assert **any** field the node exposes (any value `inspect` shows) |
 | `assertFocused: <selector>` | Assert the node currently has focus |
+| `wait: <ms>` / `wait: { ms }` | Pause a fixed number of **milliseconds** (contrast the second-based `timeout`) |
 | `waitFor: { …selector, timeout }` | Explicit wait for a selector |
 | `screenshot: <name>` | Save a PNG/JPG artifact |
 | `back` / `home` | Convenience for `press: Back` / `press: Home` |
 
 Assertions **poll** until satisfied or the step timeout elapses (`config.timeout`, `--timeout`, default
-10s), so you rarely need explicit waits — screens are given time to settle. A flow stops at its first
-failing step (fail-fast within a flow).
+10s), so you rarely need explicit waits — screens are given time to settle. Prefer `assertVisible`/`waitFor`
+over a fixed `wait`; reach for `wait: <ms>` only when a step must pause for a *fixed* duration with nothing
+to poll on (a timed splash, an animation, a debounce). Note the units: `wait` is **milliseconds**, while
+`timeout`/`waitFor` are seconds. A flow stops at its first failing step (fail-fast within a flow).
 
 ## Selectors
 
@@ -63,6 +67,24 @@ built-in **`id`**. If your app has none, use `text`/`subtype`, or auto-inject id
 :::
 
 Stability preference: `id` → `text`/`subtype`. Prefer ids for anything you assert on repeatedly.
+
+## Asserting arbitrary node fields
+
+`assertText` handles the common case; `assertField` generalizes it to **any** field a node exposes —
+exactly the fields [`e2e inspect --id <x>`](/e2e/authoring) prints. Give it a selector, a `field:` name,
+and `equals:` or `contains:`.
+
+```yaml
+- assertField: { id: hero, field: uri, equals: "pkg:/images/hero.png" }
+- assertField: { id: title, field: opacity, equals: 1 }
+- assertField: { id: progressBar, field: width, contains: "480" }
+```
+
+Discover field names by running `e2e inspect` on the node — every line under *fields* is assertable
+(`uri`, `opacity`, `bounds`, `width`, `translation`, `visible`, `color`, …; the built-in id surfaces as
+`name`). Values compare as **strings** (sgnodes reports fields as text): `equals` is an exact match and
+`contains` is a substring — useful for tuples like `bounds="{820, 400, 280, 64}"`. Like the other
+assertions, it polls until it matches or the step timeout elapses.
 
 ## Focus navigation
 
