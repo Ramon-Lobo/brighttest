@@ -37,12 +37,37 @@ main { flex: 1; display: flex; min-height: 0; }
 #remote .ok { color: #15161c; background: #5aa0ff; border-color: #5aa0ff; font-weight: 600; }
 #remote .keys button { width: auto; padding: 0 14px; }
 
-#panel { width: 340px; border-left: 1px solid #2a2d3a; padding: 12px 14px; overflow: auto; background: #1a1c24; }
-#panel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: #8a8c99; margin: 0 0 8px; }
+#panel { width: 420px; border-left: 1px solid #2a2d3a; padding: 12px 14px; overflow: auto; background: #1a1c24; }
+#panel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: #8a8c99; margin: 16px 0 8px; }
+#panel h2:first-child { margin-top: 0; }
 #detail .title { font-size: 15px; color: #fff; margin-bottom: 8px; word-break: break-word; }
 #detail table { width: 100%; border-collapse: collapse; }
 #detail td { padding: 2px 6px 2px 0; vertical-align: top; }
 #detail td.k { color: #8a8c99; white-space: nowrap; }
 #detail td.v { color: #e6e6ea; word-break: break-word; }
 #detail .assert { margin-top: 10px; }
-#detail code { display: block; background: #11121a; border: 1px solid #2a2d3a; border-radius: 6px; padding: 6px 8px; margin: 4px 0; color: #b7e3ff; white-space: pre-wrap; }
+#detail .k { color: #8a8c99; }
+button.addstep {
+  display: block; width: 100%; text-align: left; margin: 4px 0; padding: 6px 8px;
+  background: #11121a; border: 1px solid #2a2d3a; border-radius: 6px; color: #b7e3ff;
+  font-family: ui-monospace, Menlo, monospace; font-size: 12px; cursor: pointer;
+}
+button.addstep:hover { border-color: #5aa0ff; background: #161b28; }
+
+.flowbar { display: flex; align-items: center; gap: 6px; margin: 6px 0; }
+.flowbar select { flex: 1; background: #11121a; color: #e6e6ea; border: 1px solid #2a2d3a; border-radius: 6px; padding: 5px; }
+.flowbar button { background: #262936; color: #e6e6ea; border: 1px solid #3a3e4f; border-radius: 6px; padding: 5px 12px; cursor: pointer; }
+.flowbar button:hover { background: #313547; }
+.flowbar .run { background: #2f9e57; border-color: #2f9e57; color: #fff; font-weight: 600; }
+.flowbar .run:disabled { opacity: .5; cursor: default; }
+#flowText {
+  width: 100%; height: 200px; resize: vertical; box-sizing: border-box;
+  background: #11121a; color: #dfe4ee; border: 1px solid #2a2d3a; border-radius: 6px; padding: 8px;
+  font-family: ui-monospace, Menlo, monospace; font-size: 12px; line-height: 1.5;
+}
+#runSteps { list-style: none; margin: 8px 0 0; padding: 0; font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
+#runSteps li { padding: 2px 0; color: #b9bcc9; }
+#runSteps li .mark { display: inline-block; width: 16px; }
+#runSteps li.pass .mark { color: #3ecf6a; }
+#runSteps li.fail { color: #ff6b6b; }
+#runSteps li.running { color: #ffd23f; }

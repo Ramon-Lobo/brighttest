@@ -162,12 +162,13 @@ Roku's focus-based model.
 
 - **M1 Visualize** ✅ (done) — live screenshot mirror + resolved sgnodes overlay + hover/click inspector.
 - **M2 Control** ✅ (done) — remote pad + keyboard, live view follows.
-- **M3 Author** — click a node → add `assertVisible`/`assertText`/`assertField`/`assertFocused` (reuse
-  `assert-builder`); a flow-builder panel accumulates steps; save/append `*.e2e.yaml`.
-- **M4 Test editor + runner** — an editable flow panel (step list + raw YAML) with **id
-  autocomplete from the live tree**; a **Run** button that executes the flow on the device and shows
-  per-step ✓/✗ with the screen **highlighting the current target**; failures show expected/actual + the
-  frame. This is "write a test in the tool, run it, watch it."
+- **M3 Author** ✅ (done) — browse the project's real `*.e2e.yaml` flows, edit them in place, click a node
+  → "+ add" `assertVisible`/`assertText`/`assertFocused` into the open flow; **Save writes the actual file**
+  (parse-validated server-side, path-scoped to the flows dir).
+- **M4 Test editor + runner** ✅ (done) — a **Run** button executes the flow on the device via SSE (reusing
+  the e2e `execStep`), streaming **per-step ✓/✗** with the overlay **highlighting the current target**;
+  stops at the first failure with its reason. This is "write a test in the tool, run it, watch it."
+  Still open: id autocomplete in the editor, and expected/actual screenshot capture on failure.
 - **M5 Record** — capture remote presses + on-demand assertions into a flow from the studio (a nicer,
   visual successor to `e2e record`).
 - **M6 Selector assistant** — flag ambiguous selectors, suggest the stable one (id→text→subtype+index), and
