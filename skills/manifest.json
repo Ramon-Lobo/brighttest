@@ -14,6 +14,16 @@
       ]
     },
     {
+      "name": "writing-e2e-flows",
+      "files": [
+        "SKILL.md",
+        "references/authoring.md",
+        "references/flow-reference.md",
+        "references/pitfalls.md",
+        "references/scaling-ci.md"
+      ]
+    },
+    {
       "name": "writing-rooibos-tests",
       "files": [
         "SKILL.md",

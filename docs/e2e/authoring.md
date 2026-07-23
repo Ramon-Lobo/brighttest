@@ -23,6 +23,56 @@ Live tree: 58 nodes, 5 subtypes
 If it reports `Channel not running`, pass `--app dev` to launch first. If it reports `Limited mode`, set
 the device to **Permissive** (see [Overview](/e2e/)).
 
+## `inspect <selector>` — one node's full detail + assertions
+
+Pass a selector and `inspect` targets a single node instead of summarizing the whole tree: it prints
+**every field** Roku dumps for that node, then generates assertions from its *actual* state. Use it when
+you see something on screen and want a correct assertion for it — verify the fields first, then take the
+snippet.
+
+```bash
+npx brighttest e2e inspect --host <roku-ip> --id playButton    # by built-in id
+npx brighttest e2e inspect --host <roku-ip> --text "Play"      # by exact visible text
+npx brighttest e2e inspect --host <roku-ip> --focused          # whatever is focused right now
+```
+
+Selector flags mirror the flow selectors and combine (AND): `--id`, `--subtype`, `--text`,
+`--text-contains`, `--uri`, `--focused`, `--index <n>`.
+
+```
+Node  Button #playButton "Play"
+  fields (all sgnodes attrs):
+    name    = playButton
+    text    = Play
+    focused = true
+    visible = true
+    bounds  = {820, 400, 280, 64}
+  match: unique (1 node)
+
+  Suggested assertions (copy into a flow):
+    - assertVisible: { id: playButton }
+    - assertText: { id: playButton, equals: Play }
+    - assertFocused: { id: playButton }
+```
+
+The suggested selector is chosen for stability (`id` → `text` → `subtype`); if it still matches several
+nodes it's disambiguated with `index:` and the `match:` line reports the count. Which assertions appear
+depends on the node: `assertVisible` always, `assertText` when it has text (its current text becomes
+`equals:`), `assertFocused` when it's focused.
+
+Append the chosen assertion straight into a flow with `--out` (created as a minimal flow if missing);
+`--assert` selects the kind (`visible` default · `text` · `focused` · `gone`):
+
+```bash
+npx brighttest e2e inspect --host <roku-ip> --id playButton --out flows/home.e2e.yaml --assert text
+#   → appended to flows/home.e2e.yaml   - assertText: { id: playButton, equals: Play }
+```
+
+::: tip Appends land at end-of-file
+The flow's `steps:` block should be the last thing in the file (the normal layout), since the assertion is
+added to the end of the journey. Review the placement and reorder if you meant it earlier in the flow.
+:::
+
 ## `record` — scaffold a flow interactively
 
 Roku's ECP doesn't stream the physical remote to us, so recording is an **interactive terminal session**:
