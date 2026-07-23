@@ -191,4 +191,14 @@ describe('cli parseE2eArgs', () => {
     expect(o.e2eAction).toBe('inspect')
     expect(o.flows).toEqual([])
   })
+  it('parses inspect node-detail selector flags and --assert', () => {
+    const o = parseE2eArgs(['inspect', '--subtype', 'Poster', '--index', '1', '--focused', '--assert', 'text', '--out', 'flows/x.e2e.yaml'])
+    expect(o.sel).toEqual({ subtype: 'Poster', index: 1, focused: true })
+    expect(o.assert).toBe('text')
+    expect(o.out).toBe('flows/x.e2e.yaml')
+  })
+  it('keeps --text-contains distinct from --text', () => {
+    expect(parseE2eArgs(['inspect', '--text-contains', 'Continue']).sel).toEqual({ textContains: 'Continue' })
+    expect(parseE2eArgs(['inspect', '--text=Play']).sel).toEqual({ text: 'Play' })
+  })
 })
