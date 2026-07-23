@@ -42,6 +42,20 @@
     <aside id="panel">
       <h2>Node</h2>
       <div id="detail" class="muted">Hover a box to preview · click to pin details.</div>
+
+      <h2>Flow</h2>
+      <div class="flowbar">
+        <select id="flowSelect"><option value="">— select a flow —</option></select>
+        <button id="flowNew" title="new flow">＋</button>
+        <button id="flowReload" title="reload list">⟳</button>
+      </div>
+      <textarea id="flowText" spellcheck="false" placeholder="Select or create a *.e2e.yaml flow. Click a node above, then ‘+ add’ an assertion here. Save writes the real project file."></textarea>
+      <div class="flowbar">
+        <button id="flowSave">Save</button>
+        <button id="flowRun" class="run">Run ▶</button>
+        <span id="flowMsg" class="muted"></span>
+      </div>
+      <ol id="runSteps"></ol>
     </aside>
   </main>
 
