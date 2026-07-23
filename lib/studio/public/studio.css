@@ -1,0 +1,48 @@
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: #e6e6ea; background: #15161c; display: flex; flex-direction: column;
+}
+.muted { color: #8a8c99; }
+.spacer { flex: 1; }
+
+header {
+  display: flex; align-items: center; gap: 14px;
+  padding: 8px 14px; background: #1d1f28; border-bottom: 1px solid #2a2d3a;
+}
+header strong { color: #fff; }
+.toggle { display: inline-flex; align-items: center; gap: 5px; color: #b9bcc9; cursor: pointer; }
+
+main { flex: 1; display: flex; min-height: 0; }
+#stageWrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 14px; min-width: 0; }
+
+#stage { position: relative; width: 100%; max-width: 1280px; aspect-ratio: 16 / 9; background: #000; border: 1px solid #2a2d3a; }
+#shot { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; }
+#overlay { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+#overlay rect { fill: transparent; stroke: rgba(90,160,255,.35); stroke-width: 1; vector-effect: non-scaling-stroke; cursor: pointer; }
+#overlay rect.id { stroke: rgba(90,160,255,.7); }
+#overlay rect.focused { stroke: #ffd23f; stroke-width: 2; }
+#overlay rect:hover, #overlay rect.hot { fill: rgba(90,160,255,.18); stroke: #5aa0ff; stroke-width: 2; }
+
+#remote { display: flex; gap: 24px; align-items: center; }
+#remote .pad { display: grid; justify-items: center; gap: 6px; }
+#remote .row { display: flex; gap: 6px; }
+#remote button {
+  background: #262936; color: #e6e6ea; border: 1px solid #3a3e4f; border-radius: 8px;
+  width: 46px; height: 40px; font-size: 15px; cursor: pointer;
+}
+#remote button:hover { background: #313547; }
+#remote .ok { color: #15161c; background: #5aa0ff; border-color: #5aa0ff; font-weight: 600; }
+#remote .keys button { width: auto; padding: 0 14px; }
+
+#panel { width: 340px; border-left: 1px solid #2a2d3a; padding: 12px 14px; overflow: auto; background: #1a1c24; }
+#panel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: #8a8c99; margin: 0 0 8px; }
+#detail .title { font-size: 15px; color: #fff; margin-bottom: 8px; word-break: break-word; }
+#detail table { width: 100%; border-collapse: collapse; }
+#detail td { padding: 2px 6px 2px 0; vertical-align: top; }
+#detail td.k { color: #8a8c99; white-space: nowrap; }
+#detail td.v { color: #e6e6ea; word-break: break-word; }
+#detail .assert { margin-top: 10px; }
+#detail code { display: block; background: #11121a; border: 1px solid #2a2d3a; border-radius: 6px; padding: 6px 8px; margin: 4px 0; color: #b7e3ff; white-space: pre-wrap; }
