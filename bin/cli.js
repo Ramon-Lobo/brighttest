@@ -28,6 +28,7 @@ function parseArgs(argv) {
     else if (a === '--timeout') opts.timeout = parseInt(argv[++i], 10) || undefined;
     else if (a.startsWith('--timeout=')) opts.timeout = parseInt(a.slice(10), 10) || undefined;
     else if (a === '--help' || a === '-h') opts.help = true;
+    else if (a === '--version' || a === '-v') opts.version = true;
     else if (a.startsWith('--host=')) opts.host = a.slice(7);
     else if (a.startsWith('--password=')) opts.password = a.slice(11);
     else if (a.startsWith('--junit=')) opts.junit = a.slice(8);
@@ -277,6 +278,7 @@ Options:
                         default path: coverage/lcov.info)
       --junit <path>    Write a JUnit XML report (headless mode)
   -c, --config <path>   Path to brighttest.json (default: ./brighttest.json)
+  -v, --version         Print the version and exit
   -h, --help            Show this help
 
 Config (brighttest.json, all optional):
@@ -286,6 +288,12 @@ Config (brighttest.json, all optional):
 
 async function main() {
   const argv = process.argv.slice(2);
+
+  // `-v` / `--version` as the first token: print the version and exit (before subcommand dispatch).
+  if (argv[0] === '--version' || argv[0] === '-v') {
+    console.log(require('../package.json').version);
+    process.exit(0);
+  }
 
   // Positional subcommands (init, skills). The flag-only lanes below are untouched.
   if (argv[0] === 'init') {
@@ -364,6 +372,7 @@ async function main() {
   }
 
   const opts = parseArgs(argv);
+  if (opts.version) { console.log(require('../package.json').version); process.exit(0); }
   if (opts.help) { console.log(HELP); process.exit(0); }
 
   const cfg = loadConfig(process.cwd(), opts.config);
