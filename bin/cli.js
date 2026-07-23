@@ -58,6 +58,7 @@ function parseE2eArgs(rest) {
     e2eAction: 'run', flows: [], host: null, password: null, app: null,
     timeout: undefined, screenshots: null, screenshotsMode: 'all', out: null,
     contentIds: null, mediaType: null, video: null, help: false,
+    sel: {}, assert: null,
   };
   const splitList = (v) => String(v).split(',').map((s) => s.trim()).filter(Boolean);
   for (let i = 0; i < rest.length; i++) {
@@ -83,6 +84,22 @@ function parseE2eArgs(rest) {
     else if (a.startsWith('--media-type=')) opts.mediaType = a.slice(13);
     else if (a === '--video') { const n = rest[i + 1]; opts.video = (n && !n.startsWith('-')) ? rest[++i] : 'mp4'; }
     else if (a.startsWith('--video=')) opts.video = a.slice(8);
+    // inspect node-detail selector (targets one node so its fields/assertions can be shown)
+    else if (a === '--id') opts.sel.id = rest[++i];
+    else if (a.startsWith('--id=')) opts.sel.id = a.slice(5);
+    else if (a === '--subtype') opts.sel.subtype = rest[++i];
+    else if (a.startsWith('--subtype=')) opts.sel.subtype = a.slice(10);
+    else if (a === '--text-contains' || a === '--textContains') opts.sel.textContains = rest[++i];
+    else if (a.startsWith('--text-contains=')) opts.sel.textContains = a.slice(16);
+    else if (a === '--text') opts.sel.text = rest[++i];
+    else if (a.startsWith('--text=')) opts.sel.text = a.slice(7);
+    else if (a === '--uri') opts.sel.uri = rest[++i];
+    else if (a.startsWith('--uri=')) opts.sel.uri = a.slice(6);
+    else if (a === '--index') opts.sel.index = parseInt(rest[++i], 10);
+    else if (a.startsWith('--index=')) opts.sel.index = parseInt(a.slice(8), 10);
+    else if (a === '--focused') opts.sel.focused = true;
+    else if (a === '--assert') opts.assert = rest[++i];
+    else if (a.startsWith('--assert=')) opts.assert = a.slice(9);
     else if (a === '--help' || a === '-h') opts.help = true;
     else if (a.startsWith('-')) { /* ignore unknown flags */ }
     else opts.flows.push(a);
@@ -100,8 +117,16 @@ brighttest e2e — deterministic on-device UI tests (author-first, no AI in the 
 Usage:
   brighttest e2e run <flow…>        Run one or more *.e2e.yaml files (or a directory of them)
   brighttest e2e inspect            Dump a summary of the live tree (find ids/text/subtypes)
+  brighttest e2e inspect --id <x>   Detail one node: every field + ready-to-paste assertions
   brighttest e2e record [-o <file>] Interactively drive the device and scaffold a flow file
   brighttest e2e stamp <src> -o <d> Copy a project, injecting ids onto un-annotated nodes (E2E build)
+
+Node detail (inspect with a selector — targets a node you see on screen):
+  --id <x> / --subtype <s> / --text <t> / --text-contains <t> / --uri <u> / --focused / --index <n>
+                         Any combination narrows the match (AND). Prints all of the node's fields plus
+                         suggested assertions built from its actual state.
+  --assert <kind>        With --out, which assertion to append: visible (default) | text | focused | gone
+  -o, --out <file>       Append the assertion to this flow file (created if missing)
 
 Options:
   --host <ip[:pw][,…]>   Roku device IP(s) (or ROKU_HOST). Multiple → flows shard across devices in parallel.
@@ -161,7 +186,7 @@ Options:
   -f, --force       Overwrite files not created by brighttest
   -h, --help        Show this help
 
-Skills (Agent Skills / agentskills.io format): writing-rooibos-tests, setting-up-brighttest, debugging-failing-tests.
+Skills (Agent Skills / agentskills.io format): writing-rooibos-tests, setting-up-brighttest, debugging-failing-tests, writing-e2e-flows.
 
 Auto-detection (no --agent) writes to whichever the project already uses: .claude/, .cursor/, .windsurf/,
 .clinerules, .rules (Zed), .agents/ (agentskills), AGENTS.md/opencode, .github/ (Copilot). Shared files
