@@ -160,8 +160,9 @@
 
   // ── custom text prompt (replaces window.prompt) ──
   let promptState = $state(null);
-  function askText(title, initial = '') { return new Promise((resolve) => { promptState = { title, initial, resolve }; }); }
+  function askText(title, initial = '', password = false) { return new Promise((resolve) => { promptState = { title, initial, password, resolve }; }); }
   function resolvePrompt(v) { const r = promptState?.resolve; promptState = null; r?.(v); }
+  async function refreshDevice() { studio.device = await api.device().catch(() => ({ connected: false })); }
 
   onMount(() => {
     api.device().then((d) => (studio.device = d)).catch(() => {});
@@ -177,7 +178,7 @@
 <div class="app">
   <header>
     <div class="brand"><span class="dot"></span><b>brighttest</b><span class="sub">studio</span></div>
-    <span class="device">{studio.device ? `${studio.device.model} · fw ${studio.device.firmware}` : 'connecting…'}</span>
+    <span class="device">{studio.device?.connected ? `${studio.device.model} · fw ${studio.device.firmware}` : studio.device ? 'no device' : 'connecting…'}</span>
     <div class="spacer"></div>
     {#if studio.page === 'inspect'}
       <label class="tog"><input type="checkbox" bind:checked={studio.showAll} /> all nodes</label>
@@ -262,7 +263,7 @@
       {#if studio.page === 'runs'}
         <Runs {runSteps} {running} {currentFlow} {runId} />
       {:else if studio.page === 'devices'}
-        <Devices />
+        <Devices onconnected={refreshDevice} askPassword={(d) => askText(`Dev password for ${d.name} (${d.host})`, '', true)} />
       {:else if studio.page === 'record'}
         <Record {shotSrc} active={rec.active} {recText} stepCount={rec.steps.length} msg={recMsg}
           onstart={recStart} onstop={recStop} onclear={recClear} onsave={recSave} onpress={recPress} oncontext={onNodeContext} />
@@ -277,7 +278,8 @@
   {/if}
 
   {#if promptState}
-    <PromptModal title={promptState.title} initial={promptState.initial} placeholder="name.e2e.yaml"
+    <PromptModal title={promptState.title} initial={promptState.initial} password={promptState.password}
+      placeholder={promptState.password ? '' : 'name.e2e.yaml'}
       onsubmit={(v) => resolvePrompt(v || null)} oncancel={() => resolvePrompt(null)} />
   {/if}
 </div>
