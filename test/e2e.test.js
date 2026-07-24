@@ -5,6 +5,9 @@ import { parseFlow, normalizeStep, FlowError } from '../lib/e2e/flow.js'
 import { parseChallenge, buildDigestHeader, multipart } from '../lib/e2e/ecp.js'
 import { parseE2eArgs } from '../bin/cli.js'
 import { execStep } from '../lib/e2e/run.js'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
 
 // A trimmed but faithful sgnodes/all response, mirroring what probe 2 captured on real hardware
 // (id serialized as name=, {x,y,w,h} bounds, focused flags, nested children).
@@ -162,6 +165,32 @@ steps:
   it('rejects assertField without a field or a comparison', () => {
     expect(() => parseFlow('steps:\n  - assertField: { id: x, equals: 1 }\n')).toThrow(/assertField needs field:/)
     expect(() => parseFlow('steps:\n  - assertField: { id: x, field: uri }\n')).toThrow(/needs equals: or contains:/)
+  })
+})
+
+describe('runFlow (subflows)', () => {
+  it('parses file + env, and rejects a missing file', () => {
+    const flow = parseFlow('steps:\n  - runFlow: { file: login.e2e.yaml, env: { user: demo } }\n')
+    expect(flow.steps[0]).toMatchObject({ op: 'runFlow', file: 'login.e2e.yaml', env: { user: 'demo' } })
+    expect(() => parseFlow('steps:\n  - runFlow: { env: { a: 1 } }\n')).toThrow(/runFlow needs/)
+  })
+
+  const XML = '<sgnodes><All_Nodes><Default name="" />' +
+    '<Scene name="root"><Label name="hero" text="Hi" /></Scene></All_Nodes><status>OK</status></sgnodes>'
+  const dev = { async ecpGet() { return { status: 200, text: XML } } }
+  const tmpFlow = (body) => { const d = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-sub-')); fs.writeFileSync(path.join(d, 'child.e2e.yaml'), body); return d }
+
+  it('runs a subflow relative to the parent, substituting ${env}', async () => {
+    const dir = tmpFlow('appId: dev\nsteps:\n  - assertText: { id: hero, equals: "${greeting}" }\n')
+    const ctx = { device: dev, stepTimeoutMs: 500, opts: {}, flow: { file: path.join(dir, 'parent.e2e.yaml') }, launchParams: {} }
+    await expect(execStep({ op: 'runFlow', file: 'child.e2e.yaml', env: { greeting: 'Hi' } }, ctx))
+      .resolves.toMatchObject({ detail: expect.stringContaining('child.e2e.yaml') })
+  })
+
+  it('fails with the subflow step path when a sub-step fails', async () => {
+    const dir = tmpFlow('appId: dev\nsteps:\n  - assertText: { id: hero, equals: "Nope" }\n')
+    const ctx = { device: dev, stepTimeoutMs: 300, opts: {}, flow: { file: path.join(dir, 'p.e2e.yaml') }, launchParams: {} }
+    await expect(execStep({ op: 'runFlow', file: 'child.e2e.yaml', env: {} }, ctx)).rejects.toThrow(/runFlow child\.e2e\.yaml .*step 1/)
   })
 })
 
