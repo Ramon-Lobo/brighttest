@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="PlayerPanel" extends="Group">
+  <interface>
+    <field id="action" type="string" value="" />
+    <field id="progress" type="string" value="" />
+    <field id="data" type="assocarray" onChange="render" />
+    <field id="focusEnter" type="boolean" value="false" />
+  </interface>
+  <script type="text/brightscript" uri="PlayerPanel.brs" />
+  <children>
+    <Group id="playerScreen">
+      <Video id="player" width="1920" height="1080" translation="[0, 0]" />
+      <!-- State is mirrored here so e2e can assert playback via assertText (sgnodes dumps text, not the
+           Video node's own `state` field). Also a handy on-screen indicator. -->
+      <Rectangle width="360" height="52" translation="[48, 44]" color="0x0C0E14CC" />
+      <Label id="playerState" translation="[64, 58]" width="330" text="state: —" color="0x45D483FF" />
+    </Group>
+  </children>
+</component>

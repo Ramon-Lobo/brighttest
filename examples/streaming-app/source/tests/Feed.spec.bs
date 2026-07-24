@@ -1,0 +1,41 @@
+namespace tests
+  @suite("Feed parsing")
+  class FeedTests extends rooibos.BaseTestSuite
+
+    @describe("parse")
+
+    @it("builds categories and a flat item list")
+    function _()
+      json = "{""title"":""X"",""categories"":[{""title"":""A"",""items"":[{""id"":""a1"",""title"":""One"",""streamFormat"":""hls"",""url"":""u1""},{""id"":""a2"",""title"":""Two"",""url"":""u2""}]}]}"
+      model = Feed_parse(json)
+      m.assertEqual(model.title, "X")
+      m.assertEqual(model.categories.count(), 1)
+      m.assertEqual(model.categories[0].title, "A")
+      m.assertEqual(model.items.count(), 2)
+    end function
+
+    @it("defaults streamFormat to hls when absent")
+    function _()
+      json = "{""categories"":[{""title"":""A"",""items"":[{""id"":""a2"",""title"":""Two"",""url"":""u2""}]}]}"
+      model = Feed_parse(json)
+      m.assertEqual(model.items[0].streamFormat, "hls")
+    end function
+
+    @it("finds an item by id, or invalid")
+    function _()
+      json = "{""categories"":[{""title"":""A"",""items"":[{""id"":""a1"",""title"":""One"",""url"":""u1""}]}]}"
+      model = Feed_parse(json)
+      found = Feed_findById(model, "a1")
+      m.assertEqual(found.title, "One")
+      m.assertInvalid(Feed_findById(model, "nope"))
+    end function
+
+    @it("returns an empty model for bad json")
+    function _()
+      model = Feed_parse("not json")
+      m.assertEqual(model.items.count(), 0)
+      m.assertEqual(model.categories.count(), 0)
+    end function
+
+  end class
+end namespace

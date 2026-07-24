@@ -1,0 +1,28 @@
+namespace tests
+  @suite("Search filter")
+  class SearchTests extends rooibos.BaseTestSuite
+
+    @describe("filter")
+
+    @it("matches title case-insensitively")
+    function _()
+      items = [{ title: "Big Buck Bunny" }, { title: "Sintel" }, { title: "Tears of Steel" }]
+      out = Search_filter(items, "BUN")
+      m.assertEqual(out.count(), 1)
+      m.assertEqual(out[0].title, "Big Buck Bunny")
+    end function
+
+    @it("returns everything for a blank query")
+    function _()
+      items = [{ title: "A" }, { title: "B" }]
+      m.assertEqual(Search_filter(items, "   ").count(), 2)
+    end function
+
+    @it("returns nothing when no title matches")
+    function _()
+      items = [{ title: "A" }]
+      m.assertEqual(Search_filter(items, "zzz").count(), 0)
+    end function
+
+  end class
+end namespace

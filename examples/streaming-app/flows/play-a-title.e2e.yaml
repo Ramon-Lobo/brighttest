@@ -1,0 +1,18 @@
+# The headline journey: navigate to a title, play it, and assert the stream actually reaches "play".
+# Playback state comes from the ECP media-player (assertPlaying), which is reliable during fullscreen
+# video — reading the SceneGraph tree stalls while the decoder has the render thread.
+appId: dev
+config: { timeout: 30 }   # generous — real buffering over the network
+steps:
+  - launch
+  - assertVisible: { id: homeScreen }
+  - focus: { id: tile-tears-of-steel }        # D-pad across the row
+  - press: Select
+  - assertVisible: { id: detailsScreen }
+  - assertText: { id: detailsTitle, equals: "Tears of Steel" }
+  - focus: { id: playButton }
+  - press: Select
+  - assertPlaying                              # ECP media-player state == play
+  - back
+  - wait: 1500                                 # let the decoder release the render thread
+  - assertVisible: { id: homeScreen }

@@ -1,0 +1,44 @@
+namespace tests
+  @suite("Watchlist")
+  class WatchlistTests extends rooibos.BaseTestSuite
+
+    @describe("upsert")
+
+    @it("adds a new entry at the front")
+    function _()
+      list = Watchlist_upsert([], "a", 10, 100, 1)
+      m.assertEqual(list.count(), 1)
+      m.assertEqual(list[0].id, "a")
+      m.assertEqual(list[0].position, 10)
+    end function
+
+    @it("moves an updated entry to the front and dedupes")
+    function _()
+      list = Watchlist_upsert([], "a", 10, 100, 1)
+      list = Watchlist_upsert(list, "b", 20, 100, 2)
+      list = Watchlist_upsert(list, "a", 50, 100, 3)
+      m.assertEqual(list.count(), 2)
+      m.assertEqual(list[0].id, "a")
+      m.assertEqual(list[0].position, 50)
+    end function
+
+    @it("caps the list at ten")
+    function _()
+      list = []
+      for i = 0 to 14
+        list = Watchlist_upsert(list, "id" + i.toStr(), i, 100, i)
+      end for
+      m.assertEqual(list.count(), 10)
+    end function
+
+    @describe("position")
+
+    @it("returns a saved position, or zero when unknown")
+    function _()
+      list = Watchlist_upsert([], "a", 42, 100, 1)
+      m.assertEqual(Watchlist_position(list, "a"), 42)
+      m.assertEqual(Watchlist_position(list, "x"), 0)
+    end function
+
+  end class
+end namespace
