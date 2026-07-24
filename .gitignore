@@ -1,6 +1,7 @@
 node_modules/
 docs/.vitepress/dist/
 docs/.vitepress/cache/
+lib/studio/public/
 *.env
 .brighttest/
 coverage/

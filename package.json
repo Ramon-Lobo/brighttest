@@ -20,9 +20,13 @@
   },
   "files": [
     "bin",
-    "lib",
     "brs",
     "skills",
+    "lib/*.js",
+    "lib/e2e",
+    "lib/studio/server.js",
+    "lib/studio/coords.js",
+    "lib/studio/public",
     "README.md",
     "LICENSE"
   ],
@@ -32,6 +36,9 @@
     "test:integration": "vitest run --config vitest.integration.config.mjs",
     "test:watch": "vitest",
     "skills:manifest": "node scripts/gen-skills-manifest.js",
+    "studio:dev": "npm --prefix lib/studio/web install && npm --prefix lib/studio/web run dev",
+    "studio:build": "npm --prefix lib/studio/web install && npm --prefix lib/studio/web run build",
+    "prepack": "npm run studio:build",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs"

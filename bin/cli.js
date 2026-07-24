@@ -146,6 +146,47 @@ Options:
   -h, --help             Show this help
 `;
 
+// `brighttest studio` — visual studio (web app) for authoring & debugging e2e flows on a device.
+function parseStudioArgs(rest) {
+  const o = { host: null, password: null, port: 8700, app: 'dev', flowsDir: null, open: false, help: false };
+  for (let i = 0; i < rest.length; i++) {
+    const a = rest[i];
+    if (a === '--host') o.host = rest[++i];
+    else if (a.startsWith('--host=')) o.host = a.slice(7);
+    else if (a === '--password' || a === '--pass') o.password = rest[++i];
+    else if (a.startsWith('--password=')) o.password = a.slice(11);
+    else if (a === '--port') o.port = parseInt(rest[++i], 10) || 8700;
+    else if (a.startsWith('--port=')) o.port = parseInt(a.slice(7), 10) || 8700;
+    else if (a === '--app') o.app = rest[++i];
+    else if (a.startsWith('--app=')) o.app = a.slice(6);
+    else if (a === '--flows-dir') o.flowsDir = rest[++i];
+    else if (a.startsWith('--flows-dir=')) o.flowsDir = a.slice(12);
+    else if (a === '--open' || a === '-o') o.open = true;
+    else if (a === '--help' || a === '-h') o.help = true;
+  }
+  return o;
+}
+
+const STUDIO_HELP = `
+brighttest studio — visual studio for authoring & debugging e2e flows on a device
+
+  Opens a local web app that mirrors a running Roku: inspect the live SceneGraph, drive the remote,
+  author flows with autocomplete, run them with a step-by-step time-travel trace, and record sessions.
+  Requires a Roku in developer mode with ECP Network access = Permissive.
+
+Usage:
+  brighttest studio --host <ip> [--password <pw>] [--port 8700] [--app dev] [--flows-dir flows] [--open]
+
+Options:
+  --host <ip>        Roku device IP (or ROKU_HOST)
+  --password <pw>    Roku dev password (or ROKU_PASSWORD) — enables screenshots
+  --port <n>         Local port for the studio (default 8700)
+  --app <id>         Channel to launch / drive (default: dev)
+  --flows-dir <dir>  Where flows are read and written (default: ./flows)
+  -o, --open         Open the studio in your browser
+  -h, --help         Show this help
+`;
+
 // `brighttest init [--force]`
 function parseInitArgs(rest) {
   const opts = { force: false, help: false };
@@ -211,6 +252,7 @@ Usage:
   brighttest init                                    Scaffold a project for testing (see: init --help)
   brighttest skills install                          Install AI-agent test-writing skills (see: skills --help)
   brighttest e2e run <flow…> --host <ip>             On-device UI e2e tests from YAML flows (see: e2e --help)
+  brighttest studio --host <ip>                      Visual studio to author/debug flows on a device (see: studio --help)
 
 Options:
   -d, --device          Run on a Roku device (deploys + runs Rooibos, reports coverage)
@@ -268,6 +310,30 @@ async function main() {
     const code = await require('../lib/e2e/run').run(cfg, eOpts);
     process.exit(code);
   }
+  if (argv[0] === 'studio') {
+    const o = parseStudioArgs(argv.slice(1));
+    if (o.help) { console.log(STUDIO_HELP); process.exit(0); }
+    const host = o.host || process.env.ROKU_HOST;
+    const password = o.password || process.env.ROKU_PASSWORD;
+    if (!host) { console.error('[brighttest studio] a device is required: --host <ip> (or ROKU_HOST)'); process.exit(2); }
+    const fs = require('fs'), path = require('path');
+    if (!fs.existsSync(path.join(__dirname, '..', 'lib', 'studio', 'public', 'index.html'))) {
+      console.error('[brighttest studio] the studio UI is not built yet. Run: npm run studio:build');
+      process.exit(2);
+    }
+    await require('../lib/studio/server').start({ host, password, port: o.port, app: o.app, rootDir: process.cwd(), flowsDir: o.flowsDir });
+    const url = `http://localhost:${o.port}`;
+    console.log(`brighttest studio → ${url}  (device ${host})`);
+    if (o.open) {
+      try {
+        const { spawn } = require('child_process');
+        const cmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'cmd' : 'xdg-open';
+        const args = process.platform === 'win32' ? ['/c', 'start', '', url] : [url];
+        spawn(cmd, args, { stdio: 'ignore', detached: true }).unref();
+      } catch { /* ignore */ }
+    }
+    return; // keep the process alive — the server is listening
+  }
 
   const opts = parseArgs(argv);
   if (opts.help) { console.log(HELP); process.exit(0); }
@@ -286,4 +352,4 @@ async function main() {
 // Only run the CLI when executed directly (not when required by tests).
 if (require.main === module) main();
 
-module.exports = { parseArgs, parseSkillsArgs, parseInitArgs, parseE2eArgs, SKILLS_ACTIONS, E2E_ACTIONS, SCREENSHOT_MODES };
+module.exports = { parseArgs, parseSkillsArgs, parseInitArgs, parseE2eArgs, parseStudioArgs, SKILLS_ACTIONS, E2E_ACTIONS, SCREENSHOT_MODES };

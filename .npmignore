@@ -1,0 +1,3 @@
+# The studio web client is a build-time source tree; only its built output (lib/studio/public,
+# produced by `prepack` → studio:build) ships. Keep the Svelte/Vite source and its deps out of the package.
+lib/studio/web
