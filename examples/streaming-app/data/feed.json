@@ -1,0 +1,82 @@
+{
+  "title": "Open Cinema",
+  "categories": [
+    {
+      "title": "Blender Open Movies",
+      "items": [
+        {
+          "id": "big-buck-bunny",
+          "title": "Big Buck Bunny",
+          "description": "A large, good-natured rabbit takes revenge on three bullying rodents. The Blender Foundation's cheerful 2008 short.",
+          "year": 2008,
+          "length": 596,
+          "streamFormat": "hls",
+          "url": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+          "poster": "pkg:/images/big-buck-bunny.jpg"
+        },
+        {
+          "id": "sintel",
+          "title": "Sintel",
+          "description": "A lone warrior befriends a baby dragon on a journey across a harsh world. Blender's 2010 fantasy short.",
+          "year": 2010,
+          "length": 888,
+          "streamFormat": "mp4",
+          "url": "https://archive.org/download/Sintel/sintel-2048-surround.mp4",
+          "poster": "pkg:/images/sintel.jpg"
+        },
+        {
+          "id": "tears-of-steel",
+          "title": "Tears of Steel",
+          "description": "In a future Amsterdam, a group fights to save the world from rogue machines. Blender's 2012 live-action + VFX short.",
+          "year": 2012,
+          "length": 734,
+          "streamFormat": "hls",
+          "url": "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8",
+          "poster": "pkg:/images/tears-of-steel.jpg"
+        },
+        {
+          "id": "elephants-dream",
+          "title": "Elephant's Dream",
+          "description": "Two characters wander a strange mechanical world. The first open-movie project, from 2006.",
+          "year": 2006,
+          "length": 654,
+          "streamFormat": "mp4",
+          "url": "https://archive.org/download/ElephantsDream/ed_hd.mp4",
+          "poster": "pkg:/images/elephants-dream.jpg"
+        }
+      ]
+    },
+    {
+      "title": "Reference Streams",
+      "items": [
+        {
+          "id": "apple-bipbop",
+          "title": "Apple BipBop",
+          "description": "Apple's canonical adaptive-bitrate HLS test stream.",
+          "length": 1800,
+          "streamFormat": "hls",
+          "url": "https://devstreaming-cdn.apple.com/videos/streaming/examples/bipbop_16x9/bipbop_16x9_variant.m3u8",
+          "poster": ""
+        },
+        {
+          "id": "apple-fmp4",
+          "title": "Apple fMP4 (advanced)",
+          "description": "Apple's advanced fragmented-MP4 HLS example.",
+          "length": 1800,
+          "streamFormat": "hls",
+          "url": "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8",
+          "poster": ""
+        },
+        {
+          "id": "mux-test",
+          "title": "Mux Test Stream",
+          "description": "A Mux public HLS test asset.",
+          "length": 600,
+          "streamFormat": "hls",
+          "url": "https://test-streams.mux.dev/pts_shift/master.m3u8",
+          "poster": ""
+        }
+      ]
+    }
+  ]
+}

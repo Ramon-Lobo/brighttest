@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="HomePanel" extends="Group">
+  <interface>
+    <field id="action" type="string" value="" />
+    <field id="progress" type="string" value="" />
+    <field id="data" type="assocarray" onChange="buildRows" />
+    <field id="focusEnter" type="boolean" value="false" onChange="onFocusEnter" />
+  </interface>
+  <script type="text/brightscript" uri="HomePanel.brs" />
+  <children>
+    <Label id="homeScreen" text="Open Cinema" translation="[80, 56]" color="0xE7EAF3FF" />
+    <!-- Search affordance: reached by pressing Up from the top content row. -->
+    <Group id="searchButton" translation="[1560, 52]">
+      <Rectangle id="searchRing" width="292" height="60" translation="[-6, -6]" color="0x7C6CFFFF" visible="false" />
+      <Rectangle width="280" height="48" color="0x1B2030FF" />
+      <Label text="Search" translation="[24, 12]" color="0xE7EAF3FF" />
+    </Group>
+    <Group id="rows" translation="[0, 140]" />
+  </children>
+</component>

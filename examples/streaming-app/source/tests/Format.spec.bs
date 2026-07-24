@@ -1,0 +1,37 @@
+namespace tests
+  @suite("Format helpers")
+  class FormatTests extends rooibos.BaseTestSuite
+
+    @describe("duration")
+
+    @it("formats minutes:seconds")
+    @params(596, "9:56")
+    @params(5, "0:05")
+    @params(0, "0:00")
+    function _(sec as integer, expected as string)
+      m.assertEqual(Format_duration(sec), expected)
+    end function
+
+    @it("formats hours for long content")
+    function _()
+      m.assertEqual(Format_duration(3661), "1:01:01")
+    end function
+
+    @it("clamps a negative duration to zero")
+    function _()
+      m.assertEqual(Format_duration(-5), "0:00")
+    end function
+
+    @describe("progress")
+
+    @it("computes a clamped percentage")
+    @params(0, 100, 0)
+    @params(50, 100, 50)
+    @params(150, 100, 100)
+    @params(10, 0, 0)
+    function _(positionSec as integer, lengthSec as integer, expected as integer)
+      m.assertEqual(Format_progress(positionSec, lengthSec), expected)
+    end function
+
+  end class
+end namespace

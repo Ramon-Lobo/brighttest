@@ -1,0 +1,16 @@
+# Search journey: reach the Search button from Home, type a query, and assert the results narrow to the
+# matching title. Exercises the same Search_filter the unit specs cover — here running on a real device.
+appId: dev
+config: { timeout: 20 }
+steps:
+  - launch
+  - assertVisible: { id: homeScreen }
+  - press: Up                                  # top content row → Search button
+  - assertFocused: { id: searchButton }
+  - press: Select
+  - assertVisible: { id: searchScreen }
+  - text: "steel"                              # typed into the focused Keyboard
+  - assertVisible: { id: result-tears-of-steel }
+  - assertGone: { id: result-big-buck-bunny }  # filtered out
+  - back
+  - assertVisible: { id: homeScreen }

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="MainScene" extends="Scene">
+  <script type="text/brightscript" uri="MainScene.brs" />
+  <!-- Share the tested pure logic with the render thread (same code the unit specs cover). -->
+  <script type="text/brightscript" uri="pkg:/source/lib/Feed.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Format.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Watchlist.brs" />
+  <children>
+    <Rectangle id="bg" width="1920" height="1080" color="0x0C0E14FF" />
+    <!-- Only the active panel is parented here, so e2e assertVisible/assertGone are exact. -->
+    <Group id="stage" />
+  </children>
+</component>

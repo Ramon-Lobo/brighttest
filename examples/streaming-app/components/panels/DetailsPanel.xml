@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="DetailsPanel" extends="Group">
+  <interface>
+    <field id="action" type="string" value="" />
+    <field id="progress" type="string" value="" />
+    <field id="data" type="assocarray" onChange="render" />
+    <field id="focusEnter" type="boolean" value="false" onChange="onFocusEnter" />
+  </interface>
+  <script type="text/brightscript" uri="DetailsPanel.brs" />
+  <children>
+    <Group id="detailsScreen">
+      <Poster id="poster" translation="[80, 120]" width="300" height="440" loadDisplayMode="scaleToFit" />
+      <Label id="detailsTitle" translation="[430, 120]" width="1300" color="0xE7EAF3FF" />
+      <Label id="detailsMeta" translation="[430, 176]" width="1300" color="0x8A90A6FF" />
+      <Label id="detailsDesc" translation="[430, 240]" width="1040" wrap="true" color="0xC9CDDAFF" />
+      <Button id="playButton" text="Play" translation="[430, 520]" minWidth="240" />
+    </Group>
+  </children>
+</component>
