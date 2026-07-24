@@ -2,6 +2,15 @@
 'use strict';
 const { loadConfig } = require('../lib/config');
 
+// Prompt a line from the terminal; `hidden` masks the typed characters (for passwords).
+function askLine(q, hidden = false) {
+  return new Promise((resolve) => {
+    const rl = require('readline').createInterface({ input: process.stdin, output: process.stdout, terminal: true });
+    if (hidden) rl._writeToOutput = (s) => rl.output.write(s.includes(q) || s.includes('\n') ? s : '*');
+    rl.question(q, (a) => { rl.close(); if (hidden) process.stdout.write('\n'); resolve(a.trim()); });
+  });
+}
+
 function parseArgs(argv) {
   const opts = { device: false, coverage: false, junit: null, host: null, password: null, config: null, lcov: null };
   const DEFAULT_LCOV = 'coverage/lcov.info';
@@ -253,6 +262,7 @@ Usage:
   brighttest skills install                          Install AI-agent test-writing skills (see: skills --help)
   brighttest e2e run <flow…> --host <ip>             On-device UI e2e tests from YAML flows (see: e2e --help)
   brighttest studio --host <ip>                      Visual studio to author/debug flows on a device (see: studio --help)
+  brighttest devices                                 Discover Rokus on the network and cache one's credentials
 
 Options:
   -d, --device          Run on a Roku device (deploys + runs Rooibos, reports coverage)
@@ -313,17 +323,17 @@ async function main() {
   if (argv[0] === 'studio') {
     const o = parseStudioArgs(argv.slice(1));
     if (o.help) { console.log(STUDIO_HELP); process.exit(0); }
-    const host = o.host || process.env.ROKU_HOST;
-    const password = o.password || process.env.ROKU_PASSWORD;
-    if (!host) { console.error('[brighttest studio] a device is required: --host <ip> (or ROKU_HOST)'); process.exit(2); }
     const fs = require('fs'), path = require('path');
     if (!fs.existsSync(path.join(__dirname, '..', 'lib', 'studio', 'public', 'index.html'))) {
       console.error('[brighttest studio] the studio UI is not built yet. Run: npm run studio:build');
       process.exit(2);
     }
-    await require('../lib/studio/server').start({ host, password, port: o.port, app: o.app, rootDir: process.cwd(), flowsDir: o.flowsDir });
+    // Resolve the device from flag → env / project .env → cache; start device-less if none (connect in the UI).
+    const r = require('../lib/devices').resolveDevice({ host: o.host, password: o.password });
+    await require('../lib/studio/server').start({ host: r.host, password: r.password, port: o.port, app: o.app, rootDir: process.cwd(), flowsDir: o.flowsDir });
     const url = `http://localhost:${o.port}`;
-    console.log(`brighttest studio → ${url}  (device ${host})`);
+    const dev = r.host ? `device ${r.host}${r.source !== 'flag' ? ` (${r.source})` : ''}` : 'no device — discover one in the Devices tab';
+    console.log(`brighttest studio → ${url}  ·  ${dev}`);
     if (o.open) {
       try {
         const { spawn } = require('child_process');
@@ -333,6 +343,24 @@ async function main() {
       } catch { /* ignore */ }
     }
     return; // keep the process alive — the server is listening
+  }
+  if (argv[0] === 'devices') {
+    const d = require('../lib/devices');
+    process.stdout.write('discovering Roku devices on the network…\n');
+    const list = await d.discover({ timeoutMs: 4000 });
+    if (!list.length) { console.log('  none found — make sure a Roku is powered on and on this LAN.'); process.exit(0); }
+    list.forEach((dev, i) => console.log(`  ${i + 1}. ${dev.name}  ·  ${dev.model}  ·  ${dev.host}${dev.hasPassword ? '  (password cached)' : ''}`));
+    if (!process.stdin.isTTY) process.exit(0);
+    const dev = list[parseInt(await askLine(`\nselect a device to save [1-${list.length}] (Enter to skip): `), 10) - 1];
+    if (!dev) process.exit(0);
+    let pw = d.cachedPassword(dev.host);
+    if (!pw) pw = await askLine(`dev password for ${dev.name} (${dev.host}): `, true);
+    try {
+      const info = await require('../lib/e2e/ecp').createDevice({ host: dev.host, password: pw }).deviceInfo();
+      d.rememberDevice(dev.host, pw, info.model);
+      console.log(`\nsaved ${dev.name} (${dev.host}) — commands now default to it (no --host needed).`);
+      process.exit(0);
+    } catch (e) { console.error(`\ncould not reach ${dev.host}: ${e.message}`); process.exit(1); }
   }
 
   const opts = parseArgs(argv);

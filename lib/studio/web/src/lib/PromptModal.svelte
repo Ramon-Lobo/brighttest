@@ -1,5 +1,5 @@
 <script>
-  let { title, label = '', placeholder = '', initial = '', confirmLabel = 'OK', onsubmit, oncancel } = $props();
+  let { title, label = '', placeholder = '', initial = '', confirmLabel = 'OK', password = false, onsubmit, oncancel } = $props();
   let value = $state(initial);
   let inputEl;
   $effect(() => { inputEl?.focus(); inputEl?.select(); });
@@ -11,7 +11,7 @@
   <div class="modal" role="dialog" aria-modal="true" tabindex="-1" onpointerdown={(e) => e.stopPropagation()}>
     <h2>{title}</h2>
     {#if label}<label for="pm-input">{label}</label>{/if}
-    <input id="pm-input" bind:this={inputEl} bind:value {placeholder}
+    <input id="pm-input" bind:this={inputEl} bind:value {placeholder} type={password ? 'password' : 'text'}
       onkeydown={(e) => { if (e.key === 'Enter') submit(); }} />
     <div class="row">
       <button class="ghost" onclick={oncancel}>Cancel</button>
