@@ -34,6 +34,7 @@ This is a deliberately small YAML subset — anything outside it raises a clear,
 | `assertFocused: <selector>` | Assert the node currently has focus |
 | `wait: <ms>` / `wait: { ms }` | Pause a fixed number of **milliseconds** (not seconds — cf. `timeout`) |
 | `waitFor: { …selector, timeout }` | Explicit wait for a selector |
+| `runFlow: { file, env? }` | Run a reusable subflow inline (path relative to this flow); `env` values substitute `${name}` in it |
 | `screenshot: <name>` | Save a PNG/JPG artifact (always captures unless `--screenshots-mode off`) |
 | `back` / `home` | Convenience for `press: Back` / `press: Home` |
 
