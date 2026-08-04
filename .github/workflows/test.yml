@@ -38,3 +38,34 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run test:integration
+
+  # Dependency security gate.
+  #
+  # Scoped to --omit=dev on purpose. Auditing the full tree would pin this job permanently red on
+  # advisories we cannot act on: VitePress 1.6.4 pins vite to ^5.4.14 and 5.4.21 ends the 5.x line
+  # (the fix is in 6.4.3), and the vitest UI critical needs a 2.x -> 4.x major. Gating on the
+  # production tree instead means a failure here is always actionable and always about code we
+  # actually ship. Run `npm audit` locally for the full picture.
+  #
+  # --audit-level=high: the surviving moderates are the postman-request chain (qs, uuid), pinned
+  # transitively by roku-debug/roku-deploy with no fix published upstream. Raise this to `moderate`
+  # once RokuCommunity moves off postman-request.
+  audit:
+    runs-on: ubuntu-latest
+    name: audit (production deps)
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Audit published package deps
+        run: npm audit --audit-level=high --omit=dev
+      # The studio UI is bundled into lib/studio/public at prepack, so its runtime
+      # `dependencies` (CodeMirror, fontsource) end up inside shipped JS. Its devDependencies
+      # (vite, tailwind, svelte) only run at build time, hence --omit=dev here too.
+      - name: Install studio web deps
+        run: npm ci --prefix lib/studio/web
+      - name: Audit studio UI deps that reach the bundle
+        run: npm audit --prefix lib/studio/web --audit-level=high --omit=dev
