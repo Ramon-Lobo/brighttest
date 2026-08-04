@@ -3,9 +3,6 @@ name: Deploy Docs
 # Builds the VitePress docs site and deploys it to GitHub Pages.
 # Enable once in the repo: Settings → Pages → "Build and deployment" → Source: "GitHub Actions".
 #
-# NOTE: the docs build only needs the VitePress toolchain, so this installs just those packages
-# (not the project's runtime deps). That keeps the docs deploy independent of whether the runtime
-# packages are published to npm yet.
 # Only run when something that affects the docs site actually changed. A push to `main` that
 # doesn't touch any of these paths skips the workflow entirely (no build, no deploy). Manual
 # `workflow_dispatch` runs ignore the paths filter, so you can always force a redeploy.
@@ -19,11 +16,12 @@ on:
       - ".github/workflows/docs.yml"
   workflow_dispatch: {}
 
-# Permissions required by actions/deploy-pages.
+# Least privilege by default; the two jobs widen this only as far as they each need. In particular
+# `id-token: write` is granted to `deploy` alone — `build` runs `npm ci`, which executes install
+# lifecycle scripts from the whole dependency tree, and that job has no business being able to mint
+# an OIDC token.
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 # Allow one concurrent deployment; don't cancel an in-progress one.
 concurrency:
@@ -33,19 +31,24 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write # actions/configure-pages reads (and can enable) the Pages config
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22" # match `engines.node` (>=22); brs-node crashes on older
+          cache: npm
       - uses: actions/configure-pages@v5
-      - name: Install docs toolchain
-        # The docs build only needs the VitePress devDependencies. Drop the runtime `dependencies`
-        # (@ramonlobo/* etc.) from the manifest first — npm would otherwise try to resolve them and
-        # fail while they're unpublished, even though the docs don't use them.
-        run: |
-          npm pkg delete dependencies
-          npm install --no-save --no-package-lock
+      # Install from the committed lockfile so a docs deploy resolves exactly the reviewed
+      # dependency versions. This previously ran `npm pkg delete dependencies` followed by
+      # `npm install --no-save --no-package-lock`, which skipped the lockfile entirely and
+      # re-resolved the whole VitePress tree on every deploy. That workaround existed because
+      # the @ramonlobo/* runtime packages were unpublished; both are on npm now, so a plain
+      # `npm ci` works and the unpinned install is no longer a tradeoff worth making.
+      - name: Install dependencies
+        run: npm ci
       - name: Build docs
         run: npm run docs:build
       - uses: actions/upload-pages-artifact@v3
@@ -55,6 +58,9 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
