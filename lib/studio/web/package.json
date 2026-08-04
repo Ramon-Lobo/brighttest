@@ -21,5 +21,9 @@
     "@codemirror/view": "^6.34.0",
     "@fontsource-variable/jetbrains-mono": "^5.1.0",
     "@fontsource-variable/space-grotesk": "^5.1.0"
+  },
+  "//overrides": "postcss arrives transitively via vite; pinned forward for GHSA-fxqj-rqcc-2cmp. Build-time only — nothing here ships, the bundle in lib/studio/public does.",
+  "overrides": {
+    "postcss": "^8.5.25"
   }
 }
