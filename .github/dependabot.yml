@@ -1,0 +1,70 @@
+# Dependabot keeps three manifests in sync. Security advisories are handled separately by
+# "Dependabot security updates" (a repo setting, not this file) and always open a PR regardless
+# of the schedules below; this file governs routine *version* updates.
+#
+# Grouping is deliberate: without it a cold start on a stale tree opens a dozen PRs at once.
+# Runtime deps get their own PRs (they ship to consumers, so they deserve individual review);
+# dev and docs tooling is batched.
+version: 2
+
+updates:
+  # ---------------------------------------------------------------------------
+  # Root package: the published npm package. `dependencies` here reach consumers.
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      # Runtime deps are NOT grouped — see below. This groups only the docs/test toolchain,
+      # where a batched bump is fine because nothing here is published.
+      dev-tooling:
+        dependency-type: development
+        patterns:
+          - "*"
+    ignore:
+      # vitepress 1.6.4 pins vite ^5.4.14 and 5.4.21 ends the 5.x line, so the open vite
+      # advisories are unfixable until VitePress 2. Let Dependabot bump vite freely inside
+      # 5.x, but don't let it open a 6.x PR that can never merge.
+      - dependency-name: vite
+        versions: ["6.x", "7.x"]
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-development: "chore(deps-dev)"
+
+  # ---------------------------------------------------------------------------
+  # Studio web UI: private, built into lib/studio/public at prepack. Nothing here is
+  # published directly, so batch everything into one PR.
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: npm
+    directory: "/lib/studio/web"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    groups:
+      studio-web:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-development: "chore(deps-dev)"
+
+  # ---------------------------------------------------------------------------
+  # Workflow actions. These run with repo credentials (docs.yml holds id-token: write),
+  # so keeping them current matters more than the version numbers suggest.
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "chore(ci)"
