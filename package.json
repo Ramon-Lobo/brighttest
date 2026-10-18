@@ -64,7 +64,7 @@
     "by downgrading it to 2.88.1-postman.8-beta.1 and pulling back a critical form-data advisory."
   ],
   "overrides": {
-    "brace-expansion": "^1.1.18",
+    "brace-expansion": "^1.1.21",
     "ip-address": "^10.4.0",
     "postcss": "^8.5.25",
     "dompurify": "^3.4.13"
