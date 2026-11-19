@@ -9,8 +9,12 @@ steps:
   - assertFocused: { id: searchButton }
   - press: Select
   - assertVisible: { id: searchScreen }
+  - assertState: { path: current, equals: SearchPanel }        # app state, read over ECP
+  - assertState: { path: global.lastverb, equals: search }     # an m.global value
   - text: "steel"                              # typed into the focused Keyboard
   - assertVisible: { id: result-tears-of-steel }
   - assertGone: { id: result-big-buck-bunny }  # filtered out
   - back
   - assertVisible: { id: homeScreen }
+  - assertState: { path: current, equals: HomePanel }
+  - assertState: { path: global.titlecount, equals: 7 }

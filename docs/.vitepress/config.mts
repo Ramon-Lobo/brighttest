@@ -82,6 +82,7 @@ export default withMermaid({
           { text: 'Overview', link: '/e2e/' },
           { text: 'Flow reference', link: '/e2e/flows' },
           { text: 'Authoring flows', link: '/e2e/authoring' },
+          { text: 'App state', link: '/e2e/app-state' },
           { text: 'Scaling & CI', link: '/e2e/scaling' },
         ],
       },

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Test fixture: a bare component that publishes its own state via the BTState convention, so the
+     @SGNode lane can prove state/global access works headless (no device). -->
+<component name="StateProbe" extends="Group">
+  <interface>
+    <field id="channel" type="string" value="" />
+    <field id="count" type="integer" value="0" />
+  </interface>
+  <script type="text/brightscript" uri="StateProbe.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/BTState.brs" />
+</component>
