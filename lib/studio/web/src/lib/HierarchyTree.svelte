@@ -1,8 +1,10 @@
 <script>
+  import { tick } from 'svelte';
   import { studio } from './store.svelte.js';
 
   let q = $state('');
   let collapsed = $state({}); // path -> true when collapsed
+  let scroller; // .scroll element, for reveal()
 
   // Rebuild the nested tree from the flat, DFS-ordered node list using each node's depth.
   const roots = $derived.by(() => {
@@ -25,15 +27,37 @@
   const pick = (n) => (studio.selectedPath = n.path);
   const hover = (n) => (studio.hoverPath = n.path);
   const unhover = (n) => { if (studio.hoverPath === n.path) studio.hoverPath = null; };
+
+  // Scroll the selected node into view. A node picked on the monitor is usually buried deep and inside
+  // collapsed ancestors, so reveal it first: paths are slash-joined indices ("0/3/2"), and every proper
+  // prefix is an ancestor, so expanding the prefixes is enough. If a filter is hiding it, drop the filter.
+  async function reveal() {
+    const path = studio.selectedPath;
+    if (!path) return;
+
+    if (matches && !matches.some((n) => n.path === path)) q = '';
+
+    const parts = path.split('/');
+    for (let i = 1; i < parts.length; i++) delete collapsed[parts.slice(0, i).join('/')];
+
+    await tick(); // let the newly expanded rows render before measuring
+    scroller?.querySelector(`[data-path="${path}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
 </script>
 
 <div class="tree">
-  <input class="search" placeholder="filter by id / text / subtype…" bind:value={q} />
-  <div class="scroll">
+  <div class="head">
+    <input class="search" placeholder="filter by id / text / subtype…" bind:value={q} />
+    <button class="reveal" onclick={reveal} disabled={!studio.selectedPath}
+      title={studio.selectedPath ? 'scroll to the selected node (expands its ancestors)' : 'select a node first — click one on the monitor'}>
+      ⤓ selected
+    </button>
+  </div>
+  <div class="scroll" bind:this={scroller}>
     {#if matches}
       {#if !matches.length}<p class="empty">no matches</p>{/if}
       {#each matches as n}
-        <button class="row" class:sel={n.path === studio.selectedPath} style="padding-left:8px"
+        <button class="row" class:sel={n.path === studio.selectedPath} style="padding-left:8px" data-path={n.path}
           onclick={() => pick(n)} onmouseenter={() => hover(n)} onmouseleave={() => unhover(n)}>
           {@render label(n)}
         </button>
@@ -53,7 +77,8 @@
 
 {#snippet branch(n, depth)}
   <div class="node">
-    <div class="line" class:sel={n.path === studio.selectedPath} class:hov={n.path === studio.hoverPath} style="padding-left:{6 + depth * 13}px">
+    <div class="line" class:sel={n.path === studio.selectedPath} class:hov={n.path === studio.hoverPath}
+      data-path={n.path} style="padding-left:{6 + depth * 13}px">
       {#if n.children.length}
         <button class="caret" class:closed={collapsed[n.path]} aria-label="toggle"
           onclick={() => (collapsed[n.path] = !collapsed[n.path])}>▸</button>
@@ -70,8 +95,15 @@
 
 <style>
   .tree { display: flex; flex-direction: column; height: 100%; min-height: 0; gap: 8px; }
-  .search { background: #10131c; color: var(--color-text); border: 1px solid var(--color-line2); border-radius: 8px; padding: 6px 10px; font-size: 12px; font-family: var(--font-mono); }
+  .head { display: flex; gap: 6px; align-items: stretch; }
+  .search { flex: 1; min-width: 0; background: #10131c; color: var(--color-text); border: 1px solid var(--color-line2); border-radius: 8px; padding: 6px 10px; font-size: 12px; font-family: var(--font-mono); }
   .search:focus { outline: none; border-color: var(--color-violet); }
+  .reveal {
+    flex: none; background: var(--color-panel2); color: var(--color-text); border: 1px solid var(--color-line2);
+    border-radius: 8px; padding: 6px 10px; font-size: 12px; cursor: pointer; white-space: nowrap;
+  }
+  .reveal:hover:not(:disabled) { border-color: var(--color-violet); color: #cfc9ff; }
+  .reveal:disabled { opacity: .45; cursor: default; }
   .scroll { overflow: auto; min-height: 0; flex: 1; margin: 0 -6px; }
   .empty { color: var(--color-haze); font-size: 12px; padding: 6px 10px; }
   /* flat filtered list uses a plain button row */
