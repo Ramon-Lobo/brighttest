@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { api } from '../api.js';
   import { selectorFor } from '../steps.js';
+  import AppState from '../AppState.svelte';
   let { runSteps = [], running = false, currentFlow = null, runId = 0 } = $props();
 
   let history = $state([]);
@@ -127,6 +128,13 @@
             <p class="tap">Click a node on the frame to inspect it — at this step.</p>
           {/if}
         {/if}
+
+        {#if step && step.appState && step.appState.present}
+          <div class="statedet">
+            <div class="ndhead"><span class="sub">app state</span><span class="txt">at this step</span></div>
+            <AppState data={step.appState} />
+          </div>
+        {/if}
       </div>
 
       <ol class="steps">
@@ -184,7 +192,8 @@
   .stepinfo .det { color: var(--color-haze); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   .tap { color: var(--color-haze); font-size: 12px; margin: 4px 2px 0; }
-  .nodedet { border: 1px solid var(--color-line); border-radius: 10px; padding: 10px 12px; background: var(--color-panel); overflow: auto; }
+  .nodedet, .statedet { border: 1px solid var(--color-line); border-radius: 10px; padding: 10px 12px; background: var(--color-panel); overflow: auto; }
+  .statedet { margin-top: 4px; }
   .ndhead { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
   .ndhead .sub { font-weight: 600; }
   .ndhead .id { font-family: var(--font-mono); color: var(--color-violet); font-size: 12px; }
