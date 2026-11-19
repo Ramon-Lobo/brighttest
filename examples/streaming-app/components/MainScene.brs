@@ -3,13 +3,26 @@ sub init()
     m.current = ""
     m.reg = CreateObject("roRegistrySection", "openCinema")
 
+    ' App-wide values live on m.global; brighttest reads them back via the published state snapshot.
+    m.global.addFields({ channel: "Open Cinema", lastVerb: "", titleCount: 0 })
+
     text = ReadAsciiFile("pkg:/data/feed.json")
     m.feed = Feed_parse(text)
     for each it in m.feed.items
         it.lengthText = Format_duration(it.length)
     end for
+    m.global.titleCount = m.feed.items.count()
 
     showPanel("HomePanel", "")
+end sub
+
+' Mirror app state into the hidden __bt_state node so brighttest can inspect it over ECP.
+sub publishState()
+    BTState_publish(m.top, {
+        current: m.current,
+        global: BTState_scalars(m.global),
+        watchlist: loadWatchlist()
+    })
 end sub
 
 ' Mount one panel at a time in the stage, handing it the data it needs via its `data` field.
@@ -35,6 +48,7 @@ sub showPanel(name as string, contentId as string)
     panel.setFocus(true)
     panel.focusEnter = true
     m.current = name
+    publishState()
 end sub
 
 ' verb:id actions from panels → navigation.
@@ -48,6 +62,7 @@ sub onAction(msg as object)
         verb = Left(a, i - 1)
         id = Mid(a, i + 1)
     end if
+    m.global.lastVerb = verb
     if verb = "search" then showPanel("SearchPanel", "")
     if verb = "open" then showPanel("DetailsPanel", id)
     if verb = "play" then showPanel("PlayerPanel", id)
