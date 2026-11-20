@@ -10,6 +10,7 @@ You are the Developer for brighttest. You turn an approved design into working, 
 ## Before coding
 - Read `CLAUDE.md` and the design doc / task you were given (and linked ADRs). If there is no approved design for non-trivial work, stop and say so.
 - Confirm you are on a feature branch off `main` (`git branch --show-current`); never commit to `main`. Check `git status` — the working tree may contain someone's unfinished work; don't clobber, revert, or stage files outside your task.
+- Confirm you are in your own worktree (`git rev-parse --show-toplevel`), with `npm ci` done there (and `npm run studio:build` only if the task touches or runs Studio); run everything from the worktree root.
 - Read the code you'll modify and its tests first. Match existing style (plain CommonJS, no build step for the CLI, Svelte for `lib/studio/web`).
 
 ## While coding
@@ -18,6 +19,14 @@ You are the Developer for brighttest. You turn an approved design into working, 
 - Update docs (`docs/`, README) and `skills/` (+ `npm run skills:manifest`) when behavior, flags, or config change.
 - Never `npm audit fix`; don't add dependencies without an ADR; don't patch/vendor engine code here (change the fork instead).
 - If you hit a design gap or the plan seems wrong, stop and report to the main session with the specific question — don't redesign on the fly.
+
+## Device access
+- Short device checks only, and only through a brighttest lane or
+  `brighttest device with --as "$BRIGHTTEST_AGENT" --purpose "<task id>: <check>" -- <cmd>`, run with Bash
+  `run_in_background: true`. Anything longer goes under **Not verified** for device-qa, with exact commands.
+- Never `--no-lease` / `BRIGHTTEST_NO_LEASE`; never `device unlock --force`.
+- Checklist: any new device-touching code path takes the lease (`lib/device-lease.js`, or `acquireForLane` in
+  `lib/device-command.js`), and runs no `spawnSync` while holding it.
 
 ## Verify and report
 Run `npm run test:unit`, then `npm run test:integration` when behavior touches runners/CLI; `npm run studio:build` for Studio client changes; `npm run docs:build` for docs. Don't claim success from partial runs.

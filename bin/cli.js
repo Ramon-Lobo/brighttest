@@ -33,6 +33,14 @@ function parseArgs(argv) {
     else if (a.startsWith('--password=')) opts.password = a.slice(11);
     else if (a.startsWith('--junit=')) opts.junit = a.slice(8);
     else if (a.startsWith('--lcov=')) opts.lcov = a.slice(7);
+    // device lease (device and cross-check lanes)
+    else if (a === '--wait') opts.wait = argv[++i];
+    else if (a.startsWith('--wait=')) opts.wait = a.slice(7);
+    else if (a === '--as') opts.as = argv[++i];
+    else if (a.startsWith('--as=')) opts.as = a.slice(5);
+    else if (a === '--purpose') opts.purpose = argv[++i];
+    else if (a.startsWith('--purpose=')) opts.purpose = a.slice(10);
+    else if (a === '--no-lease') opts.noLease = true;
   }
   return opts;
 }
@@ -114,6 +122,15 @@ function parseE2eArgs(rest) {
     else if (a.startsWith('--assert=')) opts.assert = a.slice(9);
     else if (a === '--field') opts.field = rest[++i];
     else if (a.startsWith('--field=')) opts.field = a.slice(8);
+    // device lease
+    else if (a === '--wait') opts.wait = rest[++i];
+    else if (a.startsWith('--wait=')) opts.wait = a.slice(7);
+    else if (a === '--as') opts.as = rest[++i];
+    else if (a.startsWith('--as=')) opts.as = a.slice(5);
+    else if (a === '--purpose') opts.purpose = rest[++i];
+    else if (a.startsWith('--purpose=')) opts.purpose = a.slice(10);
+    else if (a === '--no-lease') opts.noLease = true;
+    else if (a === '--no-hygiene') opts.noHygiene = true;
     else if (a === '--help' || a === '-h') opts.help = true;
     else if (a.startsWith('-')) { /* ignore unknown flags */ }
     else opts.flows.push(a);
@@ -156,20 +173,88 @@ Options:
   --screenshots-mode <m> all (per-step, default) | failure (only on fail) | off
   --video [mp4|gif]      Assemble the per-step screenshots into a session video (needs ffmpeg on PATH)
   -o, --out <file>       (record) Write the scaffolded flow here (default: stdout)
+  --wait <dur>           Device lease: how long to queue per device (default 30m; 0 = fail if busy → exit 75)
+  --as <agent>           Device lease: holder label (or BRIGHTTEST_AGENT)
+  --purpose <text>       Device lease: what this run is for (shown in \`brighttest device status\`)
+  --no-hygiene           (run) Skip the Home ×2 press after taking the lease
+  --no-lease             Run without the device lease (warns and is audited; not for agents)
   -h, --help             Show this help
+`;
+
+// `brighttest device <action> [options] [-- <cmd…>]` — the cross-process device lease.
+const DEVICE_ACTIONS = ['status', 'with', 'unlock', 'log', 'lock', 'renew', 'hook', 'reset'];
+function parseDeviceArgs(rest) {
+  const o = {
+    deviceAction: null, host: null, password: null, ecpPort: null, as: null, purpose: null, wait: null, max: null,
+    expect: null, noHygiene: false, json: false, tail: null, force: false, reason: null, kill: false, lease: null,
+    cmd: [], help: false, unknown: [],
+  };
+  for (let i = 0; i < rest.length; i++) {
+    const a = rest[i];
+    const val = (name) => (a === name ? rest[++i] : a.startsWith(name + '=') ? a.slice(name.length + 1) : undefined);
+    let v;
+    if (a === '--') { o.cmd = rest.slice(i + 1); break; }
+    if (i === 0 && DEVICE_ACTIONS.includes(a)) { o.deviceAction = a; continue; }
+    if ((v = val('--host')) !== undefined) o.host = v;
+    else if ((v = val('--password')) !== undefined || (v = val('--pass')) !== undefined) o.password = v;
+    else if ((v = val('--ecp-port')) !== undefined) o.ecpPort = v;
+    else if ((v = val('--as')) !== undefined) o.as = v;
+    else if ((v = val('--purpose')) !== undefined) o.purpose = v;
+    else if ((v = val('--wait')) !== undefined) o.wait = v;
+    else if ((v = val('--max')) !== undefined) o.max = v;
+    else if ((v = val('--expect')) !== undefined) o.expect = v;
+    else if ((v = val('--tail')) !== undefined) o.tail = parseInt(v, 10) || null;
+    else if ((v = val('--reason')) !== undefined) o.reason = v;
+    else if ((v = val('--lease')) !== undefined) o.lease = v;
+    else if (a === '--no-hygiene') o.noHygiene = true;
+    else if (a === '--json') o.json = true;
+    else if (a === '--force' || a === '-f') o.force = true;
+    else if (a === '--kill') o.kill = true;
+    else if (a === '--help' || a === '-h') o.help = true;
+    else o.unknown.push(a);
+  }
+  return o;
+}
+
+const DEVICE_HELP = `
+brighttest device — share one Roku safely between processes, worktrees and agents (device lease)
+
+  Every brighttest device lane (--device, --cross-check, e2e, studio) takes the lease itself. Use
+  \`device with\` to wrap anything else that touches the device (curl, npx rooibos, scripts).
+
+Usage:
+  brighttest device status [--host <h>] [--json]           Who holds each device, since when, who waits
+  brighttest device with [options] -- <cmd…>               Hold the lease while <cmd> runs (FIFO queue)
+  brighttest device unlock --force --host <h> --reason "…" [--kill]   Human override (audited)
+  brighttest device log [--host <h>] [--tail <n>] [--json] The lease audit log (events.log)
+
+Options (with):
+  --host <ip[:pw]>     Device (or ROKU_HOST / cached device). The child gets ROKU_HOST, ROKU_PASSWORD and
+                       BRIGHTTEST_LEASE, so nested brighttest commands re-use the lease.
+  --as <agent>         Holder label (or BRIGHTTEST_AGENT), e.g. dev#2, device-qa#1, ci:run-123
+  --purpose <text>     What you are doing (or BRIGHTTEST_PURPOSE); default: the command
+  --wait <dur>         How long to queue (or BRIGHTTEST_LEASE_WAIT; default 30m). 0 = fail if busy
+  --max <dur>          Hard cap on the hold (default 60m); the command is stopped at the cap (exit 77)
+  --expect <dur>       Expected hold time, shown to waiters as an ETA
+  --no-hygiene         Skip the Home ×2 reset after acquiring
+  --ecp-port <n>       ECP port (or ROKU_ECP_PORT) — local fakes only; part of the lease key when not 8060
+Durations: 90s, 10m, 1h or milliseconds.
+
+Exit codes: the command's own code · 75 busy / wait timed out · 77 lease lost, expired or not held ·
+78 lease dir unusable (BRIGHTTEST_LEASE_DIR, default ~/.brighttest/leases) · 2 usage.
 `;
 
 // `brighttest studio` — visual studio (web app) for authoring & debugging e2e flows on a device.
 function parseStudioArgs(rest) {
-  const o = { host: null, password: null, port: 8700, app: 'dev', flowsDir: null, open: false, help: false };
+  const o = { host: null, password: null, port: null, app: 'dev', flowsDir: null, open: false, help: false };
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
     if (a === '--host') o.host = rest[++i];
     else if (a.startsWith('--host=')) o.host = a.slice(7);
     else if (a === '--password' || a === '--pass') o.password = rest[++i];
     else if (a.startsWith('--password=')) o.password = a.slice(11);
-    else if (a === '--port') o.port = parseInt(rest[++i], 10) || 8700;
-    else if (a.startsWith('--port=')) o.port = parseInt(a.slice(7), 10) || 8700;
+    else if (a === '--port') o.port = parseInt(rest[++i], 10) || null;
+    else if (a.startsWith('--port=')) o.port = parseInt(a.slice(7), 10) || null;
     else if (a === '--app') o.app = rest[++i];
     else if (a.startsWith('--app=')) o.app = a.slice(6);
     else if (a === '--flows-dir') o.flowsDir = rest[++i];
@@ -193,7 +278,7 @@ Usage:
 Options:
   --host <ip>        Roku device IP (or ROKU_HOST)
   --password <pw>    Roku dev password (or ROKU_PASSWORD) — enables screenshots
-  --port <n>         Local port for the studio (default 8700)
+  --port <n>         Local port for the studio (default 8700; if busy, the first free of 8701-8709)
   --app <id>         Channel to launch / drive (default: dev)
   --flows-dir <dir>  Where flows are read and written (default: ./flows)
   -o, --open         Open the studio in your browser
@@ -267,6 +352,7 @@ Usage:
   brighttest e2e run <flow…> --host <ip>             On-device UI e2e tests from YAML flows (see: e2e --help)
   brighttest studio --host <ip>                      Visual studio to author/debug flows on a device (see: studio --help)
   brighttest devices                                 Discover Rokus on the network and cache one's credentials
+  brighttest device status|with|unlock|log           Share a device safely: the device lease (see: device --help)
 
 Options:
   -d, --device          Run on a Roku device (deploys + runs Rooibos, reports coverage)
@@ -280,6 +366,10 @@ Options:
       --lcov [path]     Write an LCOV report from the device run (device mode;
                         default path: coverage/lcov.info)
       --junit <path>    Write a JUnit XML report (headless mode)
+      --wait <dur>      Device lease: how long to queue for the device (default 30m; 0 = fail if busy)
+      --as <agent>      Device lease: holder label (or BRIGHTTEST_AGENT)
+      --purpose <text>  Device lease: what this run is for (shown in \`brighttest device status\`)
+      --no-lease        Run without the device lease (warns and is audited; not for agents)
   -c, --config <path>   Path to brighttest.json (default: ./brighttest.json)
   -v, --version         Print the version and exit
   -h, --help            Show this help
@@ -341,8 +431,18 @@ async function main() {
     }
     // Resolve the device from flag → env / project .env → cache; start device-less if none (connect in the UI).
     const r = require('../lib/devices').resolveDevice({ host: o.host, password: o.password });
-    await require('../lib/studio/server').start({ host: r.host, password: r.password, port: o.port, app: o.app, rootDir: process.cwd(), flowsDir: o.flowsDir });
-    const url = `http://localhost:${o.port}`;
+    // Without --port, fall back to 8701-8709 when 8700 is taken (parallel worktrees each running a Studio).
+    const fallback = o.port ? null : [8701, 8702, 8703, 8704, 8705, 8706, 8707, 8708, 8709];
+    let server;
+    try {
+      server = await require('../lib/studio/server').start({ host: r.host, password: r.password, port: o.port || 8700, portFallback: fallback, app: o.app, rootDir: process.cwd(), flowsDir: o.flowsDir, cfg: loadConfig(process.cwd(), null) });
+    } catch (e) {
+      console.error(`[brighttest studio] ${e.message}`);
+      process.exit(1);
+    }
+    const port = server.address().port;
+    if (!o.port && port !== 8700) console.log(`(port 8700 is in use; using ${port})`);
+    const url = `http://localhost:${port}`;
     const dev = r.host ? `device ${r.host}${r.source !== 'flag' ? ` (${r.source})` : ''}` : 'no device — discover one in the Devices tab';
     console.log(`brighttest studio → ${url}  ·  ${dev}`);
     if (o.open) {
@@ -355,8 +455,16 @@ async function main() {
     }
     return; // keep the process alive — the server is listening
   }
+  if (argv[0] === 'device') {
+    const o = parseDeviceArgs(argv.slice(1));
+    if (o.help || !o.deviceAction) { console.log(DEVICE_HELP); process.exit(o.help ? 0 : 2); }
+    const cfg = loadConfig(process.cwd(), null);
+    const code = await require('../lib/device-command').run(o, cfg);
+    process.exit(code);
+  }
   if (argv[0] === 'devices') {
     const d = require('../lib/devices');
+    process.stderr.write('(to see who is using a device, run: brighttest device status)\n');
     process.stdout.write('discovering Roku devices on the network…\n');
     const list = await d.discover({ timeoutMs: 4000 });
     if (!list.length) { console.log('  none found — make sure a Roku is powered on and on this LAN.'); process.exit(0); }
@@ -392,4 +500,4 @@ async function main() {
 // Only run the CLI when executed directly (not when required by tests).
 if (require.main === module) main();
 
-module.exports = { parseArgs, parseSkillsArgs, parseInitArgs, parseE2eArgs, parseStudioArgs, SKILLS_ACTIONS, E2E_ACTIONS, SCREENSHOT_MODES };
+module.exports = { parseArgs, parseSkillsArgs, parseInitArgs, parseE2eArgs, parseStudioArgs, parseDeviceArgs, SKILLS_ACTIONS, E2E_ACTIONS, DEVICE_ACTIONS, SCREENSHOT_MODES };

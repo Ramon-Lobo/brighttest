@@ -57,6 +57,10 @@ describe('npm pack contents', () => {
     expect(missing).toEqual([])
   })
 
+  it('ships the device lease module', () => {
+    expect(packed.has('lib/device-lease.js')).toBe(true)
+  })
+
   it('does not ship repo-only folders', () => {
     const forbidden = [...packed].filter((p) =>
       /^(design|docs|experiments|examples|test|scripts|\.github|\.claude)\//.test(p) || p.startsWith('lib/studio/web/'))

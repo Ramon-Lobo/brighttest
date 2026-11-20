@@ -90,3 +90,19 @@ show a low percentage — that's accurate, not a bug. It climbs as you add tests
 
 The original `brs` (sjbarag) `0.45.x` throws `Cannot read properties of undefined (reading 'toLowerCase')`
 even on hello-world under Node 22. It's unmaintained — use `brs-node` (what brighttest depends on).
+
+## "Waiting for the device lease" / exit 75, 77 or 78
+
+Device commands queue for the device ([device lease](./device-lease)). Run `npx brighttest device status`
+to see who holds it (agent, purpose, worktree, since when) and who is queued.
+
+- **75**: the device was busy (`--wait 0`) or the wait timed out. Wait longer (`--wait 1h` or
+  `BRIGHTTEST_LEASE_WAIT`), or ask the holder. This is "device in use", not "device unreachable": an
+  unreachable device fails with a network error instead.
+- **77**: the lease was lost (someone force-unlocked it), the hold reached its `--max` deadline, or the
+  `BRIGHTTEST_LEASE` token in your environment is no longer held. Re-run the command.
+- **78**: the lease directory (`~/.brighttest/leases` or `BRIGHTTEST_LEASE_DIR`) is not writable or the disk
+  is full. The message names the path.
+- **A lease that never frees**: a crashed holder frees within about a second unless a child process it
+  started is still running (`device status` shows the PID). If the holder is yours and stuck:
+  `npx brighttest device unlock --force --host <ip> --reason "…" [--kill]`.

@@ -10,6 +10,7 @@ Write Rooibos specs once; run **headless** (brs-node simulator, default), **on-d
 
 ## Layout
 - `bin/cli.js` — arg parsing + dispatch. `lib/` — runner (`headless`, `device`, `cross-check`, coverage, `config`, `reporter`).
+- `lib/device-lease.js` — cross-process device lease (`lib/device-command.js`: `brighttest device status|with|unlock|log`).
 - `lib/e2e/` — on-device UI lane. `lib/studio/` — Studio server; `lib/studio/web/` — Svelte client (own package.json).
 - `brs/headless_runner.brs` — Rooibos driver run on the simulator. `skills/` — bundled agent skills (shipped).
 - `docs/` VitePress site · `design/` RFCs · `experiments/` device spikes · `examples/` sample apps · `test/` Vitest.
@@ -24,6 +25,7 @@ Write Rooibos specs once; run **headless** (brs-node simulator, default), **on-d
 6. If you touch `skills/`, run `npm run skills:manifest`. If you touch `docs/`, run `npm run docs:build`.
 7. Behavior changes ship with tests (`test/`) and docs in the same change.
 8. **No client references.** Never mention the client or employer, or any client-owned app, source or fixtures (including the names in this folder's parent path), in code, docs, designs, tests, fixtures, commits, PRs or issues. Use generic, self-contained fixture apps. Every feature's tests and acceptance steps must be writable as a hand-off brief that another agent or person can execute without any private context.
+9. **The Roku is a leased, serialized resource.** Every device access goes through a brighttest lane or `brighttest device with -- <cmd>` (session: `device lock` + inline `BRIGHTTEST_LEASE=`, Phase 2). Never hold the lease while not using the device; never pass `--no-lease`/`BRIGHTTEST_NO_LEASE`.
 
 ## Verification
 - `npm run test:unit` (fast) · `npm run test:integration` (spawns CLI + simulator) · `npm test` (both).
@@ -49,3 +51,11 @@ Rules of the road:
 - Research claims need sources (URL + date, or `file:line`) and a confidence note. Distinguish verified-on-device vs. docs vs. inference.
 - `<planning>/design/ROADMAP.md` is the single source of truth for what's in flight; update it when state changes.
 - **`<planning>/design/BACKLOG.md` is the task list. When a task completes (merged, or its gate passes), the orchestrator marks its master-table row ✅ (🟡 while built but unmerged or unverified) and updates the Progress ledger in the same turn, before reporting to the owner.**
+
+Device scheduling (the device lease, `docs/guide/device-lease.md`):
+1. **Device use is allowed for developer and device-qa agents, always through the lease.** Developers may run a brighttest lane or one `device with` command for a short check; long or exploratory device work (flake hunts, Studio sessions, spikes) goes to one device-qa agent. Reviewers stay headless.
+2. **Batch device work.** Prefer one device-qa agent per batch of verification requests over several that just queue. Before launching one, run `brighttest device status` and tell the agent what is queued.
+3. **Name every agent.** The prompt sets `BRIGHTTEST_AGENT=<role>#<n>` and a one-line purpose; the agent passes `--as/--purpose` (or prefixes device commands with those variables).
+4. **Lease only around device-touching commands.** Use a brighttest lane (it leases itself) or `brighttest device with -- <cmd>`. Never hold a lease while reading code, thinking or writing reports.
+5. **Wait visibly, don't spin.** Run lease-waiting commands with Bash `run_in_background: true` and a generous `--wait`; report "waiting for the device: held by X for Y, I am #N" from the stderr line. On exit 75, report and stop instead of re-queueing silently.
+6. **Parallelism.** Headless work (developers, reviewers, unit/integration tests) runs fully in parallel; the device is serialized, so plan the critical path around it. Never `brighttest device unlock --force` without the owner.
