@@ -706,19 +706,34 @@ describe('net receiver heuristic', () => {
         expect(l.replace(/BT_url\(("[^"]*")\)/g, '$1').replace(/BT_unurl\((.*?\.getUrl\(\))\)/g, '$1'), `${f}:${i + 1}`).toBe(b[i])
       })
     }
-    const file = Object.values(d.pb.program.files).find((x) => x.pkgPath === 'source/classes.brs')
-    const orig = file.ast.walk.bind(file.ast)
-    let walks = 0
-    file.ast.walk = (...a) => { walks++; return orig(...a) }
-    receiverMod.createClassifier({}).analyzeFile(file)
-    expect(walks).toBe(1)
+    // Walk budget over the whole plugin build (same as the pre-heuristic base 2c2ca3c): 2 per rewritten file (classify +
+    // transpile), 1 per excluded file that has candidate sites (classify only).
+    // The spy counts every walk of a file's AST during a build; the plugin's share is the difference to a plugin-off build.
+    const walksOf = async (name, plugins, extra) => {
+      const counts = new Map()
+      const spy = { name: 'walk-spy', afterFileParse: (f) => {
+        if (!f.ast || !f.pkgPath) return
+        const orig = f.ast.walk.bind(f.ast)
+        f.ast.walk = (...a) => { counts.set(f.pkgPath, (counts.get(f.pkgPath) || 0) + 1); return orig(...a) }
+      } }
+      const r = await build(recv, path.join(tmp, name), plugins, extra, [spy])
+      expect(r.errors).toEqual([])
+      return counts
+    }
+    const off = await walksOf('recv-walks-off', [], {})
+    const on = await walksOf('recv-walks-on', [pluginPath], { instrument: { exclude: ['source/allow.brs'] } })
+    const own = (f) => (on.get(f) || 0) - (off.get(f) || 0)
+    for (const f of ['source/classes.brs', 'source/cls.bs', 'source/scalars.brs']) expect(own(f), f).toBe(2)
+    expect(own('source/allow.brs')).toBe(1)
   })
   it('13: classifier is deterministic and feature detection reports nothing on 0.73.8', () => {
     expect(receiverMod.missingApis()).toEqual([])
     expect(missingPrivateApis(undefined, undefined)).toEqual([])
     const file = Object.values(d.pb.program.files).find((x) => x.pkgPath === 'source/classes.brs')
     const sites = receiverMod.createClassifier({}).analyzeFile(file).filter((s) => s.eligible)
-    expect(sites.map((s) => s.cls)).toEqual(sites.map((s) => s.cls).slice())
+    const again = receiverMod.createClassifier({}).analyzeFile(file).filter((s) => s.eligible)
+    expect(again.length).toBe(sites.length)
+    expect(again.map((s) => [s.line, s.receiver, s.cls, s.reason])).toEqual(sites.map((s) => [s.line, s.receiver, s.cls, s.reason]))
     expect(new Set(sites.map((s) => s.cls))).toEqual(new Set(['confirmed', 'likely', 'unknown', 'excluded']))
   })
 })
