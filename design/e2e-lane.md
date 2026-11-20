@@ -1,6 +1,6 @@
 # Design: `brighttest e2e` — on-device end-to-end UI testing
 
-Status: **draft / RFC** · Branch: `feat/e2e` · Prereq spike: `experiments/FINDINGS.md` (confirmed on device)
+Status: **implemented** (Phases 1-3 shipped: `brighttest e2e run|inspect|record|stamp`; open questions below are historical) · Prereq spike: `experiments/FINDINGS.md` (confirmed on device)
 
 ## Decisions (resolved)
 
