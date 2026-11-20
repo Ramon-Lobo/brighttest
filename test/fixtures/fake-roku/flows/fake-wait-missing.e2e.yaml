@@ -1,0 +1,6 @@
+# The 2nd step waits for a node that never exists (timeout or typed error).
+appId: dev
+config: { timeout: 3 }
+steps:
+  - launch
+  - assertVisible: { id: neverThere }
