@@ -183,6 +183,25 @@ describe('tolerant console parsers (formats vary per firmware — pin these agai
     expect(r.other).toContain('some unrecognised counter: 42');
   });
 
+  it('parseChanperf parses the recorded 8080 line (mem, anon, file, shared, swap, cpu, user, sys)', () => {
+    const r = sgdebug.parseChanperf('channel: mem=28460KiB{anon=7288,file=20992,shared=180,swap=0},%cpu=0{user=0,sys=0}');
+    expect(r).toEqual({ ok: true, mem: 28460, anon: 7288, file: 20992, shared: 180, swap: 0, cpu: 0, user: 0, sys: 0 });
+    // device-shaped: banner + prompt prefix still parses; non-zero CPU
+    expect(sgdebug.parseChanperf('>channel: mem=100KiB{anon=1,file=2,shared=3,swap=4},%cpu=12{user=9,sys=3}').cpu).toBe(12);
+  });
+
+  it('parseChanperf reports the "not available" line as ok:false, never throws', () => {
+    expect(sgdebug.parseChanperf('channel: mem and cpu data not available')).toEqual({ ok: false, error: 'mem and cpu data not available' });
+    expect(sgdebug.parseChanperf('').ok).toBe(false);
+  });
+
+  it('query() wires chanperf to the parser (parsed not null)', async () => {
+    const port = await fakeConsole('channel: mem=28460KiB{anon=7288,file=20992,shared=180,swap=0},%cpu=0{user=0,sys=0}');
+    const r = await sgdebug.query('127.0.0.1', 'chanperf', { port, quietMs: 150 });
+    expect(r.parsed).not.toBeNull();
+    expect(r.parsed.anon).toBe(7288);
+  });
+
   it('parsers never throw on arbitrary text', () => {
     expect(sgdebug.parseFree('').ok).toBe(false);
     expect(sgdebug.parseSgperf('no numbers here').ok).toBe(false);
