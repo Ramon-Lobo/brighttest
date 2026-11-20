@@ -136,3 +136,34 @@ describe('writeBsConfig', () => {
     expect(bs.files.every((f) => typeof f === 'string')).toBe(true)
   })
 })
+
+describe('spike ENG-T3: stock seed scene and bare @deviceOnly detection', () => {
+  const os = require('os');
+  const fs2 = require('fs');
+  const path2 = require('path');
+  it('writes a generated test scene only when BRIGHTTEST_ENGINES=stock', () => {
+    const dir = fs2.mkdtempSync(path2.join(os.tmpdir(), 'bt-seed-'));
+    fs2.mkdirSync(path2.join(dir, 'source'));
+    const cfg = loadConfig(dir);
+    cfg.globalFields = { '*': { config: null }, Widget: { config: { multiplier: 2 } } };
+    const prev = process.env.BRIGHTTEST_ENGINES;
+    try {
+      delete process.env.BRIGHTTEST_ENGINES;
+      let { bsconfigPath } = writeBsConfig(cfg, 'headless-scene');
+      expect(JSON.parse(fs2.readFileSync(bsconfigPath, 'utf8')).rooibos.testSceneName).toBeUndefined();
+      process.env.BRIGHTTEST_ENGINES = 'stock';
+      ({ bsconfigPath } = writeBsConfig(cfg, 'headless-scene'));
+      const bs = JSON.parse(fs2.readFileSync(bsconfigPath, 'utf8'));
+      expect(bs.rooibos.testSceneName).toBe('BrighttestSeedScene');
+      expect(bs.files.some((f) => f.dest === 'components/brighttest/BrighttestSeedScene.xml')).toBe(true);
+    } finally {
+      if (prev === undefined) delete process.env.BRIGHTTEST_ENGINES; else process.env.BRIGHTTEST_ENGINES = prev;
+    }
+  });
+  it('flags bare @deviceOnly with file:line', () => {
+    const { findBareDeviceOnly } = require('../lib/config');
+    const dir = fs2.mkdtempSync(path2.join(os.tmpdir(), 'bt-dev-'));
+    fs2.writeFileSync(path2.join(dir, 'A.spec.bs'), 'a\n@deviceOnly\nb\n@tags("deviceOnly")\n');
+    expect(findBareDeviceOnly({ rootDir: dir })).toEqual(['A.spec.bs:2']);
+  });
+});
