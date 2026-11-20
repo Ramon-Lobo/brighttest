@@ -24,6 +24,7 @@
     "skills",
     "lib/*.js",
     "lib/e2e",
+    "lib/instrument",
     "lib/studio/*.js",
     "lib/studio/public",
     "README.md",
