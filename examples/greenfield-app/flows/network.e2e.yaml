@@ -1,0 +1,16 @@
+# Needs the network mock layer (fixtures/net/*). heroTitle comes from a mocked GET /home, opening a
+# tile sends one tracking POST, a 503 from /search shows as searchError.
+appId: dev
+config: { timeout: 10 }
+steps:
+  - launch
+  - assertText: { id: heroTitle, equals: "Mocked hero" }
+  - focus: { id: tile1 }
+  - press: Select
+  - assertText: { id: trackingStatus, equals: "tracked" }
+  - back
+  - focus: { id: searchButton }
+  - press: Select
+  - focus: { id: runSearch }
+  - press: Select
+  - assertText: { id: searchError, equals: "Search failed (503)" }

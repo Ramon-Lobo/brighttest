@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="FocusScreen" extends="Group">
+  <interface>
+    <field id="action" type="assocarray" alwaysNotify="true" />
+    <field id="focusEnter" type="boolean" value="false" onChange="onFocusEnter" />
+    <field id="lastKey" type="string" value="" />
+  </interface>
+  <script type="text/brightscript" uri="FocusScreen.brs" />
+  <children>
+    <Label id="focusTitle" text="Focus demo" translation="[80, 40]" />
+    <Label id="focusKey" text="key: none" translation="[80, 100]" />
+    <!-- focus chain: outerGroup (handles keys) > innerGroup (handles keys) > leafButton (focused) -->
+    <Group id="outerGroup" translation="[80, 180]">
+      <Group id="innerGroup">
+        <Button id="leafButton" text="Leaf" minWidth="220" />
+      </Group>
+    </Group>
+    <!-- selector target that is a plain Group (a RenderableNode in an on-device tree dump) -->
+    <Group id="plainTarget" translation="[400, 180]">
+      <Label id="plainLabel" text="plain group" />
+    </Group>
+  </children>
+</component>
