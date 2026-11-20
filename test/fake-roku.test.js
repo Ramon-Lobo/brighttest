@@ -7,6 +7,7 @@ import path from 'path'
 
 const require = createRequire(import.meta.url)
 const { createFakeRoku, SCENARIOS, parseArgs } = require('./fixtures/fake-roku/server.js')
+const { parseSummary, makeReporter, lineSplitter } = require('../lib/reporter.js')
 const { buildDigestHeader, parseChallenge, createDevice } = require('../lib/e2e/ecp.js')
 
 const stubs = []
@@ -51,7 +52,8 @@ function tcp(port, { send, until, timeout = 1500 } = {}) {
 const SCENARIO_NAMES = ['healthy', 'latency-200ms', '5xx-once', '5xx-always', 'reset-once', 'stall', '401', '403', '404',
   'crash-mid-flow', 'limited', 'dev-disabled', 'unreachable', 'cold-stall', 'home-bounce', 'osd-facade', 'system-dialog-root',
   'launch-404-after-sideload', 'sgnodes-fails', 'halted-app', 'installer-page', 'never-leaves-home', 'replay-then-live',
-  'debugger-crash', 'large-tree-3k', 'large-tree-6k']
+  'debugger-crash', 'large-tree-3k', 'large-tree-6k', 'console-slow', 'keypress-home-500', 'keyup-fails', 'rooibos-pass',
+  'rooibos-fail', 'focus-grid', 'installer-500', 'late-node']
 
 describe('fake-roku scenarios (one smoke test each)', () => {
   it('defines exactly the documented scenarios', () => {
@@ -368,15 +370,181 @@ describe('fake-roku features', () => {
     expect(await p).toContain('custom live')
   })
 
+  it('parseArgs: module-only mode flags, firmware, fault path, agent text', () => {
+    const f = path.join(os.tmpdir(), `fake-agent-${process.pid}.txt`)
+    fs.writeFileSync(f, 'hello agent')
+    try {
+      expect(parseArgs(['--installer-mode', 'compile-failure', '--delete-fails', '--screenshot-not-ok', '--screenshot-format', 'jpg',
+        '--banner-split', '--software-version', '15.1.2', '--software-build', '4400', '--model', 'Express',
+        '--console-latency-ms', '50', '--fault-path', '/keypress/Home', '--fault-status', '500', '--agent-text', f])).toEqual({
+        installerMode: 'compile-failure', deleteFails: true, screenshotOk: false, screenshotFormat: 'jpg', bannerSplit: true,
+        softwareVersion: '15.1.2', softwareBuild: '4400', modelName: 'Express', consoleLatencyMs: 50,
+        fault: { mode: 'status', status: 500, path: '/keypress/Home' }, agentText: 'hello agent' })
+      expect(parseArgs(['--fault-path', 'keyup/*']).fault).toEqual({ mode: 'status', status: 500, path: 'keyup/*' })
+    } finally { fs.rmSync(f, { force: true }) }
+  })
+
   it('parseArgs', () => {
     expect(parseArgs(['--scenario', 'stall', '--ecp-port', '18060', '--list'])).toEqual({ scenario: 'stall', ecpPort: 18060, list: true })
+  })
+})
+
+describe('fake-roku FIX-06 gaps', () => {
+  it('M1 firmware/model overrides reach device-info and the console banner', async () => {
+    const { a } = await boot('healthy', { softwareVersion: '15.1.2', softwareBuild: '4400', modelName: 'Express' })
+    const di = await (await ecp(a, '/query/device-info')).text()
+    expect(di).toContain('<software-version>15.1.2</software-version>')
+    expect(di).toContain('<software-build>4400</software-build>')
+    expect(di).toContain('<model-name>Express</model-name>')
+    expect(await tcp(a.consolePort, { until: />$/ })).toContain('FAKE-SERIAL-0001 (Roku Express - 15.1.2.4400)')
+  })
+
+  it('M2 console-slow delays the banner and command replies', async () => {
+    const { a } = await boot('console-slow')
+    const t = Date.now()
+    await tcp(a.consolePort, { until: />$/ })
+    expect(Date.now() - t).toBeGreaterThanOrEqual(650)
+    const t2 = Date.now()
+    await tcp(a.consolePort, { send: 'help\r\n', until: /sgperf[\s\S]*>$/, timeout: 3000 })
+    expect(Date.now() - t2).toBeGreaterThanOrEqual(650)
+  })
+
+  it('M3 keypress-home-500 faults only keypress/Home', async () => {
+    const { a } = await boot('keypress-home-500')
+    expect((await post(a, '/keypress/Home')).status).toBe(500)
+    expect((await post(a, '/keypress/Select')).status).toBe(200)
+    expect((await ecp(a, '/query/device-info')).status).toBe(200)
+  })
+
+  it('M3 path fault via option (no leading slash, exact match)', async () => {
+    const { a } = await boot('healthy', { fault: { mode: 'status', status: 502, path: 'query/apps' } })
+    expect((await ecp(a, '/query/apps')).status).toBe(502)
+    expect((await ecp(a, '/query/active-app')).status).toBe(200)
+  })
+
+  it('M4 keyup-fails: keyup/* 503, keydown and keypress fine', async () => {
+    const { stub, a } = await boot('keyup-fails')
+    expect((await post(a, '/keydown/Right')).status).toBe(200)
+    expect((await post(a, '/keyup/Right')).status).toBe(503)
+    expect((await post(a, '/keypress/Right')).status).toBe(200)
+    expect(stub.log.filter((l) => l.endpoint === '/keyup/Right').map((l) => l.status)).toEqual([503])
+  })
+
+  it('M5 rooibos-pass: transcript after install parses with the lane reporter', async () => {
+    const { a } = await boot('rooibos-pass')
+    const early = await tcp(a.debugPort, { until: /NEVER/, timeout: 300 })
+    expect(early).not.toContain('Rooibos')
+    const live = tcp(a.debugPort, { until: /\[Rooibos Result\]: PASS/ })
+    await new Promise((r) => setTimeout(r, 100))
+    expect((await install(a)).status).toBe(200)
+    const out = await live
+    expect(parseSummary(out)).toEqual({ total: 2, passed: 2, crashed: 0, failed: 0, ignored: 0 })
+    // replayed to a later connection (the device CLI connects after deploy)
+    expect(await tcp(a.debugPort, { until: /\[Rooibos Result\]: PASS/ })).toContain('RESULT: Success')
+  })
+
+  it('M5 rooibos-fail: failing case, summary and reporter tally', async () => {
+    const { a } = await boot('rooibos-fail')
+    await install(a)
+    const out = await tcp(a.debugPort, { until: /\[Rooibos Result\]: FAIL/ })
+    expect(parseSummary(out)).toMatchObject({ total: 2, passed: 1, failed: 1 })
+    const rep = makeReporter({ rootDir: process.cwd() }, false)
+    const split = lineSplitter(rep.onLine)
+    split.push(out); split.flush()
+    expect(rep.state.cases.map((c) => [c.name, c.ok])).toEqual([['adds numbers', true], ['subtracts numbers', false]])
+    expect(out).toContain('Error Message: Expected 3 but got 4')
+  })
+
+  it('M6 connection events for 8080 and 8085 in the log file', async () => {
+    const logFile = path.join(os.tmpdir(), `fake-conn-${process.pid}.jsonl`)
+    fs.rmSync(logFile, { force: true })
+    try {
+      const { stub, a } = await boot('healthy', { logFile })
+      await tcp(a.consolePort, { until: />$/ })
+      await tcp(a.debugPort, { until: /catalog loaded/ })
+      await new Promise((r) => setTimeout(r, 100))
+      const ev = stub.log.filter((l) => l.event).map((l) => `${l.service}:${l.event}`)
+      expect(ev).toEqual(['console:connect', 'console:close', 'debug:connect', 'debug:close'])
+      const lines = fs.readFileSync(logFile, 'utf8').trim().split('\n').map((l) => JSON.parse(l))
+      expect(lines.filter((l) => l.event).length).toBe(4)
+    } finally { fs.rmSync(logFile, { force: true }) }
+  })
+
+  it('M7 module-only modes via options match their CLI flag names', async () => {
+    const o = parseArgs(['--installer-mode', 'compile-failure', '--delete-fails', '--screenshot-not-ok', '--banner-split'])
+    const { a } = await boot('healthy', o)
+    expect(await (await install(a)).text()).toContain('Compilation Failed')
+    expect(await (await install(a, 'Delete')).text()).toContain('Delete Failure')
+    expect(await (await digest(a, 'POST', '/plugin_inspect', '')).text()).toContain('Screenshot not ok')
+    expect(await tcp(a.consolePort, { until: /\)\r\n>$/ })).toContain('(Roku Ultra - 16.0.4.853)')
+  })
+
+  it('M8 committed flows exist and are valid YAML-shaped', () => {
+    const dir = path.join(__dirname, 'fixtures', 'fake-roku')
+    for (const f of ['flows/fake-smoke.e2e.yaml', 'flows/fake-wait-missing.e2e.yaml', 'README.md']) expect(fs.existsSync(path.join(dir, f))).toBe(true)
+    expect(fs.readFileSync(path.join(dir, 'flows/fake-smoke.e2e.yaml'), 'utf8')).toContain('assertVisible: { id: hero }')
+  })
+
+  it('M8 fake-smoke flow runs green against healthy; wait-missing fails', async () => {
+    const { a } = await boot('healthy')
+    const { execFile } = require('child_process')
+    // async: the fake lives in this process, so a blocking spawn would starve it
+    const exec = (args) => new Promise((r) => execFile('node', args, { encoding: 'utf8' }, (_e, stdout) => r({ stdout })))
+    const cli = path.join(__dirname, '..', 'bin', 'cli.js')
+    const run = (f) => exec([cli, 'e2e', 'run', path.join(__dirname, 'fixtures/fake-roku/flows', f), '--host', '127.0.0.1',
+      '--ecp-port', String(a.ecpPort), '--password', 'rokudev-test', '--screenshots-mode', 'off'])
+    const ok = await run('fake-smoke.e2e.yaml')
+    expect(ok.stdout).toContain('8 passed, 0 failed')
+    const bad = await run('fake-wait-missing.e2e.yaml')
+    expect(bad.stdout).toContain('not visible')
+  }, 30000)
+
+  it('M9 installer-500 answers HTTP 500', async () => {
+    const { a } = await boot('installer-500')
+    expect((await install(a)).status).toBe(500)
+  })
+
+  it('M9 late-node: lateNode appears only after the delay', async () => {
+    const { a } = await boot('late-node', { lateNodeMs: 300 })
+    expect(await (await ecp(a, '/query/sgnodes/all')).text()).not.toContain('lateNode')
+    await new Promise((r) => setTimeout(r, 350))
+    expect(await (await ecp(a, '/query/sgnodes/all')).text()).toContain('name="lateNode"')
+  })
+
+  it('M10 focus-grid: item1..item6, focus follows arrow keys', async () => {
+    const { a } = await boot('focus-grid')
+    const focused = async () => {
+      const x = await (await ecp(a, '/query/sgnodes/all')).text()
+      for (let i = 1; i <= 6; i++) expect(x).toContain(`name="item${i}"`)
+      return [...x.matchAll(/name="(item\d)" focused="true"/g)].map((m) => m[1])
+    }
+    expect(await focused()).toEqual(['item1'])
+    await post(a, '/keypress/Right'); expect(await focused()).toEqual(['item2'])
+    await post(a, '/keypress/Down'); expect(await focused()).toEqual(['item5'])
+    await post(a, '/keypress/Down'); expect(await focused()).toEqual(['item5'])
+    await post(a, '/keypress/Left'); await post(a, '/keypress/Left'); expect(await focused()).toEqual(['item4'])
+    await post(a, '/keypress/Up'); expect(await focused()).toEqual(['item1'])
+  })
+
+  it('M11 agent text option seeds __bt_agent', async () => {
+    const { a } = await boot('healthy', { agentText: 'seeded' })
+    expect(await (await ecp(a, '/query/sgnodes/all')).text()).toContain('text="seeded"')
+  })
+
+  it('M12 emitDebugRaw writes without a line ending', async () => {
+    const { stub, a } = await boot('healthy')
+    const p = tcp(a.debugPort, { until: /part$/ })
+    await new Promise((r) => setTimeout(r, 100))
+    stub.emitDebugRaw('par'); stub.emitDebugRaw('t')
+    const out = await p
+    expect(out.endsWith('part')).toBe(true)
   })
 })
 
 describe('fake-roku identifier hygiene (TP-SEC style)', () => {
   it('fixture sources contain only placeholder identifiers', () => {
     const dir = path.join(__dirname, 'fixtures', 'fake-roku')
-    const src = fs.readdirSync(dir).map((f) => fs.readFileSync(path.join(dir, f), 'utf8')).join('\n')
+    const src = fs.readdirSync(dir).filter((f) => fs.statSync(path.join(dir, f)).isFile()).map((f) => fs.readFileSync(path.join(dir, f), 'utf8')).join('\n')
     const macs = src.match(/\b[0-9A-Fa-f]{2}(:[0-9A-Fa-f]{2}){5}\b/g) || []
     expect(macs.every((m) => m.startsWith('00:00:5E'))).toBe(true)
     const ips = src.match(/\b\d{1,3}(\.\d{1,3}){3}\b/g) || []
