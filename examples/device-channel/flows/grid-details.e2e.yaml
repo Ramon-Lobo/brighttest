@@ -1,0 +1,17 @@
+# Catalog grid -> Details -> Back -> Home. Focus path: menu item 0 -> grid -> first tile.
+appId: dev
+config: { timeout: 15 }
+steps:
+  - launch
+  - assertVisible: { id: homeScreen }
+  - press: Select                              # "Catalog grid" is the first menu item
+  - assertVisible: { id: gridScreen }
+  - assertFocused: { id: catalogGrid }
+  - press: Right
+  - press: Select                              # second tile
+  - assertVisible: { id: detailsScreen }
+  - assertText: { id: detailsTitle, equals: "Title Bravo" }
+  - assertState: { path: global.selectedid, equals: item-2 }
+  - back
+  - assertVisible: { id: homeScreen }
+  - assertGone: { id: detailsScreen }
