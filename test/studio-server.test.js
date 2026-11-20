@@ -103,3 +103,58 @@ describe('studio JSON-only mutating requests', () => {
     expect((await req('POST', '/api/flow', { headers: { 'Content-Type': 'application/octet-stream' }, body: FLOW })).status).toBe(415);
   });
 });
+
+// BUG-B1: /api/perf/console passes the active channel title so targeted commands select the console target.
+describe('/api/perf/console target selection', () => {
+  const sgdebug = require('../lib/studio/sgdebug.js');
+  const { createFakeRoku } = require('./fixtures/fake-roku/server.js');
+  let stub, srv, p2, ecpUrl, origQuery, calls, queryImpl;
+  const run = (command) => new Promise((resolve, reject) => {
+    const body = JSON.stringify({ command });
+    const r = http.request({ host: '127.0.0.1', port: p2, method: 'POST', path: '/api/perf/console', headers: { 'Content-Type': 'application/json' } },
+      (res) => { let b = ''; res.on('data', (c) => (b += c)); res.on('end', () => resolve({ status: res.statusCode, json: JSON.parse(b) })); });
+    r.on('error', reject); r.end(body);
+  });
+  beforeAll(async () => {
+    stub = createFakeRoku({ scenario: 'healthy' });
+    const a = await stub.start();
+    ecpUrl = a.ecpUrl;
+    process.env.ROKU_ECP_PORT = String(a.ecpPort);
+    srv = await studio.start({ port: 0, rootDir: root, host: '127.0.0.1' });
+    delete process.env.ROKU_ECP_PORT;
+    p2 = srv.address().port;
+    origQuery = sgdebug.query;
+    sgdebug.query = async (host, name, opts) => { calls.push({ host, name, opts }); return queryImpl(name, opts); };
+  });
+  afterAll(async () => { sgdebug.query = origQuery; srv.close(); await stub.stop(); });
+  const reset = () => { calls = []; queryImpl = (name) => ({ name, raw: '', parsed: null }); };
+
+  it('passes the active-app title as channel for a targeted command', async () => {
+    reset();
+    const r = await run('sgperf_report');
+    expect(r.status).toBe(200);
+    expect(calls[0].opts).toEqual({ channel: 'Fake Channel' });
+  });
+  it('does not need an active app for untargeted commands', async () => {
+    reset();
+    const r = await run('plugins');
+    expect(r.status).toBe(200);
+    expect(calls[0].opts).toEqual({ channel: null });
+  });
+  it('maps "target not found" to a clear 409', async () => {
+    reset();
+    queryImpl = () => { throw new Error('console target not found for channel "Fake Channel" (targets: none)'); };
+    const r = await run('chanperf');
+    expect(r.status).toBe(409);
+    expect(r.json.code).toBe('TARGET_NOT_FOUND');
+    expect(r.json.error).toMatch(/target not found/);
+  });
+  it('409 when Home is in front for a targeted command', async () => {
+    reset();
+    await fetch(`${ecpUrl}/keypress/Home`, { method: 'POST' });
+    const r = await run('sgperf_report');
+    expect(r.status).toBe(409);
+    expect(r.json.error).toMatch(/no channel in front/);
+    expect(calls).toEqual([]);
+  });
+});
