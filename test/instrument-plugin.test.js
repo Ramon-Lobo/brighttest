@@ -643,7 +643,29 @@ describe('net receiver heuristic', () => {
     expect(couldNot(d)).not.toContain('net-receiver-unknown')
     expect(couldNot(d)).not.toContain('net-receiver-excluded')
     const bad = await run('recv-bad', { net: { unknown: 'bogus' } })
-    expect(bad.errors.some((e) => e.code === 'BT9004')).toBe(true)
+    expect(bad.errors.some((e) => e.code === 'BT9005')).toBe(true)
+    expect(bad.errors.some((e) => e.code === 'BT9004')).toBe(false) // BT9004 is reserved for plugin-reused (INS-F-T2)
+  })
+  it('9b: an invalid instrument.net value or receivers list is a BT9005 error', async () => {
+    const cases = [
+      [0, /instrument\.net must be a boolean or an object/],
+      [null, /instrument\.net must be a boolean or an object/],
+      ['false', /instrument\.net must be a boolean or an object/],
+      [[], /instrument\.net must be a boolean or an object/],
+      [{ receivers: 'x' }, /receivers must be an object/],
+      [{ receivers: { allow: 'o10' } }, /receivers\.allow must be an array of strings/],
+      [{ receivers: { deny: [1] } }, /receivers\.deny must be an array of strings/],
+      [{ receivers: { allow: null } }, /receivers\.allow must be an array of strings/],
+    ]
+    for (const [i, [net, re]] of cases.entries()) {
+      const r = await run(`recv-badnet-${i}`, { net })
+      const e = r.errors.filter((x) => x.code === 'BT9005')
+      expect(e.length, JSON.stringify(net)).toBe(1)
+      expect(e[0].message, JSON.stringify(net)).toMatch(re)
+    }
+    for (const net of [true, false, {}, { unknown: 'report', receivers: { allow: ['a'], deny: [] } }]) {
+      expect((await run('recv-goodnet', { net })).errors.filter((x) => x.code === 'BT9005'), JSON.stringify(net)).toEqual([])
+    }
   })
   it('10: allow overrides excluded, deny wins over allow, file#pattern scopes, overlaps are reported', async () => {
     const r = await run('recv-allow', {
