@@ -1,0 +1,162 @@
+'use strict';
+// Response bodies for the fake Roku. Shapes follow real-device captures, but every identifier is a
+// synthetic placeholder: no real serials, device ids, MACs or LAN addresses (192.0.2.0/24 is TEST-NET-1).
+const SERIAL = 'FAKE-SERIAL-0001';
+const DEVICE_ID = 'FAKE-DEVICE-ID-0001';
+const UDN = '00000000-0000-0000-0000-000000000000';
+const IP = '192.0.2.10';
+
+const XML = '<?xml version="1.0" encoding="UTF-8" ?>\n';
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+function deviceInfo({ limited = false, developerEnabled = true } = {}) {
+  return XML + `<device-info>
+	<udn>${UDN}</udn>
+	<serial-number>${SERIAL}</serial-number>
+	<device-id>${DEVICE_ID}</device-id>
+	<advertising-id>FAKE-ADVERTISING-ID</advertising-id>
+	<vendor-name>Fake</vendor-name>
+	<model-name>Ultra</model-name>
+	<model-number>0000XX</model-number>
+	<is-tv>false</is-tv>
+	<ui-resolution>1080p</ui-resolution>
+	<wifi-mac>00:00:5E:00:53:01</wifi-mac>
+	<network-type>ethernet</network-type>
+	<friendly-device-name>Fake Roku</friendly-device-name>
+	<default-device-name>Ultra - ${SERIAL}</default-device-name>
+	<software-version>16.0.4</software-version>
+	<software-build>853</software-build>
+	<ecp-setting-mode>${limited ? 'limited' : 'permissive'}</ecp-setting-mode>
+	<language>en</language>
+	<country>US</country>
+	<locale>en_US</locale>
+	<power-mode>PowerOn</power-mode>
+	<developer-enabled>${developerEnabled}</developer-enabled>
+</device-info>
+`;
+}
+
+function activeApp(kind) {
+  const inner = {
+    dev: '<app id="dev" type="appl" version="1.0.0">Fake Channel</app>',
+    roku: '<app>Roku</app>',
+    'native-ui': '<app id="native-ui" type="appl" version="1.0.0">Native UI</app>',
+    'dynamic-menu': '<app id="dynamic-menu" type="home" version="1.0.0">Dynamic Menu</app>',
+  }[kind] || '<app>Roku</app>';
+  return XML + `<active-app>\n\t${inner}\n</active-app>\n`;
+}
+
+function apps() {
+  return XML + `<apps>
+	<app id="1001" type="appl" version="1.0.0">Fake Streaming App</app>
+	<app id="dev" type="appl" version="1.0.0">Fake Channel</app>
+</apps>
+`;
+}
+
+// A node model: { sn, type, attrs, children }. Rendered recursively.
+function buildTree(kind, agentText) {
+  let sn = 0;
+  const mk = (type, attrs = {}, children = []) => ({ sn: ++sn, type, attrs, children });
+  if (kind === 'facade') return mk('OsdOverlay', { name: 'osd', bounds: '{0, 0, 1920, 1080}' });
+  const scene = mk('MainScene', { extends: 'Scene', focused: 'true', bounds: '{0, 0, 1920, 1080}' });
+  if (kind === 'dialog-root') {
+    scene.type = 'SystemDialog';
+    scene.attrs.extends = 'Group';
+    scene.children.push(mk('Label', { name: 'title', text: 'System dialog' }));
+    return scene;
+  }
+  scene.children.push(mk('Rectangle', { name: 'bg', color: '#101010ff', bounds: '{0, 0, 1920, 1080}' }));
+  scene.children.push(mk('Label', { name: '__bt_agent', text: agentText, bounds: '{0, 0, 10, 10}' }));
+  const total = { 'large-3k': 3000, 'large-6k': 6000 }[kind];
+  if (total) {
+    const queue = [scene];
+    let made = 3; // scene + bg + agent label
+    let qi = 0;
+    while (made < total) {
+      const parent = queue[qi];
+      for (let i = 0; i < 10 && made < total; i++, made++) {
+        const c = mk(i % 3 === 0 ? 'LayoutGroup' : 'Rectangle', { name: `n${sn + 1}` });
+        parent.children.push(c);
+        queue.push(c);
+      }
+      qi++;
+    }
+  } else {
+    const home = mk('Group', { name: 'home', focused: 'false' }, [
+      mk('Label', { name: 'title', text: 'Home' }),
+      mk('Poster', { name: 'hero', uri: 'pkg:/images/hero.png' }),
+    ]);
+    scene.children.push(home);
+  }
+  return scene;
+}
+
+function countNodes(n) { return 1 + n.children.reduce((a, c) => a + countNodes(c), 0); }
+
+function renderNode(n, depth = 2) {
+  const attrs = Object.entries({ ...n.attrs, _sn: n.sn }).map(([k, v]) => ` ${k}="${esc(v)}"`).join('');
+  const pad = '\t'.repeat(depth);
+  if (!n.children.length) return `${pad}<${n.type}${attrs} />\n`;
+  return `${pad}<${n.type}${attrs}>\n${n.children.map((c) => renderNode(c, depth + 1)).join('')}${pad}</${n.type}>\n`;
+}
+
+function sgnodesAll(root) {
+  return XML + `<sgnodes>\n\t<channel-id>dev</channel-id>\n\t<channel-title>Fake Channel</channel-title>\n\t<All_Nodes node-count="${countNodes(root)}">\n${renderNode(root, 2)}\t</All_Nodes>\n</sgnodes>\n`;
+}
+
+function sgnodesRoots(root) {
+  return XML + `<sgnodes>\n\t<Root_Nodes node-count="1">\n\t\t<${root.type} extends="${root.attrs.extends || 'Group'}" _sn="${root.sn}" />\n\t</Root_Nodes>\n</sgnodes>\n`;
+}
+
+function find(n, id) {
+  if (String(n.sn) === String(id) || n.attrs.name === id) return n;
+  for (const c of n.children) { const r = find(c, id); if (r) return r; }
+  return null;
+}
+
+function sgnodesNode(root, id) {
+  const hit = find(root, id);
+  if (!hit) return XML + '<sgnodes>\n\t<status>FAILED</status>\n\t<error>node not found</error>\n</sgnodes>\n';
+  return XML + `<sgnodes>\n\t<status>OK</status>\n\t<Node_Subtree node-count="${countNodes(hit)}">\n${renderNode(hit, 2)}\t</Node_Subtree>\n</sgnodes>\n`;
+}
+
+const sgnodesFailed = () => XML + '<sgnodes>\n\t<status>FAILED</status>\n</sgnodes>\n';
+
+function appUi(root, dialog) {
+  return XML + `<app-ui>\n\t<status>OK</status>\n\t<topscreen>\n\t\t<plugin id="dev" name="Fake Channel" />\n\t\t<screen type="${dialog ? 'SGDialog' : 'SGScreen'}" focused="true">\n${renderNode(root, 3)}\t\t</screen>\n\t</topscreen>\n</app-ui>\n`;
+}
+
+const installPage = (text) => `<html><head><title>Development Application Installer</title></head><body><h1>Development Application Installer</h1><p>${text}</p></body></html>\n`;
+
+const SGPERF_REPORT = [
+  'thread node calls: create     0 + op     1  @ 100.0% rendezvous',
+  'thread node calls: create  1201 + op   902  @   0.0% rendezvous',
+].join('\r\n');
+
+const CHANPERF = 'channel: mem=28460KiB{anon=7288,file=20992,shared=180,swap=0},%cpu=0{user=0,sys=0}';
+
+const CONSOLE_BANNER = `${SERIAL} (Roku Ultra - 16.0.4.853)\r\n>`;
+
+const DEBUG_HISTORY = [
+  '------ Compiling dev \'Fake Channel\' ------',
+  '------ Running dev \'Fake Channel\' main ------',
+  'FakeApp: scene created',
+  'FakeApp: catalog loaded items=3',
+];
+
+const DEBUG_CRASH = [
+  'BRIGHTSCRIPT: ERROR: roSGNode.setField: Type Mismatch. (runtime error &h18) in pkg:/components/Home.brs(42)',
+  '------ Runtime Error: Type Mismatch. (runtime error &h18) in pkg:/components/Home.brs(42)',
+  'Backtrace:',
+  '#0  Function onKey(key as String, press as Boolean) As Boolean',
+  '   file/line: pkg:/components/Home.brs(42)',
+  'Local Variables:',
+  'key                 roString refcnt=1 val:"OK"',
+  'Brightscript Debugger> ',
+];
+
+module.exports = {
+  SERIAL, DEVICE_ID, IP, deviceInfo, activeApp, apps, buildTree, sgnodesAll, sgnodesRoots, sgnodesNode,
+  sgnodesFailed, appUi, installPage, SGPERF_REPORT, CHANPERF, CONSOLE_BANNER, DEBUG_HISTORY, DEBUG_CRASH,
+};
