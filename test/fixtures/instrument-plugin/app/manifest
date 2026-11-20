@@ -1,0 +1,5 @@
+title=Fixture
+major_version=1
+minor_version=0
+build_version=1
+bs_const=STRESS=false;VERBOSE_LOG=true
