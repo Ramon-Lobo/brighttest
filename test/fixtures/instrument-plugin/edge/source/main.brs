@@ -4,7 +4,7 @@ sub main()
     #else
     print "plain build"
     #end if
-    o = createObject("roAssociativeArray")
+    o = createObject("roUrlTransfer")
     o["setUrl"]("https://example.test/idx")
     o["GETURL"]()
     o.getUrl()
