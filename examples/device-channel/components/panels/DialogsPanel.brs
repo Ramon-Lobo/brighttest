@@ -35,6 +35,7 @@ sub onDialogButton(event as object)
 end sub
 
 sub onClosed()
+    m.top.getScene().dialog = invalid
     BTDev_log("dialog", "closed")
     m.buttons.setFocus(true)
 end sub

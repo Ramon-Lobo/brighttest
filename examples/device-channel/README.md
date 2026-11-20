@@ -27,7 +27,7 @@ make launch ARGS='crash=1'       # launch with args (query string), then `make h
 | `homeScreen` | `menuList` (LabelList, 8 entries), `homeRows` (RowList, 2 rows of tiles). Right/Left moves focus between them | readiness loop, nested focus (ROB-04/11/28), `navigate_to`, e2e |
 | `gridScreen` | `catalogGrid` (MarkupGrid, 5x2 tiles) | focus paths, MarkupGrid selectors |
 | `detailsScreen` | `detailsTitle`, `detailsMeta`, `detailsBody`, `playButton` | e2e Home -> Details -> Back |
-| `settingsScreen` | `settingsButtons` (`toggleFlag`, `saveName`, `crashButton`), `nameBox` (TextEditBox), `nameKeyboard` (Keyboard), `flagLabel`, `nameEcho` | text entry, `m.global` change (`flag`), crash from a flow, registry write |
+| `settingsScreen` | `settingsButtons` (`editName`, `toggleFlag`, `saveName`, `crashButton`), `nameBox` (TextEditBox), `nameKeyboard` (Keyboard; `editName` focuses it, Back returns to the buttons), `flagLabel`, `nameEcho` | text entry, `m.global` change (`flag`), crash from a flow, registry write |
 | `dialogsScreen` | `dialogButtons` (`openMessage`, `openConfirm`); opens a `Dialog` with id `deviceDialog`; result in `global.lastDialog` | modal focus, dialog selectors |
 | `playerScreen` | stub player by default (`playerState`, `playerPosition`, Timer driven); a real `Video` (`videoNode`) only with `stream=<url>` | player flows without internet; `assertPlaying` with a stream you supply |
 | `netScreen` | `netRun` button runs `NetTask`; `netStatus` | roUrlTransfer call sites for the instrument plugin and network hub |
@@ -108,10 +108,22 @@ lazy layout (`layout.child2.x` / `layout.group.width` compared between phases).
 | `grid-details` | grid -> details -> back, `assertText`, state |
 | `settings-state` | buttons, keyboard text entry, `m.global` change |
 | `dialogs` | Dialog open/answer, recorded result |
+| `tasks-callfunc` | Task, callFunc on a Node, callFunc through the 3-level chain |
 | `launch-args-perf` | `slow` + `perf` launch args, perf node count |
 
 Crash and exit flows are run by hand with `make launch ARGS='crash=1'` or a one-step flow `launch: { crash: 1 }`
 followed by an `assertVisible` (expected to report an app crash).
+
+## Verified on a device (Roku Ultra, firmware 16.0.4)
+
+Sideloaded through the lease with `make deploy`; all six flows pass (82 steps); the `BTDEV:` markers, launch args
+(`bt_net`, `slow`, `scene`), `crash=1` (marker, then a runtime error; app stays halted until Home) and `crash=exit`
+(clean exit to the Roku Home) were observed on 8085. Findings worth knowing: a closed `Dialog` node stays in the
+`sgnodes` tree (so `assertGone` on it fails; assert `global.lastdialog`); the Keyboard consumes the `*` key and all
+directional keys; on this firmware detached `findNode` returns invalid on the render thread (in `init` and after) but a
+node in a Task; a Scene carries an implicit `Poster` child; `LayoutGroup` reports `child2.x` 0 in `init` and 20 after.
+Not verified on a device: `stream=<url>` playback, `net_url=<url>` real requests, the Rooibos suites with
+`--device`/`--cross-check`, `stress`/`stressfields`.
 
 ## Notes
 

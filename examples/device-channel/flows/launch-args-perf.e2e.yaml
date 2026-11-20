@@ -2,6 +2,7 @@
 appId: dev
 config: { timeout: 20 }
 steps:
+  - home                                       # fresh start: a running app ignores launch
   - launch: { slow: 1500, perf: 50 }
   - assertVisible: { id: homeScreen }
   - press: { key: Down, count: 6 }             # menu item 6: Performance
