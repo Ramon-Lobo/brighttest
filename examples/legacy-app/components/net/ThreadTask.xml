@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="ThreadTask" extends="Task">
+  <interface>
+    <field id="ranOn" type="string" value="" />
+    <field id="globalKeys" type="integer" value="0" />
+  </interface>
+  <script type="text/brightscript" uri="ThreadTask.brs" />
+  <script type="text/brightscript" uri="pkg:/source/Config.brs" />
+</component>

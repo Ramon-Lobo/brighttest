@@ -1,0 +1,11 @@
+{
+  "brsFiles": 32,
+  "xmlFiles": 54,
+  "components": 54,
+  "tasks": 3,
+  "urlTransferLiteral": 3,
+  "createObjectDynamic": 1,
+  "syncGet": 4,
+  "asyncGet": 1,
+  "certificateCalls": 3
+}

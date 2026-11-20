@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="ViewC" extends="ViewB">
+  <script type="text/brightscript"><![CDATA[
+    sub init()
+      print "BTFIX:viewc-init"
+    end sub
+  ]]></script>
+</component>

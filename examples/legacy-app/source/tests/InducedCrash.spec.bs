@@ -1,0 +1,21 @@
+namespace tests
+  ' Induces a runtime error ("Dot" on invalid) from Legacy_explode in source/Config.brs. The call below
+  ' spans several lines on purpose. @ignore keeps normal runs green; remove it to see the crash.
+  @ignore
+  @tags("induced-crash")
+  @suite("InducedCrash")
+  class InducedCrashTests extends rooibos.BaseTestSuite
+
+    @describe("crash")
+
+    @it("crashes at a documented location")
+    function _()
+      result = Legacy_explode(
+        { count: 1 },
+        {}
+      )
+      m.assertEqual(result, 0)
+    end function
+
+  end class
+end namespace
