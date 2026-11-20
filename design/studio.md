@@ -4,7 +4,7 @@
 its live SceneGraph, **drive the remote**, and **author e2e tests** from what's on screen. It's a visual
 front-end over the primitives the e2e lane already ships.
 
-Status: **planning**. This doc is the roadmap; it will change as the Phase 0 spike teaches us things.
+Status: **shipped (`brighttest studio`)**. M1-M4 are done; the Phase 0 spike settled coordinate mapping (`lib/studio/coords.js`). The client is now a Svelte app (see the UI stack row). Pages today: Inspect, Runs, Record, Devices, Profile, Settings. The sections below keep the original plan for context; where they disagree with `lib/studio/`, the code wins.
 
 ## Vision
 
@@ -21,7 +21,7 @@ brs-engine preview, multi-device.
 
 | Area | Choice | Why |
 |---|---|---|
-| UI stack | **Vanilla HTML/CSS/JS + tiny Node HTTP server**, zero new deps, no build step | Matches brighttest's zero-runtime-dep ethos and how `scripts/roku-live-view.js` already works; ships in npm `files` cheaply |
+| UI stack | **Svelte client (`lib/studio/web/`, own package.json, built with `npm run studio:build`) served by a zero-dep Node HTTP server (`lib/studio/server.js`)** | Superseded the original vanilla-JS choice (no bundler). The CLI itself stays zero-build and zero-runtime-dep: only the built output ships in npm `files`; the server binds to loopback and enforces a Host/Origin guard and JSON-only POSTs |
 | Rendering | **Screenshot mirror + sgnodes bounding-box overlay** | Truthful — the real device is the source of truth. ~1fps (ECP limit). Reuses the dev-screenshot driver |
 | Update model | **Live auto-poll, settle-aware** | Feels like a live mirror; debounce/settle like the e2e runner to avoid stampeding the render thread |
 | First deliverable | **Spike the overlay accuracy** | Coordinate mapping is the one make-or-break unknown; de-risk it before building UI around it |
@@ -54,7 +54,7 @@ lib/studio/server.js   Node http (zero-dep): static files + JSON API, one device
         └── lib/e2e/assert-builder.js + record.js   author + serialize flows
         │
         ▼
-lib/studio/public/     index.html + app.js + studio.css (no bundler)
+lib/studio/web/        Svelte source; the build output is what ships (lib/studio/public)
 ```
 
 ### JSON API (thin wrappers over lib/e2e)
