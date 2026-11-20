@@ -49,6 +49,7 @@
     "brighterscript": "^0.73.8"
   },
   "devDependencies": {
+    "jszip": "3.10.1",
     "mermaid": "11.16.1",
     "vitepress": "1.6.4",
     "vitepress-plugin-mermaid": "2.0.17",
