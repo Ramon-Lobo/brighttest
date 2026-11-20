@@ -50,6 +50,13 @@ fleet — ECP navigation itself needs no auth, but the screenshot endpoint does:
 npx brighttest e2e run flows/ --host 10.0.0.5:Test1234,10.0.0.6:0000 --screenshots-mode all
 ```
 
+### Shared devices
+
+Each device is leased for the duration of its share of the run ([device lease](/guide/device-lease)). A
+device that another process is using makes only its own flows wait; the other devices start at once, and
+no run holds one device while waiting for another, so sharded runs cannot deadlock. A run that cannot get a
+device within `--wait` (default 30m) exits **75**. `npx brighttest device status` shows who has each device.
+
 ## Non-default ECP port
 
 A Roku serves ECP on port 8060. To target a stub or fake on another port (for example a loopback fake on

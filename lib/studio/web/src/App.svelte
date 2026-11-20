@@ -52,19 +52,22 @@
   let treeBusy = false, shotBusy = false;
 
   async function grabTree() {
-    if (treeBusy || !studio.live || (studio.page !== 'inspect' && studio.page !== 'record')) return;
+    if (treeBusy || studio.lease || !studio.live || (studio.page !== 'inspect' && studio.page !== 'record')) return;
     treeBusy = true;
     try {
       const d = await api.tree();
+      if (d.code === 'LOCKED') { studio.lease = d; studio.status = 'paused'; return; }
       if (d.error) { studio.status = d.error; return; }
       studio.scene = d.scene; studio.nodes = d.nodes; studio.appState = d.appState; studio.status = `${d.nodes.length} nodes`;
     } catch { studio.status = 'tree error'; } finally { treeBusy = false; }
   }
   async function grabShot() {
-    if (shotBusy || !studio.live || (studio.page !== 'inspect' && studio.page !== 'record')) return;
+    if (shotBusy || studio.lease || !studio.live || (studio.page !== 'inspect' && studio.page !== 'record')) return;
     shotBusy = true;
     try {
-      const blob = await (await fetch(api.screenshotUrl())).blob();
+      const r = await fetch(api.screenshotUrl());
+      if (r.status === 423) { studio.lease = await r.json(); return; }
+      const blob = await r.blob();
       const url = URL.createObjectURL(blob);
       const prev = shotSrc; shotSrc = url;
       if (prev.startsWith('blob:')) URL.revokeObjectURL(prev);
@@ -166,6 +169,24 @@
   let promptState = $state(null);
   function askText(title, initial = '', password = false) { return new Promise((resolve) => { promptState = { title, initial, password, resolve }; }); }
   function resolvePrompt(v) { const r = promptState?.resolve; promptState = null; r?.(v); }
+  // Device lease: while another holder has the device, device polling pauses and a banner says who has it.
+  // "Take over when free" queues Studio like any other waiter; it never preempts.
+  async function leaseCheck() {
+    if (!studio.lease) return;
+    try {
+      const l = await api.lease();
+      if (l.holding) { studio.lease = null; studio.status = ''; return; }
+      studio.lease = { ...studio.lease, lease: l };
+    } catch {}
+  }
+  async function takeOver() {
+    try { const l = await api.leaseAction('acquire'); studio.lease = l.holding ? null : { ...studio.lease, lease: l }; } catch {}
+  }
+  const leaseText = (l) => {
+    const h = l?.lease?.holder;
+    if (h && !h.mine) return `Device in use by ${h.agent} — "${h.purpose}" (since ${new Date(h.since).toTimeString().slice(0, 5)})`;
+    return l?.error || 'Studio released the device';
+  };
   async function refreshDevice() { studio.device = await api.device().catch(() => ({ connected: false })); }
 
   onMount(() => {
@@ -174,8 +195,10 @@
     let t1, t2;
     const treeLoop = async () => { await grabTree(); t1 = setTimeout(treeLoop, 300); };
     const shotLoop = async () => { await grabShot(); t2 = setTimeout(shotLoop, 900); };
-    treeLoop(); shotLoop();
-    return () => { clearTimeout(t1); clearTimeout(t2); };
+    const leaseLoop = async () => { await leaseCheck(); t3 = setTimeout(leaseLoop, 3000); };
+    let t3;
+    treeLoop(); shotLoop(); leaseLoop();
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
   });
 </script>
 
@@ -191,6 +214,16 @@
       <span class="status">{studio.status}</span>
     {/if}
   </header>
+  {#if studio.lease}
+    <div class="leasebar" role="status">
+      <span>{leaseText(studio.lease)}{studio.lease.lease?.queue?.length ? ` · ${studio.lease.lease.queue.length} queued` : ''}</span>
+      {#if studio.lease.lease?.queued}
+        <span class="queued">Studio is queued — it takes the device when free</span>
+      {:else}
+        <button onclick={takeOver}>Take over when free</button>
+      {/if}
+    </div>
+  {/if}
 
   <div class="body">
     <nav class="rail">
@@ -311,6 +344,9 @@
   .device { font-family: var(--font-mono); font-size: 12px; color: var(--color-haze); }
   .spacer { flex: 1; }
   .tog { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--color-haze); cursor: pointer; }
+  .leasebar { display: flex; gap: 12px; align-items: center; padding: 6px 14px; font-size: 12px; background: var(--color-panel); border-bottom: 1px solid var(--color-haze); }
+  .leasebar button { font-size: 12px; }
+  .leasebar .queued { color: var(--color-haze); }
   .status { font-family: var(--font-mono); font-size: 11px; color: var(--color-haze); min-width: 68px; text-align: right; }
 
   .body { flex: 1; display: flex; min-height: 0; }
