@@ -1,0 +1,19 @@
+# Settings: buttons + keyboard, and an m.global change observed through the state snapshot.
+appId: dev
+config: { timeout: 15 }
+steps:
+  - launch
+  - assertVisible: { id: homeScreen }
+  - press: Down                                # menu item 1: Settings
+  - press: Select
+  - assertVisible: { id: settingsScreen }
+  - assertFocused: { id: settingsButtons }
+  - assertState: { path: global.flag, equals: false }
+  - press: Select                              # "Toggle flag"
+  - assertText: { id: flagLabel, equals: "flag: true" }
+  - assertState: { path: global.flag, equals: true }
+  - press: Down                                # buttons -> keyboard
+  - text: "abc"
+  - assertText: { id: nameEcho, equals: "name: abc" }
+  - back
+  - assertVisible: { id: homeScreen }
