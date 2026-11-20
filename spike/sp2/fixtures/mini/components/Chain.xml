@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="ChainBase" extends="Group">
+  <interface>
+    <function name="BT_op" />
+  </interface>
+  <script type="text/brightscript" uri="pkg:/source/Net.bs" />
+</component>

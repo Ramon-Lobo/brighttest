@@ -1,0 +1,44 @@
+namespace tests
+  @suite("BtSpike")
+  class BtSpikeTests extends rooibos.BaseTestSuite
+
+    @describe("bt")
+
+    @it("url roundtrip")
+    function _()
+      m.assertEqual(BT_unurl(BT_url("https://a.example/x?y=1")), "https://a.example/x?y=1")
+      m.assertEqual(BT_url(BT_url("https://a.example")), BT_url("https://a.example"))
+      m.assertInvalid(BT_url(invalid))
+    end function
+
+    @it("setUrl/getUrl on a real roUrlTransfer (rewritten call site)")
+    function _()
+      x = CreateObject("roUrlTransfer")
+      x.setUrl("https://a.example/p")
+      m.assertEqual(x.getUrl(), "https://a.example/p")
+    end function
+
+    @it("derived+base scene init bootstraps once")
+    function _()
+      n = CreateObject("roSGNode", "DerivedScene")
+      m.assertNotInvalid(n)
+      m.assertTrue(n.hasField("__bt_boot"))
+    end function
+
+    @it("scene with no init and no script is bootstrapped by synthesized init")
+    function _()
+      n = CreateObject("roSGNode", "BareScene")
+      m.assertNotInvalid(n)
+      m.assertTrue(n.hasField("__bt_boot"))
+    end function
+
+    @it("BT_op reachable on a leaf of an inheritance chain, declared once")
+    function _()
+      n = CreateObject("roSGNode", "ViewC")
+      m.assertNotInvalid(n)
+      r = n.callFunc("BT_op", {})
+      m.assertEqual(r.ok, true)
+    end function
+
+  end class
+end namespace

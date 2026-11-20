@@ -1,0 +1,23 @@
+class Fetcher
+  xfer as object
+  sub new()
+    m.xfer = CreateObject("roUrlTransfer")
+  end sub
+  function go(host as string) as string
+    m.xfer.setUrl("https://" + host + "/a")
+    m.xfer.SETURL(
+      "https://" + host + "/multi" +
+      "?q=1"
+    )
+    if m.xfer.getUrl() = "" then return "empty"
+    print "u=" + m.xfer.GetUrl()
+    return m.xfer.getUrl()
+  end function
+end class
+
+function Helper(o as object) as string
+  o["setUrl"]("https://dynamic.example")
+  o.setUrl("a", "b")
+  y = o.getUrl("x")
+  return {a: o.getUrl()}.a
+end function
