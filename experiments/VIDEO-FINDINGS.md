@@ -1,7 +1,7 @@
 # Session video — feasibility study
 
 Can the e2e lane record **video** of a session instead of only per-step screenshots? Studied against a
-real Roku Ultra (fw 15.2.4). Short answer: **yes, as an assembled slideshow of captured frames** — which
+real Roku Ultra (fw 15.2.4 at the time). Short answer: **yes, as an assembled slideshow of captured frames** — which
 is now shipped behind `--video` — but true smooth-motion capture is **not possible over ECP alone** and
 needs external hardware.
 

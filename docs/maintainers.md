@@ -134,7 +134,7 @@ on a real Roku.
 
 ### Device/ECP facts that shaped it {#e2e-device-facts}
 
-These were established on real hardware (Roku Ultra, fw 15.2.4) and are recorded in
+These were established on real hardware (Roku Ultra; first fw 15.2.4, re-checked on 16.0.4 build 853) and are recorded in
 `experiments/FINDINGS.md`, `experiments/VIDEO-FINDINGS.md`, and `design/e2e-lane.md`. A maintainer touching
 this lane should know them:
 
@@ -179,6 +179,10 @@ across current Rooibos 5.x but are **internal**, not a public API. When bumping 
 3. If the LCOV console format changed, update `extractLcov` in `device.js`.
 
 ## `@SGNode` headless patch {#sgnode-headless-patch}
+
+::: warning Historical
+This section describes the pre-publication model. `patch-package`, `patches/`, `lib/patch-brs-node.js`, `vendor/` and the `postinstall` hook no longer exist in this repo; the fixes now ship in the forks. See [Delivery model](#delivery-model).
+:::
 
 This is the mechanism that lets `@SGNode` node suites run **headless** (in the `--coverage` lane and, by
 extension, `--cross-check`). It's a two-hunk patch to `rooibos-roku`, applied automatically by
@@ -230,10 +234,17 @@ direct notification produces the same listener ordering, the leftover observer i
 This patch makes node suites *run and settle* headless. On its own it doesn't make `onChange` handlers
 fire — that's the separate [brs-node patch](#brs-node-onchange-patch) below. Together they give full
 `@SGNode` fidelity headless (ButtonEx: **95/95, 0 divergent** vs device). What remains device-only is
-behaviour tied to real wall-clock render timing — animations playing out over frames, Task-node I/O, live
-remote input. The device lane is the fidelity reference for those; `--cross-check` polices the line.
+behaviour tied to real wall-clock render timing — animations playing out over frames and live remote
+input. `Task` run loops block `@SGNode` tests, so Task logic is tested as pure functions, and brighttest has no
+HTTP mocking of its own (the pinned `@ramonlobo/brs-node` fork has an undocumented
+`tmp:/rt-http-fixtures.json` hook that a spec must write itself). The device lane is the fidelity reference
+for render timing and remote input; `--cross-check` polices the line.
 
 ## brs-node `onChange` patch {#brs-node-onchange-patch}
+
+::: warning Historical
+This section describes the pre-publication model. `patch-package`, `patches/`, `lib/patch-brs-node.js`, `vendor/` and the `postinstall` hook no longer exist in this repo; the fixes now ship in the forks. See [Delivery model](#delivery-model).
+:::
 
 The companion to the rooibos patch. It lives in `lib/patch-brs-node.js` (an idempotent postinstall script,
 **not** a patch-package patch — see [why](#why-a-script-not-patch-package)) and makes XML `onChange`
@@ -277,6 +288,10 @@ tests flip to pass, coverage rose 26% → 34% (the handler code now actually exe
 went to **0 divergent**. Re-run all three lanes after touching it.
 
 ## brs-node `roTextToSpeech` bundle {#brs-node-createobject-patch}
+
+::: warning Historical
+This section describes the pre-publication model. `patch-package`, `patches/`, `lib/patch-brs-node.js`, `vendor/` and the `postinstall` hook no longer exist in this repo; the fixes now ship in the forks. See [Delivery model](#delivery-model).
+:::
 
 The third fix. Unlike the string-patches, this replaces the **core bundle** `brs.node.js` with a rebuild of
 brs-node@2.2.0 that implements the `roTextToSpeech` component. `lib/patch-brs-node.js` copies the vendored
@@ -404,20 +419,12 @@ in `docs/.vitepress/config.mts`.
 ## Publishing
 
 `dependencies` (not devDependencies) list the runtime toolchain so a normal `npm i -D brighttest` pulls it
-transitively — including `patch-package`, which the `postinstall` hook runs to apply the [@SGNode headless
-patch](#sgnode-headless-patch). Docs tooling (`vitepress`, `mermaid`) are devDependencies and aren't
-shipped. `patches/` **is** in the `files` array so the patch ships. For local development use `file:`
-linking and run `npm install` inside `brighttest/` once so its `node_modules` is populated (and patched).
+transitively (the two forks and `brighterscript`). Docs tooling (`vitepress`, `mermaid`) are devDependencies
+and aren't shipped. For local development use `file:` linking and run `npm install` inside `brighttest/`
+once so its `node_modules` is populated.
 
 Release flow: bump with `npm version <patch|minor|major>` (commits + tags `vX.Y.Z` on `main`), push the
 branch **and the tag**, then `npm publish --access public`. The npm account has **2FA enabled**, so publish
 prompts for a one-time password — pass it with `--otp=<code>` (it can't be automated interactively; use an
 automation token for unattended CI releases). `npm pack --dry-run` before publishing to confirm the tarball
 contents. `v0.3.0` was the first release carrying the e2e lane.
-
-::: warning Before publishing
-Resolve the patch-package [distribution caveat](#patch-package-mechanics): a hoisted `rooibos-roku` in a
-consumer install may not be re-patched by brighttest's `postinstall`. Prefer landing the [upstream
-PR](#alternatives-if-we-revert) so the dep can be bumped and the patch dropped. This is an open decision,
-not a solved problem.
-:::
