@@ -48,3 +48,4 @@ Rules of the road:
 - Subagents can't spawn subagents; the main session routes between them. If an agent finds a gap upstream (e.g. developer hits an unplanned design question), it stops and reports rather than improvising architecture.
 - Research claims need sources (URL + date, or `file:line`) and a confidence note. Distinguish verified-on-device vs. docs vs. inference.
 - `<planning>/design/ROADMAP.md` is the single source of truth for what's in flight; update it when state changes.
+- **`<planning>/design/BACKLOG.md` is the task list. When a task completes (merged, or its gate passes), the orchestrator marks its master-table row ✅ (🟡 while built but unmerged or unverified) and updates the Progress ledger in the same turn, before reporting to the owner.**
