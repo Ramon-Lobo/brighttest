@@ -65,7 +65,7 @@ const E2E_ACTIONS = ['run', 'inspect', 'record', 'stamp'];
 const SCREENSHOT_MODES = ['all', 'failure', 'off'];
 function parseE2eArgs(rest) {
   const opts = {
-    e2eAction: 'run', flows: [], host: null, password: null, app: null,
+    e2eAction: 'run', flows: [], host: null, password: null, ecpPort: null, app: null,
     timeout: undefined, screenshots: null, screenshotsMode: 'all', out: null,
     contentIds: null, mediaType: null, video: null, help: false,
     sel: {}, assert: null, field: null,
@@ -76,6 +76,8 @@ function parseE2eArgs(rest) {
     if (i === 0 && E2E_ACTIONS.includes(a)) opts.e2eAction = a;
     else if (a === '--host') opts.host = rest[++i];
     else if (a.startsWith('--host=')) opts.host = a.slice(7);
+    else if (a === '--ecp-port') opts.ecpPort = rest[++i];
+    else if (a.startsWith('--ecp-port=')) opts.ecpPort = a.slice(11);
     else if (a === '--password' || a === '--pass') opts.password = rest[++i];
     else if (a.startsWith('--password=')) opts.password = a.slice(11);
     else if (a === '--app') opts.app = rest[++i];
@@ -144,6 +146,7 @@ Node detail (inspect with a selector — targets a node you see on screen):
 Options:
   --host <ip[:pw][,…]>   Roku device IP(s) (or ROKU_HOST). Multiple → flows shard across devices in parallel.
                          Give a per-device password inline as ip:pw (else --password/ROKU_PASSWORD applies)
+  --ecp-port <n>         ECP port on the device (or ROKU_ECP_PORT; default 8060) — for stubs/fakes; --host keeps ip[:pw]
   --password <pw>        Roku dev password (or ROKU_PASSWORD) — enables screenshots; shared by hosts w/o ip:pw
   --app <id>            Channel to launch (default: dev; also the flow's appId)
   --content-id <a,b,…>   Deep-link matrix: run each flow once per contentId
