@@ -39,3 +39,28 @@ describe('devices cache + resolve', () => {
     expect(resolveDevice({ cwd: dir })).toMatchObject({ host: '10.0.0.7', password: 'secret' })
   })
 })
+
+describe('saveCache atomicity (LSE-T1b)', () => {
+  it('two concurrent writer processes leave valid 0600 JSON and no tmp files', async () => {
+    const { spawn } = await import('node:child_process')
+    const lib = path.resolve(import.meta.dirname, '../lib/devices.js')
+    const code = `const d=require(${JSON.stringify(lib)});for(let i=0;i<150;i++)d.rememberDevice('127.0.0.'+(i%5+1),'pw'+i,'n'+i)`
+    const run = () => new Promise((res, rej) => {
+      const c = spawn(process.execPath, ['-e', code], { env: { ...process.env, BRIGHTTEST_CACHE: process.env.BRIGHTTEST_CACHE }, stdio: 'ignore' })
+      c.on('exit', (n) => (n === 0 ? res() : rej(new Error('child exit ' + n))))
+    })
+    await Promise.all([run(), run()])
+    const f = process.env.BRIGHTTEST_CACHE
+    const parsed = JSON.parse(fs.readFileSync(f, 'utf8'))
+    expect(typeof parsed.devices).toBe('object')
+    if (process.platform !== 'win32') expect(fs.statSync(f).mode & 0o777).toBe(0o600)
+    expect(fs.readdirSync(dir).filter((n) => n.endsWith('.tmp'))).toEqual([])
+  })
+
+  it('does not throw when the cache dir is unwritable', async () => {
+    const { saveCache } = await import('../lib/devices.js')
+    process.env.BRIGHTTEST_CACHE = path.join(dir, 'file-not-dir', 'devices.json')
+    fs.writeFileSync(path.join(dir, 'file-not-dir'), 'x')
+    expect(() => saveCache({ devices: {}, lastHost: null })).not.toThrow()
+  })
+})
