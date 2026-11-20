@@ -97,6 +97,68 @@ describe('sgdebug console client', () => {
   });
 });
 
+// Transcript-driven fake modelled on a recorded fw-16 session (generic channel names): the console
+// logs every received line, `target <n>` moves the `*`, and sgperf output is per-thread stats.
+const TARGET_LIST = (sel) => ['main', 'Native UI', 'Live TV Guide', 'Sample Channel', 'Backdrops']
+  .map((n, i) => `${i === sel ? '*' : ' '} [${i}] ${n}`).join('\r\n');
+function transcriptConsole(received, { banner = 'X0000000000A (Roku Ultra - 16.0.4.853)', targetOutput } = {}) {
+  let sel = 0;
+  return new Promise((resolve) => {
+    server = net.createServer((sock) => {
+      track(sock);
+      sock.write(banner + '\r\n>');
+      sock.on('data', (d) => {
+        for (const line of d.toString().split(/\r?\n/).filter(Boolean)) {
+          received.push(line);
+          let out = '';
+          if (line === 'target list') out = TARGET_LIST(sel);
+          else if (line.startsWith('target ')) { sel = Number(line.slice(7)); out = targetOutput ?? TARGET_LIST(sel); }
+          else if (line === 'sgperf report') out = sel === 0 ? '' : 'thread node calls: create  1201 + op   902  @   0.0% rendezvous';
+          setTimeout(() => sock.write(line + '\r\n' + out + '\r\n>'), 30);
+        }
+      });
+    });
+    server.listen(0, '127.0.0.1', () => resolve(server.address().port));
+  });
+}
+
+describe('channel target selection (BUG-B1; device check pending DQ-1)', () => {
+  it('sends target list, target <n>, then the command, and never leaks the serial', async () => {
+    const received = [];
+    const port = await transcriptConsole(received);
+    const r = await sgdebug.query('127.0.0.1', 'sgperf_report', { port, quietMs: 120, channel: 'Sample Channel' });
+    expect(received).toEqual(['target list', 'target 3', 'sgperf report']);
+    expect(r.raw).toBe('thread node calls: create  1201 + op   902  @   0.0% rendezvous');
+    expect(r.parsed.ok).toBe(true);
+    expect(JSON.stringify(r)).not.toContain('X0000000000A');
+  });
+
+  it('does not select a target for global commands or when no channel is given', async () => {
+    const received = [];
+    const port = await transcriptConsole(received);
+    await sgdebug.run('127.0.0.1', 'free', { port, quietMs: 100, channel: 'Sample Channel' });
+    await sgdebug.run('127.0.0.1', 'sgperf_report', { port, quietMs: 100 });
+    expect(received).toEqual(['free', 'sgperf report']);
+  });
+
+  it('errors clearly when the channel is not in the target list', async () => {
+    const received = [];
+    const port = await transcriptConsole(received);
+    await expect(sgdebug.run('127.0.0.1', 'chanperf', { port, quietMs: 100, channel: 'Nope' }))
+      .rejects.toThrow(/target not found for channel "Nope".*Sample Channel/);
+    expect(received).toEqual(['target list']);
+  });
+
+  it('parseTargets / pickTarget handle the list shape; main is never a channel match', () => {
+    const t = sgdebug.parseTargets(TARGET_LIST(3));
+    expect(t).toHaveLength(5);
+    expect(t[3]).toEqual({ index: 3, name: 'Sample Channel', selected: true });
+    expect(sgdebug.pickTarget(t, 'sample channel').index).toBe(3);
+    expect(sgdebug.pickTarget(t, 'main')).toBeNull();
+    expect(sgdebug.pickTarget(t, 'Sample Channel (dev)').index).toBe(3);
+  });
+});
+
 describe('tolerant console parsers (formats vary per firmware — pin these against a live device)', () => {
   it('parseFree extracts labelled byte figures with units', () => {
     const r = sgdebug.parseFree('Available: 316,244 KiB\nIn use: 83,124 KiB\njunk line');
