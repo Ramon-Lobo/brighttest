@@ -527,7 +527,7 @@ describe('fake-roku FIX-06 gaps', () => {
   })
 
   it('M11 agent text option seeds __bt_agent', async () => {
-    const { a } = await boot('healthy', parseArgs([]).agentText === undefined ? { agentText: 'seeded' } : {})
+    const { a } = await boot('healthy', { agentText: 'seeded' })
     expect(await (await ecp(a, '/query/sgnodes/all')).text()).toContain('text="seeded"')
   })
 
