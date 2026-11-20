@@ -88,9 +88,13 @@ fails the run and is listed with its headless-vs-device result.
 ## Testing the Task / API layer
 
 Task nodes can't be `@SGNode`-tested (their run loop blocks). Test request-building and response-parsing as
-**pure functions** headless, and use an HTTP fixture harness for the request/response boundary: write a
-fixtures file (e.g. `tmp:/rt-http-fixtures.json`) mapping requests to canned responses so the code under
-test gets deterministic data with no network. Keep the Task itself a thin shell that calls tested functions.
+**pure functions** headless, and keep the Task itself a thin shell that calls tested functions.
+
+brighttest has no HTTP-fixtures feature: nothing in the CLI or config mocks network calls. The pinned
+`@ramonlobo/brs-node` fork reads a fixtures file at `tmp:/rt-http-fixtures.json`, but that is an undocumented,
+fork-only hook: your spec must write the file itself, nothing validates it, it applies to the headless
+simulator only (not `--device`), and it may disappear if the fork is replaced. Prefer injecting canned
+responses into the parsing functions over relying on it.
 
 ## When stuck: shrink the surface
 
