@@ -24,8 +24,7 @@
     "skills",
     "lib/*.js",
     "lib/e2e",
-    "lib/studio/server.js",
-    "lib/studio/coords.js",
+    "lib/studio/*.js",
     "lib/studio/public",
     "README.md",
     "LICENSE"
