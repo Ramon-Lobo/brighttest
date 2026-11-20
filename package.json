@@ -24,8 +24,7 @@
     "skills",
     "lib/*.js",
     "lib/e2e",
-    "lib/studio/server.js",
-    "lib/studio/coords.js",
+    "lib/studio/*.js",
     "lib/studio/public",
     "README.md",
     "LICENSE"
@@ -35,6 +34,7 @@
     "test:unit": "vitest run",
     "test:integration": "vitest run --config vitest.integration.config.mjs",
     "test:watch": "vitest",
+    "check:denylist": "node scripts/check-denylist.js",
     "skills:manifest": "node scripts/gen-skills-manifest.js",
     "studio:dev": "npm --prefix lib/studio/web install && npm --prefix lib/studio/web run dev",
     "studio:build": "npm --prefix lib/studio/web install && npm --prefix lib/studio/web run build",
@@ -46,7 +46,7 @@
   "dependencies": {
     "@ramonlobo/brs-node": "^2.2.0",
     "@ramonlobo/rooibos-roku": "^5.16.4",
-    "brighterscript": "^0.73.0"
+    "brighterscript": "^0.73.8"
   },
   "devDependencies": {
     "mermaid": "11.16.1",
