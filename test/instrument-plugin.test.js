@@ -620,6 +620,16 @@ describe('net receiver heuristic', () => {
     expect(out.match(/m\.http\.setUrl\(BT_url\(u\)\)/g).length).toBe(1)
     expect(out.match(/m\.http\.setUrl\(u\)/g).length).toBe(1)
   })
+  it('8c: scalar literals assigned to a variable are not evidence of another type', () => {
+    const S = 'source/scalars.brs'
+    for (const r of ['xs', 'xn', 'ok']) {
+      expect(conf(d, S, r), r).toBe('unknown')
+      expect(read(d, S)).toContain(`${r}.setUrl(BT_url("http://a.test/s${{ xs: 1, xn: 2, ok: 3 }[r]}"))`)
+    }
+    expect(conf(d, S, 'only')).toBe('unknown') // a lone scalar assignment is no positive evidence either
+    expect(sk(d, 'net-receiver-excluded', 'xs')).toEqual([])
+    expect(receiverMod.createClassifier({}).analyzeFile(Object.values(d.pb.program.files).find((x) => x.pkgPath === S)).every((x) => x.cls !== 'excluded')).toBe(true)
+  })
   it('9: net.unknown "report" skips unknown sites and strict-style filtering sees them; default does not', async () => {
     const r = await run('recv-report', { net: { unknown: 'report' } })
     expect(r.errors).toEqual([])
