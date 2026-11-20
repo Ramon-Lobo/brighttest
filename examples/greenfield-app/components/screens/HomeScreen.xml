@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="HomeScreen" extends="Group">
+  <interface>
+    <field id="action" type="assocarray" alwaysNotify="true" />
+    <field id="focusEnter" type="boolean" value="false" onChange="onFocusEnter" />
+    <field id="heroTitle" type="string" value="Welcome" onChange="onHero" />
+    <field id="tierText" type="string" value="Tier: free" onChange="onTier" />
+    <field id="trackingStatus" type="string" value="" />
+  </interface>
+  <script type="text/brightscript" uri="HomeScreen.brs" />
+  <children>
+    <Label id="homeTitle" text="Home" translation="[80, 40]" />
+    <Label id="heroTitle" text="Welcome" translation="[80, 100]" />
+    <Label id="tierLabel" text="Tier: free" translation="[600, 40]" />
+    <Button id="searchButton" text="Search" translation="[80, 160]" minWidth="220" />
+    <Button id="signInButton" text="Sign in" translation="[320, 160]" minWidth="220" />
+    <Button id="focusDemoButton" text="Focus demo" translation="[560, 160]" minWidth="260" />
+    <Button id="tile1" text="Tile One" translation="[80, 320]" minWidth="260" />
+    <Button id="tile2" text="Tile Two" translation="[380, 320]" minWidth="260" />
+    <Button id="tile3" text="Tile Three" translation="[680, 320]" minWidth="260" />
+    <Poster id="poster1" uri="pkg:/images/poster-red.png" translation="[80, 440]" width="256" height="144" />
+    <Poster id="poster2" uri="pkg:/images/poster-green.png" translation="[380, 440]" width="256" height="144" />
+    <Poster id="poster3" uri="pkg:/images/poster-blue.png" translation="[680, 440]" width="256" height="144" />
+  </children>
+</component>

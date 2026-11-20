@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="DetailsScreen" extends="Group">
+  <interface>
+    <field id="action" type="assocarray" alwaysNotify="true" />
+    <field id="focusEnter" type="boolean" value="false" />
+    <field id="itemId" type="string" value="" onChange="onItem" />
+    <field id="trackingStatus" type="string" value="" onChange="onTracking" />
+  </interface>
+  <script type="text/brightscript" uri="DetailsScreen.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Format.brs" />
+  <children>
+    <Label id="detailsTitle" text="" translation="[80, 60]" />
+    <Label id="trackingStatus" text="" translation="[80, 130]" />
+  </children>
+</component>

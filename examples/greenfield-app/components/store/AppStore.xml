@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="AppStore" extends="Node">
+  <interface>
+    <field id="state" type="assocarray" />
+    <function name="dispatch" />
+  </interface>
+  <script type="text/brightscript" uri="AppStore.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Reducer.brs" />
+</component>

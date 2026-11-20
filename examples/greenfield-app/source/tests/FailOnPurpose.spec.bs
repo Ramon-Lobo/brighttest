@@ -1,0 +1,14 @@
+namespace tests
+  ' Placeholder for the BTNet_* spec API. Ignored until it exists (the CLI has no tag selector yet, so
+  ' @ignore does the skipping; the tag marks it for pack runs). Remove @ignore when N1 lands.
+  @ignore
+  @tags("fail-on-purpose")
+  @suite("FailOnPurpose")
+  class FailOnPurposeTests extends rooibos.BaseTestSuite
+    @describe("failure")
+    @it("fails with a known message")
+    function _()
+      m.assertEqual(1, 2, "deliberate failure")
+    end function
+  end class
+end namespace

@@ -1,0 +1,12 @@
+# Passing flow: launch, open a tile, assert the details text.
+appId: dev
+config: { timeout: 8 }
+steps:
+  - launch
+  - assertVisible: { id: homeTitle }
+  - focus: { id: tile2 }
+  - press: Select
+  - assertVisible: { id: detailsTitle }
+  - assertText: { id: detailsTitle, equals: "Details For Tile2" }
+  - back
+  - assertVisible: { id: homeTitle }

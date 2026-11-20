@@ -1,0 +1,29 @@
+namespace tests
+  ' Hosted inside a real AppStore node: dispatch() updates the observable state field.
+  @suite("AppStore component")
+  @SGNode("AppStore")
+  class AppStoreTests extends rooibos.BaseTestSuite
+
+    @describe("dispatch")
+
+    @it("starts on the home screen as a free user")
+    function _()
+      m.assertEqual(m.top.state.nav.screen, "home")
+      m.assertEqual(m.top.state.user.tier, "free")
+    end function
+
+    @it("applies user/signIn")
+    function _()
+      m.top.callFunc("dispatch", { type: "user/signIn", tier: "premium" })
+      m.assertEqual(m.top.state.user.tier, "premium")
+      m.assertTrue(m.top.state.user.signedIn)
+    end function
+
+    @it("applies nav/go with an item id")
+    function _()
+      m.top.callFunc("dispatch", { type: "nav/go", screen: "DetailsScreen", id: "tile2" })
+      m.assertEqual(m.top.state.nav.detailsId, "tile2")
+    end function
+
+  end class
+end namespace
