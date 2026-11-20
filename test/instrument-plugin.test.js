@@ -537,3 +537,145 @@ describe('TP-INS-25 (F4): rewritten files are re-emitted, the line shift is the 
     expect(read(off, 'source/net.brs')).toBe(src('source/net.brs')) // plugin off: copied verbatim
   })
 })
+
+// INS-F-T8: receiver heuristic (ADR 0019 Amendment A). Fixture `recv` is generic; every case names its receiver.
+describe('net receiver heuristic', () => {
+  const recv = path.resolve(__dirname, 'fixtures/instrument-plugin/recv')
+  const receiverMod = require(path.resolve(__dirname, '../lib/instrument/receiver.js'))
+  let d // default config
+  const run = (name, instrument) => build(recv, path.join(tmp, name), [pluginPath], instrument ? { instrument } : {})
+  beforeAll(async () => { d = await run('recv-default') })
+  const rw = (b, file, receiver, kind = 'setUrl') => b.result.rewritten.filter((x) => x.file === file && x.receiver === receiver && x.kind === kind)
+  const conf = (b, file, receiver, kind = 'setUrl') => (rw(b, file, receiver, kind)[0] || {}).confidence
+  const sk = (b, kind, receiver) => b.result.skipped.filter((x) => x.kind === kind && x.reason.startsWith(receiver + '.'))
+  const C = 'source/classes.brs'
+
+  it('builds clean and keeps schema 1 with the new fields', () => {
+    expect(d.errors).toEqual([])
+    expect(d.result.schema).toBe(1)
+    expect(Array.isArray(d.result.rewritten)).toBe(true)
+    for (const x of d.result.rewritten) expect(Object.keys(x).sort()).toEqual(['confidence', 'file', 'kind', 'line', 'receiver'])
+    for (const x of d.result.skipped) expect(Object.keys(x).sort()).toEqual(['file', 'kind', 'line', 'reason'])
+    expect(Object.keys(d.result.stats.netRewrites).sort()).toEqual(['confirmed', 'excluded', 'likely', 'unknown'])
+    const n = d.result.stats.netRewrites
+    expect(n.confirmed + n.likely + n.unknown).toBe(d.result.rewritten.length)
+  })
+  it('1: a local from CreateObject("roUrlTransfer") is confirmed and getUrl is wrapped too', () => {
+    expect(conf(d, C, 'x1')).toBe('confirmed')
+    expect(conf(d, C, 'x1', 'getUrl')).toBe('confirmed')
+    const out = read(d, C)
+    expect(out).toContain('x1.setUrl(BT_url("http://a.test/1"))')
+    expect(out).toMatch(/BT_unurl\(x1\.getUrl\(\)\)/)
+    expect(out).toContain('x1.setUrl("http://a.test/1", "extra")') // arity gate unchanged
+    expect(out).toContain('x1.getUrl("arg")')
+  })
+  it('2: the type string is case-insensitive; a direct CreateObject receiver is confirmed', () => {
+    expect(conf(d, C, 'x2')).toBe('confirmed')
+    expect(conf(d, C, 'CreateObject(...)')).toBe('confirmed')
+  })
+  it('3: m and m.top chains assigned in another function of the same file are confirmed', () => {
+    expect(conf(d, C, 'm.xm')).toBe('confirmed')
+    expect(conf(d, C, 'm.top.xt')).toBe('confirmed')
+    expect(conf(d, C, 'm.xm', 'getUrl')).toBe('confirmed')
+  })
+  it('4: one copy hop is confirmed, two hops are unknown (still rewritten)', () => {
+    expect(conf(d, C, 'b4')).toBe('confirmed')
+    expect(conf(d, C, 'h3')).toBe('unknown')
+    expect(read(d, C)).toContain('h3.setUrl(BT_url("http://a.test/4b"))')
+  })
+  it('5: typed parameter is likely, name-hint parameter is likely, untyped p is unknown and listed', () => {
+    expect(conf(d, 'source/typed.bs', 't')).toBe('likely')
+    expect(conf(d, C, 'xfer')).toBe('likely')
+    expect(conf(d, C, 'p')).toBe('unknown')
+    expect(conf(d, C, 'p', 'getUrl')).toBe('unknown')
+  })
+  it('6: a call-result receiver is unknown and rewritten', () => {
+    expect(conf(d, C, 'getXfer()')).toBe('unknown')
+    expect(read(d, C)).toContain('getXfer().setUrl(BT_url("http://a.test/6"))')
+  })
+  it('7: a user object, m.top, m.global, `new` and another declared type are excluded and not rewritten', () => {
+    for (const r of ['o7', 'm.top', 'm.global']) expect(sk(d, 'net-receiver-excluded', r).length, r).toBeGreaterThan(0)
+    expect(sk(d, 'net-receiver-excluded', 'o7').length).toBe(2) // setUrl and getUrl
+    expect(sk(d, 'net-receiver-excluded', 'a2').length).toBe(1) // `a2 = new Api()` (a bare `new X().setUrl` does not parse on bsc 0.73.8)
+    expect(sk(d, 'net-receiver-excluded', 's').length).toBe(1) // `s as string`
+    const out = read(d, C)
+    expect(out).toContain('o7.setUrl("http://a.test/7")')
+    expect(out).toContain('m.top.setUrl("http://a.test/7b")')
+    expect(out).not.toMatch(/BT_unurl\(o7/)
+    expect(read(d, 'source/typed.brs')).toContain('a2.setUrl("http://a.test/t2")')
+    expect(d.result.skipped.every((x) => x.kind !== 'net-receiver-excluded' || /not rewritten/.test(x.reason))).toBe(true)
+  })
+  it('8: conflicting assignments are excluded', () => {
+    expect(sk(d, 'net-receiver-excluded', 'z8')[0].reason).toMatch(/conflicting assignments/)
+    expect(read(d, C)).toContain('z8.setUrl("http://a.test/8")')
+  })
+  it('9: net.unknown "report" skips unknown sites and strict-style filtering sees them; default does not', async () => {
+    const r = await run('recv-report', { net: { unknown: 'report' } })
+    expect(r.errors).toEqual([])
+    expect(sk(r, 'net-receiver-unknown', 'p').length).toBe(2)
+    expect(sk(r, 'net-receiver-unknown', 'getXfer()').length).toBe(1)
+    expect(read(r, C)).toContain('getXfer().setUrl("http://a.test/6")')
+    expect(rw(r, C, 'p')).toEqual([])
+    expect(conf(r, C, 'x1')).toBe('confirmed')
+    const couldNot = (b) => b.result.skipped.filter((x) => !INFORMATIONAL_KINDS.includes(x.kind)).map((x) => x.kind)
+    expect(couldNot(r)).toContain('net-receiver-unknown') // what instrument.strict counts
+    expect(couldNot(d)).not.toContain('net-receiver-unknown')
+    expect(couldNot(d)).not.toContain('net-receiver-excluded')
+    const bad = await run('recv-bad', { net: { unknown: 'bogus' } })
+    expect(bad.errors.some((e) => e.code === 'BT9004')).toBe(true)
+  })
+  it('10: allow overrides excluded, deny wins over allow, file#pattern scopes, overlaps are reported', async () => {
+    const r = await run('recv-allow', {
+      net: { receivers: { allow: ['o10', 'x11', 'source/allow.brs#fscope', 'm*'], deny: ['X11', '*.mockhttp', 'mockHTTP'] } },
+    })
+    const A = 'source/allow.brs'
+    expect(conf(r, A, 'o10')).toBe('likely') // allow overrides excluded
+    expect(rw(r, A, 'x11')).toEqual([])      // deny wins over allow
+    expect(sk(r, 'net-receiver-excluded', 'x11')[0].reason).toMatch(/deny "X11"/)
+    expect(conf(r, A, 'fscope')).toBe('likely')                   // file-scoped allow
+    expect(rw(r, C, 'fscope')).toEqual([])                        // not in the other file
+    expect(sk(r, 'net-receiver-excluded', 'fscope').length).toBe(1)
+    expect(rw(r, A, 'mockHttp')).toEqual([])
+    expect(r.result.netOverlaps).toContainEqual(expect.objectContaining({ file: A, receiver: 'x11', allow: 'x11', deny: 'X11' }))
+    expect(conf(r, C, 'x1')).toBe('confirmed') // allow never downgrades confirmed
+    expect(read(r, A)).toContain('o10.setUrl(BT_url("http://a.test/10"))')
+  })
+  it('default config: allow.brs user object excluded, name hint on the transfer is not needed', () => {
+    expect(sk(d, 'net-receiver-excluded', 'o10').length).toBe(1)
+    expect(conf(d, 'source/allow.brs', 'x11')).toBe('confirmed')
+    expect(conf(d, 'source/allow.brs', 'mockHttp')).toBe('confirmed')
+  })
+  it('11: indexed and bare forms stay skipped as before; getUrl never disagrees with setUrl', () => {
+    for (const rcv of ['x1', 'm.xm', 'p', 'x2']) {
+      const s = rw(d, C, rcv, 'setUrl').map((x) => x.confidence)
+      const g = rw(d, C, rcv, 'getUrl').map((x) => x.confidence)
+      if (s.length && g.length) expect(g[0]).toBe(s[0])
+    }
+    for (const rcv of ['o7']) expect(sk(d, 'net-receiver-excluded', rcv).map((x) => /getUrl/.test(x.reason))).toContain(true)
+  })
+  it('12: rewritten lines keep their statement lines against the all-AST baseline; one walk per file', async () => {
+    const forced = await build(recv, path.join(tmp, 'recv-forced'), [forceTranspile])
+    for (const f of ['source/classes.brs', 'source/allow.brs']) {
+      const a = read(d, f).split('\n')
+      const b = read(forced, f).split('\n')
+      expect(a.length, f).toBe(b.length)
+      a.forEach((l, i) => {
+        expect(l.replace(/BT_url\(("[^"]*")\)/g, '$1').replace(/BT_unurl\((.*?\.getUrl\(\))\)/g, '$1'), `${f}:${i + 1}`).toBe(b[i])
+      })
+    }
+    const file = Object.values(d.pb.program.files).find((x) => x.pkgPath === 'source/classes.brs')
+    const orig = file.ast.walk.bind(file.ast)
+    let walks = 0
+    file.ast.walk = (...a) => { walks++; return orig(...a) }
+    receiverMod.createClassifier({}).analyzeFile(file)
+    expect(walks).toBe(1)
+  })
+  it('13: classifier is deterministic and feature detection reports nothing on 0.73.8', () => {
+    expect(receiverMod.missingApis()).toEqual([])
+    expect(missingPrivateApis(undefined, undefined)).toEqual([])
+    const file = Object.values(d.pb.program.files).find((x) => x.pkgPath === 'source/classes.brs')
+    const sites = receiverMod.createClassifier({}).analyzeFile(file).filter((s) => s.eligible)
+    expect(sites.map((s) => s.cls)).toEqual(sites.map((s) => s.cls).slice())
+    expect(new Set(sites.map((s) => s.cls))).toEqual(new Set(['confirmed', 'likely', 'unknown', 'excluded']))
+  })
+})
