@@ -1,0 +1,18 @@
+namespace tests
+  @suite("AgentCount")
+  class AgentCountTests extends rooibos.BaseTestSuite
+
+    @describe("Util_countKeys")
+
+    @it("counts nested AA keys")
+    function _()
+      m.assertEqual(Util_countKeys({ a: 1, b: { c: 2, d: { e: 3 } } }), 5)
+    end function
+
+    @it("returns zero for non-AAs")
+    function _()
+      m.assertEqual(Util_countKeys([1, 2]), 0)
+    end function
+
+  end class
+end namespace

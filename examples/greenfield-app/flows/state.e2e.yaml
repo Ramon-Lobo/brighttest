@@ -1,0 +1,9 @@
+# Needs app-state read/write (fixtures/state/premium.json). Sign in and read the tier label.
+appId: dev
+config: { timeout: 8 }
+steps:
+  - launch
+  - assertText: { id: tierLabel, equals: "Tier: free" }
+  - focus: { id: signInButton }
+  - press: Select
+  - assertText: { id: tierLabel, equals: "Tier: premium" }

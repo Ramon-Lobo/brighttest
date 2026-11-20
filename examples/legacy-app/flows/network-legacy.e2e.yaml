@@ -1,0 +1,6 @@
+# Net diagnostics: launch with netdiag=<url> (a 503 route on the fake origin) and read the summary.
+appId: dev
+config: { timeout: 12 }
+steps:
+  - launch: { params: { netdiag: "http://127.0.0.1:8787/status/503" } }
+  - assertText: { id: netDiag, equals: "code=503 reason=Service Unavailable event=yes" }

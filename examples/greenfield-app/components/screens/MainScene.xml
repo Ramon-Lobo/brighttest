@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="MainScene" extends="Scene">
+  <interface>
+    <field id="baseUrl" type="string" value="http://127.0.0.1:8787" />
+    <field id="periodic" type="boolean" value="false" onChange="onPeriodic" />
+  </interface>
+  <script type="text/brightscript" uri="MainScene.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Format.brs" />
+  <children>
+    <!-- Only the active screen is parented here, so assertVisible/assertGone are exact. -->
+    <Group id="stage" />
+    <Timer id="periodicTimer" duration="10" repeat="true" />
+  </children>
+</component>

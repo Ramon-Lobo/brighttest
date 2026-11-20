@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Inheritance chain ViewBase > ViewA > ViewB > ViewC; only ViewC has an init. -->
+<component name="ViewBase" extends="Group">
+  <children>
+    <Label id="viewBaseLabel" text="base" />
+  </children>
+</component>

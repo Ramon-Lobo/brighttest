@@ -1,0 +1,8 @@
+{
+  "rootDir": ".",
+  "sourceGlobs": ["manifest", "source/**/*", "!source/main.brs", "components/**/*", "certs/**/*"],
+  "testsFilePattern": "**/*.spec.bs",
+  "stagingDir": ".brighttest",
+  "diagnosticFilters": [1140],
+  "instrumentExclude": ["source/vendor/**"]
+}

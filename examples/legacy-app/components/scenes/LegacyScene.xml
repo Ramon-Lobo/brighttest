@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="LegacyScene" extends="Scene">
+  <interface>
+    <field id="renderThreadMark" type="string" value="" />
+  </interface>
+  <script type="text/brightscript" uri="LegacyScene.brs" />
+  <script type="text/brightscript" uri="pkg:/source/Config.brs" />
+  <children>
+    <Label id="homeTitle" text="Legacy Home" translation="[60, 30]" />
+    <Label id="tierLabel" text="Tier: free" translation="[500, 30]" />
+    <Label id="netDiag" text="" translation="[60, 80]" />
+    <Poster id="poster" translation="[60, 130]" width="200" height="112" />
+    <Video id="player" translation="[300, 130]" width="320" height="180" visible="false" />
+    <DeepTree id="deepTree" />
+    <StressBuilder id="stress" />
+    <LegacyStore id="store" />
+  </children>
+</component>
