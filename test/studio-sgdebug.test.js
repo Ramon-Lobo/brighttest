@@ -75,6 +75,14 @@ describe('sgdebug console client', () => {
     expect(sgdebug.COMMANDS['sgperf_report']).toBe('sgperf report');
   });
 
+  it('has no logrendezvous status command; on/off stay mapped', () => {
+    expect(Object.keys(sgdebug.COMMANDS).filter((k) => k.startsWith('logrendezvous')).sort())
+      .toEqual(['logrendezvous_off', 'logrendezvous_on']);
+    expect(sgdebug.COMMANDS.logrendezvous_on).toBe('logrendezvous on');
+    expect(sgdebug.COMMANDS.logrendezvous_off).toBe('logrendezvous off');
+    expect(Object.values(sgdebug.COMMANDS)).not.toContain('logrendezvous status');
+  });
+
   it('times out cleanly against a silent server', async () => {
     const port = await new Promise((resolve) => {
       server = net.createServer((sock) => track(sock)); // accept, say nothing
