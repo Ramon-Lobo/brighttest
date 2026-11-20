@@ -46,7 +46,7 @@
   "dependencies": {
     "@ramonlobo/brs-node": "^2.2.0",
     "@ramonlobo/rooibos-roku": "^5.16.4",
-    "brighterscript": "^0.73.0"
+    "brighterscript": "^0.73.8"
   },
   "devDependencies": {
     "mermaid": "11.16.1",
