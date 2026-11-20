@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="DialogsPanel" extends="Group">
+  <interface>
+    <field id="action" type="string" alwaysNotify="true" />
+    <function name="focusDefault" />
+  </interface>
+  <script type="text/brightscript" uri="DialogsPanel.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Log.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Catalog.brs" />
+
+  <children>
+    <Group id="dialogsScreen">
+      <Label id="dialogsTitle" text="Dialogs" translation="[80,60]" width="800" />
+      <ButtonGroup id="dialogButtons" translation="[80,140]">
+        <Button id="openMessage" text="Message dialog" />
+        <Button id="openConfirm" text="Confirm dialog" />
+      </ButtonGroup>
+      <Label id="dialogResult" text="result: none" translation="[80,420]" width="800" />
+    </Group>
+  </children>
+</component>

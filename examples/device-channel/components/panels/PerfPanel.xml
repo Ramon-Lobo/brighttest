@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="PerfPanel" extends="Group">
+  <interface>
+    <field id="action" type="string" alwaysNotify="true" />
+    <function name="focusDefault" />
+  </interface>
+  <script type="text/brightscript" uri="PerfPanel.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Log.brs" />
+
+  <children>
+    <Group id="perfScreen">
+      <Group id="perfGroup" />
+      <Rectangle id="perfMover" width="60" height="60" color="0xFFAA00FF" translation="[0,900]" />
+      <Label id="perfInfo" translation="[80,20]" width="1200" />
+      <Label id="perfTick" text="tick: 0" translation="[80,80]" width="400" />
+      <Timer id="perfTimer" repeat="true" duration="0.1" />
+      <Animation id="perfAnim" duration="4" repeat="true" easeFunction="linear">
+        <Vector2DFieldInterpolator id="perfInterp" fieldToInterp="perfMover.translation" key="[0.0,1.0]" keyValue="[[0,900],[1800,900]]" />
+      </Animation>
+    </Group>
+  </children>
+</component>

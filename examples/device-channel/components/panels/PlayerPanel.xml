@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="PlayerPanel" extends="Group">
+  <interface>
+    <field id="action" type="string" alwaysNotify="true" />
+    <function name="focusDefault" />
+  </interface>
+  <script type="text/brightscript" uri="PlayerPanel.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Log.brs" />
+
+  <children>
+    <Group id="playerScreen">
+      <Video id="videoNode" visible="false" width="1920" height="1080" />
+      <Label id="playerMode" translation="[80,60]" width="1200" />
+      <Label id="playerState" text="state: idle" translation="[80,130]" width="800" />
+      <Label id="playerPosition" text="position: 0" translation="[80,200]" width="800" />
+      <Timer id="playerTimer" repeat="true" duration="1" />
+    </Group>
+  </children>
+</component>

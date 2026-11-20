@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="CounterTask" extends="Task">
+  <interface>
+    <field id="input" type="integer" value="0" />
+    <field id="output" type="integer" value="0" />
+    <field id="threadName" type="string" value="" />
+  </interface>
+  <script type="text/brightscript" uri="CounterTask.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Log.brs" />
+</component>

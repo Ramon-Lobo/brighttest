@@ -1,0 +1,19 @@
+namespace tests
+  ' Passes by default. Fails with a known message only when the build sets BT_DEVCH_FAIL=true
+  ' (manifest bs_const), so pack runs can flip a green suite red without editing source.
+  @suite("Deliberate failure (flagged)")
+  class FailingTests extends rooibos.BaseTestSuite
+
+    @describe("cases")
+
+    @it("fails with a known message when the flag is on")
+    function _()
+      if BTDev_failOnPurpose()
+        m.assertEqual(1, 2, "deliberate failure")
+      else
+        m.assertTrue(true)
+      end if
+    end function
+
+  end class
+end namespace
