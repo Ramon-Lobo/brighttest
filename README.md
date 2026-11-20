@@ -204,7 +204,7 @@ All optional — sensible defaults apply. Drop a `brighttest.json` at your proje
 
 - **Unit tests** — pure functions, parsing, formatting, data models, crypto: the fast, headless sweet spot.
 - **Integration tests** — `@SGNode` components with their children and `onChange` wiring (headless), and
-  the request/response logic of Task/API code via HTTP fixtures.
+  the request/response logic of Task/API code, tested as pure functions (brighttest does not mock HTTP).
 - **End-to-end UI** — the [`brighttest e2e`](docs/e2e/index.md) lane drives the full app through the
   remote (launch, D-pad navigation, text entry) and asserts on the live screen, on real hardware.
 
