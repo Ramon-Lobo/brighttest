@@ -10,11 +10,12 @@ const sgdebug = require('../lib/studio/sgdebug.js');
 let server;
 const socks = new Set();
 const track = (sock) => { socks.add(sock); sock.on('close', () => socks.delete(sock)); };
-function fakeConsole(response, { echo = true } = {}) {
+function fakeConsole(response, { echo = true, banner = 'SceneGraph Debug Console', split = false } = {}) {
   return new Promise((resolve) => {
     server = net.createServer((sock) => {
       track(sock);
-      sock.write('SceneGraph Debug Console\r\n>');
+      if (split) { sock.write(banner.slice(0, 7)); setTimeout(() => sock.write(banner.slice(7) + '\r\n>'), 20); }
+      else sock.write(banner + '\r\n>');
       sock.on('data', (d) => {
         const cmd = d.toString().trim();
         setTimeout(() => {
@@ -42,6 +43,31 @@ describe('sgdebug console client', () => {
     const { raw } = await sgdebug.run('127.0.0.1', 'free', { port, quietMs: 200 });
     expect(raw).toContain('123456');
     expect(raw).not.toContain('SceneGraph Debug Console'); // banner trimmed
+  });
+
+  const FAKE_BANNER = 'X0000000000A (Roku Ultra - 16.0.4.853)';
+
+  it('strips the device banner (serial) from raw, with and without echo', async () => {
+    for (const echo of [true, false]) {
+      const port = await fakeConsole('mem: 5 KiB free', { echo, banner: FAKE_BANNER });
+      const { raw } = await sgdebug.run('127.0.0.1', 'free', { port, quietMs: 200 });
+      expect(raw).not.toContain('X0000000000A');
+      expect(raw).not.toContain('Roku Ultra');
+      expect(raw).toBe('mem: 5 KiB free');
+      await new Promise((r) => { for (const s of socks) s.destroy(); server.close(r); server = null; });
+    }
+  });
+
+  it('strips a banner split across two TCP chunks and via query()', async () => {
+    const port = await fakeConsole('mem: 5 KiB free', { banner: FAKE_BANNER, split: true });
+    const r = await sgdebug.query('127.0.0.1', 'free', { port, quietMs: 200 });
+    expect(JSON.stringify(r)).not.toContain('X0000000000A');
+  });
+
+  it('stripBanner removes only the banner line (device-shaped fixture, no echo)', () => {
+    const raw = `${FAKE_BANNER}\r\n>channel: mem=1KiB{anon=1}\r\nserial-like X0000000000A in output`;
+    expect(sgdebug.stripBanner(raw)).toBe('>channel: mem=1KiB{anon=1}\r\nserial-like X0000000000A in output');
+    expect(sgdebug.stripBanner('no banner here\n>')).toBe('no banner here\n>'); // old firmware: unchanged
   });
 
   it('rejects commands not on the whitelist', async () => {
