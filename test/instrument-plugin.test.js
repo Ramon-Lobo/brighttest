@@ -16,6 +16,7 @@ const fixture = path.resolve(__dirname, 'fixtures/instrument-plugin/app')
 const edge = path.resolve(__dirname, 'fixtures/instrument-plugin/edge')
 const shapes = path.resolve(__dirname, 'fixtures/instrument-plugin/shapes')
 const share = path.resolve(__dirname, 'fixtures/instrument-plugin/share')
+const lineshift = path.resolve(__dirname, 'fixtures/instrument-plugin/lineshift')
 const breakRewrite = path.resolve(__dirname, 'fixtures/instrument-plugin/break-rewrite.js')
 const rooibosStub = path.resolve(__dirname, 'fixtures/instrument-plugin/rooibos-stub.js')
 const rooibosPlugin = require.resolve('@ramonlobo/rooibos-roku/dist/plugin.js')
@@ -469,6 +470,44 @@ describe('TP-INS-24 (F3): init in an excluded file', () => {
     expect(b.result.synthesized).not.toContain('ExInitScn')
     expect(fs.existsSync(path.join(b.staging, 'components/bt/BT_init_ExInitScn.brs'))).toBe(false)
     expect(read(b, 'source/vendor/exinit.brs')).toBe(fs.readFileSync(path.join(share, 'source/vendor/exinit.brs'), 'utf8'))
+  })
+})
+
+describe('TP-INS-23 (F2): rewritten script shared with an excluded component', () => {
+  const opts = { instrument: { exclude: ['components/vendorui/**'] } }
+  let b
+  let shareOff
+  beforeAll(async () => {
+    b = await build(share, path.join(tmp, 'share-f2'), [pluginPath], opts)
+    shareOff = await build(share, path.join(tmp, 'share-off'), [], opts)
+  })
+
+  it('rewrites the shared file and gives the excluded Group the runtime import only', () => {
+    expect(read(b, 'components/common.brs')).toContain('BT_url(')
+    const g = read(b, 'components/vendorui/ExGroup.xml')
+    expect(g).toContain('BT_runtime.brs')
+    expect(g).not.toMatch(/BT_op/)
+    expect(b.result.opInjected).not.toContain('ExGroup')
+  })
+  it('records the informational entry and a clean staged package', async () => {
+    const e = b.result.skipped.find((x) => x.kind === 'rewritten-shared-with-excluded')
+    expect(e).toMatchObject({ file: 'components/common.brs' })
+    expect(e.reason).toMatch(/ExGroup/)
+    expect(INFORMATIONAL_KINDS).toContain('rewritten-shared-with-excluded')
+    expect(INFORMATIONAL_KINDS).not.toContain('init-shared-with-excluded-scene')
+    expect((await rebuildStaged(b.staging)).map((x) => `${x.code} ${x.message}`)).toEqual([])
+  })
+  it('an excluded component that does not import a rewritten file is untouched', () => {
+    expect(read(b, 'components/vendorui/ExScn.xml')).toBe(read(shareOff, 'components/vendorui/ExScn.xml'))
+    expect(read(b, 'components/vendorui/ExScn.xml')).not.toMatch(/BT_runtime/)
+  })
+  it('does not wrap an init shared with an excluded Scene, and reports it', () => {
+    expect(read(b, 'components/sharedinit.brs')).toBe(fs.readFileSync(path.join(share, 'components/sharedinit.brs'), 'utf8'))
+    const s = b.result.skipped.filter((x) => x.kind === 'init-shared-with-excluded-scene')
+    expect(s).toHaveLength(1)
+    expect(s[0]).toMatchObject({ file: 'components/sharedinit.brs', line: 1 })
+    expect(s[0].reason).toMatch(/ExScn/)
+    expect(b.result.bootstrapped.map((x) => x.file)).toEqual(['components/mainscn.brs'])
   })
 })
 
