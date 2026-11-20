@@ -183,6 +183,22 @@ describe('tolerant console parsers (formats vary per firmware — pin these agai
     expect(r.other).toContain('some unrecognised counter: 42');
   });
 
+  it('parseSgperf parses `thread node calls: create N + op M @ P% rendezvous` lines', () => {
+    const raw = [
+      '>',
+      'thread node calls: create     0 + op     1  @ 100.0% rendezvous',
+      'thread node calls: create  1,201 + op   902  @   0.0% rendezvous',
+      'thread node calls: create 7 + op 9',
+    ].join('\n');
+    const r = sgdebug.parseSgperf(raw);
+    expect(r.ok).toBe(true);
+    expect(r.threads).toHaveLength(3);
+    expect(r.threads[0]).toMatchObject({ kind: 'node-calls', creates: 0, ops: 1, rendezvousPct: 100 });
+    expect(r.threads[1]).toMatchObject({ creates: 1201, ops: 902, rendezvousPct: 0 });
+    expect(r.threads[2]).toMatchObject({ creates: 7, ops: 9, rendezvousPct: null });
+    expect(r.other).toEqual([]);
+  });
+
   it('parseChanperf parses the recorded 8080 line (mem, anon, file, shared, swap, cpu, user, sys)', () => {
     const r = sgdebug.parseChanperf('channel: mem=28460KiB{anon=7288,file=20992,shared=180,swap=0},%cpu=0{user=0,sys=0}');
     expect(r).toEqual({ ok: true, mem: 28460, anon: 7288, file: 20992, shared: 180, swap: 0, cpu: 0, user: 0, sys: 0 });
