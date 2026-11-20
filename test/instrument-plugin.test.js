@@ -10,10 +10,12 @@ const pluginPath = path.resolve(__dirname, '../lib/instrument/plugin.js')
 const createPlugin = require(pluginPath)
 const {
   mergeManifest, makeMatcher, assertPluginOrder, missingPrivateApis, DEFAULT_EXCLUDE, RUNTIME_COVERAGE_EXCLUDE, RUNS_AFTER,
-  RUNTIME_PKG, RUNTIME_SRC, SCENE_BUILTINS,
+  RUNTIME_PKG, RUNTIME_SRC, SCENE_BUILTINS, INFORMATIONAL_KINDS,
 } = createPlugin
 const fixture = path.resolve(__dirname, 'fixtures/instrument-plugin/app')
 const edge = path.resolve(__dirname, 'fixtures/instrument-plugin/edge')
+const shapes = path.resolve(__dirname, 'fixtures/instrument-plugin/shapes')
+const breakRewrite = path.resolve(__dirname, 'fixtures/instrument-plugin/break-rewrite.js')
 const rooibosStub = path.resolve(__dirname, 'fixtures/instrument-plugin/rooibos-stub.js')
 const rooibosPlugin = require.resolve('@ramonlobo/rooibos-roku/dist/plugin.js')
 
@@ -142,11 +144,13 @@ describe('staged build through the bsc ProgramBuilder', () => {
     for (const f of files) expect(lines(read(inst, f)), f).toBe(lines(read(forced, f)))
   })
 
-  it('Scene init prepend uses the same-line form', () => {
+  it('Scene init bootstrap goes on the signature line, the body follows unchanged', () => {
     const b = read(inst, 'components/base.brs').split('\n')
-    expect(b[1]).toMatch(/^\s*BT_bootstrap\(m\.top\) : print "base init"/)
+    expect(b[0]).toMatch(/^(sub|function) init\(\)( as void)? : BT_bootstrap\(m\.top\)$/i)
+    expect(b[1]).toMatch(/^\s*print "base init"/)
     const d = read(inst, 'components/derived.brs').split('\n')
-    expect(d[1]).toMatch(/^\s*BT_bootstrap\(m\.top\) : print "derived init"/)
+    expect(d[0]).toMatch(/: BT_bootstrap\(m\.top\)$/)
+    expect(d[1]).toMatch(/^\s*print "derived init"/)
     expect(inst.result.stats.initPrepend).toBe(2)
   })
 
@@ -287,11 +291,12 @@ describe('items 4, 5, 7, 9: skipped[] and the result schema', () => {
     expect(s).toMatchObject({ file: 'components/empty.brs', line: 1 })
     expect(read(e, 'components/empty.brs')).not.toMatch(/BT_bootstrap/)
   })
-  it('skips an init whose first statement is under #if or is a label', () => {
-    const unsafe = e.result.skipped.filter((x) => x.kind === 'init-unsafe-first-statement').map((x) => x.file).sort()
-    expect(unsafe).toEqual(['components/ifscn.brs', 'components/labelscn.brs'])
-    expect(read(e, 'components/ifscn.brs')).not.toMatch(/BT_bootstrap/)
-    expect(read(e, 'components/labelscn.brs')).not.toMatch(/BT_bootstrap/)
+  it('wraps an init that starts under #if or with a label (init-unsafe-first-statement is retired)', () => {
+    expect(e.result.skipped.filter((x) => x.kind === 'init-unsafe-first-statement')).toEqual([])
+    for (const f of ['components/ifscn.brs', 'components/labelscn.brs']) {
+      expect(read(e, f).split('\n')[0]).toBe('sub init() : BT_bootstrap(m.top)')
+    }
+    expect(e.errors.map((x) => x.message)).toEqual([])
   })
   it('records indexed setUrl/getUrl and a bare getUrl, with their lines', () => {
     expect(e.result.skipped.find((x) => x.kind === 'indexed-seturl')).toMatchObject({ file: 'source/main.brs', line: 8 })
@@ -375,6 +380,81 @@ describe('item 10: private API feature detection', () => {
     expect(missingPrivateApis({ parser: { references: {} }, ast: { component: {} } })).toEqual(expect.arrayContaining([
       'XmlFile#attachDependencyGraph', 'XmlFile#parser.references.scriptTagImports', 'XmlFile#ast.component.scripts',
     ]))
+  })
+})
+
+
+// Builds the staged output again with the plugin off and nothing filtered: every BT_* call in the staged files must
+// resolve in the scope of every component (a re-parse + validate of the package).
+async function rebuildStaged(staging) {
+  const pb = new ProgramBuilder()
+  await pb.run({
+    cwd: staging, rootDir: staging, stagingDir: path.join(staging, '..', 'restaged-' + path.basename(path.dirname(staging))),
+    createPackage: false, copyToStaging: false, files: ['manifest', 'source/**/*', 'components/**/*'], plugins: [], logLevel: 'error',
+    autoImportComponentScript: false,
+  })
+  return pb.program.getDiagnostics().filter((d) => d.severity === 1)
+}
+
+describe('TP-INS-22 (F1): bootstrap on the signature line for every kind of first statement', () => {
+  let s
+  beforeAll(async () => { s = await build(shapes, path.join(tmp, 'shapes'), [pluginPath]) })
+  const files = ['ifblock', 'ifline', 'ifelse', 'label', 'cc', 'forscn', 'comment', 'slc', 'fnvoid']
+
+  it('stages without any error and bootstraps every init once', () => {
+    expect(s.errors.map((x) => `${x.code} ${x.message}`)).toEqual([])
+    expect(s.result.invalid).toEqual([])
+    expect(s.result.bootstrapped.map((x) => x.file).sort()).toEqual(files.map((f) => `components/${f}.brs`).sort())
+    for (const f of files) {
+      const out = read(s, `components/${f}.brs`)
+      expect((out.match(/BT_bootstrap\(m\.top\)/g) || []).length, f).toBe(1)
+    }
+  })
+  it('emits the call right after the signature and keeps the body on the following lines', () => {
+    expect(read(s, 'components/ifblock.brs').split('\n').slice(0, 3)).toEqual(['sub init() : BT_bootstrap(m.top)', '    if m.top.id = "" then', '        m.top.id = "blk"'])
+    expect(read(s, 'components/ifline.brs')).toMatch(/^sub init\(\) : BT_bootstrap\(m\.top\)\n\s+if m\.top\.id = "" then/)
+    expect(read(s, 'components/ifelse.brs')).toMatch(/^sub init\(\) : BT_bootstrap\(m\.top\)\n\s+if /)
+    expect(read(s, 'components/label.brs').split('\n').slice(0, 2)).toEqual(['sub init() : BT_bootstrap(m.top)', '    top:'])
+    expect(read(s, 'components/forscn.brs')).toMatch(/^sub init\(\) : BT_bootstrap\(m\.top\)\n\s+for i = 0 to 2/)
+    expect(read(s, 'components/comment.brs')).toMatch(/^sub init\(\) : BT_bootstrap\(m\.top\)\n\s+' leading comment/)
+    expect(read(s, 'components/slc.brs').split('\n')[0]).toBe("sub init() : BT_bootstrap(m.top) ' trailing on the signature")
+    expect(read(s, 'components/fnvoid.brs').split('\n')[0]).toBe('function init() as void : BT_bootstrap(m.top)')
+    expect(read(s, 'components/cc.brs').split('\n')[0]).toBe('sub init() : BT_bootstrap(m.top)')
+  })
+  it('adds no line relative to the plugin-off all-AST build', async () => {
+    const forcedShapes = await build(shapes, path.join(tmp, 'shapes-forced'), [forceTranspile])
+    for (const f of files) {
+      expect(lines(read(s, `components/${f}.brs`)), f).toBe(lines(read(forcedShapes, `components/${f}.brs`)))
+    }
+  })
+  it('an empty-body init is reported (empty-init) and left alone', () => {
+    expect(s.result.skipped.find((x) => x.kind === 'empty-init' && x.file === 'components/emptybody.brs')).toMatchObject({ line: 1 })
+    expect(read(s, 'components/emptybody.brs')).not.toMatch(/BT_bootstrap/)
+  })
+  it('the staged package validates when built again with the plugin off', async () => {
+    expect((await rebuildStaged(s.staging)).map((x) => `${x.code} ${x.message}`)).toEqual([])
+  })
+  it('fails the build with BT9003 staged-output-invalid when a rewrite emits invalid code', async () => {
+    const pb = new ProgramBuilder()
+    const plugin = createPlugin()
+    pb.plugins.add(plugin)
+    let thrown = null
+    try {
+      await pb.run({
+        cwd: fixture, rootDir: fixture, stagingDir: path.join(tmp, 'broken', 'staging'), createPackage: false, copyToStaging: true,
+        files: ['manifest', 'source/**/*', 'components/**/*'], plugins: [breakRewrite], logLevel: 'error', autoImportComponentScript: false,
+        diagnosticFilters: [1107, 1140, 1009],
+      })
+    } catch (e) { thrown = e }
+    expect(thrown).toBeNull() // bsc swallows a plugin throw (logs it); the error diagnostic is what makes the CLI exit 1
+    expect(pb.getDiagnostics().some((x) => x.severity === 1 && x.code === 'BT9003')).toBe(true)
+    const d = pb.program.getDiagnostics().find((x) => x.code === 'BT9003')
+    expect(d.message).toMatch(/staged-output-invalid: source\/net\.brs:\d+ bsc \d+ .*\(rewrite: net\)/)
+    expect(plugin.getResult().invalid[0]).toMatchObject({ file: 'source/net.brs', kinds: ['net'] })
+    expect(plugin.getResult().invalid[0].line).toBeGreaterThan(0)
+  })
+  it('does not verify, nor fail on, files the plugin did not rewrite', () => {
+    expect(inst.result.invalid).toEqual([])
   })
 })
 
