@@ -605,9 +605,20 @@ describe('net receiver heuristic', () => {
     expect(read(d, 'source/typed.brs')).toContain('a2.setUrl("http://a.test/t2")')
     expect(d.result.skipped.every((x) => x.kind !== 'net-receiver-excluded' || /not rewritten/.test(x.reason))).toBe(true)
   })
-  it('8: conflicting assignments are excluded', () => {
-    expect(sk(d, 'net-receiver-excluded', 'z8')[0].reason).toMatch(/conflicting assignments/)
-    expect(read(d, C)).toContain('z8.setUrl("http://a.test/8")')
+  it('8: conflicting assignments that include a transfer are unknown, still rewritten and listed', () => {
+    expect(conf(d, C, 'z8')).toBe('unknown')
+    expect(sk(d, 'net-receiver-excluded', 'z8')).toEqual([])
+    expect(read(d, C)).toContain('z8.setUrl(BT_url("http://a.test/8"))')
+  })
+  it('8b: m fields are scoped to the enclosing class; a transfer field is never excluded by another class', () => {
+    const K = 'source/cls.bs'
+    expect(conf(d, K, 'm.http')).toBe('confirmed')            // Fetcher
+    expect(conf(d, K, 'm.http', 'getUrl')).toBe('confirmed')
+    expect(rw(d, K, 'm.http').length).toBe(1)                 // FakeClient's site is not rewritten
+    expect(sk(d, 'net-receiver-excluded', 'm.http').length).toBe(1)
+    const out = read(d, 'source/cls.brs')
+    expect(out.match(/m\.http\.setUrl\(BT_url\(u\)\)/g).length).toBe(1)
+    expect(out.match(/m\.http\.setUrl\(u\)/g).length).toBe(1)
   })
   it('9: net.unknown "report" skips unknown sites and strict-style filtering sees them; default does not', async () => {
     const r = await run('recv-report', { net: { unknown: 'report' } })
