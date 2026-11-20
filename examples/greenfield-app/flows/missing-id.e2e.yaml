@@ -1,0 +1,7 @@
+# Deliberately failing flow: asserts an id that does not exist (used by failure-bundle cases).
+appId: dev
+config: { timeout: 4 }
+steps:
+  - launch
+  - assertVisible: { id: homeTitle }
+  - assertVisible: { id: doesNotExist }
