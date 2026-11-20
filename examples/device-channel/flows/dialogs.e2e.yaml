@@ -2,6 +2,7 @@
 appId: dev
 config: { timeout: 15 }
 steps:
+  - home                                       # fresh start: a running app ignores launch
   - launch
   - assertVisible: { id: homeScreen }
   - press: { key: Down, count: 2 }             # menu item 2: Dialogs
@@ -11,5 +12,5 @@ steps:
   - press: Select
   - assertVisible: { id: deviceDialog }
   - press: Select                              # first dialog button
-  - assertGone: { id: deviceDialog }
+  # NB: on fw 16.0.4 a closed Dialog node stays in the sgnodes tree, so assert the recorded result, not assertGone.
   - assertState: { path: global.lastdialog, equals: "dialog:0" }

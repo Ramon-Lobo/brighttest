@@ -2,6 +2,7 @@
 appId: dev
 config: { timeout: 15 }
 steps:
+  - home                                       # fresh start: a running app ignores launch
   - launch
   - assertVisible: { id: homeScreen }
   - press: Select                              # "Catalog grid" is the first menu item

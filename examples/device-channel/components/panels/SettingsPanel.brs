@@ -18,7 +18,9 @@ end sub
 sub onButton(event as object)
     id = m.buttons.getChild(event.getData()).id
     BTDev_log("settings", "button=" + id)
-    if id = "toggleFlag"
+    if id = "editName"
+        m.kb.setFocus(true)
+    else if id = "toggleFlag"
         m.global.flag = not m.global.flag
         m.top.findNode("flagLabel").text = "flag: " + BTDev_str(m.global.flag)
     else if id = "saveName"
@@ -33,12 +35,10 @@ sub onButton(event as object)
     end if
 end sub
 
+' The Keyboard consumes the directional keys, so "Edit name" moves focus into it and Back (which it
+' leaves alone) returns focus to the buttons instead of leaving the screen.
 function onKeyEvent(key as string, press as boolean) as boolean
-    if not press then return false
-    if key = "down" and m.buttons.isInFocusChain()
-        m.kb.setFocus(true)
-        return true
-    else if key = "up" and m.kb.isInFocusChain()
+    if press and key = "back" and m.kb.isInFocusChain()
         m.buttons.setFocus(true)
         return true
     end if

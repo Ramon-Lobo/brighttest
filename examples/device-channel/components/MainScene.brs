@@ -20,6 +20,7 @@ sub showPanel(name as string)
     m.currentName = name
     m.global.current = name
     BTDev_log("panel", name)
+    m.top.setFocus(true)
     p.callFunc("focusDefault")
     publishState()
 end sub
