@@ -1,0 +1,16 @@
+namespace tests
+  @suite("StoreNode callFunc (headless @SGNode)")
+  @SGNode("StoreNode")
+  class StoreNodeTests extends rooibos.BaseTestSuite
+
+    @describe("cases")
+
+    @it("bump increments through callFunc")
+    function _()
+      m.assertEqual(m.top.callFunc("bump"), 1)
+      m.assertEqual(m.top.callFunc("bump"), 2)
+      m.assertEqual(m.top.count, 2)
+    end function
+
+  end class
+end namespace

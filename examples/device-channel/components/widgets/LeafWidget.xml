@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="LeafWidget" extends="MidWidget">
+  <interface>
+    <function name="leafOp" />
+  </interface>
+  <script type="text/brightscript" uri="LeafWidget.brs" />
+</component>

@@ -1,0 +1,51 @@
+namespace tests
+  @suite("Catalog and formatting")
+  class CatalogTests extends rooibos.BaseTestSuite
+
+    @describe("catalog")
+
+    @it("has ten unique items in two rows")
+    function _()
+      items = BTDev_catalog()
+      m.assertEqual(items.count(), 10)
+      seen = {}
+      rows = {}
+      for each it in items
+        seen[it.id] = true
+        rows[it.row.toStr()] = true
+      end for
+      m.assertEqual(seen.count(), 10)
+      m.assertEqual(rows.count(), 2)
+    end function
+
+    @it("finds items by id")
+    function _()
+      m.assertEqual(BTDev_findItem("item-3").title, "Title Charlie")
+      m.assertInvalid(BTDev_findItem("missing"))
+    end function
+
+    @describe("duration")
+
+    @it("formats minutes and seconds")
+    @params(0, "0:00")
+    @params(65, "1:05")
+    @params(600, "10:00")
+    function _(sec as integer, expected as string)
+      m.assertEqual(BTDev_formatDuration(sec), expected)
+    end function
+
+    @describe("greeting with an injected clock")
+
+    @it("uses the fake clock")
+    @params(9, "Good morning")
+    @params(14, "Good afternoon")
+    @params(21, "Good evening")
+    function _(hour as integer, expected as string)
+      clock = { h: hour, hour: function() as integer
+          return m.h
+        end function }
+      m.assertEqual(BTDev_greet(clock), expected)
+    end function
+
+  end class
+end namespace
