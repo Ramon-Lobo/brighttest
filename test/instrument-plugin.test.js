@@ -9,9 +9,13 @@ const { ProgramBuilder } = require('brighterscript')
 const pluginPath = path.resolve(__dirname, '../lib/instrument/plugin.js')
 const createPlugin = require(pluginPath)
 const {
-  mergeManifest, makeMatcher, assertPluginOrder, DEFAULT_EXCLUDE, RUNTIME_COVERAGE_EXCLUDE, RUNS_AFTER,
+  mergeManifest, makeMatcher, assertPluginOrder, missingPrivateApis, DEFAULT_EXCLUDE, RUNTIME_COVERAGE_EXCLUDE, RUNS_AFTER,
+  RUNTIME_PKG, RUNTIME_SRC, SCENE_BUILTINS,
 } = createPlugin
 const fixture = path.resolve(__dirname, 'fixtures/instrument-plugin/app')
+const edge = path.resolve(__dirname, 'fixtures/instrument-plugin/edge')
+const rooibosStub = path.resolve(__dirname, 'fixtures/instrument-plugin/rooibos-stub.js')
+const rooibosPlugin = require.resolve('@ramonlobo/rooibos-roku/dist/plugin.js')
 
 let tmp
 let base
@@ -29,8 +33,10 @@ beforeAll(async () => {
 })
 afterAll(() => fs.rmSync(tmp, { recursive: true, force: true }))
 
-async function build(rootDir, outDir, plugins, extra = {}) {
+// `instances` are plugin objects added to the builder directly (bsc only loads path strings from `plugins`).
+async function build(rootDir, outDir, plugins, extra = {}, instances = []) {
   const pb = new ProgramBuilder()
+  for (const i of instances) pb.plugins.add(i)
   await pb.run({
     cwd: rootDir, rootDir, stagingDir: path.join(outDir, 'staging'), createPackage: false, copyToStaging: true,
     files: ['manifest', 'source/**/*', 'components/**/*'], plugins, logLevel: 'error', autoImportComponentScript: false,
@@ -179,3 +185,196 @@ describe('staged build through the bsc ProgramBuilder', () => {
     expect(b.errors.some((e) => e.code === 'BT9001' && /BT_op is reserved/.test(e.message))).toBe(true)
   })
 })
+
+describe('item 1: BT_AGENT is defined by the plugin before parse', () => {
+  let e
+  beforeAll(async () => { e = await build(edge, path.join(tmp, 'edge'), [pluginPath]) })
+
+  it('wraps the runtime and the synthesized stub in #if BT_AGENT', () => {
+    expect(RUNTIME_SRC.startsWith('#if BT_AGENT\n')).toBe(true)
+    expect(RUNTIME_SRC.trimEnd().endsWith('#end if')).toBe(true)
+    expect(read(inst, 'components/bt/BT_init_BareScn.brs')).toMatch(/^#if BT_AGENT\n/)
+  })
+  it('the wrapped runtime survives into staging and compiles without errors', () => {
+    const rt = read(inst, RUNTIME_PKG)
+    expect(rt).toContain('#if BT_AGENT')
+    expect(rt).toContain('function BT_url(')
+    expect(inst.errors.map((x) => x.message)).toEqual([])
+  })
+  it('works when the source manifest has no bs_const at all', () => {
+    expect(e.errors.filter((x) => x.code !== 'BT9001').map((x) => x.message)).toEqual([])
+    expect(read(e, 'manifest')).toContain('bs_const=BT_AGENT=true')
+  })
+  it('user #if BT_AGENT blocks compile in (true branch kept in a rewritten file)', () => {
+    const out = read(e, 'source/main.brs')
+    expect(out).toContain('print "agent build"')
+    expect(out).not.toContain('plain build')
+  })
+  it('the same user file does not compile its true branch in a plugin-off build', async () => {
+    const off = await build(edge, path.join(tmp, 'edge-off'), [], { manifest: { bs_const: { BT_AGENT: false } } })
+    expect(read(off, 'source/main.brs')).toContain('#if BT_AGENT')
+  })
+})
+
+describe('item 2: manifest markers survive createPackage:true', () => {
+  it('the zipped manifest has the markers and every original bs_const', async () => {
+    const JSZip = require('jszip')
+    const outFile = path.join(tmp, 'pkg', 'app.zip')
+    await build(fixture, path.join(tmp, 'pkg-out'), [pluginPath], { createPackage: true, outFile })
+    const zip = await JSZip.loadAsync(fs.readFileSync(outFile))
+    const mf = await zip.file('manifest').async('string')
+    expect(mf).toContain('bs_const=STRESS=false;VERBOSE_LOG=true;BT_AGENT=true')
+    expect(mf).toContain('bt_instrumented=1')
+    expect(mf).toBe(read(inst, 'manifest'))
+  })
+})
+
+describe('item 3: plugin order', () => {
+  it('reports an error diagnostic when rooibos is listed after the plugin', async () => {
+    const b = await build(fixture, path.join(tmp, 'order-bad'), [pluginPath, rooibosStub])
+    expect(b.errors.some((x) => x.code === 'BT9002' && /rooibos/.test(x.message))).toBe(true)
+  })
+  it('is quiet when rooibos is listed first', async () => {
+    const b = await build(fixture, path.join(tmp, 'order-ok'), [rooibosStub, pluginPath])
+    expect(b.errors.map((x) => x.message)).toEqual([])
+  })
+  it('with the real rooibos plugin: wrong order fails, right order keeps the coverage call sites identical', async () => {
+    const rooibos = { isRecordingCodeCoverage: true, coverageExcludedFiles: RUNTIME_COVERAGE_EXCLUDE, testsFilePattern: '**/*.spec.*' }
+    const countCc = (b) => {
+      const out = {}
+      const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).forEach((en) => {
+        const f = path.join(d, en.name)
+        if (en.isDirectory()) return walk(f)
+        if (!f.endsWith('.brs')) return
+        const n = (fs.readFileSync(f, 'utf8').match(/RBS_CC_/g) || []).length
+        if (n) out[path.relative(b.staging, f)] = n
+      })
+      walk(b.staging)
+      return out
+    }
+    const off = await build(fixture, path.join(tmp, 'rb-off'), [rooibosPlugin], { rooibos })
+    const ok = await build(fixture, path.join(tmp, 'rb-ok'), [rooibosPlugin, pluginPath], { rooibos })
+    const bad = await build(fixture, path.join(tmp, 'rb-bad'), [pluginPath, rooibosPlugin], { rooibos })
+    expect(ok.errors.map((x) => x.message)).toEqual([])
+    expect(countCc(ok)).toEqual(countCc(off))
+    // the injected runtime does not count toward coverage
+    expect(Object.keys(countCc(ok)).filter((f) => /[\\/]bt[\\/]/.test(f))).toEqual([])
+    expect(bad.errors.some((x) => x.code === 'BT9002')).toBe(true)
+  })
+  it('the runtime package path is matched by the exported coverage exclude list', () => {
+    expect(makeMatcher(RUNTIME_COVERAGE_EXCLUDE)('/' + RUNTIME_PKG)).toBe(true)
+    expect(makeMatcher(RUNTIME_COVERAGE_EXCLUDE)('components/bt/BT_init_X.brs')).toBe(true)
+    expect(makeMatcher(RUNTIME_COVERAGE_EXCLUDE)('source/main.brs')).toBe(false)
+  })
+})
+
+describe('items 4, 5, 7, 9: skipped[] and the result schema', () => {
+  let e
+  beforeAll(async () => { e = await build(edge, path.join(tmp, 'edge2'), [pluginPath]) })
+  const kinds = (r) => r.skipped.map((x) => x.kind).sort()
+
+  it('result has schema 1 and every list, with stats kept', () => {
+    const r = e.result
+    expect(r.schema).toBe(1)
+    for (const k of ['skipped', 'synthesized', 'bootstrapped', 'opInjected', 'excluded', 'inlineInitUnhandled']) expect(Array.isArray(r[k]), k).toBe(true)
+    expect(r.stats.setUrl).toBe(1)
+    expect(r.manifestWritten).toBe(true)
+    for (const x of r.skipped) expect(Object.keys(x).sort()).toEqual(['file', 'kind', 'line', 'reason'])
+    expect(inst.result.schema).toBe(1)
+  })
+  it('records an empty init and leaves the file alone', () => {
+    const s = e.result.skipped.find((x) => x.kind === 'empty-init')
+    expect(s).toMatchObject({ file: 'components/empty.brs', line: 1 })
+    expect(read(e, 'components/empty.brs')).not.toMatch(/BT_bootstrap/)
+  })
+  it('skips an init whose first statement is under #if or is a label', () => {
+    const unsafe = e.result.skipped.filter((x) => x.kind === 'init-unsafe-first-statement').map((x) => x.file).sort()
+    expect(unsafe).toEqual(['components/ifscn.brs', 'components/labelscn.brs'])
+    expect(read(e, 'components/ifscn.brs')).not.toMatch(/BT_bootstrap/)
+    expect(read(e, 'components/labelscn.brs')).not.toMatch(/BT_bootstrap/)
+  })
+  it('records indexed setUrl/getUrl and a bare getUrl, with their lines', () => {
+    expect(e.result.skipped.find((x) => x.kind === 'indexed-seturl')).toMatchObject({ file: 'source/main.brs', line: 8 })
+    expect(e.result.skipped.find((x) => x.kind === 'indexed-geturl')).toMatchObject({ file: 'source/main.brs', line: 9 })
+    expect(e.result.skipped.find((x) => x.kind === 'bare-geturl')).toMatchObject({ file: 'source/main.brs', line: 10 })
+    const out = read(e, 'source/main.brs')
+    expect(out).toContain('o["setUrl"]("https://example.test/idx")')
+    expect(out).toContain('o.setUrl(BT_url("https://example.test/dot"))')
+    expect(out).not.toMatch(/BT_unurl/)
+  })
+  it('lists excluded files that contain candidate sites and leaves them untouched', () => {
+    expect(e.result.excluded).toEqual([expect.objectContaining({ file: 'source/vendor/vend.brs' })])
+    expect(kinds(e.result)).toContain('excluded-candidate')
+    expect(read(e, 'source/vendor/vend.brs')).not.toMatch(/BT_url/)
+  })
+  it('handles built-in Scene subtypes and reports unknown Scene-like roots', () => {
+    expect(SCENE_BUILTINS).toEqual(['scene', 'overhangpanelsetscene'])
+    expect(e.result.bootstrapped.map((x) => x.file)).toContain('components/theme.brs')
+    expect(e.result.skipped.find((x) => x.kind === 'unknown-scene-subtype')).toMatchObject({ file: 'components/OddScn.xml' })
+  })
+  it('the CDATA Scene in the main fixture is reported in skipped[] too', () => {
+    expect(inst.result.skipped.find((x) => x.kind === 'inline-cdata-scene')).toMatchObject({ file: 'components/InlineScn.xml' })
+  })
+  it('records which init statements were bootstrapped and which components got BT_op', () => {
+    expect(inst.result.bootstrapped.map((x) => x.file).sort()).toEqual(['components/base.brs', 'components/derived.brs'])
+    expect(inst.result.opInjected).toContain('ChainA')
+    expect(inst.result.opInjected).not.toContain('ChainB')
+  })
+  it('two Scenes sharing one init script prefix it once; the runtime guard makes it run once', () => {
+    const shared = read(e, 'components/shared.brs')
+    expect((shared.match(/BT_bootstrap\(m\.top\)/g) || []).length).toBe(1)
+    expect(e.result.bootstrapped.filter((x) => x.file === 'components/shared.brs')).toHaveLength(1)
+    expect(RUNTIME_SRC).toMatch(/if top\.hasField\("__bt_boot"\) then return/)
+    expect(RUNTIME_SRC).toMatch(/if not top\.isSubtype\("Scene"\) then return/)
+  })
+})
+
+describe('item 6: reserved runtime names', () => {
+  it.each(['BT_url', 'bt_UNURL', 'BT_bootstrap'])('fails the build when the user defines %s', async (name) => {
+    const dir = path.join(tmp, 'clash-' + name)
+    fs.cpSync(fixture, dir, { recursive: true })
+    fs.appendFileSync(path.join(dir, 'source/main.brs'), `\nfunction ${name}(a as dynamic) as dynamic\n    return a\nend function\n`)
+    const b = await build(dir, path.join(tmp, 'clash-out-' + name), [pluginPath])
+    expect(b.errors.some((e) => e.code === 'BT9001' && /is reserved/.test(e.message))).toBe(true)
+  })
+  it('does not flag an excluded file that defines a runtime name', async () => {
+    const dir = path.join(tmp, 'clash-excl')
+    fs.cpSync(fixture, dir, { recursive: true })
+    fs.appendFileSync(path.join(dir, 'source/vendor/vend.brs'), '\nfunction BT_url(a as dynamic) as dynamic\n    return a\nend function\n')
+    const b = await build(dir, path.join(tmp, 'clash-excl-out'), [pluginPath])
+    expect(b.errors.some((e) => e.code === 'BT9001')).toBe(false)
+  })
+})
+
+describe('item 8: one plugin instance per program', () => {
+  it('a second beforeProgramValidate on the same program does not add a script twice', async () => {
+    const plugin = createPlugin()
+    const b = await build(fixture, path.join(tmp, 'twice'), [], {}, [plugin])
+    const before = fs.readFileSync(path.join(b.staging, 'components/ChainA.xml'), 'utf8')
+    plugin.beforeProgramValidate(b.pb.program)
+    const runtimeTags = Object.values(b.pb.program.files).find((f) => f.componentName && f.componentName.text === 'ChainA')
+      .scriptTagImports.filter((i) => i.pkgPath === RUNTIME_PKG)
+    expect(runtimeTags).toHaveLength(1)
+    expect((before.match(/BT_runtime\.brs/g) || []).length).toBe(1)
+  })
+  it('two factory instances keep separate results', async () => {
+    const a = createPlugin(); const c = createPlugin()
+    await build(fixture, path.join(tmp, 'sep-a'), [], {}, [a])
+    expect(a.getResult().stats.setUrl).toBe(2)
+    expect(c.getResult().stats.setUrl).toBe(0)
+  })
+})
+
+describe('item 10: private API feature detection', () => {
+  it('reports nothing on the resolved brighterscript', () => {
+    expect(missingPrivateApis()).toEqual([])
+    const xml = Object.values(inst.pb.program.files).find((f) => f.componentName)
+    expect(missingPrivateApis(xml)).toEqual([])
+  })
+  it('names the missing API', () => {
+    expect(missingPrivateApis({ parser: { references: {} }, ast: { component: {} } })).toEqual(expect.arrayContaining([
+      'XmlFile#attachDependencyGraph', 'XmlFile#parser.references.scriptTagImports', 'XmlFile#ast.component.scripts',
+    ]))
+  })
+})
+
