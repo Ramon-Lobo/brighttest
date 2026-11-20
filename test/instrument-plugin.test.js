@@ -15,6 +15,7 @@ const {
 const fixture = path.resolve(__dirname, 'fixtures/instrument-plugin/app')
 const edge = path.resolve(__dirname, 'fixtures/instrument-plugin/edge')
 const shapes = path.resolve(__dirname, 'fixtures/instrument-plugin/shapes')
+const share = path.resolve(__dirname, 'fixtures/instrument-plugin/share')
 const breakRewrite = path.resolve(__dirname, 'fixtures/instrument-plugin/break-rewrite.js')
 const rooibosStub = path.resolve(__dirname, 'fixtures/instrument-plugin/rooibos-stub.js')
 const rooibosPlugin = require.resolve('@ramonlobo/rooibos-roku/dist/plugin.js')
@@ -455,6 +456,19 @@ describe('TP-INS-22 (F1): bootstrap on the signature line for every kind of firs
   })
   it('does not verify, nor fail on, files the plugin did not rewrite', () => {
     expect(inst.result.invalid).toEqual([])
+  })
+})
+
+describe('TP-INS-24 (F3): init in an excluded file', () => {
+  const opts = { instrument: { exclude: ['components/vendorui/**'] } }
+  it('never synthesizes a second init and reports init-in-excluded-file', async () => {
+    const b = await build(share, path.join(tmp, 'share-f3'), [pluginPath], opts)
+    expect(b.errors.map((x) => `${x.code} ${x.message}`)).toEqual([])
+    expect(b.result.skipped.find((x) => x.kind === 'init-in-excluded-file')).toMatchObject({ file: 'source/vendor/exinit.brs', line: 1 })
+    expect(b.result.skipped.find((x) => x.kind === 'init-in-excluded-file').reason).toMatch(/ExInitScn/)
+    expect(b.result.synthesized).not.toContain('ExInitScn')
+    expect(fs.existsSync(path.join(b.staging, 'components/bt/BT_init_ExInitScn.brs'))).toBe(false)
+    expect(read(b, 'source/vendor/exinit.brs')).toBe(fs.readFileSync(path.join(share, 'source/vendor/exinit.brs'), 'utf8'))
   })
 })
 
