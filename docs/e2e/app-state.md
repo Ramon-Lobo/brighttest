@@ -46,8 +46,9 @@ end sub
 ```
 
 `BTState_scalars(node)` collects a node's scalar fields (string/number/boolean) into a plain map, so you
-can dump "all globals" without hand-listing each one. Keep snapshots compact — very large `text` can be
-truncated by the device's sgnodes serializer.
+can dump "all globals" without hand-listing each one. Keep snapshots compact: a hidden Label's `text` was read back intact up to 256 KB on
+firmware 16.0.4 (a Roku Ultra), but the read gets slower as it grows (about 27 ms at 1 KB, 850 ms at 256 KB).
+Sizes above 256 KB were not tested, so treat that as the practical ceiling. Other models and firmware may differ.
 
 ## Reading it
 

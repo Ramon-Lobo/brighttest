@@ -69,7 +69,7 @@ if a custom keyboard ignores `Lit_`; not needed here.
 ## Key constraints discovered (shape the design)
 
 1. **`sgnodes` only works while a channel is running.** On the Roku home screen it returns
-   `FAILED: Channel not running: active UI`.
+   `FAILED: Channel not running` (older firmware appended `: active UI`; the exact tail on 16.0.4 was not captured). Match on the `Channel not running` prefix. Other endpoints (`active-app`, `device-info`) still answer on the home screen.
 2. **`sgnodes` is an RPC on the app's render thread and times out when that thread is busy** — we hit
    `query-sgnodes command exception: Plugin RPC event timed out` repeatedly while the channel was busy.
    The runner must **retry with backoff** and **wait for the UI to settle** after each action. The current
@@ -97,7 +97,7 @@ path-finding, a deterministic flow format, and getting test IDs onto components.
 
 ## Device verification batch 2026-11-19 — Roku Ultra 4850CA, firmware 16.0.4 (build 853)
 
-**Verified on device (fw 16.0.4, 2026-11-19).** Full table, repro and raw data: `design/research/2026-11-19-device-verification.md` and `design/research/device-verification/`.
+**Verified on device (fw 16.0.4, 2026-11-19).** Raw data and repro were kept in the owner's local planning folder, not in this repo.
 
 - brighttest lanes pass: `--device` 13/13, `--cross-check` 13 agree / 0 divergent, e2e `search` and `play-a-title` 3/3 each. Studio overlay math matches a screenshot.
 - `/query/app-ui` has the same nodes/bounds/text/names as `sgnodes/all`; it omits plain `Node` children and `_sn,_psn,osref,bscref,thread`, adds `index`, wraps in `<topscreen><screen type="SGScreen">`. When the app thread is blocked it returns HTTP 200 with `<error>Internal error</error>`; sgnodes returns `FAILED ... Plugin RPC event timed out` after ~7 s.

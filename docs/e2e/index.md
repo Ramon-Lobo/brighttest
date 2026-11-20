@@ -56,6 +56,27 @@ npx brighttest e2e run flows/home.e2e.yaml --host <roku-ip> --password <dev-pw>
 Output is the same grouped ✓/✗ view as the other lanes, with expected-vs-actual detail and a line number
 on failure. Exit code is `0` on success, `1` on a failed step, `2` on a usage/preflight error — CI-ready.
 
+## Studio
+
+`brighttest studio --host <roku-ip>` opens a local web app (default `http://localhost:8700`) that mirrors a
+running Roku. Its pages:
+
+- **Inspect** — live screenshot with a node overlay, and Node / Tree / Selector / State tabs next to a
+  remote pad (D-pad, Select, Back, Home, text).
+- **Runs** — run flows on the device and step through a time-travel trace of each run.
+- **Record** — capture remote presses and assertions into a flow; flows are read from and written to
+  `--flows-dir` (default `./flows`).
+- **Devices** — discover and switch Roku devices.
+- **Profile** — performance sessions with markers, exportable as a Perfetto trace; `.bsprof` files can be imported.
+- **Settings**
+
+The server is meant for the local machine only. It answers only requests whose `Host` is `localhost`,
+`127.0.0.1` or `[::1]`, refuses cross-site browser requests and any `Origin` that is not loopback on the
+Studio port (HTTP 403), and accepts non-GET requests only with `Content-Type: application/json`
+(HTTP 415 otherwise). The one exception is `POST /api/perf/bsprof`, which also accepts
+`application/octet-stream` for `.bsprof` import. Scripts that call the API must send those headers;
+reaching Studio through a LAN hostname or a reverse proxy will be refused.
+
 ## Where to go next
 
 - **[Flow reference](/e2e/flows)** — the flow file format, every step, selectors, focus navigation, text entry.
