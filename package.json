@@ -34,6 +34,7 @@
     "test:unit": "vitest run",
     "test:integration": "vitest run --config vitest.integration.config.mjs",
     "test:watch": "vitest",
+    "check:denylist": "node scripts/check-denylist.js",
     "skills:manifest": "node scripts/gen-skills-manifest.js",
     "studio:dev": "npm --prefix lib/studio/web install && npm --prefix lib/studio/web run dev",
     "studio:build": "npm --prefix lib/studio/web install && npm --prefix lib/studio/web run build",

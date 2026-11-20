@@ -23,7 +23,7 @@ brighttest/
 └── package.json             # deps: @ramonlobo/brs-node, @ramonlobo/rooibos-roku, brighterscript
 ```
 
-Only `bin`, `lib`, `brs`, `skills`, `README.md`, `LICENSE` (+ `patches`) are in the `files` array, so
+Only `bin`, `brs`, `skills`, `lib/*.js`, `lib/e2e`, `lib/studio/*.js`, `lib/studio/public`, `README.md` and `LICENSE` are in the `files` array (`test/package-files.test.js` checks that every relative `require` under `bin/` and `lib/` is in the pack), so
 `docs/`, `experiments/`, `design/`, `examples/`, and `test/` **do not ship to npm** — they're repo-only.
 
 ## Delivery model
@@ -367,6 +367,26 @@ If the patch ever needs to be backed out, here are the fallbacks, in order of pr
 - **Option C — accept device-only node tests.** The pre-patch behavior: skip `@SGNode` in `--coverage`,
   run them only on `--device`. `config.js` used to exclude node specs from the headless-coverage build via
   `findNodeSpecs()` negation globs — that's the code to restore. Simplest, but loses headless node testing.
+
+## Deny-list check (`scripts/check-denylist.js`)
+
+Guards against client references, secrets and identifiers reaching git history or pack reports. The term
+list is **never in the repository**: put one term per line (`#` comments allowed) in a file outside the
+checkout and point `BRIGHTTEST_DENYLIST` at it (default `~/.brighttest/denylist.txt`). Matching is
+case-insensitive and word-ish (a term inside a longer alphanumeric word does not match); hits inside long
+hash-like tokens (integrity hashes) are ignored. Output is `file:line  kind  masked-term`, never the term.
+
+```sh
+npm run check:denylist                          # tracked files
+npm run check:denylist -- --staged              # added lines of the staged diff
+npm run check:denylist -- --range origin/main..HEAD   # commit messages + diffs of a push range
+npm run check:denylist -- --path <dir-or-file>  # arbitrary paths (pack reports, unpacked tarballs)
+npm run check:denylist -- --json                # machine-readable
+```
+
+Exit codes: `0` clean, `1` hits, `2` configuration error. It fails closed: a missing list, an empty
+list, or a list that git tracks is exit 2 (`--allow-missing` downgrades only the missing case to a
+warning). Run it with `--range` before every push.
 
 ## Docs site
 
