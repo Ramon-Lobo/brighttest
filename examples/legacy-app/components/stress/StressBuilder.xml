@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="StressBuilder" extends="Group">
+  <interface>
+    <function name="growGlobal" />
+    <function name="buildTree" />
+  </interface>
+  <script type="text/brightscript" uri="StressBuilder.brs" />
+</component>

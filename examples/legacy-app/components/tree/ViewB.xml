@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="ViewB" extends="ViewA">
+  <children>
+    <Label id="viewbLabel" text="ViewB" />
+  </children>
+</component>

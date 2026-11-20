@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="Widget39" extends="Group">
+  <interface>
+    <field id="text" type="string" value="" onChange="onText" />
+  </interface>
+  <script type="text/brightscript" uri="Widget39.brs" />
+  <children>
+    <Label id="label39" />
+  </children>
+</component>

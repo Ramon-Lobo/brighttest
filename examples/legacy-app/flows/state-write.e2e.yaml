@@ -1,0 +1,7 @@
+# Pressing Play writes m.global.user.tier and dispatches a store action.
+appId: dev
+config: { timeout: 8 }
+steps:
+  - launch
+  - press: Play
+  - assertText: { id: tierLabel, equals: "Tier: premium" }

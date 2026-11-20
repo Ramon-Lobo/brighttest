@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="LegacyStore" extends="Node">
+  <interface>
+    <field id="state" type="assocarray" />
+    <field id="actionCount" type="integer" value="0" />
+    <function name="handleAction" />
+    <function name="dispatchAction" />
+    <function name="resetHome" />
+  </interface>
+  <script type="text/brightscript" uri="LegacyStore.brs" />
+</component>
