@@ -50,6 +50,18 @@ fleet — ECP navigation itself needs no auth, but the screenshot endpoint does:
 npx brighttest e2e run flows/ --host 10.0.0.5:Test1234,10.0.0.6:0000 --screenshots-mode all
 ```
 
+## Non-default ECP port
+
+A Roku serves ECP on port 8060. To target a stub or fake on another port (for example a loopback fake on
+`127.0.0.1`), pass `--ecp-port <n>` or set `ROKU_ECP_PORT` (the flag wins; default 8060). It is separate from
+`--host`, whose `ip:pw` syntax is unchanged, and applies to every host in the run. The installer port is
+not affected.
+
+```bash
+npx brighttest e2e run flows/ --host 127.0.0.1 --ecp-port 18060
+ROKU_ECP_PORT=18060 npx brighttest e2e inspect --host 127.0.0.1
+```
+
 Screenshots and videos are written under a per-device subfolder (`<dir>/<host>/…`) so parallel devices
 never clobber each other.
 
