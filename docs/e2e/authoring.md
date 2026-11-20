@@ -6,7 +6,8 @@ Three tools help you go from a running app to a working flow: `inspect` (see the
 ## `inspect` — see the live tree
 
 Dumps a readable summary of what's on screen: node counts by subtype, the ids present (as `name=`), the
-focused node, and sample text. Use it to discover what to target.
+focused node, and sample text. Use it to discover what to target. Note that a node created as `Group`
+is listed as `RenderableNode`, so use the subtype names `inspect` actually prints.
 
 ```bash
 npx brighttest e2e inspect --host <roku-ip> --app dev

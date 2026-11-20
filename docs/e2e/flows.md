@@ -69,6 +69,12 @@ built-in **`id`**. If your app has none, use `text`/`subtype`, or auto-inject id
 [Authoring flows](/e2e/authoring).
 :::
 
+::: tip `Group` shows up as `RenderableNode`
+A node created as `Group` is dumped by `sgnodes` with the subtype `RenderableNode` (seen on firmware
+16.0.4), so `{ subtype: Group }` will not match. Select by `id` or `text` instead. Custom fields stay
+invisible there too (re-confirmed on 16.0.4).
+:::
+
 Stability preference: `id` → `text`/`subtype`. Prefer ids for anything you assert on repeatedly.
 
 ## Asserting arbitrary node fields

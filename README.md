@@ -207,6 +207,8 @@ All optional — sensible defaults apply. Drop a `brighttest.json` at your proje
   the request/response logic of Task/API code, tested as pure functions (brighttest does not mock HTTP).
 - **End-to-end UI** — the [`brighttest e2e`](docs/e2e/index.md) lane drives the full app through the
   remote (launch, D-pad navigation, text entry) and asserts on the live screen, on real hardware.
+  `brighttest studio` adds a local web app to inspect the live tree, drive the remote, author, run and
+  record flows, and profile on a device.
 
 ## How it works
 
