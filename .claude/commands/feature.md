@@ -9,4 +9,4 @@ Run the full team workflow for: $ARGUMENTS
 3. **GATE** — present the design summary and decisions needed. Wait for my explicit approval or edits. Do not proceed without it. On approval set the design status to `Approved`.
 4. **Implement** — launch `developer` task by task (on a feature branch). Relay any design gaps back to `architect` instead of letting the developer improvise.
 5. **Review** — launch `reviewer` on the diff (and `device-qa` if the change touches device/e2e/Studio and a Roku is available); fix confirmed findings via `developer`.
-6. **Wrap-up** — update `design/ROADMAP.md`; report results, unverified device-only items (with commands), and a suggested Conventional Commit/PR description. Don't commit or push unless I ask.
+6. **Wrap-up** — update `<planning>/design/ROADMAP.md`; report results, unverified device-only items (with commands), and a suggested Conventional Commit/PR description. Don't commit or push unless I ask.

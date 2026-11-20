@@ -266,8 +266,8 @@ and the positional-subcommand pattern already added for `skills`/`init`.
 ## Open questions
 
 - **First milestone scope:** Phase 1 against one real flow + `e2e inspect`, then iterate.
-- **Real-app `id` coverage:** re-audit the actual CBS build for `name=` (i.e. set `id`s) — the old "0 ids"
-  was a grep artifact — to gauge how much manual `id` annotation Phase 1 needs before flows are stable.
+- **`id` coverage in brownfield apps:** use the legacy-style fixture app (`examples/legacy-app/`, BACKLOG FIX-02) and
+  `e2e inspect` on any app the user owns to gauge how much manual `id` annotation Phase 1 needs before flows are stable.
 - _(Resolved, probe 3)_ **Text entry:** keyboard-less `Lit_` injection lands text in a real `Keyboard`
   on fw 15.2.4 (spaces + Backspace included) — the `text` step suffices; no `typeOnKeyboard` fallback
   needed unless a custom keyboard ignores `Lit_`.

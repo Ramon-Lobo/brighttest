@@ -27,5 +27,10 @@ Final report (concise):
 - Commands run + results (paste failures verbatim)
 - **Not verified** — especially anything needing a real Roku device; give the exact command for the human to run
 - Follow-ups or deviations from the design
+- If the task is gated by a hand-off test pack (`<planning>/design/test-packs/`, see the task's row in `<planning>/design/BACKLOG.md`): the
+  non-device cases of that pack that gate your task pass on your branch, and you list their IDs and results. The task is
+  not done until a pack run's filled report is returned (`<planning>/design/test-packs/HANDOFF.md`).
+- No client references (CLAUDE.md rule 8): use only the generic fixture apps (`examples/greenfield-app/`,
+  `examples/legacy-app/`, `test/fixtures/fake-origin/`, `test/fixtures/fake-roku/`).
 
 Do not commit, push, or publish unless explicitly told; suggest a Conventional Commit message instead.

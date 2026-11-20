@@ -199,7 +199,7 @@ simulator) render the app faster than the ~1fps screenshot mirror?
 - The interactive slowness is already solved without it (tree ~15ms; sub-second reflection). The remaining
   ~1.1s screenshot cost is off the interactive path and is better addressed by Digest-session reuse.
 - brs-engine's fidelity gap (custom components, animations) makes it unsuitable as a faithful render of a
-  real CBS-scale SceneGraph app today.
+  large production SceneGraph app today.
 - **Where it could fit later:** an optional **device-less preview/authoring mode** (M-parked) — run *your*
   app in-browser at native frame rate for authoring without hardware — but only once its SceneGraph support
   matures and only for apps within its supported node set. Track the `scenegraph` branch; revisit then.

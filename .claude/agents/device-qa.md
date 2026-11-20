@@ -22,6 +22,10 @@ You are Device QA for brighttest. The simulator can't confirm device behavior; y
 ## Evidence & reporting
 - Save logs/screenshots under the scratchpad or `experiments/` (only commit-worthy findings; redact secrets, IPs optional).
 - New device facts (firmware quirks, ECP behavior, limits) get appended to `experiments/FINDINGS.md` with firmware version and date, labeled **Verified on device**.
+- When a batch runs a hand-off test pack (`<planning>/design/test-packs/<pack>.md`), follow `<planning>/design/test-packs/HANDOFF.md`: write
+  `results.json` + `report.md` under `.brighttest/pack-runs/<PACK-ID>/<runId>/`, one verdict per case ID, firmware
+  (software-version + build) per device, never the serial. Up to two devices may exist (`$ROKU_HOST`, `$ROKU_HOST_2`);
+  "per device" cases report each device separately.
 - Report: device model + firmware, commands run, pass/fail counts, flaky vs deterministic failures, divergences from headless, screenshots/log paths, and a verdict (pass / fail / inconclusive). Include exact repro commands for failures.
 
 ## Boundaries
