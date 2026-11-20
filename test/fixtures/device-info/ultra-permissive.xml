@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<device-info>
+	<udn>REDACTED</udn>
+	<serial-number>REDACTED</serial-number>
+	<model-name>Ultra</model-name>
+	<is-tv>false</is-tv>
+	<is-stick>false</is-stick>
+	<ui-resolution>1080p</ui-resolution>
+	<wifi-mac>REDACTED</wifi-mac>
+	<software-version>16.0.4</software-version>
+	<software-build>853</software-build>
+	<ecp-setting-mode>permissive</ecp-setting-mode>
+	<developer-enabled>true</developer-enabled>
+	<keyed-developer-id />
+	<brightscript-debugger-version>3.5.0</brightscript-debugger-version>
+</device-info>
