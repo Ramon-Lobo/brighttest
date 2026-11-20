@@ -9,23 +9,23 @@ const IP = '192.0.2.10';
 const XML = '<?xml version="1.0" encoding="UTF-8" ?>\n';
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-function deviceInfo({ limited = false, developerEnabled = true } = {}) {
+function deviceInfo({ limited = false, developerEnabled = true, softwareVersion = '16.0.4', softwareBuild = '853', modelName = 'Ultra', modelNumber = '0000XX' } = {}) {
   return XML + `<device-info>
 	<udn>${UDN}</udn>
 	<serial-number>${SERIAL}</serial-number>
 	<device-id>${DEVICE_ID}</device-id>
 	<advertising-id>FAKE-ADVERTISING-ID</advertising-id>
 	<vendor-name>Fake</vendor-name>
-	<model-name>Ultra</model-name>
-	<model-number>0000XX</model-number>
+	<model-name>${modelName}</model-name>
+	<model-number>${modelNumber}</model-number>
 	<is-tv>false</is-tv>
 	<ui-resolution>1080p</ui-resolution>
 	<wifi-mac>00:00:5E:00:53:01</wifi-mac>
 	<network-type>ethernet</network-type>
 	<friendly-device-name>Fake Roku</friendly-device-name>
-	<default-device-name>Ultra - ${SERIAL}</default-device-name>
-	<software-version>16.0.4</software-version>
-	<software-build>853</software-build>
+	<default-device-name>${modelName} - ${SERIAL}</default-device-name>
+	<software-version>${softwareVersion}</software-version>
+	<software-build>${softwareBuild}</software-build>
 	<ecp-setting-mode>${limited ? 'limited' : 'permissive'}</ecp-setting-mode>
 	<language>en</language>
 	<country>US</country>
@@ -55,7 +55,7 @@ function apps() {
 }
 
 // A node model: { sn, type, attrs, children }. Rendered recursively.
-function buildTree(kind, agentText) {
+function buildTree(kind, agentText, { focusIndex = 0, lateNode = null } = {}) {
   let sn = 0;
   const mk = (type, attrs = {}, children = []) => ({ sn: ++sn, type, attrs, children });
   if (kind === 'facade') return mk('OsdOverlay', { name: 'osd', bounds: '{0, 0, 1920, 1080}' });
@@ -82,6 +82,14 @@ function buildTree(kind, agentText) {
       }
       qi++;
     }
+  } else if (kind === 'grid') {
+    // Focusable grid: 3 columns x 2 rows, ids item1..item6; the focused item carries focused="true".
+    const items = [];
+    for (let i = 0; i < 6; i++) {
+      const x = 100 + (i % 3) * 300, y = 100 + Math.floor(i / 3) * 200;
+      items.push(mk('Poster', { name: `item${i + 1}`, focused: String(i === focusIndex), bounds: `{${x}, ${y}, 250, 150}` }));
+    }
+    scene.children.push(mk('MarkupGrid', { name: 'grid', focused: 'false', bounds: '{100, 100, 900, 350}' }, items));
   } else {
     const home = mk('Group', { name: 'home', focused: 'false' }, [
       mk('Label', { name: 'title', text: 'Home' }),
@@ -89,6 +97,7 @@ function buildTree(kind, agentText) {
     ]);
     scene.children.push(home);
   }
+  if (lateNode) scene.children.push(mk('Label', { name: lateNode, text: 'late' }));
   return scene;
 }
 
@@ -136,7 +145,34 @@ const SGPERF_REPORT = [
 
 const CHANPERF = 'channel: mem=28460KiB{anon=7288,file=20992,shared=180,swap=0},%cpu=0{user=0,sys=0}';
 
-const CONSOLE_BANNER = `${SERIAL} (Roku Ultra - 16.0.4.853)\r\n>`;
+const consoleBanner = ({ modelName = 'Ultra', softwareVersion = '16.0.4', softwareBuild = '853' } = {}) =>
+  `${SERIAL} (Roku ${modelName} - ${softwareVersion}.${softwareBuild})\r\n>`;
+const CONSOLE_BANNER = consoleBanner();
+
+// Scripted Rooibos run output (the markers lib/reporter.js parses). kind: 'pass' | 'fail'.
+function rooibosTranscript(kind) {
+  const fail = kind === 'fail';
+  const lines = [
+    '[Rooibos Result]: starting fake run',
+    '> SUITE: FakeSuite >>>>>>>>>>>>>>>>>>>>',
+    '  Location: file://pkg:/source/tests/FakeSuite.spec.bs:3',
+    '>>>> It: adds numbers',
+    '<<<< END It: adds numbers (PASS)',
+    '  Location: file://pkg:/source/tests/FakeSuite.spec.bs:9',
+    '>>>> It: subtracts numbers',
+    `<<<< END It: subtracts numbers (${fail ? 'FAIL' : 'PASS'})`,
+    '[START TEST REPORT]',
+    '|--FakeSuite : ....... ' + (fail ? 'FAIL' : 'PASS'),
+    '|  |--adds numbers : ....... PASS',
+    '|  |--subtracts numbers : ....... ' + (fail ? 'FAIL' : 'PASS'),
+  ];
+  if (fail) lines.push('|  |    Error Message: Expected 3 but got 4');
+  lines.push(
+    '  Total: 2', `  Passed: ${fail ? 1 : 2}`, '  Crashed: 0', `  Failed: ${fail ? 1 : 0}`, '  Ignored: 0',
+    `  RESULT: ${fail ? 'Fail' : 'Success'}`, '[END TEST REPORT]', `[Rooibos Result]: ${fail ? 'FAIL' : 'PASS'}`
+  );
+  return lines;
+}
 
 const DEBUG_HISTORY = [
   '------ Compiling dev \'Fake Channel\' ------',
@@ -158,5 +194,5 @@ const DEBUG_CRASH = [
 
 module.exports = {
   SERIAL, DEVICE_ID, IP, deviceInfo, activeApp, apps, buildTree, sgnodesAll, sgnodesRoots, sgnodesNode,
-  sgnodesFailed, appUi, installPage, SGPERF_REPORT, CHANPERF, CONSOLE_BANNER, DEBUG_HISTORY, DEBUG_CRASH,
+  sgnodesFailed, appUi, installPage, SGPERF_REPORT, CHANPERF, CONSOLE_BANNER, consoleBanner, rooibosTranscript, DEBUG_HISTORY, DEBUG_CRASH,
 };

@@ -21,6 +21,13 @@
 //   deleteFails    true -> installer Delete returns a failure page
 //   screenshotOk   false -> installer answers "Screenshot not ok"
 //   screenshotFormat 'jpg' | 'png'
+//   softwareVersion/softwareBuild/modelName/modelNumber  device-info and console banner identity
+//   consoleLatencyMs  delay before each console (8080) write
+//   fault.path     scope a fault to one ECP path ('/keypress/Home') or prefix ('/keyup/*')
+//   rooibos        'pass'|'fail' -> Rooibos transcript on 8085 after a successful install
+//   tree 'grid'    focusable grid item1..item6, focus moves on arrow keys
+//   lateNodeMs/lateNodeId  a named node appears this long after launch
+//   installerMode  also 'http-500'
 //   bannerSplit    true -> console banner arrives in two TCP chunks
 const SCENARIOS = {
   healthy: {},
@@ -53,6 +60,15 @@ const SCENARIOS = {
   'debugger-crash': { debugOnConnect: 'crash' },
   'large-tree-3k': { tree: 'large-3k' },
   'large-tree-6k': { tree: 'large-6k' },
+  // FIX-06 additions.
+  'console-slow': { consoleLatencyMs: 700 },
+  'keypress-home-500': { fault: { mode: 'status', status: 500, path: '/keypress/Home' } },
+  'keyup-fails': { fault: { mode: 'status', status: 503, path: '/keyup/*' } },
+  'rooibos-pass': { rooibos: 'pass' },
+  'rooibos-fail': { rooibos: 'fail' },
+  'focus-grid': { tree: 'grid' },
+  'installer-500': { installerMode: 'http-500' },
+  'late-node': { lateNodeMs: 1500, lateNodeId: 'lateNode' },
 };
 
 module.exports = { SCENARIOS };

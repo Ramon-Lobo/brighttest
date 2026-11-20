@@ -24,7 +24,9 @@ const DEFAULTS = {
   fault: null, ecpMode: 'permissive', developerEnabled: true, unreachable: false, activeApp: 'dev',
   tree: 'small', sgnodes: 'ok', launchBounce: 0, launchStays: false, launch404Count: 0, crashAfterKeys: 0,
   debugOnConnect: 'history', liveLines: false, installerMode: 'ok', deleteFails: false, screenshotOk: true,
-  screenshotFormat: 'png', bannerSplit: false, devPassword: 'rokudev-test', coldStallMs: 7000,
+  screenshotFormat: 'png', bannerSplit: false,
+  softwareVersion: '16.0.4', softwareBuild: '853', modelName: 'Ultra', modelNumber: '0000XX', consoleLatencyMs: 0,
+  rooibos: null, lateNodeMs: 0, lateNodeId: 'lateNode', agentText: '', devPassword: 'rokudev-test', coldStallMs: 7000,
 };
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -47,7 +49,7 @@ function createFakeRoku(opts = {}) {
   const debugSockets = new Set();
   let inFlight = 0;
   const state = {
-    fault: cfg.fault, activeApp: cfg.activeApp, agentText: '', bounceLeft: 0, launchedAt: Date.now(),
+    fault: cfg.fault, activeApp: cfg.activeApp, agentText: cfg.agentText, focusIndex: 0, bounceLeft: 0, launchedAt: Date.now(),
     keyCount: 0, crashed: false, sideloaded: false, launch404Left: 0, installs: 0, deletes: 0, hadDelete: false,
     debugConnections: 0, perfRunning: false, target: 'dev',
   };
@@ -63,13 +65,37 @@ function createFakeRoku(opts = {}) {
     if (logFile) fs.appendFileSync(logFile, JSON.stringify(entry) + '\n');
   }
 
+  function connEvent(service, event) {
+    const now = Date.now();
+    const entry = { service, event, time: new Date(now).toISOString(), startMs: now, endMs: now };
+    log.push(entry);
+    if (logFile) fs.appendFileSync(logFile, JSON.stringify(entry) + '\n');
+  }
+
   function reply(res, status, body = '', headers = XML) {
     const buf = Buffer.isBuffer(body) ? body : Buffer.from(body);
     res.writeHead(status, { ...headers, 'Content-Length': buf.length });
     res.end(buf);
   }
 
-  const tree = () => B.buildTree(cfg.tree, state.agentText);
+  const fwInfo = () => ({ softwareVersion: cfg.softwareVersion, softwareBuild: cfg.softwareBuild, modelName: cfg.modelName, modelNumber: cfg.modelNumber });
+  const tree = () => B.buildTree(cfg.tree, state.agentText, {
+    focusIndex: state.focusIndex,
+    lateNode: cfg.lateNodeMs && Date.now() - state.launchedAt >= cfg.lateNodeMs ? cfg.lateNodeId : null,
+  });
+  // Path-scoped faults: `path` is exact ('/keypress/Home') or a prefix glob ('/keyup/*').
+  const pathMatches = (pat, p) => {
+    const want = pat.startsWith('/') ? pat : `/${pat}`;
+    return want.endsWith('*') ? p.startsWith(want.slice(0, -1)) : p === want;
+  };
+  const moveFocus = (key) => {
+    if (cfg.tree !== 'grid') return;
+    const i = state.focusIndex, col = i % 3;
+    if (key === 'Right' && col < 2) state.focusIndex = i + 1;
+    else if (key === 'Left' && col > 0) state.focusIndex = i - 1;
+    else if (key === 'Down' && i < 3) state.focusIndex = i + 3;
+    else if (key === 'Up' && i >= 3) state.focusIndex = i - 3;
+  };
 
   function crash() {
     state.crashed = true;
@@ -80,7 +106,7 @@ function createFakeRoku(opts = {}) {
   // ---------------- ECP ----------------
   async function ecp(req, res, url) {
     const p = url.pathname;
-    const f = state.fault;
+    const f = state.fault && (!state.fault.path || pathMatches(state.fault.path, p)) ? state.fault : null;
     if (f) {
       const first = !faulted.has(p);
       faulted.add(p);
@@ -94,7 +120,7 @@ function createFakeRoku(opts = {}) {
     if (cfg.ecpMode === 'limited' && !['/query/device-info', '/query/apps', '/query/active-app'].includes(p)) {
       return reply(res, 403, 'Forbidden: ECP is in limited mode', { 'Content-Type': 'text/plain' });
     }
-    if (p === '/query/device-info') return reply(res, 200, B.deviceInfo({ limited: cfg.ecpMode === 'limited', developerEnabled: cfg.developerEnabled }));
+    if (p === '/query/device-info') return reply(res, 200, B.deviceInfo({ limited: cfg.ecpMode === 'limited', developerEnabled: cfg.developerEnabled, ...fwInfo() }));
     if (p === '/query/apps') return reply(res, 200, B.apps());
     if (p === '/query/active-app') {
       if (state.bounceLeft > 0) { state.bounceLeft--; return reply(res, 200, B.activeApp('roku')); }
@@ -108,6 +134,7 @@ function createFakeRoku(opts = {}) {
       if (m[1] !== 'keyup') {
         state.keyCount++;
         if (key === 'Home') state.activeApp = 'roku';
+        else moveFocus(key);
         if (cfg.crashAfterKeys && !state.crashed && state.keyCount >= cfg.crashAfterKeys) crash();
       }
       return reply(res, 200);
@@ -175,16 +202,19 @@ function createFakeRoku(opts = {}) {
         state.deletes++;
         if (cfg.deleteFails) return reply(res, 200, B.installPage('Delete Failure: unable to remove application.'), HTML);
         state.hadDelete = true;
+        state.rooibosLines = null;
         installedArchiveBytes = 0;
         return reply(res, 200, B.installPage('Application Deleted.'), HTML);
       }
       state.installs++;
       const mode = cfg.installerMode;
+      if (mode === 'http-500') return reply(res, 500, 'Internal Server Error', { 'Content-Type': 'text/plain' });
       if (mode === 'page') return reply(res, 200, B.installPage('Fake installer page'), HTML);
       if (mode === 'compile-failure') return reply(res, 200, B.installPage('Install Failure: Compilation Failed.'), HTML);
       if (mode === 'transient-once' && !state.hadDelete) return reply(res, 200, B.installPage('Install Failure: Unable to install, please try again.'), HTML);
       installedArchiveBytes = body.length;
       state.sideloaded = true;
+      if (cfg.rooibos) { state.rooibosLines = B.rooibosTranscript(cfg.rooibos); for (const ds of debugSockets) ds.write(state.rooibosLines.join('\r\n') + '\r\n'); }
       state.launch404Left = cfg.launch404Count;
       return reply(res, 200, B.installPage('Install Success.'), HTML);
     }
@@ -224,22 +254,30 @@ function createFakeRoku(opts = {}) {
   // ---------------- 8080 console ----------------
   function consoleServer() {
     const server = net.createServer((s) => {
-      sockets.add(s); s.on('close', () => sockets.delete(s)); s.on('error', () => {});
+      sockets.add(s); s.on('error', () => {});
+      connEvent('console', 'connect');
+      s.on('close', () => { sockets.delete(s); connEvent('console', 'close'); });
+      const banner = B.consoleBanner(fwInfo());
+      const lag = () => (cfg.consoleLatencyMs ? sleep(cfg.consoleLatencyMs) : Promise.resolve());
+      const send = (t) => { if (!s.destroyed) s.write(t); };
       if (cfg.bannerSplit) {
-        const cut = Math.floor(B.CONSOLE_BANNER.length / 2);
-        s.write(B.CONSOLE_BANNER.slice(0, cut));
-        setTimeout(() => { if (!s.destroyed) s.write(B.CONSOLE_BANNER.slice(cut)); }, 30);
-      } else s.write(B.CONSOLE_BANNER);
+        const cut = Math.floor(banner.length / 2);
+        lag().then(() => { send(banner.slice(0, cut)); setTimeout(() => send(banner.slice(cut)), 30); });
+      } else lag().then(() => send(banner));
       let buf = '';
+      let chain = Promise.resolve();
       s.on('data', (d) => {
         buf += d.toString('latin1');
         let i;
         while ((i = buf.search(/\r?\n/)) >= 0) {
           const line = buf.slice(0, i).trim();
           buf = buf.slice(buf.indexOf('\n', i) + 1);
-          const out = consoleCommand(line);
-          if (out === null) return s.end();
-          s.write(`${out}${out ? '\r\n' : ''}>`);
+          chain = chain.then(lag).then(() => {
+            if (s.destroyed) return;
+            const out = consoleCommand(line);
+            if (out === null) return s.end();
+            send(`${out}${out ? '\r\n' : ''}>`);
+          });
         }
       });
     });
@@ -271,14 +309,17 @@ function createFakeRoku(opts = {}) {
   // ---------------- 8085 log / debug ----------------
   function debugServer() {
     return net.createServer((s) => {
-      sockets.add(s); s.on('close', () => { sockets.delete(s); debugSockets.delete(s); });
+      sockets.add(s);
+      s.on('close', () => { sockets.delete(s); debugSockets.delete(s); connEvent('debug', 'close'); });
       s.on('error', () => {});
+      connEvent('debug', 'connect');
       state.debugConnections++;
       debugSockets.add(s);
       const lines = cfg.debugOnConnect === 'crash' ? [...B.DEBUG_HISTORY, ...B.DEBUG_CRASH]
         : cfg.debugOnConnect === 'halted' ? [...B.DEBUG_HISTORY, 'Brightscript Debugger> ']
         : B.DEBUG_HISTORY;
       s.write(lines.join('\r\n') + (cfg.debugOnConnect === 'history' ? '\r\n' : ''));
+      if (state.rooibosLines) s.write((cfg.debugOnConnect === 'history' ? '' : '\r\n') + state.rooibosLines.join('\r\n') + '\r\n');
       if (cfg.liveLines) {
         let n = 0;
         const t = setInterval(() => { if (s.destroyed) clearInterval(t); else s.write(`FakeApp: live line ${++n}\r\n`); }, 100);
@@ -300,6 +341,8 @@ function createFakeRoku(opts = {}) {
     setFault(f) { state.fault = f; faulted.clear(); },
     setActiveApp(a) { state.activeApp = a; },
     setAgentText(t) { state.agentText = String(t); },
+    // Raw write with no line ending (partial lines).
+    emitDebugRaw(text) { for (const s of debugSockets) s.write(String(text)); },
     emitDebug(line) { for (const s of debugSockets) s.write(line + '\r\n'); },
     async start() {
       servers.ecp = httpServer('ecp', ecp);
@@ -333,13 +376,31 @@ function createFakeRoku(opts = {}) {
   };
 }
 
+const VALUE_FLAGS = {
+  '--scenario': ['scenario'], '--host': ['host'], '--log': ['logFile'],
+  '--ecp-port': ['ecpPort', Number], '--installer-port': ['installerPort', Number],
+  '--console-port': ['consolePort', Number], '--debug-port': ['debugPort', Number],
+  '--software-version': ['softwareVersion'], '--software-build': ['softwareBuild'], '--model': ['modelName'],
+  '--console-latency-ms': ['consoleLatencyMs', Number], '--installer-mode': ['installerMode'],
+  '--screenshot-format': ['screenshotFormat'], '--rooibos': ['rooibos'],
+  '--fault-path': ['faultPath'], '--fault-status': ['faultStatus', Number],
+  '--agent-text': ['agentTextFile'],
+};
+const BOOL_FLAGS = { '--delete-fails': ['deleteFails', true], '--screenshot-not-ok': ['screenshotOk', false], '--banner-split': ['bannerSplit', true] };
+
 function parseArgs(argv) {
   const o = {};
-  const map = { '--scenario': 'scenario', '--host': 'host', '--log': 'logFile', '--ecp-port': 'ecpPort', '--installer-port': 'installerPort', '--console-port': 'consolePort', '--debug-port': 'debugPort' };
   for (let i = 0; i < argv.length; i++) {
-    if (argv[i] === '--list') o.list = true;
-    else if (map[argv[i]]) { const v = argv[++i]; o[map[argv[i - 1]]] = /Port$/.test(map[argv[i - 1]]) ? Number(v) : v; }
+    const a = argv[i];
+    if (a === '--list') o.list = true;
+    else if (BOOL_FLAGS[a]) o[BOOL_FLAGS[a][0]] = BOOL_FLAGS[a][1];
+    else if (VALUE_FLAGS[a]) { const [k, conv] = VALUE_FLAGS[a]; const v = argv[++i]; o[k] = conv ? conv(v) : v; }
   }
+  // --fault-path [--fault-status N] -> a path-scoped status fault (default 500).
+  if (o.faultPath) o.fault = { mode: 'status', status: o.faultStatus || 500, path: o.faultPath };
+  delete o.faultPath; delete o.faultStatus;
+  if (o.agentTextFile) { o.agentText = fs.readFileSync(o.agentTextFile, 'utf8'); }
+  delete o.agentTextFile;
   return o;
 }
 
