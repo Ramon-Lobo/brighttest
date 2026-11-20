@@ -511,3 +511,29 @@ describe('TP-INS-23 (F2): rewritten script shared with an excluded component', (
   })
 })
 
+describe('TP-INS-25 (F4): rewritten files are re-emitted, the line shift is the documented one', () => {
+  let on; let off; let all
+  beforeAll(async () => {
+    off = await build(lineshift, path.join(tmp, 'ls-off'), [])
+    all = await build(lineshift, path.join(tmp, 'ls-all'), [forceTranspile])
+    on = await build(lineshift, path.join(tmp, 'ls-on'), [pluginPath])
+  })
+  const src = (f) => fs.readFileSync(path.join(lineshift, f), 'utf8')
+  const unrewrite = (s) => s.replace(/BT_url\(("[^"]*")\)/g, '$1')
+  const lineOf = (text, needle) => text.split('\n').findIndex((l) => l.includes(needle)) + 1
+
+  it('an unrewritten .brs file is byte-identical to the source', () => {
+    expect(read(on, 'source/plain.brs')).toBe(src('source/plain.brs'))
+  })
+  it('a rewritten file equals the plugin-off all-AST build line for line (modulo the BT_url wrapper)', () => {
+    expect(on.result.stats.setUrl).toBe(1)
+    expect(unrewrite(read(on, 'source/net.brs'))).toBe(read(all, 'source/net.brs'))
+  })
+  it('the shift against the source exists (a change that silently restores source lines must update the ADR)', () => {
+    const crashOn = lineOf(read(on, 'source/net.brs'), 'a.nope.deep')
+    expect(crashOn).toBe(lineOf(read(all, 'source/net.brs'), 'a.nope.deep'))
+    expect(crashOn).not.toBe(lineOf(src('source/net.brs'), 'a.nope.deep'))
+    expect(lines(read(on, 'source/net.brs'))).not.toBe(lines(src('source/net.brs')))
+    expect(read(off, 'source/net.brs')).toBe(src('source/net.brs')) // plugin off: copied verbatim
+  })
+})
