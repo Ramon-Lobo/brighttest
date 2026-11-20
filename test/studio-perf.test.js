@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
@@ -163,5 +163,42 @@ describe('texture inventory', () => {
   it('sorts the inventory by bytes descending', () => {
     const r = perf.parseR2d2(R2D2_NAMED);
     expect(r.bitmaps[0].bytes).toBeGreaterThan(r.bitmaps[1].bytes);
+  });
+});
+
+// ── cadence (BUG-B3): start-anchored schedule + measured interval ──────────────────────────────────
+
+describe('PerfSession cadence', () => {
+  afterEach(() => vi.useRealTimers());
+  const slowDevice = (ms) => ({
+    ecpGet: (path) => new Promise((r) => setTimeout(() => r({ text: path.includes('chanperf') ? CHANPERF : R2D2 }), ms)),
+  });
+
+  it('keeps samples on the start-anchored grid when calls take 700 ms and intervalMs is 1000', async () => {
+    vi.useFakeTimers();
+    const s = new perf.PerfSession(slowDevice(700), { intervalMs: 1000 }).start();
+    await vi.advanceTimersByTimeAsync(10_000);
+    s.stop();
+    const ts = s.samples.map((x) => x.t);
+    expect(ts.length).toBeGreaterThanOrEqual(9);
+    ts.forEach((t, i) => expect(Math.abs(t - i * 1000)).toBeLessThanOrEqual(100)); // not 1700 ms apart
+    expect(s.effectiveIntervalMs).toBe(1000);
+    expect(s.toJSON().effectiveIntervalMs).toBe(1000);
+  });
+
+  it('skips missed slots (no burst) and reports the real spacing when calls exceed the interval', async () => {
+    vi.useFakeTimers();
+    const s = new perf.PerfSession(slowDevice(1300), { intervalMs: 1000 }).start();
+    await vi.advanceTimersByTimeAsync(10_000);
+    s.stop();
+    const gaps = s.samples.slice(1).map((x, i) => x.t - s.samples[i].t);
+    expect(gaps.length).toBeGreaterThan(2);
+    gaps.forEach((g) => expect(g).toBe(2000)); // next free slot, never a catch-up burst
+    expect(s.effectiveIntervalMs).toBe(2000);  // honest: differs from the requested 1000
+    expect(s.intervalMs).toBe(1000);
+  });
+
+  it('effectiveIntervalMs is null with fewer than two samples', () => {
+    expect(new perf.PerfSession(slowDevice(1)).effectiveIntervalMs).toBeNull();
   });
 });
