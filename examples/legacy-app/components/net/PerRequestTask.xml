@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="PerRequestTask" extends="Task">
+  <interface>
+    <field id="kind" type="string" value="get" />
+    <field id="url" type="string" value="" />
+    <field id="summary" type="string" value="" />
+  </interface>
+  <script type="text/brightscript" uri="PerRequestTask.brs" />
+  <script type="text/brightscript" uri="pkg:/source/vendor/VendorClient.brs" />
+</component>
