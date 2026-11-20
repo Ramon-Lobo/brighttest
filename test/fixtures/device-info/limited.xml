@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<device-info>
+	<serial-number>X00000000000</serial-number>
+	<model-name>Express</model-name>
+	<is-tv>false</is-tv>
+	<is-stick>true</is-stick>
+	<video-mode>720p</video-mode>
+	<ui-resolution>1080p</ui-resolution>
+	<software-version>14.1.2</software-version>
+	<software-build>4200</software-build>
+	<ecp-setting-mode>limited</ecp-setting-mode>
+	<developer-enabled>false</developer-enabled>
+</device-info>

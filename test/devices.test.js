@@ -64,3 +64,29 @@ describe('saveCache atomicity (LSE-T1b)', () => {
     expect(() => saveCache({ devices: {}, lastHost: null })).not.toThrow()
   })
 })
+
+describe('parseDeviceInfo (ROB-03a)', () => {
+  const fx = (n) => fs.readFileSync(path.resolve(import.meta.dirname, 'fixtures/device-info', n), 'utf8')
+  it('parses a permissive, developer-enabled device', async () => {
+    const { parseDeviceInfo } = await import('../lib/devices.js')
+    expect(parseDeviceInfo(fx('ultra-permissive.xml'))).toEqual({
+      developerEnabled: true, ecpSettingMode: 'permissive', softwareVersion: '16.0.4', softwareBuild: '853',
+      brightscriptDebuggerVersion: '3.5.0', videoMode: '1080p', uiResolution: '1080p',
+      isTv: false, isStick: false, serial: 'REDACTED',
+    })
+  })
+  it('parses a Limited-mode stick; video-mode wins over ui-resolution', async () => {
+    const { parseDeviceInfo } = await import('../lib/devices.js')
+    expect(parseDeviceInfo(fx('limited.xml'))).toMatchObject({
+      developerEnabled: false, ecpSettingMode: 'limited', isStick: true, isTv: false,
+      videoMode: '720p', uiResolution: '1080p', brightscriptDebuggerVersion: null,
+    })
+  })
+  it('returns nulls and never throws on missing or bad input', async () => {
+    const { parseDeviceInfo } = await import('../lib/devices.js')
+    for (const x of ['', '<device-info/>', null, undefined, 42, '<<<']) {
+      const r = parseDeviceInfo(x)
+      expect(Object.values(r).every((v) => v === null)).toBe(true)
+    }
+  })
+})
