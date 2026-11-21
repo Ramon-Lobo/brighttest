@@ -41,6 +41,8 @@ error rather than being silently misparsed.
 | `screenshot: <name>` | Save a PNG/JPG artifact |
 | `back` / `home` | Convenience for `press: Back` / `press: Home` |
 
+**Launch readiness.** `launch` on the dev channel does not return on the first sgnodes answer: it waits until the dev channel is in front (`active-app`), sgnodes answers under a short client timeout (a slow or `FAILED` read counts as not-ready), two consecutive reads have the same focus signature, and no osd facade or root system dialog is on top. A Home reading is tolerated for a grace window after launch, then fails the launch; a 404/5xx on the launch request right after a sideload is treated as "maybe launched" and the same checks decide. All timing values live in one object (`READY_DEFAULTS` in `lib/e2e/ready.js`) and a flow can override them under `config:` with `readyTimeout`, `readyInterval`, `readySgnodesTimeout`, `readyHomeGrace` (milliseconds) and `readyStableReads`; `readyNode: <id>` additionally waits for that node to exist. The defaults are starting values pending device data, and the osd/dialog shapes are not yet confirmed on hardware.
+
 Assertions **poll** until satisfied or the step timeout elapses (`config.timeout`, `--timeout`, default
 10s), so you rarely need explicit waits — screens are given time to settle. Prefer `assertVisible`/`waitFor`
 over a fixed `wait`; reach for `wait: <ms>` only when a step must pause for a *fixed* duration with nothing
