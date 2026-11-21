@@ -47,10 +47,10 @@
   "dependencies": {
     "@ramonlobo/brs-node": "^2.2.0",
     "@ramonlobo/rooibos-roku": "^5.16.4",
-    "brighterscript": "^0.73.8"
+    "brighterscript": "^0.73.8",
+    "jszip": "3.10.1"
   },
   "devDependencies": {
-    "jszip": "3.10.1",
     "mermaid": "11.16.1",
     "vitepress": "1.6.4",
     "vitepress-plugin-mermaid": "2.0.17",
