@@ -115,6 +115,16 @@ describe('instrument build: success path', () => {
     expect(t.startsWith('#if BT_AGENT')).toBe(true)
   })
 
+  it('emits registrySections into BT_config, and nothing when none are configured (STA-S-T1b)', () => {
+    const t = renderBtConfig('0'.repeat(32), { state: { registrySections: ['prefs', ' auth ', '', 7] } })
+    expect(t).toContain('registrySections: ["prefs", "auth"]')
+    for (const inst of [undefined, {}, { state: {} }, { state: { registrySections: [] } }, { state: { registrySections: 'x' } }]) {
+      expect(renderBtConfig('0'.repeat(32), inst)).not.toContain('registrySections')
+    }
+    // byte-identical to the pre-registry output when no sections are set
+    expect(renderBtConfig('0'.repeat(32), { state: { caps: { depth: 3 } } })).toBe(renderBtConfig('0'.repeat(32), { state: { caps: { depth: 3 }, registrySections: [] } }))
+  })
+
   it('never passes deploy to bsc and keeps the instrument lane config clean', () => {
     const cfg = cfgFor(src(), 'lane')
     cfg.instrument = { strict: true, exclude: ['x/**'] }

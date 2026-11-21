@@ -208,7 +208,9 @@ describe('agent is read-only in v0', () => {
   it('no write path in the agent components or the serializer', () => {
     const src = ['source/bt/BT_core.brs', 'components/bt/BT_Agent.brs', 'components/bt/BT_AgentTask.brs']
       .map((f) => fs.readFileSync(path.join(RT, f), 'utf8')).join('\n')
-    expect(src).not.toMatch(/roRegistry|\.Flush\(|\.setField\(|\.update\(|\.callFunc\(|\.write\(|\.delete\(|roUrlTransfer/i)
+    // STA-S-T1b: the registry layer reads sections with roRegistrySection (GetKeyList/Read); every other registry class stays out
+    expect(src.replace(/roRegistrySection/g, '')).not.toMatch(/roRegistry/i)
+    expect(src).not.toMatch(/\.Flush\(|\.setField\(|\.update\(|\.callFunc\(|\.write\(|\.delete\(|roUrlTransfer/i)
     expect(src).not.toMatch(/m\.global\.[A-Za-z_]+\s*=/)
     expect(src).not.toMatch(/m\.global\.(add|set)Field/i)
   })

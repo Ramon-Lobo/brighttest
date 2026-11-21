@@ -186,7 +186,40 @@ function BT_fit(doc as object, maxBytes as integer) as string
     return json
 end function
 
-' The published document: {v, seq, instrumented, thread, renderMs, snapshot: {layers: {global, scene, focus}}, truncated}.
+' Registry layer (STA-S-T1b): the configured sections (cfg.registrySections) read as {section: {key: value}},
+' so assertState reaches a value with the dotted path "registry.<section>.<key>" (the reader splits paths on dots). A value that
+' parses as JSON is kept structured, anything else stays a string. Read-only (GetKeyList/Read only). No sections = invalid,
+' and the layer is then not published. Redaction and caps are applied by BT_serialize on the path "registry.<section>.<key>".
+function BT_registryRaw(cfg as dynamic) as dynamic
+    if type(cfg) <> "roAssociativeArray" or type(cfg.registrySections) <> "roArray" then return invalid
+    if cfg.registrySections.count() = 0 then return invalid
+    out = {}
+    for each name in cfg.registrySections
+        if type(name) = "String" or type(name) = "roString" then
+            sec = CreateObject("roRegistrySection", name)
+            if sec <> invalid then
+                out[name] = {}
+                keys = sec.GetKeyList()
+                if type(keys) = "roArray" or type(keys) = "roList" then
+                    for each k in keys
+                        raw = sec.Read(k)
+                        parsed = invalid
+                        ' only values shaped like JSON containers are parsed: ParseJson logs the offending text on failure
+                        if (type(raw) = "String" or type(raw) = "roString") and (Left(raw, 1) = "{" or Left(raw, 1) = "[") then parsed = ParseJson(raw)
+                        if parsed <> invalid then
+                            out[name][k] = parsed
+                        else
+                            out[name][k] = raw
+                        end if
+                    end for
+                end if
+            end if
+        end if
+    end for
+    return out
+end function
+
+' The published document: {v, seq, instrumented, thread, renderMs, snapshot: {layers: {global, scene, focus, registry?}}, truncated}.
 function BT_labelJson(seq as integer, globalNode as dynamic, scene as dynamic, cfg as dynamic, renderMs as integer) as string
     caps = BT_capsFrom(cfg)
     redact = invalid
@@ -196,6 +229,8 @@ function BT_labelJson(seq as integer, globalNode as dynamic, scene as dynamic, c
     layers["focus"] = BT_serialize(BT_focusChain(scene), caps, "focus", 0, trunc, redact)
     layers["global"] = BT_serialize(BT_nodeFields(globalNode), caps, "global", 0, trunc, redact)
     layers["scene"] = BT_serialize(BT_nodeFields(scene), caps, "scene", 0, trunc, redact)
+    reg = BT_registryRaw(cfg)
+    if reg <> invalid then layers["registry"] = BT_serialize(reg, caps, "registry", 0, trunc, redact)
     doc = { v: 1, seq: seq, instrumented: true, thread: "render", renderMs: renderMs, snapshot: { layers: layers }, truncated: trunc }
     return BT_fit(doc, BT_pubMaxBytes(cfg))
 end function
