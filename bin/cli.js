@@ -386,6 +386,8 @@ Options:
       --no-sgnode       Skip @SGNode node suites and use the faster SceneGraph-off driver.
                         (Node suites otherwise run headless by default.)
       --timeout <sec>   Watchdog timeout (headless 300s, device 900s by default)
+      Engines: env BRIGHTTEST_ENGINES=auto|patched|stock|<package> (or "engines" in brighttest.json)
+                        picks the brs-node/rooibos build; env wins over config. Default auto = patched.
       --host <ip>       Roku device IP (device mode)
       --password <pw>   Roku developer password (device mode)
       --lcov [path]     Write an LCOV report from the device run (device mode;
@@ -524,7 +526,13 @@ async function main() {
   else if (opts.coverage) { lane = require('../lib/coverage-headless'); label = 'headless coverage'; }
   else { lane = require('../lib/headless'); label = 'headless'; }
   console.log(`brighttest: ${label} lane\n`);
-  const code = await lane.run(cfg, opts);
+  let code;
+  try {
+    code = await lane.run(cfg, opts);
+  } catch (e) {
+    if (e && e.name === 'EngineError') { console.error(`[brighttest] ${e.message}`); process.exit(2); }
+    throw e;
+  }
   process.exit(code);
 }
 
