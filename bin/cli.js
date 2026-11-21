@@ -50,12 +50,17 @@ const DOCTOR_HELP = `
 brighttest doctor — check a Roku's capabilities and print the exact fix for anything wrong
 
 Usage: brighttest doctor [--host <ip>] [--ecp-port <n>] [--json] [--show-serial]
+       brighttest doctor --engines [--json]
+
+  --engines  Run the engine-caps probe with the resolved brs-node and print the capability table, the engine
+             flavor and the probe result. BRS-02 (Label.forceUpperCase) is shown as NON-DEVICE. Exit 1 when the
+             probe fails or disagrees with the package metadata. No device is contacted.
 
   Reads the device-info only (no password, no lease, no keypresses). Exit 0 when every check passes,
   1 when one fails or the device is unreachable, 2 on a usage error. The serial is hidden unless --show-serial.
 `;
 function parseDoctorArgs(rest) {
-  const o = { host: null, ecpPort: null, json: false, showSerial: false, help: false };
+  const o = { host: null, ecpPort: null, json: false, showSerial: false, engines: false, help: false };
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
     if (a === '--host') o.host = rest[++i];
@@ -64,6 +69,7 @@ function parseDoctorArgs(rest) {
     else if (a.startsWith('--ecp-port=')) o.ecpPort = a.slice(11);
     else if (a === '--json') o.json = true;
     else if (a === '--show-serial') o.showSerial = true;
+    else if (a === '--engines') o.engines = true;
     else if (a === '--help' || a === '-h') o.help = true;
   }
   return o;
@@ -93,13 +99,15 @@ function parseSkillsArgs(rest) {
 }
 
 // `brighttest instrument build [--out <zip>] [--strict|--no-strict] [--verbose] [--config <path>]`
-const INSTRUMENT_ACTIONS = ['build'];
+const INSTRUMENT_ACTIONS = ['build', 'verify', 'census'];
 function parseInstrumentArgs(rest) {
-  const o = { instrumentAction: null, out: null, strict: null, verbose: false, config: null, sideload: false, host: null, wait: null, max: null, expect: null, as: null, purpose: null, help: false, unknown: [] };
+  const o = { instrumentAction: null, out: null, strict: null, verbose: false, config: null, sideload: false, host: null, wait: null, max: null, expect: null, as: null, purpose: null, json: false, target: null, help: false, unknown: [] };
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
     if (i === 0 && !a.startsWith('-')) { o.instrumentAction = a; continue; }
-    if (a === '--out' || a === '-o') o.out = rest[++i];
+    if (!a.startsWith('-') && o.target === null && (o.instrumentAction === 'verify')) { o.target = a; continue; }
+    if (a === '--json') o.json = true;
+    else if (a === '--out' || a === '-o') o.out = rest[++i];
     else if (a.startsWith('--out=')) o.out = a.slice(6);
     else if (a === '--strict') o.strict = true;
     else if (a === '--no-strict') o.strict = false;
@@ -134,6 +142,9 @@ brighttest instrument — build an instrumented (debug-only) package of your app
 
 Usage:
   brighttest instrument build [--out <zip>] [--strict | --no-strict] [--verbose] [--config <path>]
+  brighttest instrument verify <zip|dir>                      Release gate: exit 3 if instrumentation markers are found, 0 if clean
+  brighttest instrument census [--json] [--out <dir>] [--config <path>]
+                                                              Static census of the app in the current directory (no device)
 
 Options:
   -o, --out <zip>    Where the package goes (default: <stagingDir>/instrument/app.bt-instrumented.zip). It is written
@@ -160,7 +171,7 @@ stderr on failure: one line per blocking item, \`BT9003 staged-output-invalid <f
 `;
 
 // `brighttest e2e [run|inspect] <flow…> [options]` — the on-device UI test lane.
-const E2E_ACTIONS = ['run', 'inspect', 'record', 'stamp'];
+const E2E_ACTIONS = ['run', 'inspect', 'record', 'stamp', 'lint'];
 const SCREENSHOT_MODES = ['all', 'failure', 'off'];
 function parseE2eArgs(rest) {
   const opts = {
@@ -185,6 +196,7 @@ function parseE2eArgs(rest) {
     else if (a.startsWith('--timeout=')) opts.timeout = parseInt(a.slice(10), 10) || undefined;
     else if (a === '--screenshots') opts.screenshots = rest[++i];
     else if (a.startsWith('--screenshots=')) opts.screenshots = a.slice(14);
+    else if (a === '--reset-device') opts.resetDevice = true;
     else if (a === '--screenshots-mode') opts.screenshotsMode = rest[++i];
     else if (a.startsWith('--screenshots-mode=')) opts.screenshotsMode = a.slice(19);
     else if (a === '--out' || a === '-o') opts.out = rest[++i];
@@ -241,6 +253,7 @@ Usage:
   brighttest e2e inspect            Dump a summary of the live tree (find ids/text/subtypes)
   brighttest e2e inspect --id <x>   Detail one node: every field + ready-to-paste assertions
   brighttest e2e record [-o <file>] Interactively drive the device and scaffold a flow file
+  brighttest e2e lint <flow…>       Warn about selectors that cannot match (e.g. subtype: Group)
   brighttest e2e stamp <src> -o <d> Copy a project, injecting ids onto un-annotated nodes (E2E build)
 
 Node detail (inspect with a selector — targets a node you see on screen):
@@ -261,6 +274,8 @@ Options:
   --media-type <t>       Media type paired with --content-id (e.g. movie, series)
   --timeout <sec>        Per-assertion wait timeout (default 10)
   --screenshots <dir>    Where to write screenshots (default: <stagingDir>/e2e/screenshots)
+  --reset-device         Before the run, per host: installer Delete, Home, then check the app launches off Home;
+                         a host that never leaves Home twice in a row is dropped and the flows run on the rest
   --screenshots-mode <m> all (per-step, default) | failure (only on fail) | off
   --video [mp4|gif]      Assemble the per-step screenshots into a session video (needs ffmpeg on PATH)
   -o, --out <file>       (record) Write the scaffolded flow here (default: stdout)
@@ -276,7 +291,7 @@ Options:
 const DEVICE_ACTIONS = ['status', 'with', 'unlock', 'log', 'lock', 'renew', 'hook', 'reset'];
 function parseDeviceArgs(rest) {
   const o = {
-    deviceAction: null, host: null, password: null, ecpPort: null, as: null, purpose: null, wait: null, max: null,
+    deviceAction: null, host: null, password: null, ecpPort: null, as: null, purpose: null, wait: null, max: null, idle: null,
     expect: null, noHygiene: false, json: false, tail: null, force: false, reason: null, kill: false, lease: null,
     cmd: [], help: false, unknown: [],
   };
@@ -294,6 +309,7 @@ function parseDeviceArgs(rest) {
     else if ((v = val('--wait')) !== undefined) o.wait = v;
     else if ((v = val('--max')) !== undefined) o.max = v;
     else if ((v = val('--expect')) !== undefined) o.expect = v;
+    else if ((v = val('--idle')) !== undefined) o.idle = v;
     else if ((v = val('--tail')) !== undefined) o.tail = parseInt(v, 10) || null;
     else if ((v = val('--reason')) !== undefined) o.reason = v;
     else if ((v = val('--lease')) !== undefined) o.lease = v;
@@ -316,7 +332,12 @@ brighttest device — share one Roku safely between processes, worktrees and age
 Usage:
   brighttest device status [--host <h>] [--json]           Who holds each device, since when, who waits
   brighttest device with [options] -- <cmd…>               Hold the lease while <cmd> runs (FIFO queue)
+  brighttest device lock [--host <h>] [options] [--json]  Take a session lease for multi-step debugging; prints the token
+  brighttest device renew [--lease <token>]                Push a session's idle expiry forward (every use of the token does too)
+  brighttest device unlock [--lease <token>]               Release your session (token from --lease or BRIGHTTEST_LEASE)
   brighttest device unlock --force --host <h> --reason "…" [--kill]   Human override (audited)
+  brighttest device reset [--host <ip[:pw]>] [options]     Installer Delete, Home, wait for a Home screen (under the lease)
+  brighttest device hook                                   Claude Code PreToolUse Bash guard (hook JSON on stdin)
   brighttest device log [--host <h>] [--tail <n>] [--json] The lease audit log (events.log)
 
 Options (with):
@@ -327,6 +348,9 @@ Options (with):
   --wait <dur>         How long to queue (or BRIGHTTEST_LEASE_WAIT; default 30m). 0 = fail if busy
   --max <dur>          Hard cap on the hold (default 60m); the command is stopped at the cap (exit 77)
   --expect <dur>       Expected hold time, shown to waiters as an ETA
+  --lease <token>      (with) Run under that session lease instead of queueing (same as BRIGHTTEST_LEASE=<token>)
+  --idle <dur>         (lock) Session idle TTL, renewed by every use (default 10m)
+  --max <dur>          (lock) Session hard cap (default 45m)
   --no-hygiene         Skip the Home ×2 reset after acquiring
   --ecp-port <n>       ECP port (or ROKU_ECP_PORT) — local fakes only; part of the lease key when not 8060
 Durations: 90s, 10m, 1h or milliseconds.
@@ -378,9 +402,10 @@ Options:
 
 // `brighttest init [--force]`
 function parseInitArgs(rest) {
-  const opts = { force: false, help: false };
+  const opts = { force: false, brownfield: false, help: false };
   for (const a of rest) {
     if (a === '--force' || a === '-f') opts.force = true;
+    else if (a === '--brownfield') opts.brownfield = true;
     else if (a === '--help' || a === '-h') opts.help = true;
   }
   return opts;
@@ -394,6 +419,12 @@ brighttest init — scaffold a project for testing
 
 Usage:
   brighttest init [--force]
+  brighttest init --brownfield [--force]
+
+  --brownfield   For an existing app you will not edit: runs the instrument census, writes the "instrument" block
+                 into brighttest.json (state.registrySections proposed from the registry sections the census finds),
+                 adds .brighttest/ and *.bt-instrumented.zip to .gitignore, and does not add an example spec or an
+                 npm test script. Existing brighttest.json settings are kept; --force replaces the instrument block.
 `;
 
 const SKILLS_HELP = `
@@ -504,6 +535,28 @@ async function main() {
       process.exit(2);
     }
     if (o.unknown.length) { console.error(`[brighttest instrument] unknown option(s): ${o.unknown.join(' ')}`); process.exit(2); }
+    if (o.instrumentAction === 'verify') {
+      if (!o.target) { console.error('[brighttest instrument verify] needs a <zip|dir> to check'); process.exit(2); }
+      let r;
+      try { r = await require('../lib/instrument/verify').verify(o.target); } catch (e) { console.error(`[brighttest instrument verify] ${e.message}`); process.exit(2); }
+      if (r.exitCode === 0) console.log(`instrument verify: clean (no instrumentation markers in ${o.target})`);
+      else {
+        console.error(`instrument verify: INSTRUMENTED: ${r.markers.length} marker(s) in ${o.target}; do not release this package`);
+        for (const m of r.markers) console.error(`  ${m.kind}: ${m.path}${m.detail ? ` (${m.detail})` : ''}`);
+      }
+      process.exit(r.exitCode);
+    }
+    if (o.instrumentAction === 'census') {
+      const censusMod = require('../lib/instrument/census');
+      let c;
+      try { c = await censusMod.census(process.cwd(), { config: o.config }); } catch (e) { console.error(`[brighttest instrument census] ${e.message}`); process.exit(2); }
+      if (o.out) {
+        const w = censusMod.write(c, require('path').resolve(o.out));
+        console.error(`instrument census: wrote ${w.json} and ${w.md}`);
+      }
+      console.log(o.json ? JSON.stringify(c, null, 2) : censusMod.renderMarkdown(c));
+      process.exit(0);
+    }
     let target = null;
     if (o.sideload) {
       // Explicit host only (no cached-device guess); the password comes from ROKU_PASSWORD / the credential path.
@@ -532,6 +585,10 @@ async function main() {
       const { files, nodes } = stampProject(src, eOpts.out, {});
       console.log(`brighttest e2e stamp: injected ${nodes} id(s) across ${files} component(s) → ${eOpts.out}`);
       process.exit(0);
+    }
+    if (eOpts.e2eAction === 'lint') {
+      if (!eOpts.flows.length) { console.error('[brighttest e2e] lint needs <flow…>'); process.exit(2); }
+      process.exit(require('../lib/e2e/lint').lint(eOpts.flows));
     }
     const cfg = loadConfig(process.cwd(), null);
     console.log('brighttest: e2e lane\n');
@@ -577,13 +634,24 @@ async function main() {
   if (argv[0] === 'device') {
     const o = parseDeviceArgs(argv.slice(1));
     if (o.help || !o.deviceAction) { console.log(DEVICE_HELP); process.exit(o.help ? 0 : 2); }
+    if (o.deviceAction === 'hook') process.exit(await require('../lib/device-hook').main()); // PreToolUse guard: always exit 0
     const cfg = loadConfig(process.cwd(), null);
+    if (o.deviceAction === 'reset') process.exit(await require('../lib/e2e/reset').cmdReset(o, cfg));
     const code = await require('../lib/device-command').run(o, cfg);
     process.exit(code);
   }
   if (argv[0] === 'doctor') {
     const o = parseDoctorArgs(argv.slice(1));
     if (o.help) { console.log(DOCTOR_HELP); process.exit(0); }
+    if (o.engines) {
+      let code;
+      try { code = require('../lib/engine-caps').doctorEngines(loadConfig(process.cwd(), null), { json: o.json }); }
+      catch (e) {
+        if (e && e.name === 'EngineError') { console.error(`[brighttest] ${e.message}`); process.exit(2); }
+        throw e;
+      }
+      process.exit(code);
+    }
     const code = await require('../lib/doctor').run(o);
     process.exit(code);
   }
@@ -620,6 +688,7 @@ async function main() {
   console.log(`brighttest: ${label} lane\n`);
   let code;
   try {
+    if (!opts.device) require('../lib/engine-caps').warnNonDeviceUse(cfg); // BRS-02 is non-device: say so on stderr
     code = await lane.run(cfg, opts);
   } catch (e) {
     if (e && e.name === 'EngineError') { console.error(`[brighttest] ${e.message}`); process.exit(2); }

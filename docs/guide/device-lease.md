@@ -67,9 +67,50 @@ brighttest command started inside it re-uses the same lease instead of waiting f
 | `--max <dur>` | Hard cap on the hold (default 60m). 5 s before it, the command is stopped (exit 77). At most about 24.8 days |
 | `--expect <dur>` | Expected hold time, shown to waiters as an estimate |
 | `--no-hygiene` | Skip the Home ×2 press after acquiring |
+| `--lease <token>` | Run under that session lease (see below) instead of queueing; same as `BRIGHTTEST_LEASE=<token>` |
 
 Durations are `90s`, `10m`, `1h` or plain milliseconds. The device lanes (`--device`, `--cross-check`,
 `e2e`) accept `--wait`, `--as`, `--purpose` and `--no-lease`.
+
+## Resetting a stuck device: `device reset`
+
+```bash
+npx brighttest device reset --host 10.0.0.5:Test1234
+```
+
+Takes the lease (no Home x2 press), sends the installer `Delete` (the dev password is required; this frees a
+halted app or a stuck installer page, about 1.3 s on a device), presses Home, then polls `active-app` until a
+Home screen shows (10 s limit). Exit 0 when Home is reached; exit 1 when the Delete fails, the password is
+refused or Home never shows (the lease is released either way); 75/77/78 are the lease codes. The sideloaded
+app is removed, so sideload again afterwards. For CI see `e2e run --reset-device` in [scaling](/e2e/scaling).
+
+## Multi-step debugging: a session lock
+
+`device with` holds the device for one command. For several steps in a row (an agent poking at a device while
+it reads the output), take a **session** lease instead:
+
+```bash
+TOKEN=$(npx brighttest device lock --host 192.168.1.50 --as device-qa#1 --purpose "debug launch")
+BRIGHTTEST_LEASE=$TOKEN npx brighttest device with -- curl -d '' http://192.168.1.50:8060/keypress/Home
+npx brighttest device with --lease "$TOKEN" -- npx rooibos --host 192.168.1.50 --password "$ROKU_PASSWORD"
+npx brighttest device renew --lease "$TOKEN"
+npx brighttest device unlock --lease "$TOKEN"
+```
+
+- `device lock` takes the lease (queueing like any other command, `--wait`), presses Home twice (skip with
+  `--no-hygiene`) and prints the token on stdout. `--json` prints `{leaseId, deadline, expiresAt}`.
+- No process owns a session. It ends when you `device unlock`, after `--idle` (default 10 minutes) without use, or
+  at `--max` (default 45 minutes), whichever comes first. Every use of the token renews the idle time (a
+  `device with` that carries it, `device renew`, or a raw device command the hook allows because of it), but
+  never past `--max`. Config: `sessionIdle`, `sessionMax`.
+- A command that carries the token (`BRIGHTTEST_LEASE=<token>` or `device with --lease <token>`) runs under the
+  session without queueing. If the session has expired or was unlocked, it exits 77 and does not run unlocked.
+- `device unlock --lease <token>` releases a session (exit 0), or exits 77 if it is not held or already expired.
+  `device renew --lease <token>` exits 77 in the same cases. Both read `BRIGHTTEST_LEASE` when `--lease` is
+  absent. A token for a command lease is refused (exit 2): those end with their command.
+- `device lock` on a device you already hold through `BRIGHTTEST_LEASE` exits 2 instead of queueing behind
+  yourself. Unlock first.
+- Treat the token like a password: it lets anything that has it use the device. Do not write it to files or logs.
 
 ## Exit codes
 
@@ -122,6 +163,8 @@ All optional, in `brighttest.json`:
   "enabled": true,       // false = --no-lease for this project
   "wait": "30m",         // default queue time (BRIGHTTEST_LEASE_WAIT and --wait win)
   "maxHold": "60m",      // hard cap on one hold
+  "sessionIdle": "10m",  // session lock (device lock): idle expiry, renewed by every use of the token
+  "sessionMax": "45m",   // session lock: hard cap
   "hygiene": "home",     // "home" | "none": Home ×2 after acquiring, for e2e run and device with
   "studioIdle": "5m",    // Studio releases after this long without user activity
   "studioYield": "60s"   // …or after this long when someone is queued
@@ -134,7 +177,7 @@ All optional, in `brighttest.json`:
 | `BRIGHTTEST_PURPOSE` | Free-text purpose (default: the command line, with passwords removed) |
 | `BRIGHTTEST_LEASE_WAIT` | Default wait (a duration); overrides the config |
 | `BRIGHTTEST_LEASE_DIR` | Lease directory (default `~/.brighttest/leases`) |
-| `BRIGHTTEST_LEASE` | A held lease token; set by `device with` for its command (nested calls re-use it) |
+| `BRIGHTTEST_LEASE` | A held lease token; set by `device with` for its command (nested calls re-use it), or by you for a session from `device lock` |
 | `BRIGHTTEST_NO_LEASE=1` | Same as `--no-lease` |
 
 Leases live in `~/.brighttest/leases/<device>/` (`holder.json`, a `queue/` of tickets, `events.log`). The key
@@ -173,6 +216,17 @@ If port 8700 is taken (another worktree's Studio), `brighttest studio` uses the 
 - **CI as another OS user on the same machine** is not supported: the lease directory and its files are
   created private to one user (0700/0600). Run CI as the same user that runs the other device work.
 - **Another machine** cannot see the lease. Dedicate the device to that machine while it runs.
+
+## The Claude Code guard hook
+
+`brighttest device hook` is a Claude Code `PreToolUse` hook for the Bash tool (`lib/device-hook.js`). Register it
+in `.claude/settings.json` with `node bin/cli.js device hook` (this repo does, with a 5 s timeout). It reads the
+hook JSON on stdin and denies a raw device command (`curl`/`wget` to the device ports, `nc`, a bare `rooibos`
+run) unless the command is wrapped by a lease-aware command (`device with`, an e2e or `--device` run) or carries a
+live `BRIGHTTEST_LEASE` token from `device lock`. The deny message prints the `device with` command to use instead,
+and `--no-lease` / `BRIGHTTEST_NO_LEASE` are always denied for agents. The rule is syntactic, so it cannot see
+script files, URLs built from variables, `python`/`node` one-liners or MCP tools. If the hook itself fails (bad
+input, timeout), it allows the command and logs to `events.log`, and it always exits 0.
 
 ## What the lease cannot stop
 

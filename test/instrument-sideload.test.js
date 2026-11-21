@@ -14,9 +14,15 @@ afterAll(() => fs.rmSync(tmp, { recursive: true, force: true }))
 
 const challenge = 'Digest realm="rokudev", nonce="abc", qop="auth"'
 // Stub installer: replies is a list of {status, html} consumed per logical request (a 401 challenge is added when `auth`).
-function stub(replies, { auth = true, wrongPw = false } = {}) {
+function stub(replies, { auth = true, wrongPw = false, active = '<active-app><app id="dev" type="appl" version="1.0.0">Sample</app></active-app>' } = {}) {
   const calls = []
+  const ecp = { n: 0 }
   const f = async (url, init) => {
+    if (/:8060\/query\/active-app$/.test(url)) {
+      ecp.n++
+      const body = typeof active === 'function' ? active(ecp.n) : active
+      return { status: 200, headers: { get: () => null }, text: async () => body }
+    }
     const hasAuth = !!(init.headers && init.headers.Authorization)
     const mysubmit = /name="mysubmit"\r\n\r\n(\w+)/.exec(Buffer.from(init.body).toString('utf8'))[1]
     if (auth && !hasAuth) return { status: 401, headers: { get: () => challenge }, text: async () => '' }
@@ -25,7 +31,7 @@ function stub(replies, { auth = true, wrongPw = false } = {}) {
     const r = replies.shift()
     return { status: r.status || 200, headers: { get: () => null }, text: async () => r.html }
   }
-  return { f, calls }
+  return { f, calls, ecp }
 }
 const mkLease = () => { const l = { released: 0, release() { l.released++ } }; return l }
 function run(replies, o = {}, stubOpts) {
@@ -34,10 +40,11 @@ function run(replies, o = {}, stubOpts) {
   const deps = {
     fetch: s.f, log: (l) => lines.push(l),
     tcpProbe: async () => o.tcpOpen !== false,
+    sleep: async () => {}, activeTries: 3,
     acquireForLane: async (a) => { lines.acquire = a; return o.leaseCode ? { code: o.leaseCode } : { lease } },
   }
   const p = sideload({ rootDir: tmp }, { zip, host: '192.0.2.5', password: PW, ...o.opts }, deps)
-  return p.then((code) => ({ code, lines, calls: s.calls, lease }))
+  return p.then((code) => ({ code, lines, calls: s.calls, ecp: s.ecp.n, lease }))
 }
 
 describe('parseInstallerReply', () => {
@@ -58,6 +65,28 @@ describe('instrument sideload (stub installer)', () => {
     expect(r.calls).toEqual(['Replace'])
     expect(r.lease.released).toBe(1)
     expect(r.lines.acquire).toMatchObject({ host: '192.0.2.5', allowBypass: false })
+  })
+  it('verifies the dev channel is active after the install (under the lease)', async () => {
+    const r = await run([{ html: 'Install Success' }])
+    expect(r.code).toBe(0)
+    expect(r.ecp).toBe(1)
+    expect(r.lines.join('\n')).toMatch(/dev channel active/)
+  })
+  it('channel not active (Home in front): exit 1 with the fix text, password not printed', async () => {
+    const r = await run([{ html: 'Install Success' }], {}, { active: '<active-app><app>Roku</app></active-app>' })
+    expect(r.code).toBe(1)
+    expect(r.ecp).toBe(3)
+    const out = r.lines.join('\n')
+    expect(out).toMatch(/dev channel is not active/)
+    expect(out).toMatch(/source\/main\.brs/)
+    expect(out).not.toContain(PW)
+    expect(r.lease.released).toBe(1)
+  })
+  it('channel becomes active on a later poll: exit 0', async () => {
+    const dev = '<active-app><app id="dev">Sample</app></active-app>'
+    const r = await run([{ html: 'Install Success' }], {}, { active: (n) => (n < 2 ? '<active-app><app>Roku</app></active-app>' : dev) })
+    expect(r.code).toBe(0)
+    expect(r.ecp).toBe(2)
   })
   it('auth failure: exit 1, no retry, password not printed', async () => {
     const r = await run([{ html: 'x' }], {}, { wrongPw: true })

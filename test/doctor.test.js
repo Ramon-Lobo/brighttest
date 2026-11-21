@@ -116,6 +116,50 @@ describe('e2e preflight', () => {
   it('preflight passes stubs that cannot report capabilities', async () => {
     expect(await doctor.preflight({ deviceInfo: async () => ({}) })).toBe(null)
   })
+  it('throws with the reachable fix text when the device is unreachable', async () => {
+    const dev = { host: '10.0.0.9', ecpPort: 8060, deviceCapabilities: async () => { throw new TypeError('fetch failed') } }
+    await expect(doctor.preflight(dev)).rejects.toMatchObject({ code: 'DEVICE_UNREACHABLE', fix: expect.stringContaining('No answer from 10.0.0.9') })
+    await expect(doctor.preflight(dev)).rejects.toThrow(/port 8060\) is reachable/)
+  })
+  it('a device that answers but cannot say (non-200) still returns null', async () => {
+    const dev = { host: '10.0.0.9', deviceCapabilities: async () => { throw Object.assign(new Error('device-info HTTP 500'), { httpStatus: 500 }) } }
+    expect(await doctor.preflight(dev)).toBe(null)
+  })
+  it('real device: a closed port throws, a 500 answer returns null', async () => {
+    const { stub, a } = await boot('healthy')
+    await stub.stop()
+    await expect(doctor.preflight(createDevice({ host: '127.0.0.1', ecpPort: a.ecpPort }))).rejects.toMatchObject({ code: 'DEVICE_UNREACHABLE' })
+    vi.stubGlobal('fetch', async () => ({ status: 500, text: async () => '' }))
+    expect(await doctor.preflight(createDevice({ host: 'pre-500-host' }))).toBe(null)
+    vi.unstubAllGlobals()
+  })
+})
+
+describe('e2e preflight: unreachable host', () => {
+  const flow = path.join(path.dirname(new URL(import.meta.url).pathname), 'fixtures/fake-roku/flows/fake-smoke.e2e.yaml')
+  it('fails only that host with the fix text, no stack trace, and the other host still runs', async () => {
+    const { stub, a } = await boot('healthy')
+    const get = capture()
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-unr-'))
+    const flow2 = path.join(dir, 'second.e2e.yaml')
+    fs.copyFileSync(flow, flow2)
+    const acquire = vi.fn(async () => ({ lease: null }))
+    const createDeviceDep = (o) => o.host === '127.0.0.2'
+      ? { host: o.host, ecpPort: o.ecpPort, deviceCapabilities: async () => { throw new TypeError('fetch failed') } }
+      : createDevice(o)
+    let code, thrown = null
+    try {
+      code = await e2e.run(loadConfig(dir, null), { e2eAction: 'run', flows: [flow, flow2], host: '127.0.0.1,127.0.0.2', ecpPort: a.ecpPort, password: 'rokudev-test', screenshotsMode: 'off' }, { acquireForLane: acquire, createDevice: createDeviceDep })
+    } catch (e) { thrown = e }
+    fs.rmSync(dir, { recursive: true, force: true })
+    expect(thrown).toBe(null)
+    expect(code).toBe(1)
+    expect(get()).toContain('[127.0.0.2] preflight failed: device not reachable')
+    expect(get()).toContain('No answer from 127.0.0.2')
+    expect(get()).not.toMatch(/\n\s+at /)
+    expect(acquire).toHaveBeenCalledTimes(1) // only the reachable host got as far as the lease
+    expect(stub.log.some((l) => /^\/(launch|keypress)\//.test(l.endpoint))).toBe(true)
+  })
 })
 
 describe('doctor args', () => {

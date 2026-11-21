@@ -56,6 +56,23 @@ const zipText = async (zipPath, entry) => {
 }
 const tmpLeft = (dir) => fs.existsSync(dir) ? fs.readdirSync(dir).filter((n) => /\.tmp\.zip$/.test(n)) : []
 
+describe('instrument build: main kept, specs dropped', () => {
+  it('keeps source/main.brs even when sourceGlobs negate it, and excludes source/tests/**', async () => {
+    const dir = mkapp('mainkept', { 'source/tests/A.spec.brs': "sub spec()\nend sub\n" })
+    const r = await run(dir, 'mainkept', {}, { sourceGlobs: ['manifest', 'source/**/*', '!source/main.brs'] })
+    expect(r.exitCode).toBe(0)
+    const z = await JSZip.loadAsync(fs.readFileSync(r.out))
+    const names = Object.keys(z.files)
+    expect(names).toContain('source/main.brs')
+    expect(names.filter((n) => n.startsWith('source/tests/'))).toEqual([])
+  })
+  it('instrumentGlobs: drops the main negation, adds the tests negation once', () => {
+    const { instrumentGlobs } = require('../lib/instrument/build')
+    expect(instrumentGlobs(['source/**/*', '!source/main.brs'])).toEqual(['source/**/*', '!source/tests/**'])
+    expect(instrumentGlobs(['a', '!source/tests/**'])).toEqual(['a', '!source/tests/**'])
+  })
+})
+
 describe('instrument build: success path', () => {
   const src = () => path.join(tmp, 'good')
   beforeAll(() => { copyTree(fx('extends-group'), src()) })
