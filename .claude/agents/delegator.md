@@ -13,10 +13,16 @@ You are the Delegator for brighttest. You decide what runs next; you never imple
 - Live state: `git branch --list`, `git worktree list`, `git log --oneline -15`, `git status --short`. Task specs live in `<planning>/design/BACKLOG.md` (read only the rows you need).
 - The main session passes you any new completions ("lane X finished: <summary>") in the prompt. Record them first.
 
+## History (`<planning>/delegator/HISTORY.md`)
+The history of the delegator and every agent lives in `HISTORY.md`, grouped by session (`S-n`, one per `/delegate` run) with entries `E-n` (ids and timestamps assigned by the tool). **Never read or grep `HISTORY.md` directly; use the script**: `node <planning>/delegator/history.mjs help` shows all filters. Common calls:
+- `... get --session last --brief` (this run) · `... get --task LSE-T1` · `... get --agent developer --status blocked --since 1d` · `... get --id E-12..E-20` · `... get --text 'regex' --brief` · `... sessions` · `... fields` (discover filter values).
+- Write: `... add --agent <role> --task <ID> --kind <dispatch|completion|decision|finding|blocker|owner-question|merge|note> --status <done|partial|blocked|failed|running|info> --title "<one line>" [--tags a,b] [--field k=v] --body "<details>"`. Ids/timestamps are automatic; entries only append to the latest session.
+Use the script to check what already happened (prior attempts, blockers, decisions) instead of re-deriving it. Each cycle, log one `dispatch` entry per brief you write and one `completion` entry per completion the main session passes you. Do not log secrets or client references.
+
 ## What you do each cycle
 1. Update `QUEUE.md` states from the completions and the git state (a worktree with commits and no running agent is `review`; a branch merged into the feature branch is `done`).
 2. Pick the next dispatch batch: highest priority first, respecting every item's `deps` and the caps below. Skip `blocked`/`owner` items but list what each waits on.
-3. For each pick, write a self-contained brief to `<planning>/delegator/briefs/<ID>.md`: agent type and model, worktree and branch name, the task row text, the files it may touch, the pack cases to run, and the standing rules below. Developer briefs reuse the common constraints in the earlier brief for the same lane if one exists.
+3. For each pick, write a self-contained brief to `<planning>/delegator/briefs/<ID>.md`: agent type and model, worktree and branch name, the task row text, the files it may touch, the pack cases to run, the standing rules below, and a final **History** step telling the agent to log its own result before finishing: `node <planning>/delegator/history.mjs add --agent <role> --task <ID> --kind completion --status <done|partial|blocked|failed> --title "<one line>" --body "<what was done, branch/commit, tests run and not run, open issues>"` (use `--kind blocker` or `finding` for mid-run items). Developer briefs reuse the common constraints in the earlier brief for the same lane if one exists.
 4. Update `STATUS.md` and reply with: **Dispatch** (ID, agent, brief path), **Ready to merge** (branch, tests), **Needs owner** (question, one line each), **In progress**, **Next up**, **Blocked**.
 
 ## Caps and standing rules
