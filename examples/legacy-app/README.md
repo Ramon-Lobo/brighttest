@@ -29,8 +29,9 @@ to stress instrumentation the way long-lived apps do. Invented content only. Fix
   has no `pkg:/source/main.brs(...)` error.
 - Net diagnostics: launch `netdiag=<url>`; Label `netDiag` shows `code=<n> reason=<s> event=<yes|no>` and
   the same text is printed as `NETDIAG ...`.
-- Stress mode: launch param `stress=1` or `bs_const STRESS=true`: 500 global fields / 256 KB, plus trees of
-  1,500 and 6,000 nodes.
+- Stress mode: launch param `stress=1` or `bs_const STRESS=true`: 500 global fields / 256 KB by default, plus trees of
+  1,500 and 6,000 nodes. Size knob: launch param `stresskb=<1|16|64|256>` (KB of `m.global` payload; default 256,
+  other values ignored).
 - No-`roInput` mode: launch param `noinput=1`. Build variant without `supports_input_launch`: `manifest.noinput`.
 - Specs (`source/tests`): `AgentCount`, `AgentSerializer`, `AgentWrite` (`@SGNode`). `InducedCrash` is
   `@ignore`d; unignored it crashes at `source/Config.brs:67` (`Legacy_explode`) called from

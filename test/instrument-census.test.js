@@ -53,23 +53,23 @@ describe('census of examples/legacy-app', () => {
   })
   it('finds m.global.addFields keys and registry sections with lines', () => {
     expect(c.globalFields.map((g) => g.name)).toEqual(expect.arrayContaining(['config', 'user', 'authToken', 'sessionId', 'password', 'launchCount', 'stress']))
-    expect(c.globalFields.find((g) => g.name === 'user')).toMatchObject({ file: 'source/main.brs', line: 26 })
+    expect(c.globalFields.find((g) => g.name === 'user')).toMatchObject({ file: 'source/main.brs', line: 31 })
     expect(c.registrySections).toEqual([
       { name: 'legacy_session', file: 'components/scenes/LegacyScene.brs', line: 12 },
-      { name: 'legacy_prefs', file: 'source/main.brs', line: 39 },
+      { name: 'legacy_prefs', file: 'source/main.brs', line: 45 },
     ])
   })
   it('classifies setUrl and CreateObject sites with threads and coverage', () => {
     const s = (f) => c.network.setUrlSites.find((x) => x.file === f)
     expect(s('components/net/PerRequestTask.brs')).toMatchObject({ line: 9, thread: 'task:PerRequestTask', covered: true })
-    expect(s('components/scenes/LegacyScene.brs')).toMatchObject({ line: 72, thread: 'render', covered: true })
+    expect(s('components/scenes/LegacyScene.brs')).toMatchObject({ line: 74, thread: 'render', covered: true })
     expect(s('source/vendor/VendorClient.brs')).toMatchObject({ covered: false })
     expect(c.network.createObjectSites.filter((x) => x.class === 'roUrlTransfer')).toHaveLength(3)
     expect(c.network.createObjectSites.find((x) => x.class === '<dynamic>')).toMatchObject({ file: 'components/net/WorkerTask.brs', line: 14, covered: false })
   })
   it('reports not-covered items: sync on render thread, dynamic CreateObject, excluded vendor, content-node URL', () => {
     const reasons = (f, line) => c.notCovered.filter((n) => n.file === f && n.line === line).map((n) => n.reason)
-    expect(reasons('components/scenes/LegacyScene.brs', 73)).toEqual(['render-thread sync'])
+    expect(reasons('components/scenes/LegacyScene.brs', 75)).toEqual(['render-thread sync'])
     expect(reasons('components/net/WorkerTask.brs', 14)).toEqual(['dynamic CreateObject'])
     expect(reasons('source/vendor/VendorClient.brs', 5)).toEqual(['excluded'])
     expect(reasons('components/scenes/LegacyScene.brs', 8)).toEqual(['content-node URL'])
