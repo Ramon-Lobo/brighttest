@@ -54,16 +54,23 @@ const events = () => {
 
 describe('device lease across processes', () => {
   it('8 concurrent workers never overlap and are served in ticket order', async () => {
-    const ws = []
-    for (let i = 1; i <= 8; i++) { ws.push(startWorker(`w${i}`, 80)); await sleep(60) }
+    // Order is made deterministic by events, not sleeps: w1 takes the lease and holds it; each later worker is
+    // started only after the previous one has logged its own 'queued' event (its ticket is then on disk), so
+    // ticket order == start order. (The 'queued' event is logged after the worker's first poll, and a head ticket
+    // alone in the queue waits a settle first, so the event order of back-to-back starts is not the ticket order.)
+    const ws = [startWorker('w1', 1500)]
+    expect(await waitFor(has(/^enter w1 /))).toBe(true)
+    for (let i = 2; i <= 8; i++) {
+      ws.push(startWorker(`w${i}`, 40))
+      expect(await waitFor(() => events().some((e) => e.ev === 'queued' && e.agent === `w${i}`), 15000)).toBe(true)
+    }
     const res = await Promise.all(ws.map((w) => w.done))
     expect(res.every((r) => r.code === 0)).toBe(true)
     const iv = intervals()
     expect(iv).toHaveLength(8)
     expect(overlaps(iv)).toBe(0)
     const served = [...iv].sort((a, b) => (a.enter < b.enter ? -1 : 1)).map((x) => x.id)
-    const queued = events().filter((e) => e.ev === 'queued').map((e) => e.agent)
-    expect(served.filter((id) => queued.includes(id))).toEqual(queued)
+    expect(served).toEqual(['w1', 'w2', 'w3', 'w4', 'w5', 'w6', 'w7', 'w8'])
   })
 
   it('F2: SIGKILL of the holder frees the device in < 3 s (reclaimed)', async () => {
