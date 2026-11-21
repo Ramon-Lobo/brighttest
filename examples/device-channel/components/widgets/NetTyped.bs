@@ -1,0 +1,19 @@
+' Typed receivers (.bs only): a param typed roUrlTransfer ("likely") and a class with its own
+' setUrl member (positive evidence of another type: "excluded").
+class BTDevCollector
+    seen = ""
+    sub setUrl(u as string)
+        m.seen = u
+    end sub
+end class
+
+function BTDev_typedShape(conn as roUrlTransfer, url as string) as string
+    conn.setUrl(url)
+    return conn.getUrl()
+end function
+
+function BTDev_collectorShape(url as string) as string
+    c = new BTDevCollector()
+    c.setUrl(url)
+    return c.seen
+end function

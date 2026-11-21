@@ -5,6 +5,7 @@
   <script type="text/brightscript" uri="pkg:/source/lib/Feed.brs" />
   <script type="text/brightscript" uri="pkg:/source/lib/Format.brs" />
   <script type="text/brightscript" uri="pkg:/source/lib/Watchlist.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/BTState.brs" />
   <children>
     <Rectangle id="bg" width="1920" height="1080" color="0x0C0E14FF" />
     <!-- Only the active panel is parented here, so e2e assertVisible/assertGone are exact. -->

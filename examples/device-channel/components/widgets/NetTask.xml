@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="NetTask" extends="Task">
+  <interface>
+    <field id="url" type="string" value="" />
+    <field id="summary" type="string" value="" />
+  </interface>
+  <script type="text/brightscript" uri="NetTask.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Log.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/NetShapes.brs" />
+  <script type="text/brightscript" uri="pkg:/components/widgets/NetTyped.bs" />
+</component>

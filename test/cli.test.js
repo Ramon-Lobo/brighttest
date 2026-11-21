@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { parseArgs, parseSkillsArgs, parseInitArgs } from '../bin/cli.js'
+import { parseArgs, parseSkillsArgs, parseInitArgs, parseDeviceArgs } from '../bin/cli.js'
+import { splitHost } from '../lib/device-command.js'
 
 describe('parseArgs', () => {
   it('defaults to a headless run with no flags', () => {
@@ -91,7 +92,7 @@ describe('parseSkillsArgs', () => {
 
 describe('parseInitArgs', () => {
   it('defaults force and help off', () => {
-    expect(parseInitArgs([])).toEqual({ force: false, help: false })
+    expect(parseInitArgs([])).toEqual({ force: false, brownfield: false, help: false })
   })
 
   it('parses --force and --help', () => {
@@ -99,5 +100,31 @@ describe('parseInitArgs', () => {
     expect(parseInitArgs(['-f']).force).toBe(true)
     expect(parseInitArgs(['--help']).help).toBe(true)
     expect(parseInitArgs(['-h']).help).toBe(true)
+  })
+})
+
+describe('parseDeviceArgs', () => {
+  it('parses the action, lease flags and the command after --', () => {
+    const o = parseDeviceArgs(['with', '--host', '10.0.0.5', '--as', 'dev#1', '--purpose', 'LSE check', '--wait=90s', '--max', '10m',
+      '--expect', '2m', '--no-hygiene', '--ecp-port', '18060', '--', 'curl', '--host', 'x', '-d', ''])
+    expect(o).toMatchObject({ deviceAction: 'with', host: '10.0.0.5', as: 'dev#1', purpose: 'LSE check', wait: '90s', max: '10m',
+      expect: '2m', noHygiene: true, ecpPort: '18060' })
+    expect(o.cmd).toEqual(['curl', '--host', 'x', '-d', ''])
+  })
+
+  it('parses status/log/unlock options', () => {
+    expect(parseDeviceArgs(['status', '--json'])).toMatchObject({ deviceAction: 'status', json: true })
+    expect(parseDeviceArgs(['log', '--tail', '5'])).toMatchObject({ deviceAction: 'log', tail: 5 })
+    expect(parseDeviceArgs(['unlock', '--force', '--reason', 'stuck', '--kill', '--host=1.2.3.4']))
+      .toMatchObject({ deviceAction: 'unlock', force: true, reason: 'stuck', kill: true, host: '1.2.3.4' })
+    expect(parseDeviceArgs(['unlock', '--lease', 'abc'])).toMatchObject({ lease: 'abc' })
+    expect(parseDeviceArgs(['--help']).help).toBe(true)
+    expect(parseDeviceArgs(['nope']).deviceAction).toBeNull()
+  })
+
+  it('splits an inline ip:pw host', () => {
+    expect(splitHost('10.0.0.5:pw')).toEqual({ host: '10.0.0.5', password: 'pw' })
+    expect(splitHost('10.0.0.5,10.0.0.6')).toEqual({ host: '10.0.0.5', password: null })
+    expect(splitHost(null)).toEqual({ host: null, password: null })
   })
 })

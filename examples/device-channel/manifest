@@ -1,0 +1,7 @@
+title=Device Channel
+major_version=1
+minor_version=0
+build_version=00001
+ui_resolutions=fhd
+supports_input_launch=1
+bs_const=BT_DEVCH_FAIL=false

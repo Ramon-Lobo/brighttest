@@ -1,0 +1,19 @@
+class Fetcher
+    http as object
+    sub new()
+        m.http = CreateObject("roUrlTransfer")
+    end sub
+    sub go(u as string)
+        m.http.setUrl(u)
+        print m.http.getUrl()
+    end sub
+end class
+
+class FakeClient
+    sub new()
+        m.http = { setUrl: sub(u) : end sub }
+    end sub
+    sub go(u as string)
+        m.http.setUrl(u)
+    end sub
+end class

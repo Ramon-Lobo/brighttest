@@ -81,6 +81,20 @@ you run Rooibos yourself, set it in your bsconfig — this is a hard requirement
 (RokuCommunity Rooibos issue #203). It's *not* a coverage problem: node tests work with coverage on once
 the script is linked.
 
+## Device run aborted: "no device output for Ns (idle watchdog)"
+
+**Symptom:** a `--device` run stops with `run aborted: no device output for Ns (idle watchdog)`, or with
+`[roku-test] no device output for Ns` from the Rooibos CLI.
+
+**Cause:** the device printed nothing for too long. Two watchdogs exist. The Rooibos CLI exits on its own after
+90 s of silence. The brighttest device lane has its own backstop at 120 s (`DEFAULT_IDLE_S` in `lib/device.js`),
+so the CLI's line normally wins and the lane's fires only when the CLI itself wedges. There is no CLI flag for
+the lane value yet. `--timeout <sec>` (default 900) is the separate overall limit.
+
+**Known limit:** with stock Rooibos, an `@async` test that never calls done prints `[Rooibos Result]: PASS`
+after about 5 s, so the run looks like a pass and the watchdog never fires (the device is not silent). Keep
+async tests calling done, and cross-check suspicious passes on the headless lane.
+
 ## Coverage % looks low
 
 Coverage reflects only the lines your tests exercised. A big utility file with a few tested functions will
@@ -90,3 +104,54 @@ show a low percentage — that's accurate, not a bug. It climbs as you add tests
 
 The original `brs` (sjbarag) `0.45.x` throws `Cannot read properties of undefined (reading 'toLowerCase')`
 even on hello-world under Node 22. It's unmaintained — use `brs-node` (what brighttest depends on).
+
+## `brighttest doctor`: is the device ready?
+
+```sh
+brighttest doctor --host <ip>            # firmware, ECP mode, developer mode, with the exact fix for anything wrong
+brighttest doctor --host <ip> --json     # the same as JSON (checks[] with id, ok, fix)
+```
+
+It reads `query/device-info` only: no password, no lease, no keypresses. Exit 0 when every check passes, 1
+when a check fails or the device does not answer. The serial number is hidden unless you pass `--show-serial`.
+The two fixable states are **Limited** ECP (Settings → System → Advanced system settings → Control by mobile
+apps → Network access → Permissive) and **developer mode disabled** (enable it with the remote sequence the
+fix text prints).
+
+`brighttest e2e run` runs the same check first. On a Limited or developer-disabled device it stops before the
+device lease, any launch or any keypress, and prints the same fix text.
+
+## `brighttest doctor --engines`: what can the headless engine do?
+
+```sh
+brighttest doctor --engines          # capability table, engine flavor (patched or stock), probe result
+brighttest doctor --engines --json   # the same as JSON
+```
+
+Runs a tiny probe app (`brs/probes/engine-caps/`) with the resolved `brs-node` and compares what the engine
+does with what its `package.json#brighttest` metadata claims. No device is contacted. Exit 0 when they agree,
+1 when the probe fails or disagrees (a patch was lost or added without updating the stamp; the message names
+the patch and both values), 2 when no engine is installed. An engine without a stamp has no metadata to
+compare, so its probe column is shown as the evidence only.
+
+`BRS-02` (`Label.forceUpperCase`) is a **non-device** capability: a headless convenience that a real Roku
+does not have. The table marks it NON-DEVICE, and any headless run on an engine that has it prints a warning
+on stderr for each use in your sources, for example
+`nondevice-field: Label.forceUpperCase used in source/tests/Title.spec.bs:12 (non-device behavior: ...)`.
+Specs that rely on it will not match the device.
+
+## "Waiting for the device lease" / exit 75, 77 or 78
+
+Device commands queue for the device ([device lease](./device-lease)). Run `npx brighttest device status`
+to see who holds it (agent, purpose, worktree, since when) and who is queued.
+
+- **75**: the device was busy (`--wait 0`) or the wait timed out. Wait longer (`--wait 1h` or
+  `BRIGHTTEST_LEASE_WAIT`), or ask the holder. This is "device in use", not "device unreachable": an
+  unreachable device fails with a network error instead.
+- **77**: the lease was lost (someone force-unlocked it), the hold reached its `--max` deadline, or the
+  `BRIGHTTEST_LEASE` token in your environment is no longer held. Re-run the command.
+- **78**: the lease directory (`~/.brighttest/leases` or `BRIGHTTEST_LEASE_DIR`) is not writable or the disk
+  is full. The message names the path.
+- **A lease that never frees**: a crashed holder frees within about a second unless a child process it
+  started is still running (`device status` shows the PID). If the holder is yours and stuck:
+  `npx brighttest device unlock --force --host <ip> --reason "…" [--kill]`.

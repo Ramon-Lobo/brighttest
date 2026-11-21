@@ -1,0 +1,35 @@
+namespace tests
+  ' Runs inside a real StateProbe node (m.top) in the @SGNode lane — so it exercises the same BTState
+  ' convention the device uses, but headless (no hardware). Proves you can read "all values" (globals +
+  ' published snapshot) without a device.
+  @suite("BTState snapshot (headless @SGNode)")
+  @SGNode("StateProbe")
+  class StateProbeTests extends rooibos.BaseTestSuite
+
+    @describe("publish")
+
+    @it("mirrors global scalars into a round-tripping __bt_state snapshot")
+    function publishesSnapshot()
+      m.top.channel = "Open Cinema"
+      m.top.count = 7
+      BTState_publish(m.top, { current: "HomePanel", global: BTState_scalars(m.top) })
+
+      node = m.top.findNode("__bt_state")
+      m.assertNotInvalid(node)
+      m.assertFalse(node.visible)
+
+      back = ParseJson(node.text)
+      m.assertEqual(back.current, "HomePanel")
+      m.assertEqual(back.global.channel, "Open Cinema")
+      m.assertEqual(back.global.count, 7)
+    end function
+
+    @it("reuses the same node on republish (no duplicates)")
+    function reusesNode()
+      BTState_publish(m.top, { n: 1 })
+      BTState_publish(m.top, { n: 2 })
+      m.assertEqual(ParseJson(m.top.findNode("__bt_state").text).n, 2)
+    end function
+
+  end class
+end namespace

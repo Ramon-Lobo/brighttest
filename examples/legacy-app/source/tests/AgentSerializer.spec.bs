@@ -1,0 +1,31 @@
+namespace tests
+  @suite("AgentSerializer")
+  class AgentSerializerTests extends rooibos.BaseTestSuite
+
+    @describe("Util_serialize")
+
+    @it("redacts dummy secret keys at any depth")
+    function _()
+      out = Util_serialize({ authToken: "dummy-token-0000", nested: { password: "dummy-password" }, ok: 1 })
+      m.assertFalse(out.instr("dummy-") >= 0)
+      m.assertTrue(out.instr("<redacted>") >= 0)
+      m.assertTrue(out.instr("ok:1") >= 0)
+    end function
+
+    @it("summarizes arrays over 50 items and strings over 2 KB")
+    function _()
+      big = []
+      for i = 0 to 59
+        big.push(i)
+      end for
+      m.assertEqual(Util_serialize(big), "[array:60]")
+      m.assertEqual(Util_serialize(String(2100, "x")), "<string:2100>")
+    end function
+
+    @it("renders a roDateTime as a type marker")
+    function _()
+      m.assertEqual(Util_serialize(CreateObject("roDateTime")), "<roDateTime>")
+    end function
+
+  end class
+end namespace

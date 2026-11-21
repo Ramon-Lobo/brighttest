@@ -52,6 +52,8 @@ export default withMermaid({
         items: [
           { text: 'Quick start', link: '/guide/getting-started' },
           { text: 'CI integration', link: '/guide/ci' },
+          { text: 'Sharing a device (lease)', link: '/guide/device-lease' },
+          { text: 'Instrumented builds', link: '/guide/instrument' },
           { text: 'Agent skills', link: '/guide/agent-skills' },
           { text: 'Troubleshooting & how it works', link: '/guide/troubleshooting' },
         ],
@@ -82,6 +84,7 @@ export default withMermaid({
           { text: 'Overview', link: '/e2e/' },
           { text: 'Flow reference', link: '/e2e/flows' },
           { text: 'Authoring flows', link: '/e2e/authoring' },
+          { text: 'App state', link: '/e2e/app-state' },
           { text: 'Scaling & CI', link: '/e2e/scaling' },
         ],
       },

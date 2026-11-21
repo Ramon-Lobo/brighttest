@@ -1,10 +1,11 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { parseTree, parseTuple, flatten, focusSignature } from '../lib/e2e/sgnodes.js'
 import { matchAll, matchOne, describe as describeSel } from '../lib/e2e/select.js'
 import { parseFlow, normalizeStep, FlowError } from '../lib/e2e/flow.js'
 import { parseChallenge, buildDigestHeader, multipart } from '../lib/e2e/ecp.js'
 import { parseE2eArgs } from '../bin/cli.js'
-import { execStep } from '../lib/e2e/run.js'
+import { execStep, inspectNodes } from '../lib/e2e/run.js'
+import { extractAppState } from '../lib/e2e/appstate.js'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -88,6 +89,24 @@ describe('selector engine', () => {
     expect(matchOne(roots, { focused: true }).id).toBe('settingsTile')
     expect(matchOne(roots, { textContains: 'ett' }).id).toBe('settingsTile')
   })
+  it('focused: true selects only the deepest focused node of a focus chain', () => {
+    const chain = parseTree(`<sgnodes><All_Nodes>
+      <MainScene name="root" focused="true">
+        <Group name="container" focused="true">
+          <RowList name="row" focused="true">
+            <Button name="item" focused="true" />
+            <Button name="other" />
+          </RowList>
+          <Label name="plain" />
+        </Group>
+      </MainScene></All_Nodes></sgnodes>`).roots
+    expect(matchAll(chain, { focused: true }).map((n) => n.id)).toEqual(['item'])
+    expect(matchOne(chain, { focused: true }).id).toBe('item')
+    // other keys still AND with the deepest-focused node
+    expect(matchAll(chain, { focused: true, subtype: 'Button' }).map((n) => n.id)).toEqual(['item'])
+    expect(matchAll(chain, { focused: true, subtype: 'Group' })).toEqual([])
+    expect(matchAll(chain, { subtype: 'Button' })).toHaveLength(2)
+  })
   it('rejects an empty selector', () => {
     expect(() => matchAll(roots, {})).toThrow(/at least one of/)
   })
@@ -162,6 +181,15 @@ steps:
     expect(flow.steps[0]).toMatchObject({ op: 'assertField', selector: { id: 'hero' }, field: 'uri', equals: 'pkg:/hero.png' })
     expect(flow.steps[1]).toMatchObject({ op: 'assertField', selector: { subtype: 'Label' }, field: 'opacity', contains: '0.5' })
   })
+  it('parses assertState with a path and equals/contains', () => {
+    const flow = parseFlow('steps:\n  - assertState: { path: global.channel, equals: "Open Cinema" }\n  - assertState: { path: watchlist.0.id, contains: steel }\n')
+    expect(flow.steps[0]).toMatchObject({ op: 'assertState', path: 'global.channel', equals: 'Open Cinema' })
+    expect(flow.steps[1]).toMatchObject({ op: 'assertState', path: 'watchlist.0.id', contains: 'steel' })
+  })
+  it('rejects assertState without a path or a comparison', () => {
+    expect(() => parseFlow('steps:\n  - assertState: { equals: 1 }\n')).toThrow(/assertState needs path:/)
+    expect(() => parseFlow('steps:\n  - assertState: { path: current }\n')).toThrow(/needs equals: or contains:/)
+  })
   it('rejects assertField without a field or a comparison', () => {
     expect(() => parseFlow('steps:\n  - assertField: { id: x, equals: 1 }\n')).toThrow(/assertField needs field:/)
     expect(() => parseFlow('steps:\n  - assertField: { id: x, field: uri }\n')).toThrow(/needs equals: or contains:/)
@@ -210,6 +238,55 @@ describe('execStep assertField (fake device)', () => {
       .rejects.toThrow(/got "pkg:\/hero\.png"/)
     await expect(execStep({ op: 'assertField', selector: { id: 'hero' }, field: 'color', equals: 'x' }, ctx(300)))
       .rejects.toThrow(/field "color" not present/)
+  })
+})
+
+describe('app state (__bt_state) extraction', () => {
+  // Roku entity-encodes attribute values, so the JSON arrives with &quot; — extractAppState decodes it.
+  const withState = (json) =>
+    '<sgnodes><All_Nodes><Default name="" /><Scene name="root">' +
+    `<Label name="__bt_state" visible="false" text="${json.replace(/"/g, '&quot;')}" />` +
+    '</Scene></All_Nodes><status>OK</status></sgnodes>'
+
+  it('parses the published snapshot into an object', () => {
+    const { roots } = parseTree(withState('{"current":"HomePanel","global":{"n":7}}'))
+    const res = extractAppState(roots)
+    expect(res.present).toBe(true)
+    expect(res.state).toMatchObject({ current: 'HomePanel', global: { n: 7 } })
+  })
+  it('reports absent when the app publishes nothing', () => {
+    const { roots } = parseTree('<sgnodes><All_Nodes><Scene name="root" /></All_Nodes><status>OK</status></sgnodes>')
+    expect(extractAppState(roots)).toMatchObject({ present: false, state: null })
+  })
+  it('flags invalid JSON distinctly from absent', () => {
+    const { roots } = parseTree(withState('{not json'))
+    const res = extractAppState(roots)
+    expect(res.present).toBe(true)
+    expect(res.state).toBeNull()
+    expect(res.error).toMatch(/invalid JSON/)
+  })
+})
+
+describe('execStep assertState (fake device)', () => {
+  const XML = '<sgnodes><All_Nodes><Default name="" /><Scene name="root">' +
+    '<Label name="__bt_state" text="' +
+    '{&quot;current&quot;:&quot;PlayerPanel&quot;,&quot;global&quot;:{&quot;channel&quot;:&quot;Open Cinema&quot;},&quot;watchlist&quot;:[{&quot;id&quot;:&quot;tears-of-steel&quot;}]}' +
+    '" /></Scene></All_Nodes><status>OK</status></sgnodes>'
+  const ctx = (timeoutMs = 400, xml = XML) => ({ device: { async ecpGet() { return { status: 200, text: xml } } }, stepTimeoutMs: timeoutMs })
+
+  it('passes on a matching path (equals + nested + array index + contains)', async () => {
+    await expect(execStep({ op: 'assertState', path: 'current', equals: 'PlayerPanel' }, ctx())).resolves.toBeTruthy()
+    await expect(execStep({ op: 'assertState', path: 'global.channel', equals: 'Open Cinema' }, ctx())).resolves.toBeTruthy()
+    await expect(execStep({ op: 'assertState', path: 'watchlist.0.id', contains: 'steel' }, ctx())).resolves.toBeTruthy()
+  })
+  it('fails distinctly on wrong value, missing path, and no published state', async () => {
+    await expect(execStep({ op: 'assertState', path: 'current', equals: 'HomePanel' }, ctx(300)))
+      .rejects.toThrow(/got "PlayerPanel"/)
+    await expect(execStep({ op: 'assertState', path: 'global.nope', equals: 'x' }, ctx(300)))
+      .rejects.toThrow(/path "global\.nope" not found/)
+    const empty = '<sgnodes><All_Nodes><Scene name="root" /></All_Nodes><status>OK</status></sgnodes>'
+    await expect(execStep({ op: 'assertState', path: 'current', equals: 'x' }, ctx(300, empty)))
+      .rejects.toThrow(/no app state published/)
   })
 })
 
@@ -273,5 +350,29 @@ describe('cli parseE2eArgs', () => {
     const o = parseE2eArgs(['inspect', '--id', 'hero', '--assert', 'field', '--field', 'uri', '--out', 'flows/x.e2e.yaml'])
     expect(o).toMatchObject({ assert: 'field', field: 'uri', out: 'flows/x.e2e.yaml' })
     expect(o.sel).toEqual({ id: 'hero' })
+  })
+})
+
+describe('e2e inspect <selector> detail view', () => {
+  const XML = `<?xml version="1.0" encoding="UTF-8" ?>
+<sgnodes><All_Nodes><Scene name="Root"><Group name="Panel1"><Label name="NodeA" text="One"/></Group><Group name="Panel2"><Label name="NodeA" text="Two"/></Group></Scene></All_Nodes></sgnodes>`
+  const plain = { bold: (s) => s, dim: (s) => s, red: (s) => s, green: (s) => s, yellow: (s) => s }
+  function capture(xml, selector) {
+    const parsed = parseTree(xml)
+    const roots = parsed.roots || parsed
+    let out = ''
+    const spy = vi.spyOn(process.stdout, 'write').mockImplementation((s) => { out += s; return true })
+    try { inspectNodes(roots, selector, {}, plain) } finally { spy.mockRestore() }
+    return out
+  }
+  it('counts each matched node once (duplicate ids under two parents)', () => {
+    const out = capture(XML, { id: 'NodeA' })
+    expect(out).toContain('2 node(s) matched')
+    expect((out.match(/Node  Label #NodeA/g) || []).length).toBe(2)
+  })
+  it('says custom fields are not visible over ECP, and shows published app state when present', () => {
+    expect(capture(XML, { id: 'Panel1' })).toMatch(/custom interface fields and m\.global are not visible over ECP/)
+    const withState = XML.replace('</Scene>', '<Label name="__bt_state" text="{&quot;user&quot;:&quot;a&quot;}"/></Scene>')
+    expect(capture(withState, { id: 'Panel1' })).toContain('App state')
   })
 })

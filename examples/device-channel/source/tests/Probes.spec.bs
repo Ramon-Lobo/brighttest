@@ -1,0 +1,26 @@
+namespace tests
+  @suite("Probes")
+  class ProbesTests extends rooibos.BaseTestSuite
+
+    @describe("cases")
+
+    @it("returns tagged key=value lines")
+    function _()
+      lines = BTDev_probeAll("t", invalid, invalid)
+      m.assertTrue(lines.count() > 40)
+      for each l in lines
+        m.assertTrue(Instr(1, l, "|") > 0 and Instr(1, l, "=") > 0, l)
+      end for
+    end function
+
+    @it("appends a detached child")
+    function _()
+      g = CreateObject("roSGNode", "Group")
+      c = CreateObject("roSGNode", "Rectangle")
+      c.id = "b"
+      g.appendChild(c)
+      m.assertEqual(g.getChildCount(), 1)
+    end function
+
+  end class
+end namespace

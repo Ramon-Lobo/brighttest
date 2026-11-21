@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="CrashTask" extends="Task">
+  <script type="text/brightscript" uri="CrashTask.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Log.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Crash.brs" />
+</component>

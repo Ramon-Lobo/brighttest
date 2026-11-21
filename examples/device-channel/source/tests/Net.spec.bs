@@ -1,0 +1,20 @@
+namespace tests
+  @suite("Request shapes")
+  class NetTests extends rooibos.BaseTestSuite
+
+    @describe("cases")
+
+    @it("runs all shapes with no url")
+    function _()
+      r = BTDev_runShapes("")
+      m.assertEqual(r.count(), 12)
+      m.assertEqual(r[0], "skipped")
+    end function
+
+    @it("typed and class receivers behave")
+    function _()
+      m.assertEqual(BTDev_collectorShape("http://127.0.0.1/a"), "http://127.0.0.1/a")
+    end function
+
+  end class
+end namespace

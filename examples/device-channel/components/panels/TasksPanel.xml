@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="TasksPanel" extends="Group">
+  <interface>
+    <field id="action" type="string" alwaysNotify="true" />
+    <function name="focusDefault" />
+  </interface>
+  <script type="text/brightscript" uri="TasksPanel.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Log.brs" />
+
+  <children>
+    <Group id="tasksScreen">
+      <Label id="tasksTitle" text="Tasks" translation="[80,60]" width="800" />
+      <ButtonGroup id="taskButtons" translation="[80,140]">
+        <Button id="runTask" text="Run counter task" />
+        <Button id="callStore" text="callFunc store" />
+        <Button id="callLeaf" text="callFunc leaf widget" />
+      </ButtonGroup>
+      <Label id="taskResult" text="task: none" translation="[500,150]" width="1200" />
+      <Label id="storeResult" text="store: none" translation="[500,220]" width="1200" />
+      <Label id="leafResult" text="leaf: none" translation="[500,290]" width="1200" />
+      <StoreNode id="store" />
+      <LeafWidget id="leaf" />
+    </Group>
+  </children>
+</component>

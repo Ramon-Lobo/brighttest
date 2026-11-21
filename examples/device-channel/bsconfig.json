@@ -1,0 +1,10 @@
+{
+  "rootDir": ".",
+  "files": ["manifest", "source/**/*", "components/**/*", "!source/tests/**", "!**/*.spec.bs"],
+  "stagingDir": "out/staging",
+  "retainStagingDir": true,
+  "createPackage": true,
+  "outFile": "out/device-channel.zip",
+  "diagnosticFilters": [1140],
+  "sourceMap": false
+}

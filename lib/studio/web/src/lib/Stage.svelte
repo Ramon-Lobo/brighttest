@@ -3,8 +3,30 @@
   import { matchesSel as matches } from './match.js';
   let { shotSrc, oncontext } = $props();
 
-  const drawable = (n) => n.abs && n.abs.w > 0 && n.abs.h > 0 && n.visible !== false &&
-    (studio.showAll || n.id || n.text || n.focusable || n.focused);
+  // sgnodes/all dumps the whole tree, so most nodes with bounds are NOT on screen — hidden drawers,
+  // preloaded sibling screens, ArrayGrid items scrolled out of view. The server derives `onScreen`
+  // (inherited visible + opacity, intersected with the viewport and every clipping ancestor) and `vis`
+  // (the actually-visible sub-rect); draw against those, not raw `abs`.
+  //
+  // Traces persisted before this existed have neither field, so fall back to the node's own visible flag
+  // rather than showing an empty overlay when replaying an old run.
+  const legacy = (n) => n.onScreen === undefined;
+  const rendered = (n) => (legacy(n) ? n.visible !== false : n.onScreen);
+
+  // Keep a node visible regardless of clipping when the user is specifically pointing at it: a selector
+  // that matches something off-screen must still highlight, or the playground looks broken.
+  const forced = (n) =>
+    n.path === studio.selectedPath || matches(n, studio.probe) || matches(n, studio.runHighlight);
+
+  // Clipped rect normally; the full rect when we're deliberately showing something off-screen.
+  const rectOf = (n) => (rendered(n) && !studio.showOffscreen ? n.vis || n.abs : n.abs || n.vis);
+
+  const drawable = (n) => {
+    const r = rectOf(n);
+    if (!r || !(r.w > 0) || !(r.h > 0)) return false;
+    if (!rendered(n) && !studio.showOffscreen && !forced(n)) return false;
+    return studio.showAll || n.id || n.text || n.focusable || n.focused;
+  };
 </script>
 
 <div class="monitor" role="presentation" onclick={() => (studio.selectedPath = null)}>
@@ -13,12 +35,15 @@
     <svg viewBox="0 0 {studio.scene.w} {studio.scene.h}" preserveAspectRatio="none">
       {#each studio.nodes as n (n.path)}
         {#if drawable(n)}
+          {@const r = rectOf(n)}
           <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_noninteractive_element_interactions -->
           <rect
-            x={n.abs.x} y={n.abs.y} width={n.abs.w} height={n.abs.h}
+            x={r.x} y={r.y} width={r.w} height={r.h}
             class="box"
             class:idd={n.id}
             class:focused={n.focused}
+            class:offscreen={!rendered(n)}
+            class:approx={n.posExact === false}
             class:sel={n.path === studio.selectedPath}
             class:hover={n.path === studio.hoverPath}
             class:probe={matches(n, studio.probe)}
@@ -47,6 +72,11 @@
 
   .box { fill: transparent; stroke: rgba(138,144,166,.28); stroke-width: 1; vector-effect: non-scaling-stroke; cursor: pointer; transition: fill .12s ease; }
   .box.idd { stroke: rgba(124,108,255,.5); }
+  /* Not being drawn by the device: dashed and dim, so it reads as "present in the tree, not on screen". */
+  .box.offscreen { stroke: rgba(138,144,166,.3); stroke-dasharray: 3 5; }
+  /* Origin not resolvable: the node sits under an ArrayGrid item wrapper, and sgnodes does not report that
+     wrapper's offset. The box is at the grid's origin, not the item's — flagged so it can't mislead. */
+  .box.approx { stroke: rgba(255,194,75,.34); stroke-dasharray: 2 6; }
   .box.focused { stroke: var(--color-amber); stroke-width: 2; }
   .box.hover { fill: rgba(124,108,255,.14); stroke: var(--color-violet); stroke-width: 2; }
   .box.sel { fill: rgba(124,108,255,.2); stroke: var(--color-violet); stroke-width: 2.5; }

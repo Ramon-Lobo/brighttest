@@ -30,6 +30,7 @@ jobs:
           node-version: "22"
       - run: npm ci
       - name: Run on-device E2E flows
+        id: e2e
         # Pass user-controlled workflow inputs through env vars (never interpolate ${{ }} into the shell)
         # to avoid command injection. FLOWS/MODE are quoted when used below.
         env:
@@ -42,6 +43,24 @@ jobs:
           npx brighttest e2e run "$FLOWS" \
             --screenshots "e2e-artifacts" \
             --screenshots-mode "$MODE"
+      - name: Write run status summary
+        if: always()
+        env:
+          OUTCOME: ${{ steps.e2e.outcome }}
+          FLOWS: ${{ inputs.flows }}
+          MODE: ${{ inputs['screenshots-mode'] }}
+          HOSTS: ${{ secrets.ROKU_HOST }}
+        # Never print the host value or password; only the number of configured devices.
+        run: |
+          COUNT=0
+          if [ -n "$HOSTS" ]; then COUNT=$(printf '%s' "$HOSTS" | awk -F, '{print NF}'); fi
+          {
+            echo "### On-device E2E"
+            echo "- Run outcome: \`$OUTCOME\`"
+            echo "- Flows: \`$FLOWS\`"
+            echo "- Screenshots mode: \`$MODE\`"
+            echo "- Devices configured: $COUNT"
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Upload screenshots
         if: always()
         uses: actions/upload-artifact@v7

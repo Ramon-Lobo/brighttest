@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="GridPanel" extends="Group">
+  <interface>
+    <field id="action" type="string" alwaysNotify="true" />
+    <function name="focusDefault" />
+  </interface>
+  <script type="text/brightscript" uri="GridPanel.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Log.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Catalog.brs" />
+
+  <children>
+    <Group id="gridScreen">
+      <Label id="gridTitle" text="Catalog grid" translation="[80,60]" width="800" />
+      <MarkupGrid id="catalogGrid" translation="[80,160]" itemComponentName="TileItem" numColumns="5" numRows="2" itemSize="[220,160]" itemSpacing="[20,20]" />
+    </Group>
+  </children>
+</component>
