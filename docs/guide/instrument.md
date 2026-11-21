@@ -283,6 +283,19 @@ steps:
   On a build that is not instrumented, the run fails right after `launch` (within 5 s) with
   ``no agent.hello/BT_url handshake seen: build with `brighttest instrument build --net` `` instead of waiting for step timeouts.
 
+## Hub state routes
+
+The hub also carries host-side state writes (the agent side lands later). Same token, peer and lease rules as the other
+routes: a wrong token or peer is a bare `404`, a lost lease is `423`, a wrong `?session=` is `409 {resync}`.
+
+| Method and path | Purpose |
+|---|---|
+| `POST /bt/<token>/state` | Queue one command `{op, args, ack?}` (`ack` is `applied`, the default, or `reflected`). `202 {id, seq, session}`. A body over 64 KB is `413 {error: "STATE_TOO_LARGE"}`, never truncated; a bad op or body is `400 {error: "BAD_COMMAND"}`. |
+| `GET /bt/<token>/state[?id=<cmd id>]` | Command status (`pending`, `done`, `failed`, `timeout`, `abandoned`), gaps, and the last redacted `state.snapshot`. Open commands time out when this is read. |
+
+Agent `cmd.ack` events on `POST events` complete commands. Queued commands are logged as `cmd.sent` events with values
+under sensitive keys (and `instrument.state.redact.paths`) masked before they reach `events.ndjson`.
+
 ## Rules to know
 
 - **Single build.** One build uses one fresh `Program` and one plugin instance. There is no watch mode; reusing a plugin

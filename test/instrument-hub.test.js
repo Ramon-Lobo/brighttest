@@ -274,3 +274,114 @@ describe('hub events, ring buffer and NDJSON', () => {
     expect(() => createEventLog({ sessionId: '../x', sessionDir: '/tmp' })).toThrow(/sessionId/);
   });
 });
+
+describe('hub state routes (STA-S-T5)', () => {
+  const post = (hub, body, q = '') => req(hub, 'POST', `/bt/${TOKEN}/state${q}`, typeof body === 'string' ? body : JSON.stringify(body));
+  const ackLine = (hub, c, phase, more = {}) => JSON.stringify({ kind: 'cmd.ack', session: hub.sessionId, data: { id: c.id, seq: c.seq, phase, ok: true, ...more } }) + '\n';
+
+  it('wrong token, wrong route method and wrong peer are bare 404', async () => {
+    const hub = await start();
+    for (const [m, p] of [['GET', '/bt/nope/state'], ['POST', '/bt/nope/state'], ['DELETE', `/bt/${TOKEN}/state`]]) {
+      const r = await req(hub, m, p, m === 'POST' ? '{}' : undefined);
+      expect(r.status).toBe(404);
+      expect(r.body).toBe('');
+    }
+    const peerHub = await start({ mode: 'device', devicePeer: '192.168.1.50' });
+    const r = await post(peerHub, { op: 'ping' });
+    expect(r.status).toBe(404);
+    expect(r.body).toBe('');
+    expect(peerHub.stateOps.list()).toEqual([]);
+  });
+
+  it('device peer allowed through peerOf: state writes work for the leased device only', async () => {
+    const hub = await start({ mode: 'device', devicePeer: '192.168.1.50', peerOf: () => '192.168.1.50' });
+    const r = await post(hub, { op: 'ping' });
+    expect(r.status).toBe(202);
+  });
+
+  it('lease lost answers 423 on both methods and queues nothing', async () => {
+    const lease = fakeLease();
+    const hub = await start({ lease });
+    lease._held = false;
+    expect((await post(hub, { op: 'ping' })).status).toBe(423);
+    expect((await req(hub, 'GET', `/bt/${TOKEN}/state`)).status).toBe(423);
+    expect(hub.stateOps.list()).toEqual([]);
+  });
+
+  it('POST queues a command the agent long-polls; acks over events complete it; GET reads it back', async () => {
+    const hub = await start();
+    const r = await post(hub, { op: 'set', args: { layer: 'global', path: 'user.tier', value: 'premium' } });
+    expect(r.status).toBe(202);
+    const q = JSON.parse(r.body);
+    expect(q).toMatchObject({ id: 'c-1', seq: 1, session: hub.sessionId });
+    const polled = JSON.parse((await req(hub, 'GET', `/bt/${TOKEN}/cmd?after=0`)).body);
+    expect(polled[0]).toMatchObject({ op: 'set', seq: 1 });
+    await req(hub, 'POST', `/bt/${TOKEN}/events`, ackLine(hub, q, 'received') + ackLine(hub, q, 'applied', { result: 'ok' }));
+    const g = JSON.parse((await req(hub, 'GET', `/bt/${TOKEN}/state?id=c-1`)).body);
+    expect(g.command).toMatchObject({ status: 'done', phase: 'applied', result: 'ok' });
+    const all = JSON.parse((await req(hub, 'GET', `/bt/${TOKEN}/state`)).body);
+    expect(all.commands.length).toBe(1);
+    expect((await req(hub, 'GET', `/bt/${TOKEN}/state?id=zzz`)).status).toBe(404);
+  });
+
+  it('rejects an op that is not allowed and malformed bodies as typed 400s', async () => {
+    const hub = await start();
+    const r = await post(hub, { op: 'eval' });
+    expect(r.status).toBe(400);
+    expect(JSON.parse(r.body).error).toBe('BAD_COMMAND');
+    expect((await post(hub, 'not json')).status).toBe(400);
+    expect((await post(hub, { op: 'set', ack: 'later' })).status).toBe(400);
+    expect(hub.stateOps.list()).toEqual([]);
+  });
+
+  it('a body over 64 KB is a typed 413, never truncated, and queues nothing', async () => {
+    const hub = await start();
+    const r = await post(hub, { op: 'set', args: { layer: 'global', path: 'a', value: 'x'.repeat(70000) } });
+    expect(r.status).toBe(413);
+    expect(JSON.parse(r.body)).toEqual({ error: 'STATE_TOO_LARGE', limit: 65536 });
+    expect(hub.stateOps.list()).toEqual([]);
+    // just under the cap passes (args cap is on the serialized args)
+    const ok = await post(hub, { op: 'set', args: { layer: 'global', path: 'a', value: 'x'.repeat(60000) } });
+    expect(ok.status).toBe(202);
+  });
+
+  it('a session mismatch answers 409 resync and queues nothing', async () => {
+    const hub = await start();
+    const r = await post(hub, { op: 'ping' }, '?session=other');
+    expect(r.status).toBe(409);
+    expect(JSON.parse(r.body)).toEqual({ resync: true, session: hub.sessionId });
+    expect((await req(hub, 'GET', `/bt/${TOKEN}/state?session=other`)).status).toBe(409);
+    expect(hub.stateOps.list()).toEqual([]);
+  });
+
+  it('GET times out open commands lazily', async () => {
+    const hub = await start();
+    await post(hub, { op: 'ping' });
+    hub.stateOps.tick(Date.now() + 60000);
+    const g = JSON.parse((await req(hub, 'GET', `/bt/${TOKEN}/state?id=c-1`)).body);
+    expect(g.command.status).toBe('timeout');
+  });
+
+  it('exposes the last state.snapshot, redacted', async () => {
+    const hub = await start({ redactPaths: ['global.user.email'] });
+    const snap = { kind: 'state.snapshot', data: { layers: { global: { user: { email: 'dummy@example.test', tier: 'free' }, authToken: 'dummy-tok' } } } };
+    await req(hub, 'POST', `/bt/${TOKEN}/events`, JSON.stringify(snap) + '\n');
+    const all = JSON.parse((await req(hub, 'GET', `/bt/${TOKEN}/state`)).body);
+    expect(JSON.stringify(all.snapshot)).not.toMatch(/dummy/);
+    expect(all.snapshot.layers.global.user.tier).toBe('free');
+  });
+
+  it('persisted events.ndjson never holds dummy secrets, from agent snapshots or host writes (TP-STA-04 persisted part)', async () => {
+    const dir = tmp();
+    const hub = await start({ sessionDir: dir, redactPaths: ['global.user.email'] });
+    const snap = { kind: 'state.snapshot', data: { layers: { global: { authToken: 'dummy-tok-1', sessionId: 'dummy-sid-2', password: 'dummy-pw-3', user: { email: 'dummy-mail-4@example.test', tier: 'free' } } } } };
+    await req(hub, 'POST', `/bt/${TOKEN}/events`, JSON.stringify(snap) + '\n');
+    await post(hub, { op: 'set', args: { layer: 'global', path: 'user.authToken', value: 'dummy-tok-5' } });
+    await post(hub, { op: 'set', args: { layer: 'global', path: 'user.email', value: 'dummy-mail-6@example.test' } });
+    const text = fs.readFileSync(hub.log.file, 'utf8');
+    expect(text).not.toMatch(/dummy/);
+    for (const k of ['authToken', 'sessionId', 'password']) expect(text).toContain(`"<redacted:${k}>"`);
+    expect(text).toContain('"<redacted:email>"');
+    expect(text).toContain('"tier":"free"');
+  });
+});
