@@ -14,16 +14,25 @@ brighttest/
 │   ├── device.js            # build (coverage on) → stock Rooibos CLI → scrape LCOV
 │   ├── cross-check.js       # run headless + device, diff the overlap for fidelity
 │   ├── e2e/                 # the on-device UI test lane (see "E2E lane" below)
+│   ├── instrument/          # `brighttest instrument` (build/census/verify/sideload) + the net fault plugin, hub and proxy
+│   ├── studio/              # `brighttest studio` server (ECP, sgdebug, perf, Perfetto); client in studio/web (Svelte)
+│   ├── device-lease.js      # device lease (+ device-command.js, device-hook.js, devices.js): `brighttest device`
+│   ├── doctor.js            # `brighttest doctor` capability check and the e2e preflight
+│   ├── engines.js           # brs-node / rooibos resolution (+ engine-caps.js, `doctor --engines`)
+│   ├── init.js, skills.js   # `brighttest init`, `brighttest skills`
+│   ├── reporter.js          # shared console/JUnit reporter
 │   └── tools.js             # resolve dependency bins / plugin path regardless of hoisting
 ├── brs/headless_runner.brs  # the headless Rooibos driver (runs on the simulator)
 ├── docs/                    # this VitePress site (not published to npm)
 ├── experiments/             # spike scripts + device FINDINGS (not shipped) — see "E2E lane"
 ├── design/                  # RFC/design notes, e.g. design/e2e-lane.md (not shipped)
-├── examples/sample-app/     # runnable sample exercising every lane (not shipped)
-└── package.json             # deps: @ramonlobo/brs-node, @ramonlobo/rooibos-roku, brighterscript
+├── skills/                  # agent skills (shipped) + manifest.json (`npm run skills:manifest`)
+├── scripts/                 # check-denylist, skills manifest, audit gate (not shipped)
+├── examples/                # sample-app (every lane), greenfield-app, legacy-app, device-channel, streaming-app (not shipped)
+└── package.json             # deps: @ramonlobo/brs-node, @ramonlobo/rooibos-roku, brighterscript, jszip
 ```
 
-Only `bin`, `brs`, `skills`, `lib/*.js`, `lib/e2e`, `lib/studio/*.js`, `lib/studio/public`, `README.md` and `LICENSE` are in the `files` array (`test/package-files.test.js` checks that every relative `require` under `bin/` and `lib/` is in the pack), so
+Only `bin`, `brs`, `skills`, `lib/*.js`, `lib/e2e`, `lib/instrument`, `lib/studio/*.js`, `lib/studio/public`, `README.md` and `LICENSE` are in the `files` array (`test/package-files.test.js` checks that every relative `require` under `bin/` and `lib/` is in the pack), so
 `docs/`, `experiments/`, `design/`, `examples/`, and `test/` **do not ship to npm** — they're repo-only.
 
 ## Delivery model
@@ -138,6 +147,14 @@ core `fs`/`path`/`crypto` + global `fetch`. User-facing docs are under [E2E](/e2
 | `run.js` | the lane: preflight, `buildPlan` (matrix × device sharding), per-device `runHost`, step exec, reporting, exit codes; `parseTargets` resolves per-host passwords |
 | `record.js` | interactive TTY recorder → scaffolds a flow (`Recorder` is pure/testable) |
 | `stamp-ids.js` | build-time `id` injection — a **bsc plugin** (`beforeFileParse` rewrites component XML) + a source transform |
+| `ecpq.js` | per-host ECP call queue: per-endpoint spacing and one transient retry |
+| `ready.js` | launch readiness gate (active-app, `sgnodes` answering, settle) |
+| `reset.js` | device reset to a known state before a run |
+| `appstate.js` | read an app's self-published state snapshot from a node's `text` attribute |
+| `net-steps.js` | net fault/fixture flow steps (rules from `lib/instrument/net-rules.js`) |
+| `logs.js` | telnet `:8085` log capture for a run |
+| `lint.js` | static flow lint (warnings only) |
+| `assert-builder.js` | turns a live node into ready-to-paste flow assertions (`e2e inspect`) |
 | `video.js` | optional `--video`: assemble per-step screenshots into mp4/gif via **ffmpeg** (external, optional; skipped with a note if absent) |
 
 The pure parts (parser, selector, navigator algorithm against a simulated grid, recorder, id-stamper, run
@@ -146,7 +163,7 @@ on a real Roku.
 
 ### Device/ECP facts that shaped it {#e2e-device-facts}
 
-These were established on real hardware (Roku Ultra; first fw 15.2.4, re-checked on 16.0.4 build 853) and are recorded in
+These were established on real hardware (Roku Ultra; first on fw 15.2.4, and partly re-confirmed on 16.0.4 build 853 in the 2026-11-19 batch: custom fields not dumped, `Group` dumped as `RenderableNode`, `Channel not running` on Home, the 8085 debugger freeze) and are recorded in
 `experiments/FINDINGS.md`, `experiments/VIDEO-FINDINGS.md`, and `design/e2e-lane.md`. A maintainer touching
 this lane should know them:
 
@@ -433,7 +450,7 @@ in `docs/.vitepress/config.mts`.
 ## Publishing
 
 `dependencies` (not devDependencies) list the runtime toolchain so a normal `npm i -D brighttest` pulls it
-transitively (the two forks and `brighterscript`). Docs tooling (`vitepress`, `mermaid`) are devDependencies
+transitively (the two forks, `brighterscript` and `jszip`). Docs tooling (`vitepress`, `mermaid`) are devDependencies
 and aren't shipped. For local development use `file:` linking and run `npm install` inside `brighttest/`
 once so its `node_modules` is populated.
 
