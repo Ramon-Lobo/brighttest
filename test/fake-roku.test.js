@@ -19,6 +19,12 @@ async function boot(scenario, extra = {}) {
 }
 afterEach(async () => { await Promise.all(stubs.splice(0).map((s) => s.stop())) })
 
+// Bounded poll (<= 5 s) for an observable condition; fails with a clear message instead of sleeping a fixed time.
+async function until(fn, what) {
+  for (let i = 0; i < 200 && !fn(); i++) await new Promise((r) => setTimeout(r, 25))
+  if (!fn()) throw new Error(`timed out waiting for ${what}`)
+}
+
 const ecp = (a, p, init) => fetch(a.ecpUrl + p, init)
 const post = (a, p) => ecp(a, p, { method: 'POST' })
 
@@ -124,7 +130,7 @@ describe('fake-roku scenarios (one smoke test each)', () => {
   it('crash-mid-flow: third key press crashes the app and prints a debugger transcript', async () => {
     const { stub, a } = await boot('crash-mid-flow')
     const dbg = tcp(a.debugPort, { until: /Runtime Error/, timeout: 2000 })
-    await new Promise((r) => setTimeout(r, 100))
+    await until(() => stub.debugConnections >= 1, 'the debug client to connect')
     for (const k of ['Down', 'Down', 'Select']) await post(a, `/keypress/${k}`)
     expect(await (await ecp(a, '/query/active-app')).text()).toContain('<app>Roku</app>')
     expect(await (await ecp(a, '/query/sgnodes/all')).text()).toContain('FAILED')
@@ -365,7 +371,7 @@ describe('fake-roku features', () => {
   it('emitDebug pushes live lines to connected 8085 clients', async () => {
     const { stub, a } = await boot('healthy')
     const p = tcp(a.debugPort, { until: /custom live/ })
-    await new Promise((r) => setTimeout(r, 100))
+    await until(() => stub.debugConnections >= 1, 'the debug client to connect')
     stub.emitDebug('custom live')
     expect(await p).toContain('custom live')
   })
@@ -431,11 +437,11 @@ describe('fake-roku FIX-06 gaps', () => {
   })
 
   it('M5 rooibos-pass: transcript after install parses with the lane reporter', async () => {
-    const { a } = await boot('rooibos-pass')
+    const { stub, a } = await boot('rooibos-pass')
     const early = await tcp(a.debugPort, { until: /NEVER/, timeout: 300 })
     expect(early).not.toContain('Rooibos')
     const live = tcp(a.debugPort, { until: /\[Rooibos Result\]: PASS/ })
-    await new Promise((r) => setTimeout(r, 100))
+    await until(() => stub.debugConnections >= 2, 'the live debug client to connect (after the early probe)')
     expect((await install(a)).status).toBe(200)
     const out = await live
     expect(parseSummary(out)).toEqual({ total: 2, passed: 2, crashed: 0, failed: 0, ignored: 0 })
@@ -512,8 +518,10 @@ describe('fake-roku FIX-06 gaps', () => {
   it('M9 late-node: lateNode appears only after the delay', async () => {
     const { a } = await boot('late-node', { lateNodeMs: 300 })
     expect(await (await ecp(a, '/query/sgnodes/all')).text()).not.toContain('lateNode')
-    await new Promise((r) => setTimeout(r, 350))
-    expect(await (await ecp(a, '/query/sgnodes/all')).text()).toContain('name="lateNode"')
+    const seen = async () => (await (await ecp(a, '/query/sgnodes/all')).text()).includes('name="lateNode"')
+    let ok = false
+    for (let i = 0; i < 200 && !(ok = await seen()); i++) await new Promise((r) => setTimeout(r, 25))
+    expect(ok).toBe(true)
   })
 
   it('M10 focus-grid: item1..item6, focus follows arrow keys', async () => {
@@ -539,7 +547,7 @@ describe('fake-roku FIX-06 gaps', () => {
   it('M12 emitDebugRaw writes without a line ending', async () => {
     const { stub, a } = await boot('healthy')
     const p = tcp(a.debugPort, { until: /part$/ })
-    await new Promise((r) => setTimeout(r, 100))
+    await until(() => stub.debugConnections >= 1, 'the debug client to connect')
     stub.emitDebugRaw('par'); stub.emitDebugRaw('t')
     const out = await p
     expect(out.endsWith('part')).toBe(true)

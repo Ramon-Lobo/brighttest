@@ -150,6 +150,8 @@ describe('Studio server and the lease', () => {
     delete process.env.BRIGHTTEST_LEASE_DIR; delete process.env.BRIGHTTEST_CACHE
   })
   const key = () => `127.0.0.1_p${process.env.ROKU_ECP_PORT}`
+  // bounded poll (<= 5 s); throws a clear message on timeout
+  const until = async (fn, what = 'condition') => { for (let i = 0; i < 250 && !(await fn()); i++) await new Promise((r) => setTimeout(r, 20)); if (!(await fn())) throw new Error(`timed out waiting for ${what}`) }
 
   it('423 with the holder while someone else holds; 200 after; idle release', async () => {
     const o = await other({ key: key() })
@@ -164,7 +166,7 @@ describe('Studio server and the lease', () => {
     expect((await req('GET', '/api/tree')).status).toBe(200)
     expect((await req('GET', '/api/lease')).json.holding).toBe(true)
     clock.t += 11000
-    await new Promise((r) => setTimeout(r, 80))
+    await until(() => lease.status({ dir, key: key() })[0].holder === null, 'the idle release')
     expect(lease.status({ dir, key: key() })[0].holder).toBeNull()
     expect(logs.join('\n')).toMatch(/studio holds .*\n.*studio released .*idle/)
   })
@@ -175,7 +177,7 @@ describe('Studio server and the lease', () => {
     expect(q.json).toMatchObject({ holding: false, queued: true })
     expect(lease.status({ dir, key: key() })[0].holder.holder.agent).toBe('device-qa#1')
     o.release()
-    await new Promise((r) => setTimeout(r, 100))
+    await until(async () => (await req('GET', '/api/lease')).json.holding === true, 'Studio to take the lease after the holder released')
     expect((await req('GET', '/api/lease')).json.holding).toBe(true)
     await req('POST', '/api/lease', { action: 'release' })
     expect(lease.status({ dir, key: key() })[0].holder).toBeNull()
@@ -200,7 +202,6 @@ describe('Studio server and the lease', () => {
     r.end()
     return { events, done }
   }
-  const until = async (fn) => { for (let i = 0; i < 100 && !fn(); i++) await new Promise((r) => setTimeout(r, 20)) }
 
   it('a flow running through /api/run is aborted when the lease is released', async () => {
     fs.mkdirSync(path.join(dir, 'flows'), { recursive: true })
@@ -231,10 +232,11 @@ describe('Studio server and the lease', () => {
       await until(() => fake.keypresses.length >= 2)
       await req('POST', '/api/lease', { action: 'release' })
       await run.done
-      await new Promise((r) => setTimeout(r, 100)) // let any straggling in-flight request land
+      // stays: no observable signal for "an in-flight request already sent has landed"; this is a settle window
+      await new Promise((r) => setTimeout(r, 100))
       const n = fake.keypresses.length
       expect(n).toBeLessThan(200)
-      await new Promise((r) => setTimeout(r, 700))
+      await new Promise((r) => setTimeout(r, 700)) // stays: proves a negative (no further presses), nothing to poll for
       expect(fake.keypresses.length).toBe(n) // nothing after the abort
       expect(run.events.at(-1)).toMatchObject({ type: 'done', aborted: true })
     })
@@ -269,7 +271,7 @@ describe('Studio server and the lease', () => {
   it('an idle release records the idle reason in events.log', async () => {
     await req('GET', '/api/tree')
     clock.t += 11000
-    await new Promise((r) => setTimeout(r, 80))
+    await until(() => lease.readEvents({ dir, key: key() }).some((e) => e.ev === 'released'), 'the idle released event')
     const rel = lease.readEvents({ dir, key: key() }).find((e) => e.ev === 'released')
     expect(rel.reason).toMatch(/^idle /)
   })
