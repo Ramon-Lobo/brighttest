@@ -80,6 +80,7 @@ The Network view is a tab next to Node / Tree / Selector / State on the Inspect 
 - **Mock this.** Select a row and press **Mock this** to turn the recorded response into a `- mockHttp: {...}` step (`GET /api/net/mock-this`). The step is inserted into the flow editor as an unsaved edit. Responses over the body limit are refused with a message to export the HAR and use `net convert`. **Copy as rule JSON** copies the same rule, **Block (503)** adds a live 503 rule for the path, and **Clear live rules** removes live rules.
 - **Export HAR.** Downloads `brighttest-network.har` (HAR 1.2, redacted) from `GET /api/net/har`. The newest exchanges are kept until a size budget is spent; if older ones were dropped the response carries the header `X-Brighttest-Truncated: 1`.
 - **Raw toggle.** Values are redacted by default. **show secrets** reloads the list with `?raw=1`, which is the only route that returns raw headers, query strings and bodies. A banner warns that the view is unredacted; do not share it.
+- **Empty list.** When the hub is up but no device has dialled it, the panel says no hello has arrived yet (check the build has `--net` and the same hub token). After a hello with no traffic, it shows the hello time instead.
 
 The server is meant for the local machine only. It answers only requests whose `Host` is `localhost`,
 `127.0.0.1` or `[::1]`, refuses cross-site browser requests and any `Origin` that is not loopback on the
