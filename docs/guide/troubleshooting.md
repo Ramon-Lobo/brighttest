@@ -91,6 +91,22 @@ show a low percentage — that's accurate, not a bug. It climbs as you add tests
 The original `brs` (sjbarag) `0.45.x` throws `Cannot read properties of undefined (reading 'toLowerCase')`
 even on hello-world under Node 22. It's unmaintained — use `brs-node` (what brighttest depends on).
 
+## `brighttest doctor`: is the device ready?
+
+```sh
+brighttest doctor --host <ip>            # firmware, ECP mode, developer mode, with the exact fix for anything wrong
+brighttest doctor --host <ip> --json     # the same as JSON (checks[] with id, ok, fix)
+```
+
+It reads `query/device-info` only: no password, no lease, no keypresses. Exit 0 when every check passes, 1
+when a check fails or the device does not answer. The serial number is hidden unless you pass `--show-serial`.
+The two fixable states are **Limited** ECP (Settings → System → Advanced system settings → Control by mobile
+apps → Network access → Permissive) and **developer mode disabled** (enable it with the remote sequence the
+fix text prints).
+
+`brighttest e2e run` runs the same check first. On a Limited or developer-disabled device it stops before the
+device lease, any launch or any keypress, and prints the same fix text.
+
 ## "Waiting for the device lease" / exit 75, 77 or 78
 
 Device commands queue for the device ([device lease](./device-lease)). Run `npx brighttest device status`
