@@ -81,6 +81,20 @@ you run Rooibos yourself, set it in your bsconfig — this is a hard requirement
 (RokuCommunity Rooibos issue #203). It's *not* a coverage problem: node tests work with coverage on once
 the script is linked.
 
+## Device run aborted: "no device output for Ns (idle watchdog)"
+
+**Symptom:** a `--device` run stops with `run aborted: no device output for Ns (idle watchdog)`, or with
+`[roku-test] no device output for Ns` from the Rooibos CLI.
+
+**Cause:** the device printed nothing for too long. Two watchdogs exist. The Rooibos CLI exits on its own after
+90 s of silence. The brighttest device lane has its own backstop at 120 s (`DEFAULT_IDLE_S` in `lib/device.js`),
+so the CLI's line normally wins and the lane's fires only when the CLI itself wedges. There is no CLI flag for
+the lane value yet. `--timeout <sec>` (default 900) is the separate overall limit.
+
+**Known limit:** with stock Rooibos, an `@async` test that never calls done prints `[Rooibos Result]: PASS`
+after about 5 s, so the run looks like a pass and the watchdog never fires (the device is not silent). Keep
+async tests calling done, and cross-check suspicious passes on the headless lane.
+
 ## Coverage % looks low
 
 Coverage reflects only the lines your tests exercised. A big utility file with a few tested functions will
