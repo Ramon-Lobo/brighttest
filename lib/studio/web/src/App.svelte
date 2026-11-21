@@ -10,6 +10,7 @@
   import HierarchyTree from './lib/HierarchyTree.svelte';
   import SelectorPlayground from './lib/SelectorPlayground.svelte';
   import AppState from './lib/AppState.svelte';
+  import Network from './lib/Network.svelte';
   import ContextMenu from './lib/ContextMenu.svelte';
   import Runs from './lib/pages/Runs.svelte';
   import Devices from './lib/pages/Devices.svelte';
@@ -283,6 +284,7 @@
                   <button class:on={tab === 'tree'} onclick={() => (tab = 'tree')}>Tree</button>
                   <button class:on={tab === 'selector'} onclick={() => (tab = 'selector')}>Selector</button>
                   <button class:on={tab === 'state'} onclick={() => (tab = 'state')}>State</button>
+                  <button class:on={tab === 'net'} onclick={() => (tab = 'net')}>Network</button>
                 </div>
                 <div class="panelbody">
                   {#if tab === 'node'}
@@ -291,6 +293,8 @@
                     <HierarchyTree />
                   {:else if tab === 'selector'}
                     <SelectorPlayground onadd={addStep} />
+                  {:else if tab === 'net'}
+                    <Network onadd={addStep} />
                   {:else}
                     <AppState onadd={addStep} />
                   {/if}
