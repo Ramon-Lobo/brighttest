@@ -23,7 +23,7 @@ to stress instrumentation the way long-lived apps do. Invented content only. Fix
   (extends `OverhangPanelSetScene`; census fixture, not launched by default). Select with launch param `scene=<Name>`.
 - Markers: `print "BTFIX:<event>"` on startup, scene init, keys, tasks, exit.
 - Failure paths: keys Up Up Down Down crash (Dot operator on invalid, `print broken.value`) at
-  `LegacyScene.brs(86)` on the plain build and `LegacyScene.brs(91)` on the instrumented build (shifted by
+  `LegacyScene.brs(88)` on the plain build and `LegacyScene.brs(95)` on the instrumented build (shifted by
   instrumentation); Left Right Left Right run `END`.
 - Clean log: a plain render (no keys) prints no `main.brs` error line; the strict check is that the device log
   has no `pkg:/source/main.brs(...)` error.
