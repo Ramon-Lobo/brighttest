@@ -127,7 +127,10 @@ function find(n, id) {
 function sgnodesNode(root, id) {
   const hit = find(root, id);
   if (!hit) return XML + '<sgnodes>\n\t<status>FAILED</status>\n\t<error>node not found</error>\n</sgnodes>\n';
-  return XML + `<sgnodes>\n\t<status>OK</status>\n\t<Node_Subtree node-count="${countNodes(hit)}">\n${renderNode(hit, 2)}\t</Node_Subtree>\n</sgnodes>\n`;
+  // Real shape (RAW-SHAPE-PROBE, fw 15.3.4 and 16.0.4): <Nodes_Nodes> holds a Default row plus the one
+  // matched node, FLAT: it carries children="N" but no child elements.
+  const attrs = Object.entries({ ...hit.attrs, _sn: hit.sn, children: hit.children.length }).map(([k, v]) => ` ${k}="${esc(v)}"`).join('');
+  return XML + `<sgnodes>\n\t<status>OK</status>\n\t<Nodes_Nodes node-id="${esc(id)}" node-count="2">\n\t\t<Default extends="Node" />\n\t\t<${hit.type}${attrs} />\n\t</Nodes_Nodes>\n</sgnodes>\n`;
 }
 
 const sgnodesFailed = () => XML + '<sgnodes>\n\t<status>FAILED</status>\n</sgnodes>\n';

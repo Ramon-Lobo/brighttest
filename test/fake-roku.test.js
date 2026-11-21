@@ -253,6 +253,11 @@ describe('fake-roku scenarios (one smoke test each)', () => {
     expect(x.match(/_sn="/g).length).toBe(n)
     const sub = await (await ecp(a, '/query/sgnodes/nodes?node-id=2')).text()
     expect(sub).toContain('<status>OK</status>')
+    expect(sub).toContain('<Nodes_Nodes node-id="2" node-count="2">')
+    expect(sub).not.toContain('Node_Subtree')
+    expect(sub).toContain('<Default')
+    expect(sub).toMatch(/ children="\d+"/)
+    expect(sub.match(/_sn="/g).length).toBe(1) // flat: only the matched node, no child elements
     expect((await (await ecp(a, '/query/sgnodes/nodes?node-id=nope')).text())).toContain('FAILED')
     expect(await (await ecp(a, '/query/app-ui')).text()).toContain('<screen')
   })

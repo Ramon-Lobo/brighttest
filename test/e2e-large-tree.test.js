@@ -7,6 +7,12 @@ const treeXml = (n) => {
   for (let i = 0; i < n - 1; i++) kids += `<Label name="n${i}" text="t"/>`
   return `<sgnodes><All_Nodes node-count="${n}"><Default/><Scene name="s">${kids}</Scene></All_Nodes><status>OK</status></sgnodes>`
 }
+// Real query/sgnodes/nodes?node-id= shape (RAW-SHAPE-PROBE): Default row + one FLAT node with children="N".
+const nodesXml = (p) => {
+  const id = decodeURIComponent(p.split('node-id=')[1])
+  if (id !== 'n100') return '<sgnodes><status>FAILED</status><error>node not found</error></sgnodes>'
+  return `<sgnodes><status>OK</status><Nodes_Nodes node-id="${id}" node-count="2"><Default extends="Node"/><Group name="n100" children="5"/></Nodes_Nodes></sgnodes>`
+}
 function fakeDevice(n) {
   const calls = []
   const xml = treeXml(n)
@@ -14,7 +20,7 @@ function fakeDevice(n) {
     calls,
     ecpGet: async (p) => {
       calls.push(p)
-      if (p.startsWith('/query/sgnodes/nodes?')) return { status: 200, text: `<sgnodes><All_Nodes node-count="1"><Default/><Label name="n100" text="t"/></All_Nodes><status>OK</status></sgnodes>` }
+      if (p.startsWith('/query/sgnodes/nodes?')) return { status: 200, text: nodesXml(p) }
       return { status: 200, text: xml }
     },
   }
@@ -34,6 +40,24 @@ describe('large-tree policy (ROB-11)', () => {
     expect(d.calls).toEqual(['/query/sgnodes/nodes?node-id=n100'])
     expect(t.fastPath).toBe(true)
     expect(matchOne(t.roots, { id: 'n100' })).not.toBeNull()
+  })
+
+  it('fast path parses the real flat shape: node returned, Default row ignored, no descendants', async () => {
+    const d = fakeDevice(10)
+    const t = await sg.fetchTreeFor(d, { id: 'n100' })
+    expect(t.roots).toHaveLength(1)
+    expect(t.roots[0].id).toBe('n100')
+    expect(t.roots[0].children).toEqual([])
+    expect(sg.flatten(t.roots).some((n) => n.subtype === 'Default')).toBe(false)
+  })
+
+  it('an id selector that needs descendants or the whole tree falls back to sgnodes/all', async () => {
+    for (const sel of [{ id: 'n100', focused: true }, { id: 'n100', index: 0 }]) {
+      const d = fakeDevice(10)
+      const t = await sg.fetchTreeFor(d, sel)
+      expect(d.calls).toEqual(['/query/sgnodes/all'])
+      expect(t.fastPath).toBeUndefined()
+    }
   })
 
   it('falls back to the full tree on a miss or when the selector needs the whole tree', async () => {
