@@ -95,7 +95,7 @@ npx brighttest e2e run flows/details.e2e.yaml --host <ip> --password <pw> \
   --content-id abc123,def456,ghi789 --media-type movie
 ```
 
-Each matrix entry launches with `{ contentId, mediaType }` (overriding the flow's own launch params) and
+Each matrix entry launches with `{ contentId, mediaType }` (overriding the flow's own launch params; the runner presses Home first because params are set) and
 is labelled by content id in the output and screenshot/video filenames. The matrix also shards across
 devices when you pass multiple hosts.
 
