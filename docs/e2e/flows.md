@@ -112,7 +112,7 @@ assertions, it polls until it matches or the step timeout elapses.
 Roku has no tap: "click X" means moving focus to X with the D-pad. `focus: <selector>` runs a bounded,
 deterministic loop — read the focused node and the target's geometry, press toward it, wait for the UI to
 settle, re-read; back off to the orthogonal axis at an edge; give up with a clear error (and a screenshot)
-after `maxPresses`.
+after `maxPresses`. A focused keyboard (or other composite whose inner cursor is invisible in the node tree) gets up to 6 consecutive extra presses per axis before the navigator reports an edge, so `focus:` on a target after a keyboard may need up to that many presses.
 
 ```yaml
 - focus: { id: settingsTile }              # navigate, then stop (does not Select)
