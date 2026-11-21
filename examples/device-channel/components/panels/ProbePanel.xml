@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="ProbePanel" extends="Group">
+  <interface>
+    <field id="action" type="string" alwaysNotify="true" />
+    <function name="focusDefault" />
+  </interface>
+  <script type="text/brightscript" uri="ProbePanel.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Log.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Probes.brs" />
+  <children>
+    <Group id="probeScreen">
+      <Label id="probeTitle" text="Probes" translation="[80,40]" width="800" />
+      <Button id="probeRun" text="Re-run probes" translation="[80,100]" />
+      <Label id="probeSummary" text="probes: pending" translation="[80,200]" width="1700" />
+      <Label id="probeText" visible="false" />
+      <Group id="probeHost" />
+    </Group>
+  </children>
+</component>

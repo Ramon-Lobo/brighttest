@@ -1,0 +1,25 @@
+# Settings: Keyboard text entry, then a button press that changes m.global (read through the state snapshot).
+# Focus path: buttons first; "Edit name" focuses the Keyboard; Back returns to the buttons.
+appId: dev
+config: { timeout: 15 }
+steps:
+  - home                                       # fresh start: a running app ignores launch
+  - launch
+  - assertVisible: { id: homeScreen }
+  - press: Down                                # menu item 1: Settings
+  - press: Select
+  - assertVisible: { id: settingsScreen }
+  - assertFocused: { id: editName }
+  - assertState: { path: global.flag, equals: false }
+  - press: Select                              # "Edit name" -> Keyboard
+  - text: "abc"                                # typed into the focused Keyboard
+  - assertText: { id: nameEcho, equals: "name: abc" }
+  - back                                       # Keyboard -> buttons (stays on Settings)
+  - assertVisible: { id: settingsScreen }
+  - assertFocused: { id: editName }
+  - press: Down
+  - press: Select                              # "Toggle flag"
+  - assertText: { id: flagLabel, equals: "flag: true" }
+  - assertState: { path: global.flag, equals: true }
+  - back
+  - assertVisible: { id: homeScreen }

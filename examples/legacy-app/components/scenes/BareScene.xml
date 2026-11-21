@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- A Scene with no init and no script at all. -->
+<component name="BareScene" extends="Scene">
+  <children>
+    <Label id="bareLabel" text="bare" />
+  </children>
+</component>

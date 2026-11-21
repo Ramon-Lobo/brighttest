@@ -1,0 +1,16 @@
+namespace tests
+  @suite("LeafWidget inheritance chain (headless @SGNode)")
+  @SGNode("LeafWidget")
+  class LeafWidgetTests extends rooibos.BaseTestSuite
+
+    @describe("cases")
+
+    @it("resolves functions through three levels")
+    function _()
+      m.assertEqual(m.top.callFunc("leafOp"), "leaf>mid>base")
+      m.assertEqual(m.top.callFunc("midOp"), "mid>base")
+      m.assertEqual(m.top.callFunc("baseOp"), "base")
+    end function
+
+  end class
+end namespace

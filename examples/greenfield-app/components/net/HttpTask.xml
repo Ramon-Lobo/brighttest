@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="HttpTask" extends="Task">
+  <interface>
+    <field id="baseUrl" type="string" value="" />
+    <!-- {mode: "get"|"getAsync"|"post"|"download", path, body (assocarray), file (name under tmp:/)} -->
+    <field id="request" type="assocarray" />
+    <!-- getUrl() read-back of the URL the transfer was configured with -->
+    <field id="lastUrl" type="string" value="" />
+    <!-- {code, body, error} -->
+    <field id="result" type="assocarray" />
+  </interface>
+  <script type="text/brightscript" uri="HttpTask.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Http.brs" />
+</component>

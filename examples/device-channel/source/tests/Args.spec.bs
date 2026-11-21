@@ -1,0 +1,55 @@
+namespace tests
+  @suite("Launch args")
+  class ArgsTests extends rooibos.BaseTestSuite
+
+    @describe("defaults")
+
+    @it("returns defaults for no args")
+    function _()
+      o = BTDev_parseArgs(invalid)
+      m.assertEqual(o.scene, "MainScene")
+      m.assertEqual(o.crash, "")
+      m.assertEqual(o.slow, 0)
+      m.assertEqual(o.perf, 300)
+    end function
+
+    @describe("crash")
+
+    @it("normalizes crash modes")
+    @params("1", "error")
+    @params("error", "error")
+    @params("task", "task")
+    @params("exit", "exit")
+    @params("nonsense", "")
+    function _(input as string, expected as string)
+      m.assertEqual(BTDev_parseArgs({ crash: input }).crash, expected)
+    end function
+
+    @describe("clamping")
+
+    @it("clamps numeric args")
+    function _()
+      o = BTDev_parseArgs({ slow: "999999", perf: "0", stress: "5000", crashdelay: "abc" })
+      m.assertEqual(o.slow, 30000)
+      m.assertEqual(o.perf, 1)
+      m.assertEqual(o.stress, 1024)
+      m.assertEqual(o.crashdelay, 0)
+    end function
+
+    @describe("scene")
+
+    @it("accepts known scenes and ignores unknown ones")
+    function _()
+      m.assertEqual(BTDev_parseArgs({ scene: "InitForScene" }).scene, "InitForScene")
+      m.assertEqual(BTDev_parseArgs({ scene: "Nope" }).scene, "MainScene")
+    end function
+
+    @it("passes bt_net and stream through")
+    function _()
+      o = BTDev_parseArgs({ bt_net: "profileA", stream: "http://127.0.0.1/x.m3u8" })
+      m.assertEqual(o.bt_net, "profileA")
+      m.assertEqual(o.stream, "http://127.0.0.1/x.m3u8")
+    end function
+
+  end class
+end namespace

@@ -1,0 +1,19 @@
+namespace tests
+  ' Sets Label.forceUpperCase inside the node's init. Headless engines may ignore or warn about the field
+  ' (non-device behaviour); the suite is tagged so TP-ENG runs can select it.
+  @tags("bt-nondevice")
+  @suite("Badge component (Label.forceUpperCase)")
+  @SGNode("Badge")
+  class BadgeTests extends rooibos.BaseTestSuite
+
+    @describe("text")
+
+    @it("passes the text through to its label")
+    function _()
+      m.top.text = "new"
+      label = m.top.findNode("badgeLabel")
+      m.assertEqual(lcase(label.text), "new")
+    end function
+
+  end class
+end namespace

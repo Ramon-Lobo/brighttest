@@ -1,0 +1,94 @@
+#if BT_AGENT
+' brighttest instrument runtime: network URL rewrite (NET-N-T2, ADR 0017 D5).
+' BT_url(u) wraps an http(s) URL as <hub netBase><original> once a hub session is live, and is the identity function in
+' every other case (non-string, pkg:/ tmp:/ file:/ and other schemes, no hub, URL already on the hub).
+' BT_unurl(u) strips the hub prefix again so app code that compares getUrl() keeps working.
+' This file lives under source/bt/ (never rewritten), so the SetUrl calls below talk to the real roUrlTransfer.
+'
+' The first call per thread does one bounded hello (at most 1.5 s). roUrlTransfer has no total timeout on a device
+' [DV], so the hello is asynchronous, sets SetMinimumTransferRate and runs its own timer that calls AsyncCancel.
+' A failed hello is cached as "no hub" for 30 s, then retried; a successful one is cached for the thread's lifetime.
+' The cache is per thread (GetGlobalAA()), so each Task does its own hello. The hub host comes from BT_config().hub.host;
+' "auto" means the build did not bake a host, so the build stays inactive (identity).
+
+function BT_netIsStr(v as dynamic) as boolean
+    t = type(v)
+    return t = "String" or t = "roString"
+end function
+
+function BT_netIsHttp(u as dynamic) as boolean
+    if not BT_netIsStr(u) then return false
+    l = LCase(Left(u, 8))
+    return Left(l, 7) = "http://" or l = "https://"
+end function
+
+function BT_netState() as object
+    g = GetGlobalAA()
+    if g.__btNet = invalid then g.__btNet = { base: "", checked: false, retryAt: 0, clock: CreateObject("roTimespan") }
+    return g.__btNet
+end function
+
+function BT_netHello() as string
+    cfg = BT_config()
+    if type(cfg) <> "roAssociativeArray" then return ""
+    hub = cfg.hub
+    token = cfg.token
+    if type(hub) <> "roAssociativeArray" or not BT_netIsStr(token) then return ""
+    host = hub.host
+    port = hub.port
+    if port = invalid or not BT_netIsStr(host) then return ""
+    if host = "" or LCase(host) = "auto" then return ""
+    origin = "http://" + host + ":" + port.toStr()
+    mp = CreateObject("roMessagePort")
+    x = CreateObject("roUrlTransfer")
+    x.SetMessagePort(mp)
+    x.SetUrl(origin + "/bt/" + token + "/hello")
+    x.SetMinimumTransferRate(1, 1)
+    if not x.AsyncGetToString() then return ""
+    clock = CreateObject("roTimespan")
+    while true
+        left = 1500 - clock.TotalMilliseconds()
+        if left < 1 then exit while
+        msg = Wait(left, mp)
+        if msg = invalid then exit while
+        if type(msg) = "roUrlEvent" and msg.GetInt() = 1 then
+            if msg.GetResponseCode() <> 200 then return ""
+            j = ParseJson(msg.GetString())
+            if type(j) <> "roAssociativeArray" then return ""
+            if j.active = invalid or j.netBase = invalid then return ""
+            if j.active <> true or not BT_netIsStr(j.netBase) then return ""
+            if j.netBase = "" then return ""
+            return origin + j.netBase
+        end if
+    end while
+    x.AsyncCancel()
+    return ""
+end function
+
+' The hub prefix, or "" when no session is live.
+function BT_netBase() as string
+    st = BT_netState()
+    if st.base <> "" then return st.base
+    now = st.clock.TotalMilliseconds()
+    if st.checked and now < st.retryAt then return ""
+    st.checked = true
+    st.base = BT_netHello()
+    if st.base = "" then st.retryAt = now + 30000
+    return st.base
+end function
+
+function BT_url(u as dynamic) as dynamic
+    if not BT_netIsHttp(u) then return u
+    base = BT_netBase()
+    if base = "" then return u
+    if Left(u, Len(base)) = base then return u
+    return base + u
+end function
+
+function BT_unurl(u as dynamic) as dynamic
+    if not BT_netIsStr(u) then return u
+    base = BT_netState().base
+    if base <> "" and Left(u, Len(base)) = base then return Mid(u, Len(base) + 1)
+    return u
+end function
+#end if

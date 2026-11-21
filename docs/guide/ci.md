@@ -82,6 +82,26 @@ Put the device IP and developer password in CI **secrets** (`ROKU_HOST`, `ROKU_P
 via `env:`, as above. Don't inline them in the workflow or commit them.
 :::
 
+### Sharing the device with local agents
+
+If the self-hosted runner shares a Roku with developers or agents on the same machine, the
+[device lease](/guide/device-lease) serializes them. Label the CI holder and give it a longer wait:
+
+```yaml
+    env:
+      BRIGHTTEST_AGENT: ci:${{ github.run_id }}
+      BRIGHTTEST_LEASE_WAIT: 45m
+    steps:
+      - run: npx brighttest device status   # who holds the device before the run
+      - run: npx brighttest --cross-check --host "$ROKU_HOST" --password "$ROKU_PASSWORD"
+      - run: npx brighttest device status
+        if: always()
+```
+
+For CI runs against each other, add `concurrency: { group: roku-device, cancel-in-progress: false }`. If
+the runner is another OS user on the same machine, point `BRIGHTTEST_LEASE_DIR` at one shared,
+group-writable directory on both sides. A wait that times out exits **75**.
+
 ## Recommended split
 
 | Trigger | Lane | Why |
@@ -94,6 +114,12 @@ via `env:`, as above. Don't inline them in the workflow or commit them.
 The e2e lane needs a real Roku on the runner's LAN, so it runs only on a **self-hosted** runner. The repo
 ships a ready workflow at `.github/workflows/e2e-device.yml` — see [E2E → Scaling & CI](/e2e/scaling).
 :::
+
+## Debug builds (instrument)
+
+To produce an instrumented debug package in CI, run `npx brighttest instrument build --strict`. Exit **0** = package
+written, **1** = broken build (nothing written), **4** = strict-mode failure (policy), **3** is the release gate
+`instrument verify`. See [Instrumented builds](/guide/instrument).
 
 ## Coverage services
 

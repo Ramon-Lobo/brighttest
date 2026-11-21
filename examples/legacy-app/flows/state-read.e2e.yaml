@@ -1,0 +1,6 @@
+# Reads app state: tierLabel is bound to m.global.user.tier.
+appId: dev
+config: { timeout: 8 }
+steps:
+  - launch
+  - assertText: { id: tierLabel, equals: "Tier: free" }

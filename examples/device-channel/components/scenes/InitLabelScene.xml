@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="InitLabelScene" extends="Scene">
+  <interface>
+    <field id="initRan" type="boolean" value="false" />
+
+  </interface>
+  <script type="text/brightscript" uri="InitLabelScene.brs" />
+
+</component>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="TileItem" extends="Group">
+  <interface>
+    <field id="itemContent" type="node" onChange="onContent" />
+  </interface>
+  <script type="text/brightscript" uri="TileItem.brs" />
+  <children>
+    <Rectangle id="tileBg" width="220" height="160" color="0x2A3550FF" />
+    <Label id="tileLabel" width="200" height="80" translation="[10,60]" wrap="true" />
+  </children>
+</component>

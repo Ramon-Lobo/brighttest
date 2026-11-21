@@ -23,7 +23,7 @@ brighttest/
 └── package.json             # deps: @ramonlobo/brs-node, @ramonlobo/rooibos-roku, brighterscript
 ```
 
-Only `bin`, `lib`, `brs`, `skills`, `README.md`, `LICENSE` (+ `patches`) are in the `files` array, so
+Only `bin`, `brs`, `skills`, `lib/*.js`, `lib/e2e`, `lib/studio/*.js`, `lib/studio/public`, `README.md` and `LICENSE` are in the `files` array (`test/package-files.test.js` checks that every relative `require` under `bin/` and `lib/` is in the pack), so
 `docs/`, `experiments/`, `design/`, `examples/`, and `test/` **do not ship to npm** — they're repo-only.
 
 ## Delivery model
@@ -107,6 +107,18 @@ flowchart TD
   - drop records whose `SF:` path matches `(^|/)rooibos/` (framework-injected);
   - join and write to the `--lcov` path.
 - `extractLcov` is exported for unit testing.
+- Fallbacks (ENG-T14): one best-effort Home key press (through the ECP key path) runs after the lease is held and
+  before deploy; a failed Home only warns. The watchdog (`--timeout`) kills the CLI's process group and the run
+  fails even if the child never closes. No `[Rooibos Result]` is a failure, even when cases streamed. An idle (output-silence) watchdog
+  (`opts.idleTimeout`, default 120 s, `0` disables; no CLI flag yet) kills the CLI if the device prints nothing; it sits
+  above the rooibos CLI's own 90 s `[roku-test] no device output for Ns` exit. Aborted runs get typed messages: a stall
+  reads "run aborted: no device output for Ns (idle watchdog)"; the `Brightscript Debugger>` prompt reads "run aborted by
+  runtime error in `<suite>`" (suite from the last streamed suite header). Known limit: a stock-rooibos `@async` test that
+  never calls done prints `[Rooibos Result]: PASS` after about 5 s, which the lane cannot tell from a real pass (the
+  device is not silent); catching it needs the ROO-02 idle flag in the fork. When the rooibos CLI supports
+  `--coverage-dir` (`supportsFlag` in `engines.js`: stamp `flags`, else rooibos >= 5.17.0), `--lcov` also passes
+  `--coverage-dir=<staging>/device/coverage`; console lcov is preferred, and `<dir>/lcov.info` (run through
+  `extractLcov`) is read only when the console yields nothing.
 
 ## E2E lane (`lib/e2e/`)
 
@@ -134,7 +146,7 @@ on a real Roku.
 
 ### Device/ECP facts that shaped it {#e2e-device-facts}
 
-These were established on real hardware (Roku Ultra, fw 15.2.4) and are recorded in
+These were established on real hardware (Roku Ultra; first fw 15.2.4, re-checked on 16.0.4 build 853) and are recorded in
 `experiments/FINDINGS.md`, `experiments/VIDEO-FINDINGS.md`, and `design/e2e-lane.md`. A maintainer touching
 this lane should know them:
 
@@ -179,6 +191,10 @@ across current Rooibos 5.x but are **internal**, not a public API. When bumping 
 3. If the LCOV console format changed, update `extractLcov` in `device.js`.
 
 ## `@SGNode` headless patch {#sgnode-headless-patch}
+
+::: warning Historical
+This section describes the pre-publication model. `patch-package`, `patches/`, `lib/patch-brs-node.js`, `vendor/` and the `postinstall` hook no longer exist in this repo; the fixes now ship in the forks. See [Delivery model](#delivery-model).
+:::
 
 This is the mechanism that lets `@SGNode` node suites run **headless** (in the `--coverage` lane and, by
 extension, `--cross-check`). It's a two-hunk patch to `rooibos-roku`, applied automatically by
@@ -230,10 +246,17 @@ direct notification produces the same listener ordering, the leftover observer i
 This patch makes node suites *run and settle* headless. On its own it doesn't make `onChange` handlers
 fire — that's the separate [brs-node patch](#brs-node-onchange-patch) below. Together they give full
 `@SGNode` fidelity headless (ButtonEx: **95/95, 0 divergent** vs device). What remains device-only is
-behaviour tied to real wall-clock render timing — animations playing out over frames, Task-node I/O, live
-remote input. The device lane is the fidelity reference for those; `--cross-check` polices the line.
+behaviour tied to real wall-clock render timing — animations playing out over frames and live remote
+input. `Task` run loops block `@SGNode` tests, so Task logic is tested as pure functions, and brighttest has no
+HTTP mocking of its own (the pinned `@ramonlobo/brs-node` fork has an undocumented
+`tmp:/rt-http-fixtures.json` hook that a spec must write itself). The device lane is the fidelity reference
+for render timing and remote input; `--cross-check` polices the line.
 
 ## brs-node `onChange` patch {#brs-node-onchange-patch}
+
+::: warning Historical
+This section describes the pre-publication model. `patch-package`, `patches/`, `lib/patch-brs-node.js`, `vendor/` and the `postinstall` hook no longer exist in this repo; the fixes now ship in the forks. See [Delivery model](#delivery-model).
+:::
 
 The companion to the rooibos patch. It lives in `lib/patch-brs-node.js` (an idempotent postinstall script,
 **not** a patch-package patch — see [why](#why-a-script-not-patch-package)) and makes XML `onChange`
@@ -277,6 +300,10 @@ tests flip to pass, coverage rose 26% → 34% (the handler code now actually exe
 went to **0 divergent**. Re-run all three lanes after touching it.
 
 ## brs-node `roTextToSpeech` bundle {#brs-node-createobject-patch}
+
+::: warning Historical
+This section describes the pre-publication model. `patch-package`, `patches/`, `lib/patch-brs-node.js`, `vendor/` and the `postinstall` hook no longer exist in this repo; the fixes now ship in the forks. See [Delivery model](#delivery-model).
+:::
 
 The third fix. Unlike the string-patches, this replaces the **core bundle** `brs.node.js` with a rebuild of
 brs-node@2.2.0 that implements the `roTextToSpeech` component. `lib/patch-brs-node.js` copies the vendored
@@ -368,6 +395,26 @@ If the patch ever needs to be backed out, here are the fallbacks, in order of pr
   run them only on `--device`. `config.js` used to exclude node specs from the headless-coverage build via
   `findNodeSpecs()` negation globs — that's the code to restore. Simplest, but loses headless node testing.
 
+## Deny-list check (`scripts/check-denylist.js`)
+
+Guards against client references, secrets and identifiers reaching git history or pack reports. The term
+list is **never in the repository**: put one term per line (`#` comments allowed) in a file outside the
+checkout and point `BRIGHTTEST_DENYLIST` at it (default `~/.brighttest/denylist.txt`). Matching is
+case-insensitive and word-ish (a term inside a longer alphanumeric word does not match); hits inside long
+hash-like tokens (integrity hashes) are ignored. Output is `file:line  kind  masked-term`, never the term.
+
+```sh
+npm run check:denylist                          # tracked files
+npm run check:denylist -- --staged              # added lines of the staged diff
+npm run check:denylist -- --range origin/main..HEAD   # commit messages + diffs of a push range
+npm run check:denylist -- --path <dir-or-file>  # arbitrary paths (pack reports, unpacked tarballs)
+npm run check:denylist -- --json                # machine-readable
+```
+
+Exit codes: `0` clean, `1` hits, `2` configuration error. It fails closed: a missing list, an empty
+list, or a list that git tracks is exit 2 (`--allow-missing` downgrades only the missing case to a
+warning). Run it with `--range` before every push.
+
 ## Docs site
 
 VitePress lives in `docs/` (excluded from the npm `files` list, so it isn't published).
@@ -384,20 +431,12 @@ in `docs/.vitepress/config.mts`.
 ## Publishing
 
 `dependencies` (not devDependencies) list the runtime toolchain so a normal `npm i -D brighttest` pulls it
-transitively — including `patch-package`, which the `postinstall` hook runs to apply the [@SGNode headless
-patch](#sgnode-headless-patch). Docs tooling (`vitepress`, `mermaid`) are devDependencies and aren't
-shipped. `patches/` **is** in the `files` array so the patch ships. For local development use `file:`
-linking and run `npm install` inside `brighttest/` once so its `node_modules` is populated (and patched).
+transitively (the two forks and `brighterscript`). Docs tooling (`vitepress`, `mermaid`) are devDependencies
+and aren't shipped. For local development use `file:` linking and run `npm install` inside `brighttest/`
+once so its `node_modules` is populated.
 
 Release flow: bump with `npm version <patch|minor|major>` (commits + tags `vX.Y.Z` on `main`), push the
 branch **and the tag**, then `npm publish --access public`. The npm account has **2FA enabled**, so publish
 prompts for a one-time password — pass it with `--otp=<code>` (it can't be automated interactively; use an
 automation token for unattended CI releases). `npm pack --dry-run` before publishing to confirm the tarball
 contents. `v0.3.0` was the first release carrying the e2e lane.
-
-::: warning Before publishing
-Resolve the patch-package [distribution caveat](#patch-package-mechanics): a hoisted `rooibos-roku` in a
-consumer install may not be re-patched by brighttest's `postinstall`. Prefer landing the [upstream
-PR](#alternatives-if-we-revert) so the dep can be bumped and the patch dropped. This is an open decision,
-not a solved problem.
-:::

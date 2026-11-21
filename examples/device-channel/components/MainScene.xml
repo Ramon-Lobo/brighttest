@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="MainScene" extends="Scene">
+  <script type="text/brightscript" uri="MainScene.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Log.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/BTState.brs" />
+  <children>
+    <Rectangle id="bg" width="1920" height="1080" color="0x0C0E14FF" />
+    <!-- Only the active panel is parented here, so assertVisible/assertGone are exact. -->
+    <Group id="stage" />
+  </children>
+</component>

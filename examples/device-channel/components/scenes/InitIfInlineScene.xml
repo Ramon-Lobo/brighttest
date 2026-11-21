@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="InitIfInlineScene" extends="Scene">
+  <interface>
+    <field id="initRan" type="boolean" value="false" />
+
+  </interface>
+  <script type="text/brightscript" uri="InitIfInlineScene.brs" />
+
+</component>

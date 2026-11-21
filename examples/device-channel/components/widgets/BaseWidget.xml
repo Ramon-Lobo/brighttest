@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="BaseWidget" extends="Group">
+  <interface>
+    <field id="kind" type="string" value="base" />
+    <function name="baseOp" />
+  </interface>
+  <script type="text/brightscript" uri="BaseWidget.brs" />
+</component>

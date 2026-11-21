@@ -1,0 +1,13 @@
+# Launch args: slow start (readiness) and a small perf screen (60 nodes = 50 rectangles + 10 labels).
+appId: dev
+config: { timeout: 20 }
+steps:
+  - home                                       # fresh start: a running app ignores launch
+  - launch: { slow: 1500, perf: 50 }
+  - assertVisible: { id: homeScreen }
+  - press: { key: Down, count: 6 }             # menu item 6: Performance
+  - press: Select
+  - assertVisible: { id: perfScreen }
+  - assertText: { id: perfInfo, equals: "nodes: 60" }
+  - back
+  - assertVisible: { id: homeScreen }

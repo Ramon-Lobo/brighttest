@@ -119,6 +119,15 @@ A step is a **bare word** (`launch`, `back`, `home`) or a **single-key map** (`p
 `assertVisible: { id: x }`). It's a deliberately small YAML subset — anything outside it raises a clear,
 line-referenced error rather than being silently misparsed.
 
+## Shared devices
+
+`brighttest e2e run|inspect|record` take a per-device **lease**: if another terminal, agent or CI job is
+using the Roku, the command waits its turn (FIFO) and prints who holds it. `e2e run` presses Home twice after
+acquiring so every run starts from the home screen. Check with `npx brighttest device status`; wrap any other
+device command (`curl` keypresses, scripts) in `npx brighttest device with -- <cmd>`. Exit 75 = the device
+stayed busy past `--wait`; 77 = the lease was lost or hit its deadline. Never pass `--no-lease` when others
+share the device.
+
 ## The rules that bite hardest
 
 Follow these five or your flows will fail to connect, flake, or silently pass. Symptoms and fixes are in

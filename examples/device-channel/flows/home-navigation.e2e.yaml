@@ -1,0 +1,15 @@
+# Home screen: stable ids, menu focus, and the published app state (current panel).
+appId: dev
+config: { timeout: 15 }
+steps:
+  - home                                       # fresh start: a running app ignores launch
+  - launch
+  - assertVisible: { id: homeScreen }
+  - assertFocused: { id: menuList }
+  - assertState: { path: current, equals: HomePanel }
+  - assertState: { path: global.titlecount, equals: 10 }
+  - assertState: { path: user.tier, equals: free }
+  - press: Right                               # menu -> RowList
+  - assertFocused: { id: homeRows }
+  - press: Left
+  - assertFocused: { id: menuList }

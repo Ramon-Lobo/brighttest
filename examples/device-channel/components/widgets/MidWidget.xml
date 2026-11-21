@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="MidWidget" extends="BaseWidget">
+  <interface>
+    <function name="midOp" />
+  </interface>
+  <script type="text/brightscript" uri="MidWidget.brs" />
+</component>
