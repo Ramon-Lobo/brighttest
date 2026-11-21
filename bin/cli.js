@@ -99,13 +99,15 @@ function parseSkillsArgs(rest) {
 }
 
 // `brighttest instrument build [--out <zip>] [--strict|--no-strict] [--verbose] [--config <path>]`
-const INSTRUMENT_ACTIONS = ['build'];
+const INSTRUMENT_ACTIONS = ['build', 'verify', 'census'];
 function parseInstrumentArgs(rest) {
-  const o = { instrumentAction: null, out: null, strict: null, verbose: false, config: null, sideload: false, host: null, wait: null, max: null, expect: null, as: null, purpose: null, help: false, unknown: [] };
+  const o = { instrumentAction: null, out: null, strict: null, verbose: false, config: null, sideload: false, host: null, wait: null, max: null, expect: null, as: null, purpose: null, json: false, target: null, help: false, unknown: [] };
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
     if (i === 0 && !a.startsWith('-')) { o.instrumentAction = a; continue; }
-    if (a === '--out' || a === '-o') o.out = rest[++i];
+    if (!a.startsWith('-') && o.target === null && (o.instrumentAction === 'verify')) { o.target = a; continue; }
+    if (a === '--json') o.json = true;
+    else if (a === '--out' || a === '-o') o.out = rest[++i];
     else if (a.startsWith('--out=')) o.out = a.slice(6);
     else if (a === '--strict') o.strict = true;
     else if (a === '--no-strict') o.strict = false;
@@ -140,6 +142,9 @@ brighttest instrument — build an instrumented (debug-only) package of your app
 
 Usage:
   brighttest instrument build [--out <zip>] [--strict | --no-strict] [--verbose] [--config <path>]
+  brighttest instrument verify <zip|dir>                      Release gate: exit 3 if instrumentation markers are found, 0 if clean
+  brighttest instrument census [--json] [--out <dir>] [--config <path>]
+                                                              Static census of the app in the current directory (no device)
 
 Options:
   -o, --out <zip>    Where the package goes (default: <stagingDir>/instrument/app.bt-instrumented.zip). It is written
@@ -384,9 +389,10 @@ Options:
 
 // `brighttest init [--force]`
 function parseInitArgs(rest) {
-  const opts = { force: false, help: false };
+  const opts = { force: false, brownfield: false, help: false };
   for (const a of rest) {
     if (a === '--force' || a === '-f') opts.force = true;
+    else if (a === '--brownfield') opts.brownfield = true;
     else if (a === '--help' || a === '-h') opts.help = true;
   }
   return opts;
@@ -400,6 +406,12 @@ brighttest init — scaffold a project for testing
 
 Usage:
   brighttest init [--force]
+  brighttest init --brownfield [--force]
+
+  --brownfield   For an existing app you will not edit: runs the instrument census, writes the "instrument" block
+                 into brighttest.json (state.registrySections proposed from the registry sections the census finds),
+                 adds .brighttest/ and *.bt-instrumented.zip to .gitignore, and does not add an example spec or an
+                 npm test script. Existing brighttest.json settings are kept; --force replaces the instrument block.
 `;
 
 const SKILLS_HELP = `
@@ -510,6 +522,28 @@ async function main() {
       process.exit(2);
     }
     if (o.unknown.length) { console.error(`[brighttest instrument] unknown option(s): ${o.unknown.join(' ')}`); process.exit(2); }
+    if (o.instrumentAction === 'verify') {
+      if (!o.target) { console.error('[brighttest instrument verify] needs a <zip|dir> to check'); process.exit(2); }
+      let r;
+      try { r = await require('../lib/instrument/verify').verify(o.target); } catch (e) { console.error(`[brighttest instrument verify] ${e.message}`); process.exit(2); }
+      if (r.exitCode === 0) console.log(`instrument verify: clean (no instrumentation markers in ${o.target})`);
+      else {
+        console.error(`instrument verify: INSTRUMENTED: ${r.markers.length} marker(s) in ${o.target}; do not release this package`);
+        for (const m of r.markers) console.error(`  ${m.kind}: ${m.path}${m.detail ? ` (${m.detail})` : ''}`);
+      }
+      process.exit(r.exitCode);
+    }
+    if (o.instrumentAction === 'census') {
+      const censusMod = require('../lib/instrument/census');
+      let c;
+      try { c = await censusMod.census(process.cwd(), { config: o.config }); } catch (e) { console.error(`[brighttest instrument census] ${e.message}`); process.exit(2); }
+      if (o.out) {
+        const w = censusMod.write(c, require('path').resolve(o.out));
+        console.error(`instrument census: wrote ${w.json} and ${w.md}`);
+      }
+      console.log(o.json ? JSON.stringify(c, null, 2) : censusMod.renderMarkdown(c));
+      process.exit(0);
+    }
     let target = null;
     if (o.sideload) {
       // Explicit host only (no cached-device guess); the password comes from ROKU_PASSWORD / the credential path.
