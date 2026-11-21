@@ -61,6 +61,10 @@ describe('npm pack contents', () => {
     expect(packed.has('lib/device-lease.js')).toBe(true)
   })
 
+  it('ships the instrument modules (plugin, build, verify, census, receiver)', () => {
+    for (const m of ['plugin', 'build', 'verify', 'census', 'receiver']) expect(packed.has(`lib/instrument/${m}.js`), m).toBe(true)
+  })
+
   it('does not ship repo-only folders', () => {
     const forbidden = [...packed].filter((p) =>
       /^(design|docs|experiments|examples|test|scripts|\.github|\.claude)\//.test(p) || p.startsWith('lib/studio/web/'))
