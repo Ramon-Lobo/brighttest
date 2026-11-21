@@ -287,7 +287,7 @@ Options:
 const DEVICE_ACTIONS = ['status', 'with', 'unlock', 'log', 'lock', 'renew', 'hook', 'reset'];
 function parseDeviceArgs(rest) {
   const o = {
-    deviceAction: null, host: null, password: null, ecpPort: null, as: null, purpose: null, wait: null, max: null,
+    deviceAction: null, host: null, password: null, ecpPort: null, as: null, purpose: null, wait: null, max: null, idle: null,
     expect: null, noHygiene: false, json: false, tail: null, force: false, reason: null, kill: false, lease: null,
     cmd: [], help: false, unknown: [],
   };
@@ -305,6 +305,7 @@ function parseDeviceArgs(rest) {
     else if ((v = val('--wait')) !== undefined) o.wait = v;
     else if ((v = val('--max')) !== undefined) o.max = v;
     else if ((v = val('--expect')) !== undefined) o.expect = v;
+    else if ((v = val('--idle')) !== undefined) o.idle = v;
     else if ((v = val('--tail')) !== undefined) o.tail = parseInt(v, 10) || null;
     else if ((v = val('--reason')) !== undefined) o.reason = v;
     else if ((v = val('--lease')) !== undefined) o.lease = v;
@@ -327,6 +328,9 @@ brighttest device — share one Roku safely between processes, worktrees and age
 Usage:
   brighttest device status [--host <h>] [--json]           Who holds each device, since when, who waits
   brighttest device with [options] -- <cmd…>               Hold the lease while <cmd> runs (FIFO queue)
+  brighttest device lock [--host <h>] [options] [--json]  Take a session lease for multi-step debugging; prints the token
+  brighttest device renew [--lease <token>]                Push a session's idle expiry forward (every use of the token does too)
+  brighttest device unlock [--lease <token>]               Release your session (token from --lease or BRIGHTTEST_LEASE)
   brighttest device unlock --force --host <h> --reason "…" [--kill]   Human override (audited)
   brighttest device hook                                   Claude Code PreToolUse Bash guard (hook JSON on stdin)
   brighttest device log [--host <h>] [--tail <n>] [--json] The lease audit log (events.log)
@@ -339,6 +343,9 @@ Options (with):
   --wait <dur>         How long to queue (or BRIGHTTEST_LEASE_WAIT; default 30m). 0 = fail if busy
   --max <dur>          Hard cap on the hold (default 60m); the command is stopped at the cap (exit 77)
   --expect <dur>       Expected hold time, shown to waiters as an ETA
+  --lease <token>      (with) Run under that session lease instead of queueing (same as BRIGHTTEST_LEASE=<token>)
+  --idle <dur>         (lock) Session idle TTL, renewed by every use (default 10m)
+  --max <dur>          (lock) Session hard cap (default 45m)
   --no-hygiene         Skip the Home ×2 reset after acquiring
   --ecp-port <n>       ECP port (or ROKU_ECP_PORT) — local fakes only; part of the lease key when not 8060
 Durations: 90s, 10m, 1h or milliseconds.
