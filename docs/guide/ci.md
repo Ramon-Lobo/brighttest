@@ -115,6 +115,12 @@ The e2e lane needs a real Roku on the runner's LAN, so it runs only on a **self-
 ships a ready workflow at `.github/workflows/e2e-device.yml` — see [E2E → Scaling & CI](/e2e/scaling).
 :::
 
+## Debug builds (instrument)
+
+To produce an instrumented debug package in CI, run `npx brighttest instrument build --strict`. Exit **0** = package
+written, **1** = broken build (nothing written), **4** = strict-mode failure (policy), **3** is the release gate
+`instrument verify`. See [Instrumented builds](/guide/instrument).
+
 ## Coverage services
 
 `coverage/lcov.info` is standard LCOV, so it feeds Coveralls, Codecov, or a local HTML report:

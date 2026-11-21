@@ -53,6 +53,7 @@ export default withMermaid({
           { text: 'Quick start', link: '/guide/getting-started' },
           { text: 'CI integration', link: '/guide/ci' },
           { text: 'Sharing a device (lease)', link: '/guide/device-lease' },
+          { text: 'Instrumented builds', link: '/guide/instrument' },
           { text: 'Agent skills', link: '/guide/agent-skills' },
           { text: 'Troubleshooting & how it works', link: '/guide/troubleshooting' },
         ],
