@@ -183,6 +183,33 @@ describe('parseBacktrace', () => {
     const bt2 = parseBacktrace(['------ Runtime Error. (runtime error &hec) in pkg:/a.brs(95)'])
     expect(bt2.summary).toMatch(/^runtime error \(runtime error &hec\) at pkg:\/a\.brs\(95\)$/)
   })
+  const fw16NoPrefixBanner = "'Dot' Operator attempted with invalid BrightScript Component or interface reference. (runtime error &hec) in pkg:/components/scenes/LegacyScene.brs(95)"
+  const fw16Tail = ['Source Digest(s): ', 'pkg:    dev 2.3.417 7e2b2239 Legacy Sample', '', fw16NoPrefixBanner, 'Backtrace:', '#0  Function onkeyevent(key As String, press As Boolean) As Boolean', '   file/line: pkg:/components/scenes/LegacyScene.brs(95)', 'Local Variables:', 'key              roString (2.1 was String) refcnt=3 val:"down"', 'Brightscript Debugger> ']
+  it('parses the fw 16 banner with no "Runtime Error" prefix', () => {
+    for (const input of [[fw16NoPrefixBanner], fw16Tail, fw16Tail.map((l) => ({ text: l }))]) {
+      const bt = parseBacktrace(input)
+      expect(bt.message).toBe("'Dot' Operator attempted with invalid BrightScript Component or interface reference.")
+      expect(bt.message).not.toContain('&h')
+      expect(bt.code).toBe('&hec')
+      expect(bt.file).toBe('pkg:/components/scenes/LegacyScene.brs')
+      expect(bt.line).toBe(95)
+    }
+  })
+  it('does not let an inner lowercase "runtime error" in the message match the tag', () => {
+    const bt = parseBacktrace(['A runtime error happened in the widget. (runtime error &h02) in pkg:/components/a/B.brs(7)'])
+    expect(bt.message).toBe('A runtime error happened in the widget.')
+    expect(bt.message).not.toContain('&h')
+    expect(bt).toMatchObject({ code: '&h02', file: 'pkg:/components/a/B.brs', line: 7 })
+  })
+  it('keeps the old "Runtime Error." form message and location', () => {
+    const bt = parseBacktrace(['BRIGHTSCRIPT: ERROR: roSGNode.setField: Type Mismatch. (runtime error &h18) in pkg:/components/Home.brs(42)'])
+    expect(bt).toMatchObject({ message: 'Type Mismatch', code: '&h18', file: 'pkg:/components/Home.brs', line: 42 })
+    expect(bt.message).not.toContain('&h')
+  })
+  it('without an in-pkg clause takes file and line from the backtrace frame', () => {
+    const bt = parseBacktrace(['Runtime Error: Type Mismatch. (runtime error &h18)', 'Backtrace:', '#0  Function f() As Void', '   file/line: pkg:/components/z/Y.brs(3)'])
+    expect(bt).toMatchObject({ message: 'Type Mismatch', file: 'pkg:/components/z/Y.brs', line: 3 })
+  })
 })
 
 describe('failure bundle and flow parsing', () => {
