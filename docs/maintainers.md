@@ -113,7 +113,7 @@ flowchart TD
   (`opts.idleTimeout`, default 120 s, `0` disables; no CLI flag yet) kills the CLI if the device prints nothing; it sits
   above the rooibos CLI's own 90 s `[roku-test] no device output for Ns` exit. Aborted runs get typed messages: a stall
   reads "run aborted: no device output for Ns (idle watchdog)"; the `Brightscript Debugger>` prompt reads "run aborted by
-  runtime error in <suite>" (suite from the last streamed suite header). Known limit: a stock-rooibos `@async` test that
+  runtime error in `<suite>`" (suite from the last streamed suite header). Known limit: a stock-rooibos `@async` test that
   never calls done prints `[Rooibos Result]: PASS` after about 5 s, which the lane cannot tell from a real pass (the
   device is not silent); catching it needs the ROO-02 idle flag in the fork. When the rooibos CLI supports
   `--coverage-dir` (`supportsFlag` in `engines.js`: stamp `flags`, else rooibos >= 5.17.0), `--lcov` also passes
