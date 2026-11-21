@@ -370,6 +370,16 @@ describe('e2e inspect <selector> detail view', () => {
     expect(out).toContain('2 node(s) matched')
     expect((out.match(/Node  Label #NodeA/g) || []).length).toBe(2)
   })
+  it('prints the count the selector returns for --focused (deepest node only, not the whole focus chain)', () => {
+    // 6-deep focus chain: a double-flatten regression reports 6+5+4+3+2+1 = 21 matches
+    const names = ['Root', 'N1', 'N2', 'N3', 'N4', 'Leaf']
+    const open = names.map((n, i) => `<${i === 0 ? 'Scene' : 'Group'} name="${n}" focused="true">`).join('')
+    const close = names.map((n, i) => `</${i === 0 ? 'Scene' : 'Group'}>`).reverse().join('')
+    const chain = `<?xml version="1.0" encoding="UTF-8" ?>\n<sgnodes><All_Nodes>${open}<Label name="Other" text="Two"/>${close}</All_Nodes></sgnodes>`
+    const out = capture(chain, { focused: true })
+    expect(out).toContain('1 node(s) matched')
+    expect((out.match(/Node  \w+ #\w+/g) || []).length).toBe(1)
+  })
   it('says custom fields are not visible over ECP, and shows published app state when present', () => {
     expect(capture(XML, { id: 'Panel1' })).toMatch(/custom interface fields and m\.global are not visible over ECP/)
     const withState = XML.replace('</Scene>', '<Label name="__bt_state" text="{&quot;user&quot;:&quot;a&quot;}"/></Scene>')
