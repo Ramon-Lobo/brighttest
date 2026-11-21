@@ -10,7 +10,7 @@ const app = (id, home = false) => ({ id, name: id, home })
 function fake({ crashed, sgText = TREE, active }) {
   const calls = { tree: 0, active: 0 }
   const device = {
-    async ecpGet() { calls.tree++; return { status: 200, text: crashed ? GONE : sgText } },
+    async ecpGet(p) { if (/sgnodes\/all/.test(p)) calls.tree++; return { status: 200, text: crashed ? GONE : sgText } },
     async activeApp() { calls.active++; if (active instanceof Error) throw active; return active || (crashed ? app('native-ui', true) : app('dev')) },
   }
   return { device, calls }
