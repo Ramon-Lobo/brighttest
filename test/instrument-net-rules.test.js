@@ -173,6 +173,17 @@ describe('HAR import/export', () => {
     expect(har.log.entries[0].request.queryString.map((q) => q.name)).toEqual(['token', 'n']);
     expect(har.log.entries[3].response.content.encoding).toBe('base64');
   });
+  it('redacts response bodies by JSON path (root, nested, echoed string) and leaves non-JSON alone', () => {
+    const red = R.makeRedactor({ jsonPaths: ['$.user.email'] });
+    expect(red.responseBody('{"user":{"email":"REDACTED-TEST-VALUE","n":1}}', 'application/json')).toBe('{"user":{"email":"<redacted:email>","n":1}}');
+    expect(red.responseBody('{"json":{"user":{"email":"REDACTED-TEST-VALUE"}}}', 'application/json')).toBe('{"json":{"user":{"email":"<redacted:email>"}}}');
+    const echoed = JSON.parse(red.responseBody(JSON.stringify({ body: '{"user":{"email":"REDACTED-TEST-VALUE","k":"v"}}' }), 'application/json'));
+    expect(JSON.parse(echoed.body)).toEqual({ user: { email: '<redacted:email>', k: 'v' } });
+    expect(red.responseBody('{"other":"REDACTED-TEST-VALUE"}', 'application/json')).toBe('{"other":"REDACTED-TEST-VALUE"}');
+    expect(red.responseBody('plain REDACTED-TEST-VALUE text', 'text/plain')).toBe('plain REDACTED-TEST-VALUE text');
+    expect(red.body('{"json":{"user":{"email":"x"}}}', 'application/json')).toBe('{"json":{"user":{"email":"x"}}}');
+    expect(R.makeRedactor({ enabled: false, jsonPaths: ['$.user.email'] }).responseBody('{"user":{"email":"x"}}')).toBe('{"user":{"email":"x"}}');
+  });
   it('validateHar reports problems', () => {
     expect(R.validateHar({}).length).toBeGreaterThan(0);
     expect(() => R.rulesFromHar({ log: { version: '1.2' } })).toThrow(/not a valid HAR/);

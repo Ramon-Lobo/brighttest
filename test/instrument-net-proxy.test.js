@@ -321,6 +321,22 @@ describe('record to HAR with redaction (TP-NET-07 hub part)', () => {
     expect(r.status).toBe(200);
     expect((await request(`${h2.base}${o.url}/auth?k=other`)).status).toBe(599);
   });
+  it('applies redact.jsonPaths to response bodies that echo the request (HAR and converted rule)', async () => {
+    const C = require('../lib/instrument/net-convert.js');
+    const o = await origin();
+    const h = await harness({ upstreamHosts: [`127.0.0.1:${o.port}`], unmatched: 'passthrough', record: true, redact: { jsonPaths: ['$.user.email'] } });
+    const sent = '{"user":{"email":"REDACTED-TEST-VALUE@example.test","name":"keep-me"}}';
+    await request(`${h.base}${o.url}/echo`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: sent });
+    const har = h.proxy.har();
+    const text = JSON.stringify(har);
+    expect(text).not.toMatch(/REDACTED-TEST-VALUE/);
+    const res = har.log.entries[0].response.content.text;
+    expect(res).toContain('<redacted:email>');
+    expect(res).toContain('keep-me');
+    const conv = C.convertHar(JSON.parse(text));
+    expect(JSON.stringify(conv.rules)).not.toMatch(/REDACTED-TEST-VALUE/);
+    expect(JSON.stringify(conv.rules)).toContain('keep-me');
+  });
   it('warns when redaction is off and an Authorization would be written', async () => {
     const o = await origin();
     const warns = [];
