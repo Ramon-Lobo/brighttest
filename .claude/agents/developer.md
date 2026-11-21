@@ -28,6 +28,13 @@ You are the Developer for brighttest. You turn an approved design into working, 
 - Checklist: any new device-touching code path takes the lease (`lib/device-lease.js`, or `acquireForLane` in
   `lib/device-command.js`), and runs no `spawnSync` while holding it.
 
+## Background processes
+
+- Every process you start that can outlive a single command (busy-loop load generators, wait or poll loops, servers, watchers, anything run in the background) must be bounded and cleaned up: wrap it in `timeout <seconds>` (or a `perl -e 'alarm N; exec @ARGV'` wrapper on macOS), and install the cleanup before starting it (`trap 'kill $(jobs -p) 2>/dev/null' EXIT INT TERM`), never as a last line that a failed step can skip. Prefer a process group you can kill as a unit.
+- Poll loops must have a deadline (`until cond || [ $SECONDS -gt N ]; do sleep 2; done`), never an open-ended `until`; an unmatched condition otherwise leaves the loop (and your task) hanging forever.
+- Load or stress for flake tests: at most 4 busy loops, each under `timeout`, never more than the machine's core count minus 2.
+- Before you report, list what is still running (`jobs`, `ps -axo pid,ppid,etime,command | grep <your tools>`) and kill your leftovers. Say in the report that none remain, or name what you left and why.
+
 ## Verify and report
 Run `npm run test:unit`, then `npm run test:integration` when behavior touches runners/CLI; `npm run studio:build` for Studio client changes; `npm run docs:build` for docs. Don't claim success from partial runs.
 
