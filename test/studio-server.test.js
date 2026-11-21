@@ -160,3 +160,27 @@ describe('/api/perf/console target selection', () => {
     expect(calls).toEqual([]);
   });
 });
+
+// ROB-11: the Studio mirror obeys the large-tree policy (full reads of >3,000-node trees are spaced out;
+// in between, /api/tree answers from cache).
+describe('/api/tree large-tree rate limit', () => {
+  const { createFakeRoku } = require('./fixtures/fake-roku/server.js');
+  let stub, srv, p3;
+  beforeAll(async () => {
+    stub = createFakeRoku({ scenario: 'large-tree-6k' });
+    const a = await stub.start();
+    process.env.ROKU_ECP_PORT = String(a.ecpPort);
+    srv = await studio.start({ port: 0, rootDir: root, host: '127.0.0.1' });
+    delete process.env.ROKU_ECP_PORT;
+    p3 = srv.address().port;
+  });
+  afterAll(async () => { srv.close(); await stub.stop(); });
+  const get = (path) => new Promise((resolve, reject) => {
+    http.get({ host: '127.0.0.1', port: p3, path }, (res) => { let b = ''; res.on('data', (c) => (b += c)); res.on('end', () => resolve(res.statusCode)); }).on('error', reject);
+  });
+  it('issues one full sgnodes read for a burst of /api/tree calls on a 6k tree', async () => {
+    for (let i = 0; i < 5; i++) expect(await get('/api/tree')).toBe(200);
+    const full = stub.log.filter((e) => /\/query\/sgnodes\/all/.test(JSON.stringify(e)));
+    expect(full).toHaveLength(1);
+  }, 30000);
+});
