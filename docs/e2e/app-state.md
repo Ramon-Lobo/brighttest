@@ -90,6 +90,9 @@ fields) and `focus` (the focus chain). brighttest reads it with `nodes?node-id=_
 request, not a full tree walk) and falls back to the full tree if that misses. Apps without the agent
 keep working through the `__bt_state` snapshot above.
 
+In Studio, the State tab lists each layer read-only (Studio never writes state). A layer the agent had to cut
+shows a **truncated** marker, and "+" on a leaf adds an `assertState` step with `layer:` set.
+
 `layer` selects one layer; `path` is then relative to it. Without `layer`, the first segment of `path`
 is the layer name.
 

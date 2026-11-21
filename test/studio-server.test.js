@@ -184,3 +184,63 @@ describe('/api/tree large-tree rate limit', () => {
     expect(full).toHaveLength(1);
   }, 30000);
 });
+
+// STA-S-T3: /api/tree carries the agent snapshot as read-only layers (stubbed device on loopback).
+describe('/api/tree agent layers (read-only)', () => {
+  const { createFakeRoku } = require('./fixtures/fake-roku/server.js');
+  let stub, srv, p4;
+  let doc;
+  const publish = (d) => { doc = d; stub.setAgentText(JSON.stringify(d)); };
+  const call = (method, path, headers = {}) => new Promise((resolve, reject) => {
+    const r = http.request({ host: '127.0.0.1', port: p4, method, path, headers }, (res) => {
+      let b = ''; res.on('data', (c) => (b += c)); res.on('end', () => resolve({ status: res.statusCode, body: b }));
+    });
+    r.on('error', reject); r.end(method === 'POST' ? '{}' : undefined);
+  });
+  beforeAll(async () => {
+    stub = createFakeRoku({ scenario: 'healthy' });
+    const a = await stub.start();
+    process.env.ROKU_ECP_PORT = String(a.ecpPort);
+    srv = await studio.start({ port: 0, rootDir: root, host: '127.0.0.1' });
+    delete process.env.ROKU_ECP_PORT;
+    p4 = srv.address().port;
+  });
+  afterAll(async () => { srv.close(); await stub.stop(); });
+
+  it('includes the layers from the agent snapshot', async () => {
+    publish({ v: 1, seq: 7, snapshot: { layers: { global: { user: { tier: 'gold' } }, registry: { prefs: { a: 1 } }, focus: ['Grid'] } }, truncated: [] });
+    const r = await call('GET', '/api/tree');
+    expect(r.status).toBe(200);
+    const agent = JSON.parse(r.body).agent;
+    expect(agent.present).toBe(true);
+    expect(agent.seq).toBe(7);
+    expect(Object.keys(agent.layers)).toEqual(['global', 'registry', 'focus']);
+    expect(agent.layers.global.state).toEqual({ user: { tier: 'gold' } });
+    expect(agent.layers.global.truncated).toEqual([]);
+  });
+  it('marks a truncated layer and never drops the marker', async () => {
+    publish({ v: 1, seq: 8, snapshot: { layers: { global: { big: '$truncated:bytes' }, focus: [] } }, truncated: ['global.big:bytes'] });
+    const agent = JSON.parse((await call('GET', '/api/tree')).body).agent;
+    expect(agent.layers.global.truncated).toEqual(['global.big:bytes']);
+    expect(agent.layers.focus.truncated).toEqual([]);
+    expect(agent.truncated).toEqual(['global.big:bytes']);
+  });
+  it('reports an over-limit document as an error, not a cut', async () => {
+    publish({ v: 1, snapshot: { layers: { global: { s: 'x'.repeat(256 * 1024 + 1) } } } });
+    const agent = JSON.parse((await call('GET', '/api/tree')).body).agent;
+    expect(agent.error).toMatch(/256 KB/);
+    expect(agent.layers).toEqual({});
+  });
+  it('has no write route for layers', async () => {
+    for (const p of ['/api/state', '/api/state/layers', '/api/agent', '/api/layers']) {
+      const r = await call('POST', p, { 'Content-Type': 'application/json' });
+      expect([403, 404, 405]).toContain(r.status);
+    }
+  });
+  it('rejects a foreign Host on the tree route', async () => {
+    publish({ v: 1, snapshot: { layers: { global: {} } }, truncated: [] });
+    const r = await call('GET', '/api/tree', { Host: 'rebind.example:1' });
+    expect(r.status).toBe(403);
+    expect(r.body).not.toMatch(/layers/);
+  });
+});
