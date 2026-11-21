@@ -27,6 +27,8 @@ function parseArgs(argv) {
     else if (a === '--cross-check') opts.crossCheck = true;
     else if (a === '--timeout') opts.timeout = parseInt(argv[++i], 10) || undefined;
     else if (a.startsWith('--timeout=')) opts.timeout = parseInt(a.slice(10), 10) || undefined;
+    else if (a === '--idle-timeout') opts.idleTimeout = argv[++i];
+    else if (a.startsWith('--idle-timeout=')) opts.idleTimeout = a.slice(15);
     else if (a === '--help' || a === '-h') opts.help = true;
     else if (a === '--version' || a === '-v') opts.version = true;
     else if (a.startsWith('--host=')) opts.host = a.slice(7);
@@ -511,6 +513,8 @@ Options:
       --no-sgnode       Skip @SGNode node suites and use the faster SceneGraph-off driver.
                         (Node suites otherwise run headless by default.)
       --timeout <sec>   Watchdog timeout (headless 300s, device 900s by default)
+      --idle-timeout <sec>  Device idle watchdog: abort after this many seconds without device output
+                        (default 120; 0 disables; config: deviceIdleTimeout; also passed to the Rooibos CLI)
       Engines: env BRIGHTTEST_ENGINES=auto|patched|stock|<package> (or "engines" in brighttest.json)
                         picks the brs-node/rooibos build; env wins over config. Default auto = patched.
       --host <ip>       Roku device IP (device mode)
@@ -708,6 +712,10 @@ async function main() {
   if (opts.version) { console.log(require('../package.json').version); process.exit(0); }
   if (opts.help) { console.log(HELP); process.exit(0); }
 
+  if (opts.idleTimeout !== undefined) {
+    try { opts.idleTimeout = require('../lib/config').parseIdleTimeout(opts.idleTimeout, '--idle-timeout'); }
+    catch (e) { console.error(`[brighttest] ${e.message}`); process.exit(2); }
+  }
   const cfg = loadConfig(process.cwd(), opts.config);
   if ((opts.netRecord || opts.netUnmatched !== undefined) && (opts.device || opts.crossCheck)) {
     console.error('[brighttest] --net-record / --net-unmatched apply to the headless lanes only (not --device or --cross-check).');

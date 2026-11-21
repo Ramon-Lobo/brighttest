@@ -2,6 +2,14 @@ import { describe, it, expect } from 'vitest'
 import { parseArgs, parseSkillsArgs, parseInitArgs, parseDeviceArgs } from '../bin/cli.js'
 import { splitHost } from '../lib/device-command.js'
 
+describe('parseArgs --idle-timeout', () => {
+  it('captures both forms and is undefined when absent', () => {
+    expect(parseArgs(['--device', '--idle-timeout', '5']).idleTimeout).toBe('5')
+    expect(parseArgs(['--device', '--idle-timeout=0']).idleTimeout).toBe('0')
+    expect(parseArgs(['--device']).idleTimeout).toBeUndefined()
+  })
+})
+
 describe('parseArgs', () => {
   it('defaults to a headless run with no flags', () => {
     const o = parseArgs([])

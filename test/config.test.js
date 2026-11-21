@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { loadConfig, writeBsConfig, findNodeSpecs } from '../lib/config.js'
+import { loadConfig, writeBsConfig, findNodeSpecs, parseIdleTimeout } from '../lib/config.js'
 
 let tmp
 beforeEach(() => {
@@ -158,5 +158,22 @@ describe('deviceLease config', () => {
     expect(resolveSettings({ cfg, env: { BRIGHTTEST_LEASE_WAIT: '3s' } }).waitMs).toBe(3000)
     expect(resolveSettings({ cfg, env: { BRIGHTTEST_LEASE_WAIT: '3s' }, flags: { wait: '0' } }).waitMs).toBe(0)
     expect(resolveSettings({ cfg: { deviceLease: { enabled: false } }, env: {} }).enabled).toBe(false)
+  })
+})
+
+describe('deviceIdleTimeout', () => {
+  const load = (v) => { fs.writeFileSync(path.join(tmp, 'brighttest.json'), JSON.stringify(v)); return loadConfig(tmp, null) }
+  it('is unset by default', () => { expect(loadConfig(tmp, null).deviceIdleTimeout).toBeUndefined() })
+  it('accepts a non-negative integer, 0 included', () => {
+    expect(load({ deviceIdleTimeout: 5 }).deviceIdleTimeout).toBe(5)
+    expect(load({ deviceIdleTimeout: 0 }).deviceIdleTimeout).toBe(0)
+  })
+  it('rejects invalid values', () => {
+    for (const v of ['abc', -1, 1.5, true]) expect(() => load({ deviceIdleTimeout: v })).toThrow(/deviceIdleTimeout/)
+  })
+  it('parseIdleTimeout: numeric strings ok, others throw', () => {
+    expect(parseIdleTimeout('5', '--idle-timeout')).toBe(5)
+    expect(parseIdleTimeout('0', '--idle-timeout')).toBe(0)
+    for (const v of ['x', '', '-2', '1.5', undefined]) expect(() => parseIdleTimeout(v, '--idle-timeout')).toThrow(/--idle-timeout/)
   })
 })
