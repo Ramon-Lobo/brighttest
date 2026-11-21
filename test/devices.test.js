@@ -71,7 +71,7 @@ describe('parseDeviceInfo (ROB-03a)', () => {
     const { parseDeviceInfo } = await import('../lib/devices.js')
     expect(parseDeviceInfo(fx('ultra-permissive.xml'))).toEqual({
       developerEnabled: true, ecpSettingMode: 'permissive', softwareVersion: '16.0.4', softwareBuild: '853',
-      brightscriptDebuggerVersion: '3.5.0', videoMode: '1080p', uiResolution: '1080p',
+      brightscriptDebuggerVersion: '3.5.0', videoMode: '1080p', videoModeSource: 'ui-resolution', uiResolution: '1080p',
       isTv: false, isStick: false, serial: 'REDACTED',
     })
   })
@@ -81,6 +81,14 @@ describe('parseDeviceInfo (ROB-03a)', () => {
       developerEnabled: false, ecpSettingMode: 'limited', isStick: true, isTv: false,
       videoMode: '720p', uiResolution: '1080p', brightscriptDebuggerVersion: null,
     })
+  })
+  it('reports where videoMode came from: video-mode, the ui-resolution fallback, or neither', async () => {
+    const { parseDeviceInfo } = await import('../lib/devices.js')
+    expect(parseDeviceInfo('<device-info><ui-resolution>1080p</ui-resolution></device-info>'))
+      .toMatchObject({ videoMode: '1080p', videoModeSource: 'ui-resolution' })
+    expect(parseDeviceInfo(fx('limited.xml'))).toMatchObject({ videoMode: '720p', videoModeSource: 'video-mode' })
+    expect(parseDeviceInfo('<device-info><model-name>x</model-name></device-info>'))
+      .toMatchObject({ videoMode: null, videoModeSource: null })
   })
   it('returns nulls and never throws on missing or bad input', async () => {
     const { parseDeviceInfo } = await import('../lib/devices.js')
