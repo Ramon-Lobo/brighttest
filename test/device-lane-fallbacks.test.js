@@ -61,6 +61,32 @@ describe('watchdog', () => {
   })
 })
 
+describe('idle watchdog', () => {
+  const errs = () => process.stderr.write.mock.calls.join('')
+  it('kills a child that goes silent before the total timeout, with a typed message', async () => {
+    const code = await device.run(cfg, { ...opts, timeout: 30, idleTimeout: 0.05 },
+      base({ killGraceMs: 10, spawn: () => fakeChild({ hang: true }) }))
+    expect(code).toBe(1)
+    expect(log).toContain('kill')
+    expect(log.at(-1)).toBe('release')
+    expect(errs()).toMatch(/run aborted: no device output for 0\.05s \(idle watchdog\)/)
+    expect(errs()).not.toMatch(/TIMED OUT/)
+  })
+  it('output resets the idle timer, so a chatty run is not killed', async () => {
+    const code = await device.run(cfg, { ...opts, timeout: 30, idleTimeout: 0.15 }, base({ spawn: () => {
+      const c = fakeChild({ hang: true })
+      let n = 0
+      const t = setInterval(() => { c.stdout.emit('data', Buffer.from('tick\n')); if (++n === 4) { clearInterval(t); c.stdout.emit('data', Buffer.from(RESULT)); c.emit('close', 0) } }, 60)
+      return c } }))
+    expect(code).toBe(0)
+    expect(log).not.toContain('kill')
+  })
+  it('idleTimeout 0 disables it', async () => {
+    const code = await device.run(cfg, { ...opts, idleTimeout: 0 }, base({ spawn: () => fakeChild({ out: RESULT, delay: 60 }) }))
+    expect(code).toBe(0)
+  })
+})
+
 describe('no result = failure', () => {
   it('exit 0 with empty output fails with a clear message', async () => {
     const code = await device.run(cfg, opts, base({ spawn: () => fakeChild({ out: '', code: 0 }) }))
@@ -106,6 +132,13 @@ describe('pre-deploy Home', () => {
   it('sends Home after acquiring the lease and before spawning', async () => {
     await device.run(cfg, opts, base({ spawn: () => { log.push('spawn'); return fakeChild({ out: RESULT }) } }))
     expect(log).toEqual(['acquire', 'home', 'spawn', 'release'])
+  })
+  it('a Home keypress request precedes the deploy (spawn), via the createDevice seam', async () => {
+    const createDevice = () => ({ keypress: async (k) => { log.push('keypress:' + k) } })
+    const { homeBeforeDeploy: _drop, ...rest } = base({ createDevice, sleep: async () => { log.push('settle') },
+      spawn: () => { log.push('spawn'); return fakeChild({ out: RESULT }) } })
+    expect(await device.run(cfg, opts, rest)).toBe(0)
+    expect(log).toEqual(['acquire', 'keypress:Home', 'settle', 'spawn', 'release'])
   })
   it('a failed Home (returned or thrown) warns and does not fail the run', async () => {
     for (const h of [async () => new Error('ECP down'), async () => { throw new Error('boom') }]) {
