@@ -87,6 +87,25 @@ describe('idle watchdog', () => {
   })
 })
 
+const REPORT = (crashed, failed, result) => `> SUITE: S >>>>\n<<<< END It: ok (PASS)\n[START TEST REPORT]\n  Total: 2\n  Passed: 1\n  Crashed: ${crashed}\n  Failed: ${failed}\n  Ignored: 0\n  RESULT: ${result}\n[END TEST REPORT]\n[Rooibos Result]: ${result === 'Fail' ? 'FAIL' : 'PASS'}\n`
+
+describe('crashed test = failure', () => {
+  it('Crashed: 1 and RESULT: Fail fails and shows 1 failed', async () => {
+    const code = await device.run(cfg, opts, base({ spawn: () => fakeChild({ out: REPORT(1, 0, 'Fail') }) }))
+    expect(code).toBe(1)
+    expect(process.stdout.write.mock.calls.join('')).toMatch(/1 passed, 1 failed/)
+  })
+  it('RESULT: Fail with no counted failure still fails', async () => {
+    const code = await device.run(cfg, opts, base({ spawn: () => fakeChild({ out: REPORT(0, 0, 'Fail') }) }))
+    expect(code).toBe(1)
+  })
+  it('a clean report still passes', async () => {
+    const code = await device.run(cfg, opts, base({ spawn: () => fakeChild({ out: REPORT(0, 0, 'Success').replace('Passed: 1', 'Passed: 2') }) }))
+    expect(code).toBe(0)
+    expect(process.stdout.write.mock.calls.join('')).toMatch(/2 passed, 0 failed/)
+  })
+})
+
 describe('no result = failure', () => {
   it('exit 0 with empty output fails with a clear message', async () => {
     const code = await device.run(cfg, opts, base({ spawn: () => fakeChild({ out: '', code: 0 }) }))

@@ -130,6 +130,22 @@ describe('--cross-check host/password resolution', () => {
     return { code, seen }
   }
 
+  it('a crash on the device only is a divergence', async () => {
+    const CRASH = PASS + '  Total: 2\n  Passed: 1\n  Crashed: 1\n  Failed: 0\n  Ignored: 0\n  RESULT: Fail\n'
+    const logs = []
+    console.log.mockImplementation((...a) => { logs.push(a.join(' ')) })
+    const run = (hlOut, devOut) => crossCheck.run(cfg, { host: '10.0.0.1', password: 'pw' }, {
+      headless: async () => ({ built: true, output: hlOut }),
+      acquireForLane: async () => ({ lease: null }),
+      buildAndRun: async () => ({ output: devOut, status: 0, timedOut: false }),
+    })
+    expect(await run(PASS, CRASH)).toBe(1)
+    expect(logs.join('\n')).toMatch(/DIVERGENT\s+: 1/)
+    expect(await run(CRASH, PASS)).toBe(1)
+    expect(await run(CRASH, CRASH)).toBe(0)
+    expect(await run(PASS, PASS)).toBe(0)
+  })
+
   it('flag wins over the environment', async () => {
     process.env.ROKU_HOST = '10.0.0.9'; process.env.ROKU_PASSWORD = 'envpw'
     const { code, seen } = await runCross({ host: '10.0.0.1', password: 'flagpw' })
