@@ -131,6 +131,83 @@ For an existing app you do not want to edit. It runs the census, writes the `ins
 
 `--verbose` lists the informational entries of a successful build.
 
+## Headless network fixtures: flags, config and run records
+
+The headless test lanes (`brighttest`, `brighttest --coverage`, the scene lanes) can route the app's `roUrlTransfer`
+traffic through an in-process proxy that serves mocks and fixtures. It switches on when any of these is present: a
+`--net-record` or `--net-unmatched` flag, `instrument.net` set to `true` or to an object with a `fixtures`, `unmatched`,
+`upstreamHosts` or `redact` key, or a `*.spec.bs` file that mentions `BTNet_*`. Without them a headless run is unchanged.
+
+### `--net-record [file]`
+
+Passes requests that no rule matches through to the hosts listed in `instrument.net.upstreamHosts` and records those
+passthrough exchanges to a HAR file (redacted by `instrument.net.redact`). Mocked, fixture, fault and refused requests are
+not recorded. The default path is `<stagingDir>/net/<run>.har` (`.brighttest/net/<timestamp>.har`); pass a path
+(`--net-record out.har` or `--net-record=out.har`) to choose another. Recording implies `unmatched: "passthrough"` unless you
+set a policy. It refuses to start without `upstreamHosts` (exit 2, `net: net.record requires net.upstreamHosts ...`). Output:
+
+```
+[brighttest] net: recording passthrough traffic to /path/to/project/.brighttest/net/2026-01-01T00-00-00-000Z.har; upstream hosts: api.example.test
+[brighttest] net: recorded 3 request(s) to /path/to/project/.brighttest/net/2026-01-01T00-00-00-000Z.har
+```
+
+### `--net-unmatched <fail|passthrough>`
+
+Sets what happens to a request that no rule matches (`--net-unmatched=passthrough` also works). `fail` answers the app
+with HTTP 599 and a hint body, and records a `net.error` of kind `unmatched`. `passthrough` sends it upstream, but only to
+`upstreamHosts` (anything else is refused with 403 and a `net.error` of kind `upstream`). Precedence: the flag, then
+`instrument.net.unmatched`, then `passthrough` when recording, then `fail` once any rule config (a fixture file) is loaded, and
+`passthrough` otherwise. Any other value exits 2 (`--net-unmatched must be "fail" or "passthrough"`).
+
+The flag does not change the exit code by itself: the app sees the 599, so a spec that depends on the call fails in the
+usual way. At the end of the run the failing requests are printed, up to 20, and the rest are in the NDJSON file:
+
+```
+  Network failures (1)
+    unmatched: GET http://api.example.test/v1/items
+```
+
+Both flags apply to the headless lanes only; with `--device` or `--cross-check` they exit 2
+(`--net-record / --net-unmatched apply to the headless lanes only ...`).
+
+### `instrument.net.fixtures`
+
+```json
+{ "instrument": { "net": { "fixtures": ["fixtures/net/*.json", "fixtures/extra/**/*.har"], "upstreamHosts": ["api.example.test"] } } }
+```
+
+An array of glob strings (`*`, `**`, `?`), each resolved relative to the project root (the directory of `brighttest.json`).
+Each pattern's matches are sorted and patterns load in the order declared, so earlier rule files are added first. Absolute
+patterns, patterns containing `..`, and files that resolve (through symlinks) outside the project root are rejected. The
+`node_modules`, `.git` and `.brighttest` directories are not searched. A pattern that matches no file, or a value that is
+not an array of strings, is an error: the run prints `[brighttest] net: instrument.net.fixtures pattern "<glob>" matched no
+files` and exits 2 before any test runs.
+
+### Run NDJSON
+
+Every net run writes `<stagingDir>/net/last-run.ndjson` (`.brighttest/net/last-run.ndjson`), one JSON object per line,
+overwritten each run, with URLs and headers redacted. Fields on every line: `v` (always 1), `ts` (ISO time), `kind`, and
+`data`, which always carries `lane: "headless"`.
+
+| `kind` | `data` fields |
+|---|---|
+| `net.request` | `id`, `method`, `url`, `headers`, `rule` (matched rule id or `null`), `bodyRef` (optional) |
+| `net.response` | `id`, `status`, `headers`, `bytes`, `source` (`mock`, `fixture`, `passthrough`), `timings` (`wait`, `receive`), `bodyRef` (optional) |
+| `net.error` | `id`, `kind` (`unmatched`, `upstream`, `fault:reset`, `fault:timeout`), `detail`, `refused` (only on refused passthrough) |
+
+```json
+{"v":1,"ts":"2026-01-01T00:00:00.000Z","kind":"net.request","data":{"id":"r-1","method":"GET","url":"http://api.example.test/v1/items","headers":{},"rule":null,"lane":"headless"}}
+{"v":1,"ts":"2026-01-01T00:00:00.050Z","kind":"net.error","data":{"id":"r-1","kind":"unmatched","detail":"GET http://api.example.test/v1/items","lane":"headless"}}
+```
+
+### `BTNet_` specs are skipped on `--device`
+
+On the device lane (`--device`, and the device leg of `--cross-check`), every `*.spec.bs` file under the project root whose
+text matches `\bBTNet_\w+` is excluded from the build, and each one prints
+`[brighttest] skipped (headless-only network fixtures): <path>`. The scan skips `node_modules`, `.brighttest`, `.git` and
+`out`. It works per file, not per suite, so keep `BTNet_` calls in their own spec files. `--cross-check` reports their
+suites as `headless-only`, not as a divergence.
+
 ## Rules to know
 
 - **Single build.** One build uses one fresh `Program` and one plugin instance. There is no watch mode; reusing a plugin
