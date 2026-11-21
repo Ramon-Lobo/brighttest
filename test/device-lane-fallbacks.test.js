@@ -67,6 +67,12 @@ describe('no result = failure', () => {
     expect(code).toBe(1)
     expect(process.stderr.write.mock.calls.join('')).toMatch(/no results/)
   })
+  it('streamed cases without a [Rooibos Result] line fail', async () => {
+    const out = '> SUITE: Counter >>>>\n<<<< END It: doubles (PASS)\n'
+    const code = await device.run(cfg, opts, base({ spawn: () => fakeChild({ out, code: 0 }) }))
+    expect(code).toBe(1)
+    expect(process.stderr.write.mock.calls.join('')).toMatch(/no results/)
+  })
   it('a result line passes', async () => {
     expect(await device.run(cfg, opts, base({ spawn: () => fakeChild({ out: RESULT }) }))).toBe(0)
   })
@@ -74,6 +80,25 @@ describe('no result = failure', () => {
     const code = await device.run(cfg, { ...opts, lcov: path.join(dir, 'lcov.info') }, base({ spawn: () => fakeChild({ out: RESULT }) }))
     expect(code).toBe(1)
     expect(process.stderr.write.mock.calls.join('')).toMatch(/no coverage was returned/)
+  })
+})
+
+describe('typed abort messages', () => {
+  const errs = () => process.stderr.write.mock.calls.join('')
+  it('stall marker from the rooibos CLI names the idle period', async () => {
+    const out = '> SUITE: Counter >>>>\n[roku-test] no device output for 90s \u2014 run stalled; finishing with results captured so far.\n'
+    expect(await device.run(cfg, opts, base({ spawn: () => fakeChild({ out }) }))).toBe(1)
+    expect(errs()).toMatch(/run aborted: no device output for 90s \(idle watchdog\)/)
+    expect(errs()).not.toMatch(/deploy or device error/)
+  })
+  it('debugger prompt is a runtime error and names the suite from the output', async () => {
+    const out = '> SUITE: Boom first >>>>\nBrightscript Debugger> \n[roku-test] no device output for 90s \u2014 run stalled\n'
+    expect(await device.run(cfg, opts, base({ spawn: () => fakeChild({ out }) }))).toBe(1)
+    expect(errs()).toMatch(/run aborted by runtime error in Boom first/)
+  })
+  it('runtime error with no suite header says the suite is unknown', async () => {
+    expect(await device.run(cfg, opts, base({ spawn: () => fakeChild({ out: 'Brightscript Debugger> \n' }) }))).toBe(1)
+    expect(errs()).toMatch(/runtime error in unknown suite/)
   })
 })
 
