@@ -92,8 +92,8 @@ describe('banner', () => {
 })
 
 describe('sites', () => {
-  it('no lib file hard-codes the scoped engine names outside engines.js (device.js pending FIX-HOSTENV merge)', () => {
-    const skip = new Set(['engines.js', 'device.js'])
+  it('no lib file hard-codes the scoped engine names outside engines.js', () => {
+    const skip = new Set(['engines.js'])
     for (const f of fs.readdirSync(path.join(__dirname_, '../lib')).filter((x) => x.endsWith('.js') && !skip.has(x))) {
       expect(fs.readFileSync(path.join(__dirname_, '../lib', f), 'utf8'), f).not.toMatch(/(resolveBin|resolvePackageMain)\('@ramonlobo\//)
     }
