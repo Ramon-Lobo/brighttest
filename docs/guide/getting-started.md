@@ -74,7 +74,7 @@ npx brighttest --coverage --lcov coverage/lcov.info
 npx brighttest --device --host <roku-ip> --password <dev-pw> --lcov coverage/lcov.info
 ```
 
-`--device` and `--cross-check` resolve the target like the other device lanes: `--host` (also `ip:pw`), else `ROKU_HOST`, else the cached device; the password comes from `--password`, the inline `ip:pw`, `ROKU_PASSWORD`, or the cache. An explicit `--host` always wins over `ROKU_HOST`.
+`--device` and `--cross-check` resolve the target like the other device lanes: `--host` (also `ip:pw`), else `ROKU_HOST`, else the cached device (only when exactly one device is cached; with several, pass `--host` or set `ROKU_HOST`); the password comes from `--password`, the inline `ip:pw`, `ROKU_PASSWORD`, or the cache. An explicit `--host` always wins over `ROKU_HOST`.
 
 
 Add scripts to `package.json`:
