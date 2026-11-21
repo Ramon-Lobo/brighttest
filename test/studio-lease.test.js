@@ -54,7 +54,11 @@ describe('StudioLease', () => {
     const s = mk()
     await s.ensure({ user: true })
     const waiter = other({ waitMs: 60000, agent: 'dev#2' })
-    await new Promise((r) => setTimeout(r, 20)) // let the waiter enqueue its ticket
+    // wait until the waiter's ticket is visible in the lease queue (bounded poll, not a fixed sleep)
+    const queueDir = path.join(dir, '127.0.0.1', 'queue')
+    const queued = () => { try { return fs.readdirSync(queueDir).filter((n) => n.endsWith('.json')).length } catch { return 0 } }
+    for (let i = 0; i < 200 && queued() < 1; i++) await new Promise((r) => setTimeout(r, 25))
+    expect(queued()).toBe(1)
     let release
     const op = s.during(() => new Promise((r) => { release = r }))
     clock.t += 6000; s.tick()
