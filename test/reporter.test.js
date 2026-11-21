@@ -136,3 +136,38 @@ describe('makeReporter', () => {
     expect(state.cases[1]).toMatchObject({ name: 'subtracts', ok: false, loc: 'source/math.spec.bs:20' })
   })
 })
+
+describe('crashed test line', () => {
+  const CRASH_OUT = [
+    '> SUITE: Boom suite one>>>>',
+    '>>>>>> It: raises>>>>>>>>>>',
+    '  Location: file:///proj/source/Boom.spec.bs:8',
+    '<<<< END It: raises (CRASH) <<<<<<<<<<<<<<<<',
+    '> SUITE: Boom suite two>>>>',
+    '<<<< END It: still passes (PASS) <<<<<<<<<<<<',
+    ' [START TEST REPORT]',
+    '  Boom suite one file:///proj/source/Boom.spec.bs:3',
+    '  | |--raises : .............................................CRASH (-1ms)',
+    '  |   |--Crashed at: file:///proj/source/Boom.spec.bs:8',
+    "  |   |--Message: 'Dot' Operator attempted with invalid reference. (runtime error &hec)",
+    ' Total: 2', '   Passed: 1', '   Crashed: 1', '   Failed: 0', '   Ignored: 0', ' RESULT: Fail',
+  ].join('\n')
+
+  it('streams a crashed test as a failed case and keeps the failed tally', () => {
+    const write = process.stdout.write
+    let printed = ''
+    process.stdout.write = (s) => { printed += s; return true }
+    let rep
+    try {
+      rep = makeReporter({ rootDir: '/proj' }, false)
+      for (const l of CRASH_OUT.split('\n')) rep.onLine(l)
+    } finally { process.stdout.write = write }
+    expect(rep.state.cases[0]).toMatchObject({ suite: 'Boom suite one', name: 'raises', ok: false, crashed: true })
+    expect(rep.state.failed).toBe(1)
+    expect(printed).toContain('✗ raises')
+  })
+
+  it('collects the crash message without the runtime error code', () => {
+    expect(failureMessages(CRASH_OUT)).toEqual({ raises: "'Dot' Operator attempted with invalid reference." })
+  })
+})
