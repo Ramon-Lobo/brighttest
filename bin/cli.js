@@ -50,12 +50,17 @@ const DOCTOR_HELP = `
 brighttest doctor — check a Roku's capabilities and print the exact fix for anything wrong
 
 Usage: brighttest doctor [--host <ip>] [--ecp-port <n>] [--json] [--show-serial]
+       brighttest doctor --engines [--json]
+
+  --engines  Run the engine-caps probe with the resolved brs-node and print the capability table, the engine
+             flavor and the probe result. BRS-02 (Label.forceUpperCase) is shown as NON-DEVICE. Exit 1 when the
+             probe fails or disagrees with the package metadata. No device is contacted.
 
   Reads the device-info only (no password, no lease, no keypresses). Exit 0 when every check passes,
   1 when one fails or the device is unreachable, 2 on a usage error. The serial is hidden unless --show-serial.
 `;
 function parseDoctorArgs(rest) {
-  const o = { host: null, ecpPort: null, json: false, showSerial: false, help: false };
+  const o = { host: null, ecpPort: null, json: false, showSerial: false, engines: false, help: false };
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
     if (a === '--host') o.host = rest[++i];
@@ -64,6 +69,7 @@ function parseDoctorArgs(rest) {
     else if (a.startsWith('--ecp-port=')) o.ecpPort = a.slice(11);
     else if (a === '--json') o.json = true;
     else if (a === '--show-serial') o.showSerial = true;
+    else if (a === '--engines') o.engines = true;
     else if (a === '--help' || a === '-h') o.help = true;
   }
   return o;
@@ -584,6 +590,15 @@ async function main() {
   if (argv[0] === 'doctor') {
     const o = parseDoctorArgs(argv.slice(1));
     if (o.help) { console.log(DOCTOR_HELP); process.exit(0); }
+    if (o.engines) {
+      let code;
+      try { code = require('../lib/engine-caps').doctorEngines(loadConfig(process.cwd(), null), { json: o.json }); }
+      catch (e) {
+        if (e && e.name === 'EngineError') { console.error(`[brighttest] ${e.message}`); process.exit(2); }
+        throw e;
+      }
+      process.exit(code);
+    }
     const code = await require('../lib/doctor').run(o);
     process.exit(code);
   }
@@ -620,6 +635,7 @@ async function main() {
   console.log(`brighttest: ${label} lane\n`);
   let code;
   try {
+    if (!opts.device) require('../lib/engine-caps').warnNonDeviceUse(cfg); // BRS-02 is non-device: say so on stderr
     code = await lane.run(cfg, opts);
   } catch (e) {
     if (e && e.name === 'EngineError') { console.error(`[brighttest] ${e.message}`); process.exit(2); }
