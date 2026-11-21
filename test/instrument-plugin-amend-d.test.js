@@ -199,7 +199,7 @@ describe('reserved names and feature detect', () => {
 
 describe('SKIP_KINDS', () => {
   it('lists every kind the plugin source can emit through skip()/skipOnce()', () => {
-    const src = fs.readFileSync(pluginPath, 'utf8')
+    const src = fs.readFileSync(pluginPath, 'utf8') + fs.readFileSync(path.resolve(path.dirname(pluginPath), 'rewrite-net.js'), 'utf8')
     const found = new Set([...src.matchAll(/\bskip(?:Once)?\(\s*'([a-z-]+)'/g)].map((m) => m[1]).filter((k) => !k.endsWith('-')))
     found.add('indexed-seturl'); found.add('indexed-geturl') // built as 'indexed-' + name
     for (const k of found) expect(SKIP_KINDS, k).toContain(k)
