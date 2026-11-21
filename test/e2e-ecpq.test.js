@@ -109,6 +109,49 @@ describe('ecpq: one transient retry', () => {
   })
 })
 
+describe('ecpq: non-idempotent (POST) retry only when undelivered', () => {
+  const post = async (results) => {
+    const q = createQueue({ gaps: {}, retryDelayMs: 0 })
+    let n = 0
+    const p = q.run('h', 'other', async () => {
+      const r = results[Math.min(n++, results.length - 1)]
+      if (r instanceof Error) throw r
+      return r
+    }, { idempotent: false })
+    return p.then((v) => ({ v, attempts: n }), (e) => ({ e, attempts: n }))
+  }
+  const failed = (code) => Object.assign(new TypeError('fetch failed'), { cause: Object.assign(new Error(code), { code }) })
+
+  it.each(['ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN', 'EHOSTUNREACH'])('%s once -> 2 attempts, success', async (code) => {
+    const r = await post([failed(code), { status: 200 }])
+    expect(r.attempts).toBe(2); expect(r.v.status).toBe(200)
+  })
+  it('undelivered always -> 2 attempts then the error', async () => {
+    const r = await post([failed('ECONNREFUSED')])
+    expect(r.attempts).toBe(2); expect(r.e.message).toBe('fetch failed')
+  })
+  it('timeout -> 1 attempt', async () => {
+    const r = await post([Object.assign(new Error('timed out'), { name: 'TimeoutError' })])
+    expect(r.attempts).toBe(1); expect(r.e.name).toBe('TimeoutError')
+  })
+  it('abort -> 1 attempt', async () => {
+    const r = await post([Object.assign(new Error('aborted'), { name: 'AbortError' })])
+    expect(r.attempts).toBe(1); expect(r.e.name).toBe('AbortError')
+  })
+  it('a bare "fetch failed" or a reset after send -> 1 attempt', async () => {
+    expect((await post([new TypeError('fetch failed')])).attempts).toBe(1)
+    expect((await post([failed('ECONNRESET')])).attempts).toBe(1)
+  })
+  it.each([500, 503])('HTTP %i response -> 1 attempt, returned', async (status) => {
+    const r = await post([{ status }, { status: 200 }])
+    expect(r.attempts).toBe(1); expect(r.v.status).toBe(status)
+  })
+  it('timeout does not retry even though GET-style idempotent calls would', async () => {
+    expect(isTransient({ error: Object.assign(new Error('t'), { name: 'TimeoutError' }) })).toBe(true)
+    expect(isTransient({ error: Object.assign(new Error('t'), { name: 'TimeoutError' }) }, { idempotent: false })).toBe(false)
+  })
+})
+
 describe('ecp.js routes through the queue', () => {
   afterEach(() => vi.unstubAllGlobals())
 
@@ -125,5 +168,23 @@ describe('ecp.js routes through the queue', () => {
     expect(max).toBe(1)
     expect(rs.map((r) => r.status)).toEqual([200, 200, 200, 200, 200])
     expect(calls).toBe(6) // 5 calls + 1 retry
+  })
+
+  it('keypress is not retried on a 5xx, launch is retried after a refused connection', async () => {
+    let calls = 0
+    vi.stubGlobal('fetch', async () => { calls++; return { status: 503, text: async () => '' } })
+    const dev = createDevice({ host: 'queue-test-post-5xx' })
+    await expect(dev.keypress('Home')).rejects.toThrow(/HTTP 503/)
+    expect(calls).toBe(1)
+
+    calls = 0
+    vi.stubGlobal('fetch', async () => {
+      calls++
+      if (calls === 1) throw Object.assign(new TypeError('fetch failed'), { cause: { code: 'ECONNREFUSED' } })
+      return { status: 200, text: async () => '' }
+    })
+    const dev2 = createDevice({ host: 'queue-test-post-refused' })
+    expect(await dev2.launch('dev')).toBe(200)
+    expect(calls).toBe(2)
   })
 })
