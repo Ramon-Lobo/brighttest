@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- brighttest instrument runtime (STA-S-T1): render-thread agent. Read-only: it publishes the __bt_agent Label. -->
+<component name="BT_Agent" extends="Node">
+    <script type="text/brightscript" uri="pkg:/components/bt/BT_Agent.brs" />
+    <script type="text/brightscript" uri="pkg:/source/bt/BT_runtime.brs" />
+    <script type="text/brightscript" uri="pkg:/source/bt/BT_config.brs" />
+</component>

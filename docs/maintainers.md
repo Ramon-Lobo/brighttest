@@ -107,6 +107,18 @@ flowchart TD
   - drop records whose `SF:` path matches `(^|/)rooibos/` (framework-injected);
   - join and write to the `--lcov` path.
 - `extractLcov` is exported for unit testing.
+- Fallbacks (ENG-T14): one best-effort Home key press (through the ECP key path) runs after the lease is held and
+  before deploy; a failed Home only warns. The watchdog (`--timeout`) kills the CLI's process group and the run
+  fails even if the child never closes. No `[Rooibos Result]` is a failure, even when cases streamed. An idle (output-silence) watchdog
+  (`opts.idleTimeout`, default 120 s, `0` disables; no CLI flag yet) kills the CLI if the device prints nothing; it sits
+  above the rooibos CLI's own 90 s `[roku-test] no device output for Ns` exit. Aborted runs get typed messages: a stall
+  reads "run aborted: no device output for Ns (idle watchdog)"; the `Brightscript Debugger>` prompt reads "run aborted by
+  runtime error in `<suite>`" (suite from the last streamed suite header). Known limit: a stock-rooibos `@async` test that
+  never calls done prints `[Rooibos Result]: PASS` after about 5 s, which the lane cannot tell from a real pass (the
+  device is not silent); catching it needs the ROO-02 idle flag in the fork. When the rooibos CLI supports
+  `--coverage-dir` (`supportsFlag` in `engines.js`: stamp `flags`, else rooibos >= 5.17.0), `--lcov` also passes
+  `--coverage-dir=<staging>/device/coverage`; console lcov is preferred, and `<dir>/lcov.info` (run through
+  `extractLcov`) is read only when the console yields nothing.
 
 ## E2E lane (`lib/e2e/`)
 

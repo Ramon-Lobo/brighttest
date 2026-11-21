@@ -81,6 +81,20 @@ you run Rooibos yourself, set it in your bsconfig — this is a hard requirement
 (RokuCommunity Rooibos issue #203). It's *not* a coverage problem: node tests work with coverage on once
 the script is linked.
 
+## Device run aborted: "no device output for Ns (idle watchdog)"
+
+**Symptom:** a `--device` run stops with `run aborted: no device output for Ns (idle watchdog)`, or with
+`[roku-test] no device output for Ns` from the Rooibos CLI.
+
+**Cause:** the device printed nothing for too long. Two watchdogs exist. The Rooibos CLI exits on its own after
+90 s of silence. The brighttest device lane has its own backstop at 120 s (`DEFAULT_IDLE_S` in `lib/device.js`),
+so the CLI's line normally wins and the lane's fires only when the CLI itself wedges. There is no CLI flag for
+the lane value yet. `--timeout <sec>` (default 900) is the separate overall limit.
+
+**Known limit:** with stock Rooibos, an `@async` test that never calls done prints `[Rooibos Result]: PASS`
+after about 5 s, so the run looks like a pass and the watchdog never fires (the device is not silent). Keep
+async tests calling done, and cross-check suspicious passes on the headless lane.
+
 ## Coverage % looks low
 
 Coverage reflects only the lines your tests exercised. A big utility file with a few tested functions will
@@ -106,6 +120,25 @@ fix text prints).
 
 `brighttest e2e run` runs the same check first. On a Limited or developer-disabled device it stops before the
 device lease, any launch or any keypress, and prints the same fix text.
+
+## `brighttest doctor --engines`: what can the headless engine do?
+
+```sh
+brighttest doctor --engines          # capability table, engine flavor (patched or stock), probe result
+brighttest doctor --engines --json   # the same as JSON
+```
+
+Runs a tiny probe app (`brs/probes/engine-caps/`) with the resolved `brs-node` and compares what the engine
+does with what its `package.json#brighttest` metadata claims. No device is contacted. Exit 0 when they agree,
+1 when the probe fails or disagrees (a patch was lost or added without updating the stamp; the message names
+the patch and both values), 2 when no engine is installed. An engine without a stamp has no metadata to
+compare, so its probe column is shown as the evidence only.
+
+`BRS-02` (`Label.forceUpperCase`) is a **non-device** capability: a headless convenience that a real Roku
+does not have. The table marks it NON-DEVICE, and any headless run on an engine that has it prints a warning
+on stderr for each use in your sources, for example
+`nondevice-field: Label.forceUpperCase used in source/tests/Title.spec.bs:12 (non-device behavior: ...)`.
+Specs that rely on it will not match the device.
 
 ## "Waiting for the device lease" / exit 75, 77 or 78
 

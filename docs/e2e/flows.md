@@ -38,8 +38,14 @@ error rather than being silently misparsed.
 | `wait: <ms>` / `wait: { ms }` | Pause a fixed number of **milliseconds** (contrast the second-based `timeout`) |
 | `waitFor: { …selector, timeout }` | Explicit wait for a selector |
 | `runFlow: { file, env? }` | Run a reusable subflow inline (path relative to this flow); `env` values substitute `${name}` in it |
+| `assertLog: <text>` / `assertLog: { pattern, timeout }` | Poll the device log until a line contains `text` (or matches `"/regex/"`) |
+| `expectNoLog: <text>` | Fail if any log line so far in this flow matches |
 | `screenshot: <name>` | Save a PNG/JPG artifact |
 | `back` / `home` | Convenience for `press: Back` / `press: Home` |
+
+**Launch readiness.** `launch` on the dev channel does not return on the first sgnodes answer: it waits until the dev channel is in front (`active-app`), sgnodes answers under a short client timeout (a slow or `FAILED` read counts as not-ready), two consecutive reads have the same focus signature, and no osd facade or root system dialog is on top. A Home reading is tolerated for a grace window after launch, then fails the launch; a 404/5xx on the launch request right after a sideload is treated as "maybe launched" and the same checks decide. All timing values live in one object (`READY_DEFAULTS` in `lib/e2e/ready.js`) and a flow can override them under `config:` with `readyTimeout`, `readyInterval`, `readySgnodesTimeout`, `readyHomeGrace` (milliseconds) and `readyStableReads`; `readyNode: <id>` additionally waits for that node to exist. The defaults are starting values pending device data, and the osd/dialog shapes are not yet confirmed on hardware.
+
+**Device logs.** Inside the device lease the lane opens the device's BrightScript console on port 8085 (one connection per run; the device allows only one client, so a telnet session or another tool holding it makes `assertLog`/`expectNoLog` fail with that reason). Lines are ANSI-stripped, a partial line is flushed after 250 ms, and the history the console replays on connect is discarded, so a flow only sees its own output. `assertLog` polls for a matching line; `expectNoLog` checks what has been captured so far and does not wait. The flow's lines are saved next to the screenshots as `<flow>.log` (`seq<TAB>line`). A `Brightscript Debugger>` prompt means the app crashed: the step fails with the parsed backtrace, Home is pressed, and a failure bundle `<flow>-failure/` is written for any failed step (`error.json`, `log-tail.txt` with the last 50 lines, `tree.xml`, and the screenshot or `screenshot-error.json`). Set `ROKU_LOG_PORT` to use a console port other than 8085.
 
 Assertions **poll** until satisfied or the step timeout elapses (`config.timeout`, `--timeout`, default
 10s), so you rarely need explicit waits — screens are given time to settle. Prefer `assertVisible`/`waitFor`
@@ -62,6 +68,8 @@ A selector matches nodes in the live tree. Combine keys to narrow (all must hold
 
 Extra filters: `visible: true|false`, `focusable: true`, `focused: true`.
 
+`focused: true` selects the **deepest** focused node. The device flags every node on the focus chain (scene, containers, the focused leaf) as focused, so the selector keeps only the focused node that has no focused descendant; other keys in the same selector then apply to that node.
+
 ::: warning Selectors use `id`, not `testId`
 A dedicated `testId` field is **invisible** to `sgnodes` — Roku only dumps a fixed set of built-in
 fields, and a node's `id` surfaces there as the `name=` attribute. So the selectable hook is the
@@ -73,6 +81,8 @@ built-in **`id`**. If your app has none, use `text`/`subtype`, or auto-inject id
 A node created as `Group` is dumped by `sgnodes` with the subtype `RenderableNode` (seen on firmware
 16.0.4), so `{ subtype: Group }` will not match. Select by `id` or `text` instead. Custom fields stay
 invisible there too (re-confirmed on 16.0.4).
+
+Run `brighttest e2e lint <flow…>` to get a warning (exit 0) for every `subtype: Group` selector.
 :::
 
 Stability preference: `id` → `text`/`subtype`. Prefer ids for anything you assert on repeatedly.
