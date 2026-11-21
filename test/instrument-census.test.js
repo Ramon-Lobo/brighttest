@@ -72,13 +72,16 @@ describe('census of examples/legacy-app', () => {
     expect(reasons('source/vendor/VendorClient.brs', 5)).toEqual(['excluded'])
     expect(reasons('components/scenes/LegacyScene.brs', 8)).toEqual(['content-node URL'])
   })
-  it('lists the vendor candidate under could-not-instrument and finds no parse problems', () => {
-    expect(c.skipped.filter((s) => !s.informational).map(key)).toEqual(['excluded-candidate|source/vendor/VendorClient.brs|5'])
+  it('lists the vendor candidate as informational (excluded by default, ADR 0019 (d) R5) and finds no parse problems', () => {
+    expect(c.skipped.filter((s) => !s.informational).map(key)).toEqual([])
+    expect(c.skipped.filter((s) => s.informational).map(key)).toEqual(['excluded-candidate|source/vendor/VendorClient.brs|5'])
+    expect(c.skipped.find((s) => s.kind === 'excluded-candidate')).toMatchObject({ excludedBy: 'default' })
     expect(c.parseErrors).toEqual([])
   })
   it('renders census.md with the same counts and a could-not-instrument section, and writes census.{json,md}', () => {
     const md = renderMarkdown(c)
-    expect(md).toContain('Could not instrument (1)')
+    expect(md).toContain('Could not instrument (0)')
+    expect(md).toContain('Informational (1)')
     expect(md).toContain('3 roUrlTransfer literals, 1 dynamic CreateObject, 4 sync get, 1 async get, 3 certificate calls')
     expect(md).toContain('## Scenes (4)')
     const out = write(c, path.join(tmp, 'out'))
@@ -166,5 +169,33 @@ describe('census config and edge cases', () => {
   })
   it('rejects a missing root', async () => {
     await expect(census(path.join(tmp, 'nope'))).rejects.toThrow(/not a directory/)
+  })
+})
+
+describe('census mirrors ADR 0019 Amendment (d)', () => {
+  it('excluded-candidate carries excludedBy and default ones are informational; callfunc-seturl; CDATA setUrl; extends', async () => {
+    const dir = path.join(tmp, 'amend-d'); fs.mkdirSync(dir)
+    const u = 'sub f(x as object)\n  x.setUrl("http://h/")\nend sub\n'
+    write1(dir, 'manifest', 'title=T\n')
+    write1(dir, 'source/rooibos/Runner.brs', u)
+    write1(dir, 'source/mine/x.brs', u + 'sub g(n as object)\n  n.callFunc("setUrl", "u")\nend sub\n')
+    write1(dir, 'components/Base.xml', '<component name="Base" extends="Scene"><script type="text/brightscript" uri="Base.brs"/></component>\n')
+    write1(dir, 'components/Base.brs', 'sub init()\n  print "b"\nend sub\n')
+    write1(dir, 'components/excl/Kid.xml', '<component name="Kid" extends="Base"/>\n')
+    write1(dir, 'components/Cd.xml', '<?xml version="1.0"?>\n<component name="Cd" extends="Group">\n  <script type="text/brightscript"><![CDATA[\n    sub f(x)\n      x.setUrl("http://h/")\n    end sub\n  ]]></script>\n</component>\n')
+    const c = await census(dir, { config: { instrument: { exclude: ['source/mine/**', 'components/excl/**'] } } })
+    expect(c.skipped.find((s) => s.kind === 'excluded-candidate' && s.file.includes('rooibos'))).toMatchObject({ excludedBy: 'default', informational: true })
+    expect(c.skipped.find((s) => s.kind === 'excluded-candidate' && s.file.includes('mine'))).toMatchObject({ excludedBy: 'user', informational: false })
+    expect(c.skipped.filter((s) => s.kind === 'callfunc-seturl')).toEqual([])
+    expect(c.skipped.find((s) => s.kind === 'init-shared-with-excluded-scene')).toMatchObject({ via: 'extends', component: 'Kid', file: 'components/Base.brs' })
+    expect(c.inlineCdataSetUrl).toEqual([{ component: 'Cd', file: 'components/Cd.xml', line: 5 }])
+    expect(renderMarkdown(c)).toContain('setUrl in inline CDATA')
+  })
+  it('reports callfunc-seturl in a non-excluded file', async () => {
+    const dir = path.join(tmp, 'amend-d2'); fs.mkdirSync(dir)
+    write1(dir, 'manifest', 'title=T\n')
+    write1(dir, 'source/x.brs', 'sub g(n as object)\n  n.callFunc("SetUrl", "u")\nend sub\n')
+    const c = await census(dir)
+    expect(c.skipped.find((s) => s.kind === 'callfunc-seturl')).toMatchObject({ file: 'source/x.brs', line: 2, informational: true })
   })
 })

@@ -285,7 +285,8 @@ describe('items 4, 5, 7, 9: skipped[] and the result schema', () => {
     for (const k of ['skipped', 'synthesized', 'bootstrapped', 'opInjected', 'excluded', 'inlineInitUnhandled']) expect(Array.isArray(r[k]), k).toBe(true)
     expect(r.stats.setUrl).toBe(1)
     expect(r.manifestWritten).toBe(true)
-    for (const x of r.skipped) expect(Object.keys(x).sort()).toEqual(['file', 'kind', 'line', 'reason'])
+    for (const x of r.skipped) expect(['file', 'kind', 'line', 'reason']).toEqual(expect.arrayContaining(Object.keys(x).filter((k) => !['excludedBy', 'via', 'component'].includes(k)).sort()))
+    for (const x of r.skipped) expect(Object.keys(x)).toEqual(expect.arrayContaining(['file', 'kind', 'line', 'reason']))
     expect(inst.result.schema).toBe(1)
   })
   it('records an empty init and leaves the file alone', () => {
