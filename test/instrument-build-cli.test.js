@@ -29,6 +29,7 @@ describe('parseInstrumentArgs', () => {
     expect(parseInstrumentArgs(['build', '--out', 'a.zip', '--strict', '--verbose'])).toMatchObject({ instrumentAction: 'build', out: 'a.zip', strict: true, verbose: true })
     expect(parseInstrumentArgs(['build', '--no-strict', '--out=b.zip'])).toMatchObject({ strict: false, out: 'b.zip' })
     expect(parseInstrumentArgs(['build'])).toMatchObject({ strict: null, out: null, sideload: false })
+    expect(parseInstrumentArgs(['build', '--sideload', '--host', '192.0.2.5', '--wait=5m'])).toMatchObject({ sideload: true, host: '192.0.2.5' })
     expect(parseInstrumentArgs(['build', '--bogus']).unknown).toEqual(['--bogus'])
   })
 })

@@ -43,6 +43,25 @@ instrument build failed: 1 error(s), no package written
 | 3 | reserved for `instrument verify` (instrumentation found) |
 | 4 | strict-mode failure: the build is valid but something could not be instrumented |
 
+With `--sideload`, exit 1 also covers an authentication, port-80 or installer failure, and the device-lease codes apply
+(75 busy or wait timeout, 77 lease lost, 78 lease directory problem).
+
+### Sideloading the package
+
+```sh
+ROKU_PASSWORD=... npx brighttest instrument build --sideload --host 192.0.2.5
+```
+
+After a successful build, `--sideload` installs the package through the device's dev installer (port 80, Digest auth),
+inside the device lease so it never collides with another brighttest lane on the same device.
+
+- `--host` is required; the device is never guessed from the cache. The dev password comes from `ROKU_PASSWORD` (or
+  `--host ip:password`, or the credential cache entry for that host). It is never printed.
+- Port 80 is checked first; if it is closed, the command exits 1 and tells you to enable Developer Mode.
+- If the installer reports a failure, the installed app is deleted and the install is retried once.
+- Lease options: `--wait`, `--max`, `--expect`, `--as`, `--purpose` (same meaning as `brighttest device with`).
+  The lease cannot be bypassed for this command.
+
 ## Configuration
 
 `brighttest.json`, all optional:
