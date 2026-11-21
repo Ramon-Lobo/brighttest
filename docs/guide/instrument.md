@@ -225,6 +225,44 @@ no second lease:
   isolation can still block it); that is proved on a device with an instrumented build. The check line says so, and a
   failed bind prints its own `fix:` line. The ECP fix texts are unchanged.
 
+## Network steps in e2e flows
+
+A flow can mock and check the app's HTTP traffic on a device. The steps need an instrumented build
+(`brighttest instrument build --net --sideload`) and the LAN hub above; `e2e run` starts the hub (and its proxy) inside the
+host's lease when a flow uses any of them or sets `config.net`.
+
+```yaml
+appId: dev
+config: { timeout: 8, net: { fixtures: [fixtures/net/home.json], unmatched: fail, upstreamHosts: [api.example.test] } }
+steps:
+  - mockHttp: { method: GET, url: "**/v1/home", status: 200, file: fixtures/net/home.json }
+  - mockHttp: { url: "**/v1/search*", responses: [ { status: 503 }, { status: 200, file: fixtures/net/search.json } ] }
+  - mockHttp: { url: "**/v1/config", fault: timeout }
+  - launch
+  - waitForRequest: { method: GET, url: "**/v1/home", timeout: 5 }
+  - assertRequest: { method: POST, url: "**/v1/track", count: 1, bodyContains: play }
+  - recordHttp: { file: out/session.har }
+  - recordHttp: stop
+  - clearHttp
+```
+
+- `mockHttp` takes the same rule keys as the headless `BTNet_` rules (`status`, `file`, `json`, `body`, `headers`, `responses`,
+  `fault`, `delayMs`, `times`, `reqHeaders`, `reqBody`). `file:` is relative to the project root and confined to it.
+- `waitForRequest` polls the request log (seconds; default is the flow `timeout`). `assertRequest` passes when the number of
+  matching requests is `count` (default: at least one). Both read the hub's log in-process, so they cost no ECP traffic.
+  Both match on `method`, `url` (glob), `status` and `bodyContains` (request body).
+  A miss says what was expected, what was seen, and lists up to five logged `METHOD /path` lines (no queries, headers or bodies).
+- `clearHttp` drops this flow's rules and hides the log so far. Rules and fixtures a flow adds are dropped when it ends, and a
+  flow never sees an earlier flow's requests.
+- `recordHttp: { file }` starts keeping passthrough exchanges (redacted) and `recordHttp: stop` writes them as a HAR; an open
+  recording is written when the flow ends. It refuses without `config.net.upstreamHosts`. The proxy records for the whole run
+  once any flow records, and the HAR holds only the window between the two steps.
+- `config.net` keys: `fixtures` (list of files in the project root, flow-scoped), `unmatched` (`fail` | `passthrough`; default
+  `fail` when fixtures are listed, else `passthrough`), `upstreamHosts`, `record`, `redact`. A bad value is a flow parse error.
+- **Fail fast.** A flow with network steps and no hub (lease bypassed, hub failed to start) fails before the device is touched.
+  On a build that is not instrumented, the run fails right after `launch` (within 5 s) with
+  ``no agent.hello/BT_url handshake seen: build with `brighttest instrument build --net` `` instead of waiting for step timeouts.
+
 ## Rules to know
 
 - **Single build.** One build uses one fresh `Program` and one plugin instance. There is no watch mode; reusing a plugin
