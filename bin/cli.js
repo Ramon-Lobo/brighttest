@@ -196,6 +196,7 @@ function parseE2eArgs(rest) {
     else if (a.startsWith('--timeout=')) opts.timeout = parseInt(a.slice(10), 10) || undefined;
     else if (a === '--screenshots') opts.screenshots = rest[++i];
     else if (a.startsWith('--screenshots=')) opts.screenshots = a.slice(14);
+    else if (a === '--reset-device') opts.resetDevice = true;
     else if (a === '--screenshots-mode') opts.screenshotsMode = rest[++i];
     else if (a.startsWith('--screenshots-mode=')) opts.screenshotsMode = a.slice(19);
     else if (a === '--out' || a === '-o') opts.out = rest[++i];
@@ -273,6 +274,8 @@ Options:
   --media-type <t>       Media type paired with --content-id (e.g. movie, series)
   --timeout <sec>        Per-assertion wait timeout (default 10)
   --screenshots <dir>    Where to write screenshots (default: <stagingDir>/e2e/screenshots)
+  --reset-device         Before the run, per host: installer Delete, Home, then check the app launches off Home;
+                         a host that never leaves Home twice in a row is dropped and the flows run on the rest
   --screenshots-mode <m> all (per-step, default) | failure (only on fail) | off
   --video [mp4|gif]      Assemble the per-step screenshots into a session video (needs ffmpeg on PATH)
   -o, --out <file>       (record) Write the scaffolded flow here (default: stdout)
@@ -333,6 +336,7 @@ Usage:
   brighttest device renew [--lease <token>]                Push a session's idle expiry forward (every use of the token does too)
   brighttest device unlock [--lease <token>]               Release your session (token from --lease or BRIGHTTEST_LEASE)
   brighttest device unlock --force --host <h> --reason "…" [--kill]   Human override (audited)
+  brighttest device reset [--host <ip[:pw]>] [options]     Installer Delete, Home, wait for a Home screen (under the lease)
   brighttest device hook                                   Claude Code PreToolUse Bash guard (hook JSON on stdin)
   brighttest device log [--host <h>] [--tail <n>] [--json] The lease audit log (events.log)
 
@@ -632,6 +636,7 @@ async function main() {
     if (o.help || !o.deviceAction) { console.log(DEVICE_HELP); process.exit(o.help ? 0 : 2); }
     if (o.deviceAction === 'hook') process.exit(await require('../lib/device-hook').main()); // PreToolUse guard: always exit 0
     const cfg = loadConfig(process.cwd(), null);
+    if (o.deviceAction === 'reset') process.exit(await require('../lib/e2e/reset').cmdReset(o, cfg));
     const code = await require('../lib/device-command').run(o, cfg);
     process.exit(code);
   }
