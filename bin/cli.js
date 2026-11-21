@@ -41,6 +41,11 @@ function parseArgs(argv) {
     else if (a === '--purpose') opts.purpose = argv[++i];
     else if (a.startsWith('--purpose=')) opts.purpose = a.slice(10);
     else if (a === '--no-lease') opts.noLease = true;
+    // headless network fixtures (instrument.net): --net-record [file] records passthrough traffic to a HAR
+    else if (a === '--net-record') { const n = argv[i + 1]; opts.netRecord = (n && !n.startsWith('-')) ? argv[++i] : true; }
+    else if (a.startsWith('--net-record=')) opts.netRecord = a.slice(13);
+    else if (a === '--net-unmatched') opts.netUnmatched = argv[++i];
+    else if (a.startsWith('--net-unmatched=')) opts.netUnmatched = a.slice(16);
   }
   return opts;
 }
@@ -492,6 +497,9 @@ Options:
       --lcov [path]     Write an LCOV report from the device run (device mode;
                         default path: coverage/lcov.info)
       --junit <path>    Write a JUnit XML report (headless mode)
+      --net-record [file]       Headless: pass requests through to instrument.net.upstreamHosts and record a HAR
+                                (default .brighttest/net/<run>.har)
+      --net-unmatched <policy>  Headless: fail (599, default with fixtures) or passthrough for requests no rule matches
       --wait <dur>      Device lease: how long to queue for the device (default 30m; 0 = fail if busy)
       --as <agent>      Device lease: holder label (or BRIGHTTEST_AGENT)
       --purpose <text>  Device lease: what this run is for (shown in \`brighttest device status\`)
@@ -680,6 +688,14 @@ async function main() {
   if (opts.help) { console.log(HELP); process.exit(0); }
 
   const cfg = loadConfig(process.cwd(), opts.config);
+  if ((opts.netRecord || opts.netUnmatched !== undefined) && (opts.device || opts.crossCheck)) {
+    console.error('[brighttest] --net-record / --net-unmatched apply to the headless lanes only (not --device or --cross-check).');
+    process.exit(2);
+  }
+  if (opts.netUnmatched !== undefined && opts.netUnmatched !== 'fail' && opts.netUnmatched !== 'passthrough') {
+    console.error('[brighttest] --net-unmatched must be "fail" or "passthrough".');
+    process.exit(2);
+  }
   let lane, label;
   if (opts.crossCheck) { lane = require('../lib/cross-check'); label = 'cross-check (headless vs device)'; }
   else if (opts.device) { lane = require('../lib/device'); label = 'device (coverage)'; }

@@ -1,0 +1,13 @@
+namespace tests
+  @suite("feed")
+  class FeedTests extends rooibos.BaseTestSuite
+
+    @describe("fixtures")
+
+    @it("serves the mocked home feed")
+    function _()
+      m.assertEqual(fetchText("https://api.example.com/v1/home"), "{""rows"":3}")
+    end function
+
+  end class
+end namespace
