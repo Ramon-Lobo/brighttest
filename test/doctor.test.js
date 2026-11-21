@@ -116,6 +116,23 @@ describe('e2e preflight', () => {
   it('preflight passes stubs that cannot report capabilities', async () => {
     expect(await doctor.preflight({ deviceInfo: async () => ({}) })).toBe(null)
   })
+  it('throws with the reachable fix text when the device is unreachable', async () => {
+    const dev = { host: '10.0.0.9', ecpPort: 8060, deviceCapabilities: async () => { throw new TypeError('fetch failed') } }
+    await expect(doctor.preflight(dev)).rejects.toMatchObject({ code: 'DEVICE_UNREACHABLE', fix: expect.stringContaining('No answer from 10.0.0.9') })
+    await expect(doctor.preflight(dev)).rejects.toThrow(/port 8060\) is reachable/)
+  })
+  it('a device that answers but cannot say (non-200) still returns null', async () => {
+    const dev = { host: '10.0.0.9', deviceCapabilities: async () => { throw Object.assign(new Error('device-info HTTP 500'), { httpStatus: 500 }) } }
+    expect(await doctor.preflight(dev)).toBe(null)
+  })
+  it('real device: a closed port throws, a 500 answer returns null', async () => {
+    const { stub, a } = await boot('healthy')
+    await stub.stop()
+    await expect(doctor.preflight(createDevice({ host: '127.0.0.1', ecpPort: a.ecpPort }))).rejects.toMatchObject({ code: 'DEVICE_UNREACHABLE' })
+    vi.stubGlobal('fetch', async () => ({ status: 500, text: async () => '' }))
+    expect(await doctor.preflight(createDevice({ host: 'pre-500-host' }))).toBe(null)
+    vi.unstubAllGlobals()
+  })
 })
 
 describe('doctor args', () => {
