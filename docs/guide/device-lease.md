@@ -146,7 +146,7 @@ is leased by name (brighttest prints a warning), while a process that resolves i
 IP; and a lane run with a different `ROKU_ECP_PORT` than another lane gets a different key (the port is part of
 the key unless it is 8060). Always use the device IP and the default port for real devices. Both cases are also recorded as `note` events in
 `events.log`, as are Studio's profiling and Perfetto stops when it yields the device; `released` events carry the
-reason (idle, yielded to <agent>, released from the UI).
+reason (idle, yielded to another agent, released from the UI).
 
 ## Studio
 
