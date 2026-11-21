@@ -123,7 +123,7 @@ function parseSkillsArgs(rest) {
 // `brighttest instrument build [--out <zip>] [--strict|--no-strict] [--verbose] [--config <path>]`
 const INSTRUMENT_ACTIONS = ['build', 'verify', 'census'];
 function parseInstrumentArgs(rest) {
-  const o = { instrumentAction: null, out: null, strict: null, verbose: false, config: null, sideload: false, host: null, wait: null, max: null, expect: null, as: null, purpose: null, json: false, target: null, help: false, unknown: [] };
+  const o = { instrumentAction: null, out: null, strict: null, verbose: false, config: null, sideload: false, net: false, host: null, wait: null, max: null, expect: null, as: null, purpose: null, json: false, target: null, help: false, unknown: [] };
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
     if (i === 0 && !a.startsWith('-')) { o.instrumentAction = a; continue; }
@@ -137,6 +137,7 @@ function parseInstrumentArgs(rest) {
     else if (a === '--config' || a === '-c') o.config = rest[++i];
     else if (a.startsWith('--config=')) o.config = a.slice(9);
     else if (a === '--sideload') o.sideload = true;
+    else if (a === '--net') o.net = true;
     else if (a === '--host') o.host = rest[++i];
     else if (a.startsWith('--host=')) o.host = a.slice(7);
     else if (a === '--wait') o.wait = rest[++i];
@@ -163,7 +164,7 @@ brighttest instrument — build an instrumented (debug-only) package of your app
   it carries the instrumentation runtime and a per-build token (the release gate \`instrument verify\` finds it).
 
 Usage:
-  brighttest instrument build [--out <zip>] [--strict | --no-strict] [--verbose] [--config <path>]
+  brighttest instrument build [--out <zip>] [--strict | --no-strict] [--net] [--verbose] [--config <path>]
   brighttest instrument verify <zip|dir>                      Release gate: exit 3 if instrumentation markers are found, 0 if clean
   brighttest instrument census [--json] [--out <dir>] [--config <path>]
                                                               Static census of the app in the current directory (no device)
@@ -171,6 +172,8 @@ Usage:
 Options:
   -o, --out <zip>    Where the package goes (default: <stagingDir>/instrument/app.bt-instrumented.zip). It is written
                      only after every check passed; a failed build leaves nothing new at --out and keeps an older file.
+  --net              Bake the hub token from BRIGHTTEST_HUB_TOKEN (32 hex) so the e2e run's hub accepts this build;
+                     fails (exit 1) when it is unset or malformed. The run reads the same variable.
   --strict           Fail (exit 4) when something could not be instrumented, even though the build is valid.
   --no-strict        Turn strict off (overrides brighttest.json). Default: "instrument": { "strict": false }.
   --verbose          List every informational entry of the report.
@@ -592,7 +595,7 @@ async function main() {
       target = { host: inline.host, password: require('../lib/devices').resolveDevice({ host: inline.host, password: inline.password }).password };
     }
     const cfg = loadConfig(process.cwd(), o.config);
-    const r = await require('../lib/instrument/build').build(cfg, { out: o.out, strict: o.strict, verbose: o.verbose });
+    const r = await require('../lib/instrument/build').build(cfg, { out: o.out, strict: o.strict, verbose: o.verbose, net: o.net });
     if (r.exitCode !== 0 || !target) process.exit(r.exitCode);
     const code = await require('../lib/instrument/sideload').sideload(cfg, { zip: r.out, ...target, wait: o.wait, max: o.max, expect: o.expect, as: o.as, purpose: o.purpose });
     process.exit(code);
