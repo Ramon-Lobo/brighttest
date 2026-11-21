@@ -11,6 +11,6 @@
     <Label id="searchQuery" text="Query: " translation="[80, 100]" />
     <Label id="searchError" text="" translation="[80, 160]" />
     <Keyboard id="searchKeyboard" translation="[80, 220]" />
-    <Button id="runSearch" text="Go" translation="[700, 220]" minWidth="160" />
+    <Button id="runSearch" text="Go" translation="[80, 520]" minWidth="160" />
   </children>
 </component>
