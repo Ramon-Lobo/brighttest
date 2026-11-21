@@ -45,6 +45,30 @@ function parseArgs(argv) {
   return opts;
 }
 
+// `brighttest doctor [--host <ip>] [--ecp-port <n>] [--json] [--show-serial]`: read-only device check.
+const DOCTOR_HELP = `
+brighttest doctor — check a Roku's capabilities and print the exact fix for anything wrong
+
+Usage: brighttest doctor [--host <ip>] [--ecp-port <n>] [--json] [--show-serial]
+
+  Reads the device-info only (no password, no lease, no keypresses). Exit 0 when every check passes,
+  1 when one fails or the device is unreachable, 2 on a usage error. The serial is hidden unless --show-serial.
+`;
+function parseDoctorArgs(rest) {
+  const o = { host: null, ecpPort: null, json: false, showSerial: false, help: false };
+  for (let i = 0; i < rest.length; i++) {
+    const a = rest[i];
+    if (a === '--host') o.host = rest[++i];
+    else if (a.startsWith('--host=')) o.host = a.slice(7);
+    else if (a === '--ecp-port') o.ecpPort = rest[++i];
+    else if (a.startsWith('--ecp-port=')) o.ecpPort = a.slice(11);
+    else if (a === '--json') o.json = true;
+    else if (a === '--show-serial') o.showSerial = true;
+    else if (a === '--help' || a === '-h') o.help = true;
+  }
+  return o;
+}
+
 // `brighttest skills [install|update|export|list|uninstall] …` — a positional subcommand with its own parser.
 const SKILLS_ACTIONS = ['install', 'update', 'export', 'list', 'uninstall'];
 function parseSkillsArgs(rest) {
@@ -351,6 +375,7 @@ Usage:
   brighttest skills install                          Install AI-agent test-writing skills (see: skills --help)
   brighttest e2e run <flow…> --host <ip>             On-device UI e2e tests from YAML flows (see: e2e --help)
   brighttest studio --host <ip>                      Visual studio to author/debug flows on a device (see: studio --help)
+  brighttest doctor --host <ip> [--json]             Check a device's capabilities and print exact fixes
   brighttest devices                                 Discover Rokus on the network and cache one's credentials
   brighttest device status|with|unlock|log           Share a device safely: the device lease (see: device --help)
 
@@ -462,6 +487,12 @@ async function main() {
     const code = await require('../lib/device-command').run(o, cfg);
     process.exit(code);
   }
+  if (argv[0] === 'doctor') {
+    const o = parseDoctorArgs(argv.slice(1));
+    if (o.help) { console.log(DOCTOR_HELP); process.exit(0); }
+    const code = await require('../lib/doctor').run(o);
+    process.exit(code);
+  }
   if (argv[0] === 'devices') {
     const d = require('../lib/devices');
     process.stderr.write('(to see who is using a device, run: brighttest device status)\n');
@@ -500,4 +531,4 @@ async function main() {
 // Only run the CLI when executed directly (not when required by tests).
 if (require.main === module) main();
 
-module.exports = { parseArgs, parseSkillsArgs, parseInitArgs, parseE2eArgs, parseStudioArgs, parseDeviceArgs, SKILLS_ACTIONS, E2E_ACTIONS, DEVICE_ACTIONS, SCREENSHOT_MODES };
+module.exports = { parseArgs, parseSkillsArgs, parseInitArgs, parseE2eArgs, parseStudioArgs, parseDeviceArgs, parseDoctorArgs, SKILLS_ACTIONS, E2E_ACTIONS, DEVICE_ACTIONS, SCREENSHOT_MODES };
