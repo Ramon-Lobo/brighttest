@@ -116,7 +116,7 @@
   {#if msg}<p class="msg" class:err>{msg}</p>{/if}
   {#if !shown.length}
     {#if hellos === 0}
-      <p class="empty">No hello from the device yet. Check the build has --net and the same hub token, then launch.</p>
+      <p class="empty">No hello from the device yet. The device sends its hello with the app's first HTTP request, so launch the app and use it. If nothing arrives, check the build has --net and the same hub token.</p>
     {:else if hellos > 0}
       <p class="empty">Device said hello at {lastHelloAt ? new Date(lastHelloAt).toLocaleTimeString() : 'an unknown time'}; no requests yet.</p>
     {:else}
