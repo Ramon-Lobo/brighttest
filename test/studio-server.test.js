@@ -6,6 +6,8 @@ import os from 'node:os';
 import path from 'node:path';
 
 const require = createRequire(import.meta.url);
+// Isolate from the developer's real device cache: Studio resolves its device like the CLI lanes.
+process.env.BRIGHTTEST_CACHE = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'bt-studio-cache-')), 'devices.json');
 const studio = require('../lib/studio/server.js');
 
 // Studio request guard (REL-02): loopback Host only, same-origin only, JSON-only mutating requests.

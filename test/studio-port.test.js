@@ -7,6 +7,8 @@ import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 
 const require = createRequire(import.meta.url)
+// Isolate from the developer's real device cache: Studio resolves its device like the CLI lanes.
+process.env.BRIGHTTEST_CACHE = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'bt-studio-cache-')), 'devices.json');
 const studio = require('../lib/studio/server.js')
 const { parseStudioArgs } = require('../bin/cli.js')
 
