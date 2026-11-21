@@ -45,12 +45,12 @@ const opts = { host: '127.0.0.1', password: 'pw' }
 describe('device lane under the lease', () => {
   it('acquires before spawning, registers the child, releases after it exits', async () => {
     const spawn = (...a) => { log.push('spawn'); return fakeChild({ out: '[Rooibos Result]\n' }) }
-    await device.run(cfg, opts, { acquireForLane: acquireOk(), spawn })
+    await device.run(cfg, opts, { homeBeforeDeploy: async () => null, acquireForLane: acquireOk(), spawn })
     expect(log).toEqual(['acquire 127.0.0.1', 'spawn', 'addChild 4242', 'release'])
   })
 
   it('releases when the child fails to start', async () => {
-    const code = await device.run(cfg, opts, { acquireForLane: acquireOk(), spawn: () => fakeChild({ fail: true }) })
+    const code = await device.run(cfg, opts, { homeBeforeDeploy: async () => null, acquireForLane: acquireOk(), spawn: () => fakeChild({ fail: true }) })
     expect(code).toBe(1)
     expect(log.at(-1)).toBe('release')
   })
@@ -63,7 +63,7 @@ describe('device lane under the lease', () => {
   })
 
   it('--no-lease (lease null) still runs', async () => {
-    const code = await device.run(cfg, opts, { acquireForLane: async () => ({ lease: null }), spawn: () => fakeChild({ out: '[Rooibos Result]\n' }) })
+    const code = await device.run(cfg, opts, { homeBeforeDeploy: async () => null, acquireForLane: async () => ({ lease: null }), spawn: () => fakeChild({ out: '[Rooibos Result]\n' }) })
     expect(code).toBe(0)
   })
 })

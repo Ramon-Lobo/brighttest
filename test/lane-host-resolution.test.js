@@ -42,6 +42,7 @@ function fakeChild() {
 async function runDevice(opts) {
   const seen = {}
   const code = await device.run(cfg, opts, {
+    homeBeforeDeploy: async () => null,
     acquireForLane: async (o) => { seen.leaseHost = o.host; seen.leasePw = o.password; return { lease: null } },
     spawn: (_node, args) => { seen.args = args; return fakeChild() },
   })
