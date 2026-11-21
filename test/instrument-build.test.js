@@ -115,6 +115,44 @@ describe('instrument build: success path', () => {
     expect(t.startsWith('#if BT_AGENT')).toBe(true)
   })
 
+  it('emits redact.paths, publish.maxBytes and publish.intervalMs when set, nothing when unset (BT-CFG-EMIT)', () => {
+    const z = '0'.repeat(32)
+    const t = renderBtConfig(z, { state: { redact: { paths: ['global.user.x', 'registry.dummy.*'] }, publish: { maxBytes: 4096, intervalMs: 250 } } })
+    expect(t).toContain('redact: { paths: ["global.user.x", "registry.dummy.*"] }')
+    expect(t).toContain('publish: { maxBytes: 4096, intervalMs: 250 }')
+    expect(renderBtConfig(z, { state: { publish: { intervalMs: 300 } } })).toContain('publish: { intervalMs: 300 }')
+    expect(renderBtConfig(z, { state: { redact: { paths: [] } } })).toContain('redact: { paths: [] }')
+    const base = renderBtConfig(z, { state: { caps: { depth: 3 } } })
+    for (const inst of [undefined, {}, { state: {} }, { state: { redact: {}, publish: {} } }, { state: { publish: { label: true } } }]) {
+      const o = renderBtConfig(z, inst)
+      expect(o).not.toContain('redact'); expect(o).not.toContain('publish')
+    }
+    expect(renderBtConfig(z, { state: { caps: { depth: 3 }, redact: {}, publish: {} } })).toBe(base)
+  })
+
+  it.each([
+    ['instrument.state.redact.paths', { redact: { paths: 'a.b' } }],
+    ['instrument.state.redact.paths', { redact: { paths: ['a', 3] } }],
+    ['instrument.state.publish.maxBytes', { publish: { maxBytes: '4096' } }],
+    ['instrument.state.publish.intervalMs', { publish: { intervalMs: 2.5 } }],
+  ])('fails the build naming %s on a wrong type', async (key, state) => {
+    const name = 'cfgbad-' + Math.random().toString(36).slice(2, 8)
+    const dir = mkapp(name, {}, { instrument: { state } })
+    const r = await run(dir, name)
+    expect(r.exitCode).not.toBe(0)
+    expect(r.out === null || !fs.existsSync(r.out)).toBe(true)
+    expect(r.log.join('\n')).toContain(key)
+  })
+
+  it('bakes the four settings into the built package', async () => {
+    const dir = mkapp('cfgok', {}, { instrument: { state: { redact: { paths: ['global.dummy'] }, publish: { maxBytes: 2048, intervalMs: 200 } } } })
+    const r = await run(dir, 'cfgok')
+    expect(r.exitCode).toBe(0)
+    const t = await zipText(r.out, 'source/bt/BT_config.brs')
+    expect(t).toContain('redact: { paths: ["global.dummy"] }')
+    expect(t).toContain('publish: { maxBytes: 2048, intervalMs: 200 }')
+  })
+
   it('emits registrySections into BT_config, and nothing when none are configured (STA-S-T1b)', () => {
     const t = renderBtConfig('0'.repeat(32), { state: { registrySections: ['prefs', ' auth ', '', 7] } })
     expect(t).toContain('registrySections: ["prefs", "auth"]')
