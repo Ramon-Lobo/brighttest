@@ -8,7 +8,10 @@ const flow = (launch) => `steps:\n  - launch: ${launch}\n`
 
 describe('launch param validation (flow)', () => {
   it('rejects an object value and names the key and the fix', () => {
-    expect(() => parseFlow(flow('{ params: { netdiag: x } }'))).toThrow(/launch param "params" must be a string, number or boolean \(got object\); use the flat form/)
+    expect(() => parseFlow(flow('{ params: { netdiag: x } }'))).toThrow(/launch param "params" must be a string, number or boolean \(got object\); launch params take scalar values/)
+    let msg = ''
+    try { parseFlow(flow('{ params: { netdiag: x } }')) } catch (e) { msg = e.message }
+    expect(msg).not.toContain('params:')
   })
   it('rejects arrays and null', () => {
     expect(() => parseFlow(flow('{ a: [1] }'))).toThrow(/"a".*got array/)
