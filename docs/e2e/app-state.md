@@ -82,6 +82,47 @@ included). Like the other assertions it polls until it matches or the step timeo
 - assertState: { path: watchlist.0.id, contains: steel }
 ```
 
+### Instrumented apps: layers and the agent node
+
+An app instrumented with the brighttest agent publishes its state in a hidden node with id
+**`__bt_agent`**, split into named **layers**: `global` (`m.global` fields), `scene` (the Scene's
+fields) and `focus` (the focus chain). brighttest reads it with `nodes?node-id=__bt_agent` (one small
+request, not a full tree walk) and falls back to the full tree if that misses. Apps without the agent
+keep working through the `__bt_state` snapshot above.
+
+`layer` selects one layer; `path` is then relative to it. Without `layer`, the first segment of `path`
+is the layer name.
+
+```yaml
+- assertState: { layer: scene, path: current, equals: PlayerPanel }
+- assertState: { path: global.channel, equals: "Open Cinema" }   # same, layer in the path
+```
+
+Three matchers, one per step (`equals` and `contains` are unchanged):
+
+| Matcher | Passes when |
+| --- | --- |
+| `deepEquals: <value>` | the value at `path` is structurally equal to `<value>` (objects by keys, arrays by order, numbers and booleans typed, not compared as strings) |
+| `exists: true` | the key at `path` is present (value not undefined) |
+| `exists: false` | the key at `path` is absent |
+
+```yaml
+- assertState: { layer: global, path: cfg, deepEquals: { retries: 3, regions: [us, ca] } }
+- assertState: { layer: global, path: token, exists: false }
+```
+
+A failure says which part was wrong: no state published, layer not found (with the layers that exist),
+path not found, or the actual value.
+
+### The 256 KB limit
+
+The reader accepts at most **256 KB** (262,144 bytes) of published text, the largest size measured to
+read back intact on firmware 16.0.4. A larger document fails the step immediately with error code
+`STATE_TOO_LARGE`. It is never truncated silently. Shrink what the agent publishes (redact paths,
+lower the publish byte cap) instead.
+
+### Matching rules for `equals` and `contains`
+
 Values compare as **strings** (`equals` exact, `contains` substring). A missing snapshot and a missing
 path report distinctly, so a failure tells you whether the app published nothing or the path was wrong.
 
