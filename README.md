@@ -55,6 +55,8 @@ It is a thin orchestrator over a proven stack, not a new BrightScript engine:
 - **Standard Rooibos syntax** — no lock-in; if you already use Rooibos, your tests work as-is.
 - **CI-ready** — non-zero exit on failure, JUnit and LCOV reporters, zero device needed for the default
   and coverage lanes.
+- **HTTP fixtures, headless** — mock, fault and record `roUrlTransfer` calls from config rules or per test
+  with `BTNet_mock` / `BTNet_requests`; see [HTTP fixtures](docs/writing-tests/http-fixtures.md).
 - **On-device E2E** — a deterministic UI-testing lane (`brighttest e2e`) that drives a real Roku via ECP:
   YAML flows, D-pad focus path-finding, text entry, `id`/text/subtype selectors, per-step screenshots and
   session video, plus `inspect`/`record`/`stamp` authoring tools and multi-device + deep-link matrix runs.
@@ -208,7 +210,8 @@ All optional — sensible defaults apply. Drop a `brighttest.json` at your proje
 
 - **Unit tests** — pure functions, parsing, formatting, data models, crypto: the fast, headless sweet spot.
 - **Integration tests** — `@SGNode` components with their children and `onChange` wiring (headless), and
-  the request/response logic of Task/API code, tested as pure functions (brighttest does not mock HTTP).
+  the request/response logic of Task/API code, tested as pure functions or against
+  [HTTP fixtures](docs/writing-tests/http-fixtures.md) (headless lanes only; `BTNet_*` specs are skipped on `--device`).
 - **End-to-end UI** — the [`brighttest e2e`](docs/e2e/index.md) lane drives the full app through the
   remote (launch, D-pad navigation, text entry) and asserts on the live screen, on real hardware.
   `brighttest studio` adds a local web app to inspect the live tree, drive the remote, author, run and

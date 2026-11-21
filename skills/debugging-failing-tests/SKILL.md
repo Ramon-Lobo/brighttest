@@ -94,11 +94,21 @@ fails the run and is listed with its headless-vs-device result.
 Task nodes can't be `@SGNode`-tested (their run loop blocks). Test request-building and response-parsing as
 **pure functions** headless, and keep the Task itself a thin shell that calls tested functions.
 
-brighttest has no HTTP-fixtures feature: nothing in the CLI or config mocks network calls. The pinned
-`@ramonlobo/brs-node` fork reads a fixtures file at `tmp:/rt-http-fixtures.json`, but that is an undocumented,
-fork-only hook: your spec must write the file itself, nothing validates it, it applies to the headless
-simulator only (not `--device`), and it may disappear if the fork is replaced. Prefer injecting canned
-responses into the parsing functions over relying on it.
+In the headless lanes brighttest can answer HTTP calls from rules (full guide: `docs/writing-tests/http-fixtures.md`):
+
+- Per test, in the spec: `BTNet_reset()` in `@beforeEach`, then `BTNet_mock({ url, status, json|body|file, responses })`,
+  `BTNet_fault({ url, kind: "timeout"|"reset"|"status", status })`, `BTNet_useFixture("fixtures/net/x.har")`, and
+  `BTNet_requests({ method, url })` to assert what the app sent. A rejected rule throws, so the test fails loudly.
+- For the whole run: `instrument.net.fixtures` (rule or HAR globs), `unmatched` (`fail` answers 599 and lists it),
+  `upstreamHosts` (the only hosts a passthrough may reach). `--net-record [file]` records a HAR; `--net-unmatched`
+  overrides the policy.
+- Every net run writes `.brighttest/net/last-run.ndjson`; failing requests print under "Network failures".
+- Only `setUrl` calls in your own files are intercepted. `BTNet_*` specs run headless only: `--device` skips them and
+  `--cross-check` reports them as headless-only. Rooibos 5.16 has no `assertStringContains`; use
+  `m.assertTrue(Instr(1, text, "x") > 0)`.
+
+Still keep request-building and response-parsing as pure functions where you can; use fixtures for the Task or client
+glue around them.
 
 ## When stuck: shrink the surface
 

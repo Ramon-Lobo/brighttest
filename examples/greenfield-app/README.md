@@ -32,7 +32,7 @@ brighttest --coverage
 | `Format.spec.bs` | pure functions (Format, Http, Config, Reducer) |
 | `AppStore.spec.bs` | `@SGNode("AppStore")` |
 | `Badge.spec.bs` | `@SGNode`, `@tags("bt-nondevice")` (forceUpperCase) |
-| `BTNetIdentity/Faults/Record.spec.bs` | `@tags("needs-n1")`, `@ignore`d until `BTNet_*` exists |
+| `BTNetIdentity/Faults/Record.spec.bs` | `@tags("needs-n1")`, `@ignore`d sketches of the `BTNet_*` spec API |
 | `FailOnPurpose.spec.bs` | `@tags("fail-on-purpose")`, `@ignore`d (remove it to see a failing run) |
 
 ## Flows (`flows/`) and fixtures

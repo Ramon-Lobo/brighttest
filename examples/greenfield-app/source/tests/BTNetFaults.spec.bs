@@ -1,6 +1,6 @@
 namespace tests
-  ' Placeholder for the BTNet_* spec API. Ignored until it exists (the CLI has no tag selector yet, so
-  ' @ignore does the skipping; the tag marks it for pack runs). Remove @ignore when N1 lands.
+  ' Sketch of the BTNet_* spec API (docs/writing-tests/http-fixtures.md). Kept @ignore'd: this app does not make these
+  ' calls through a rewritten setUrl yet. The tag marks it for pack runs; call BTNet_reset() in @beforeEach when enabling.
   @ignore
   @tags("needs-n1")
   @suite("BTNetFaults")
@@ -8,7 +8,7 @@ namespace tests
     @describe("faults")
     @it("turns /search into a 503")
     function _()
-      BTNet_fault("GET", "/search", 503)
+      BTNet_fault({ method: "GET", url: "**/search", kind: "status", status: 503 })
     end function
   end class
 end namespace

@@ -1,6 +1,6 @@
 namespace tests
-  ' Placeholder for the BTNet_* spec API. Ignored until it exists (the CLI has no tag selector yet, so
-  ' @ignore does the skipping; the tag marks it for pack runs). Remove @ignore when N1 lands.
+  ' Sketch of the BTNet_* spec API (docs/writing-tests/http-fixtures.md). Kept @ignore'd: this app does not make these
+  ' calls through a rewritten setUrl yet. The tag marks it for pack runs; call BTNet_reset() in @beforeEach when enabling.
   @ignore
   @tags("needs-n1")
   @suite("BTNetIdentity")
@@ -8,7 +8,7 @@ namespace tests
     @describe("identity")
     @it("serves a mocked /home to the hero request")
     function _()
-      BTNet_mock("GET", "/home", { title: "Mocked hero" })
+      BTNet_mock({ method: "GET", url: "**/home", json: { title: "Mocked hero" } })
     end function
   end class
 end namespace
