@@ -1,0 +1,4 @@
+{ "rules": [
+  { "method": "GET", "url": "https://api.example.com/v1/home", "status": 200, "json": { "rows": 3 } },
+  { "method": "GET", "url": "https://api.example.com/v1/down", "fault": { "kind": "status", "status": 503 } }
+] }

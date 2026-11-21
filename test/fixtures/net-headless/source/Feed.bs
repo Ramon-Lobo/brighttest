@@ -1,0 +1,6 @@
+' Tiny API client under test: one synchronous GET per call.
+function fetchText(url as string) as string
+  x = CreateObject("roUrlTransfer")
+  x.setUrl(url)
+  return x.getToString()
+end function

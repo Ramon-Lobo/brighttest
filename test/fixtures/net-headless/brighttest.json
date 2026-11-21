@@ -1,0 +1,11 @@
+{
+  "rootDir": ".",
+  "sourceGlobs": ["manifest", "source/**/*"],
+  "testsFilePattern": "**/*.spec.bs",
+  "stagingDir": ".brighttest",
+  "instrument": {
+    "net": {
+      "fixtures": ["fixtures/net/*.rules.json"]
+    }
+  }
+}
