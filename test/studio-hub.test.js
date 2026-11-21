@@ -55,6 +55,16 @@ describe('studio hub lifecycle', () => {
     expect(typeof started[0].netProxy.handle).toBe('function')
   })
 
+  it('reports hellos and lastHelloAt from the hub in /api/net/requests', async () => {
+    await boot({ BRIGHTTEST_HUB_TOKEN: TOKEN })
+    let r = await get('/api/net/requests')
+    expect(r.json).toMatchObject({ total: 0, hellos: 0, lastHelloAt: null })
+    fakeHub.hellos = 2; fakeHub.lastHelloAt = 1700000000000
+    r = await get('/api/net/requests')
+    expect(r.json).toMatchObject({ total: 0, hellos: 2, lastHelloAt: 1700000000000 })
+    expect(r.text).not.toContain(TOKEN)
+  })
+
   it('writes proxy traffic into the hub log', async () => {
     await boot({ BRIGHTTEST_HUB_TOKEN: TOKEN })
     await get('/api/net/rules')

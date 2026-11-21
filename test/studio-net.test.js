@@ -134,6 +134,12 @@ describe('/api/net/requests', () => {
     expect(raw.json.requests[0].url).toContain('abc123secret')
   })
 
+  it('carries no hello fields as numbers when the hub reports none', async () => {
+    const r = await req('GET', '/api/net/requests')
+    expect(r.json.hellos).toBeNull()
+    expect(r.json.lastHelloAt).toBeNull()
+  })
+
   it('bounds the list with limit', async () => {
     for (let i = 0; i < 3; i++) await request(harness.base + `https://api.example.test/v1/n${i}`)
     const r = await req('GET', '/api/net/requests?limit=2')
