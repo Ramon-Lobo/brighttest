@@ -18,8 +18,8 @@ sub Main(args as dynamic)
     #if STRESS
     stress = true
     #end if
-    ' the scene init reads m.global.config, so the bag must exist before CreateScene;
-    ' focus is set only once the screen is shown
+    m.global = screen.getGlobalNode() ' in Main(), m is a plain AA: bind the screen's global node first
+    ' scene init reads global config, so the bag must exist before CreateScene; focus only after show
     ' state bag: nested AAs, secrets (DUMMY values), long list/string, node ref, date
     m.global.addFields({
         config: cfg
