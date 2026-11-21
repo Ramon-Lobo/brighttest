@@ -58,7 +58,7 @@
       const d = await api.tree();
       if (d.code === 'LOCKED') { studio.lease = d; studio.status = 'paused'; return; }
       if (d.error) { studio.status = d.error; return; }
-      studio.scene = d.scene; studio.nodes = d.nodes; studio.appState = d.appState; studio.status = `${d.nodes.length} nodes`;
+      studio.scene = d.scene; studio.nodes = d.nodes; studio.appState = d.appState; studio.agent = d.agent || null; studio.status = `${d.nodes.length} nodes`;
     } catch { studio.status = 'tree error'; } finally { treeBusy = false; }
   }
   async function grabShot() {
