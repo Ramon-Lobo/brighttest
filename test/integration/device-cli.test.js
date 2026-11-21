@@ -8,10 +8,16 @@ import { fileURLToPath } from 'node:url'
 // `brighttest device …` end to end: real processes, a temp lease dir, no device (--no-hygiene).
 const here = path.dirname(fileURLToPath(import.meta.url))
 const CLI = path.resolve(here, '..', '..', 'bin', 'cli.js')
-let dir, log
+let dir, log, procs
 
-beforeEach(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-dev-cli-')); log = path.join(dir, 'w.log') })
-afterEach(() => fs.rmSync(dir, { recursive: true, force: true }))
+beforeEach(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-dev-cli-')); log = path.join(dir, 'w.log'); procs = [] })
+// Every spawned CLI must be gone before the temp dir is removed: a live holder or waiter keeps writing
+// into it (heartbeat, events.log), which makes rmSync fail with ENOTEMPTY or leaves stray files.
+afterEach(async () => {
+  for (const p of procs) if (p.exitCode === null && p.signalCode === null) p.kill('SIGKILL')
+  await Promise.all(procs.map((p) => p.done))
+  fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 })
+})
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 // A worker command for `device with`: logs enter/exit with a monotonic clock and whether it got a token.
@@ -24,6 +30,7 @@ function bt(args, env = {}) {
   const c = spawn(process.execPath, [CLI, ...args], { env: env2, stdio: ['ignore', 'pipe', 'pipe'] })
   let out = '', err = ''
   c.stdout.on('data', (d) => { out += d }); c.stderr.on('data', (d) => { err += d })
+  procs.push(c)
   c.done = new Promise((r) => c.on('close', (code) => r({ code, out, err })))
   return c
 }
@@ -51,13 +58,19 @@ describe('brighttest device', () => {
 
   it('8 concurrent `device with` never overlap and are served FIFO', async () => {
     const ps = []
-    for (let i = 1; i <= 8; i++) { ps.push(bt(withArgs(`w${i}`, 100))); await sleep(60) }
+    // Spawn one at a time, and only after the previous one shows up in the lease events (acquired or queued),
+    // so the arrival order is observed state, not a sleep that load can stretch.
+    for (let i = 1; i <= 8; i++) {
+      ps.push(bt(withArgs(`w${i}`, 100)))
+      expect(await waitFor(() => events().some((e) => e.agent === `w${i}` && (e.ev === 'queued' || e.ev === 'acquired')), 20000)).toBe(true)
+    }
     const rs = await Promise.all(ps.map((p) => p.done))
     expect(rs.map((r) => r.code)).toEqual(Array(8).fill(0))
     const o = order()
     expect(o.overlaps).toBe(0)
     const queued = events().filter((e) => e.ev === 'queued').map((e) => e.agent)
     expect(o.ids.filter((id) => queued.includes(id))).toEqual(queued)
+    expect(o.ids).toEqual(Array.from({ length: 8 }, (_, i) => `w${i + 1}`))
   })
 
   it('wait timeout → 75 with the waiting line; --wait 0 → 75 at once', async () => {
@@ -99,11 +112,16 @@ describe('brighttest device', () => {
   })
 
   it('F9: lease dir deleted mid-hold → the holder re-asserts at once; the next caller queues (no overlap)', async () => {
-    const h = bt(withArgs('h', 2500))
-    expect(await waitFor(() => lines().length > 0)).toBe(true)
-    await sleep(500)
-    fs.rmSync(path.join(dir, 'leases', '127.0.0.1'), { recursive: true, force: true })
-    await sleep(150)
+    const h = bt(withArgs('h', 6000))
+    expect(await waitFor(() => lines().length > 0 && events().some((e) => e.ev === 'acquired'))).toBe(true)
+    // Delete the lease dir in one atomic step (rename, then remove the renamed copy). A recursive rm removes
+    // holder.json before dir.id, and the holder can notice in between and see an intact dir (LOST, exit 77).
+    const keyDir = path.join(dir, 'leases', '127.0.0.1')
+    const trash = path.join(dir, 'trash')
+    fs.renameSync(keyDir, trash)
+    fs.rmSync(trash, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 })
+    // The holder re-asserts; wait for that to be observable before the next caller arrives.
+    expect(await waitFor(() => events().some((e) => e.ev === 'renewed' && e.reason === 'reasserted'), 15000)).toBe(true)
     const w = bt(withArgs('w', 50))
     const [rh, rw] = await Promise.all([h.done, w.done])
     expect([rh.code, rw.code]).toEqual([0, 0])
