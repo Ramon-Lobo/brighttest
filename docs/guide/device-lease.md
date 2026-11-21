@@ -205,6 +205,17 @@ If port 8700 is taken (another worktree's Studio), `brighttest studio` uses the 
   created private to one user (0700/0600). Run CI as the same user that runs the other device work.
 - **Another machine** cannot see the lease. Dedicate the device to that machine while it runs.
 
+## The Claude Code guard hook
+
+`brighttest device hook` is a Claude Code `PreToolUse` hook for the Bash tool (`lib/device-hook.js`). Register it
+in `.claude/settings.json` with `node bin/cli.js device hook` (this repo does, with a 5 s timeout). It reads the
+hook JSON on stdin and denies a raw device command (`curl`/`wget` to the device ports, `nc`, a bare `rooibos`
+run) unless the command is wrapped by a lease-aware command (`device with`, an e2e or `--device` run) or carries a
+live `BRIGHTTEST_LEASE` token from `device lock`. The deny message prints the `device with` command to use instead,
+and `--no-lease` / `BRIGHTTEST_NO_LEASE` are always denied for agents. The rule is syntactic, so it cannot see
+script files, URLs built from variables, `python`/`node` one-liners or MCP tools. If the hook itself fails (bad
+input, timeout), it allows the command and logs to `events.log`, and it always exits 0.
+
 ## What the lease cannot stop
 
 The lease only protects access that goes through brighttest (or `device with`). A script that opens its
