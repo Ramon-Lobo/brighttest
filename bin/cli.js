@@ -92,6 +92,56 @@ function parseSkillsArgs(rest) {
   return opts;
 }
 
+// `brighttest instrument build [--out <zip>] [--strict|--no-strict] [--verbose] [--config <path>]`
+const INSTRUMENT_ACTIONS = ['build'];
+function parseInstrumentArgs(rest) {
+  const o = { instrumentAction: null, out: null, strict: null, verbose: false, config: null, sideload: false, help: false, unknown: [] };
+  for (let i = 0; i < rest.length; i++) {
+    const a = rest[i];
+    if (i === 0 && !a.startsWith('-')) { o.instrumentAction = a; continue; }
+    if (a === '--out' || a === '-o') o.out = rest[++i];
+    else if (a.startsWith('--out=')) o.out = a.slice(6);
+    else if (a === '--strict') o.strict = true;
+    else if (a === '--no-strict') o.strict = false;
+    else if (a === '--verbose') o.verbose = true;
+    else if (a === '--config' || a === '-c') o.config = rest[++i];
+    else if (a.startsWith('--config=')) o.config = a.slice(9);
+    else if (a === '--sideload') o.sideload = true;
+    else if (a === '--help' || a === '-h') o.help = true;
+    else o.unknown.push(a);
+  }
+  return o;
+}
+
+const INSTRUMENT_HELP = `
+brighttest instrument — build an instrumented (debug-only) package of your app
+
+  Builds the app through brighterscript with the brighttest instrument plugin into a package you can sideload for
+  debugging. Your source tree is never modified: everything is written to a staged copy. NEVER ship this package:
+  it carries the instrumentation runtime and a per-build token (the release gate \`instrument verify\` finds it).
+
+Usage:
+  brighttest instrument build [--out <zip>] [--strict | --no-strict] [--verbose] [--config <path>]
+
+Options:
+  -o, --out <zip>    Where the package goes (default: <stagingDir>/instrument/app.bt-instrumented.zip). It is written
+                     only after every check passed; a failed build leaves nothing new at --out and keeps an older file.
+  --strict           Fail (exit 4) when something could not be instrumented, even though the build is valid.
+  --no-strict        Turn strict off (overrides brighttest.json). Default: "instrument": { "strict": false }.
+  --verbose          List every informational entry of the report.
+  -c, --config <p>   Path to brighttest.json (default: ./brighttest.json).
+  -h, --help         Show this help.
+
+Plugin order: the instrument plugin runs after the Rooibos coverage plugin; this command builds the app only (no Rooibos).
+One build = one fresh Program and plugin (no watch support).
+
+Exit codes: 0 ok, 1 build failure (bsc or plugin error, BT9003 staged-output-invalid), 2 usage,
+4 strict-mode failure (a could-not-instrument entry with strict on). Exit 3 belongs to \`instrument verify\`.
+
+stderr on failure: one line per blocking item, \`BT9003 staged-output-invalid <file>:<line> (...)\` or
+\`strict: <kind> <file>:<line> <reason>\`, then \`instrument build failed: N error(s), no package written\`.
+`;
+
 // `brighttest e2e [run|inspect] <flow…> [options]` — the on-device UI test lane.
 const E2E_ACTIONS = ['run', 'inspect', 'record', 'stamp'];
 const SCREENSHOT_MODES = ['all', 'failure', 'off'];
@@ -373,6 +423,7 @@ Usage:
   brighttest --cross-check --host <ip> --password <pw>   Diff headless vs device (fidelity check)
   brighttest init                                    Scaffold a project for testing (see: init --help)
   brighttest skills install                          Install AI-agent test-writing skills (see: skills --help)
+  brighttest instrument build                        Build an instrumented debug package, never for release (see: instrument --help)
   brighttest e2e run <flow…> --host <ip>             On-device UI e2e tests from YAML flows (see: e2e --help)
   brighttest studio --host <ip>                      Visual studio to author/debug flows on a device (see: studio --help)
   brighttest doctor --host <ip> [--json]             Check a device's capabilities and print exact fixes
@@ -427,6 +478,19 @@ async function main() {
     if (sOpts.help) { console.log(SKILLS_HELP); process.exit(0); }
     const code = await require('../lib/skills').run(null, sOpts);
     process.exit(code);
+  }
+  if (argv[0] === 'instrument') {
+    const o = parseInstrumentArgs(argv.slice(1));
+    if (o.help) { console.log(INSTRUMENT_HELP); process.exit(0); }
+    if (!INSTRUMENT_ACTIONS.includes(o.instrumentAction)) {
+      console.error(`[brighttest instrument] ${o.instrumentAction ? `unknown action "${o.instrumentAction}"` : 'missing action'}; available: ${INSTRUMENT_ACTIONS.join(', ')} (see: instrument --help)`);
+      process.exit(2);
+    }
+    if (o.unknown.length) { console.error(`[brighttest instrument] unknown option(s): ${o.unknown.join(' ')}`); process.exit(2); }
+    if (o.sideload) { console.error('[brighttest instrument] --sideload is not available yet; sideload the package with your usual tool after the build'); process.exit(2); }
+    const cfg = loadConfig(process.cwd(), o.config);
+    const r = await require('../lib/instrument/build').build(cfg, { out: o.out, strict: o.strict, verbose: o.verbose });
+    process.exit(r.exitCode);
   }
   if (argv[0] === 'e2e') {
     const eOpts = parseE2eArgs(argv.slice(1));
@@ -539,4 +603,4 @@ async function main() {
 // Only run the CLI when executed directly (not when required by tests).
 if (require.main === module) main();
 
-module.exports = { parseArgs, parseSkillsArgs, parseInitArgs, parseE2eArgs, parseStudioArgs, parseDeviceArgs, parseDoctorArgs, SKILLS_ACTIONS, E2E_ACTIONS, DEVICE_ACTIONS, SCREENSHOT_MODES };
+module.exports = { parseArgs, parseInstrumentArgs, INSTRUMENT_ACTIONS, parseSkillsArgs, parseInitArgs, parseE2eArgs, parseStudioArgs, parseDeviceArgs, parseDoctorArgs, SKILLS_ACTIONS, E2E_ACTIONS, DEVICE_ACTIONS, SCREENSHOT_MODES };
