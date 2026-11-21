@@ -171,7 +171,7 @@ stderr on failure: one line per blocking item, \`BT9003 staged-output-invalid <f
 `;
 
 // `brighttest e2e [run|inspect] <flow…> [options]` — the on-device UI test lane.
-const E2E_ACTIONS = ['run', 'inspect', 'record', 'stamp'];
+const E2E_ACTIONS = ['run', 'inspect', 'record', 'stamp', 'lint'];
 const SCREENSHOT_MODES = ['all', 'failure', 'off'];
 function parseE2eArgs(rest) {
   const opts = {
@@ -252,6 +252,7 @@ Usage:
   brighttest e2e inspect            Dump a summary of the live tree (find ids/text/subtypes)
   brighttest e2e inspect --id <x>   Detail one node: every field + ready-to-paste assertions
   brighttest e2e record [-o <file>] Interactively drive the device and scaffold a flow file
+  brighttest e2e lint <flow…>       Warn about selectors that cannot match (e.g. subtype: Group)
   brighttest e2e stamp <src> -o <d> Copy a project, injecting ids onto un-annotated nodes (E2E build)
 
 Node detail (inspect with a selector — targets a node you see on screen):
@@ -580,6 +581,10 @@ async function main() {
       const { files, nodes } = stampProject(src, eOpts.out, {});
       console.log(`brighttest e2e stamp: injected ${nodes} id(s) across ${files} component(s) → ${eOpts.out}`);
       process.exit(0);
+    }
+    if (eOpts.e2eAction === 'lint') {
+      if (!eOpts.flows.length) { console.error('[brighttest e2e] lint needs <flow…>'); process.exit(2); }
+      process.exit(require('../lib/e2e/lint').lint(eOpts.flows));
     }
     const cfg = loadConfig(process.cwd(), null);
     console.log('brighttest: e2e lane\n');

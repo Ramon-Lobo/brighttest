@@ -75,6 +75,8 @@ built-in **`id`**. If your app has none, use `text`/`subtype`, or auto-inject id
 A node created as `Group` is dumped by `sgnodes` with the subtype `RenderableNode` (seen on firmware
 16.0.4), so `{ subtype: Group }` will not match. Select by `id` or `text` instead. Custom fields stay
 invisible there too (re-confirmed on 16.0.4).
+
+Run `brighttest e2e lint <flow…>` to get a warning (exit 0) for every `subtype: Group` selector.
 :::
 
 Stability preference: `id` → `text`/`subtype`. Prefer ids for anything you assert on repeatedly.
