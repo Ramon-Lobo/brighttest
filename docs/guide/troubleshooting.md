@@ -88,8 +88,8 @@ the script is linked.
 
 **Cause:** the device printed nothing for too long. Two watchdogs exist. The Rooibos CLI exits on its own after
 90 s of silence. The brighttest device lane has its own backstop at 120 s (`DEFAULT_IDLE_S` in `lib/device.js`),
-so the CLI's line normally wins and the lane's fires only when the CLI itself wedges. There is no CLI flag for
-the lane value yet. `--timeout <sec>` (default 900) is the separate overall limit.
+so the CLI's line normally wins and the lane's fires only when the CLI itself wedges. Set the lane value with
+`--idle-timeout <sec>` or the `deviceIdleTimeout` config key (`0` disables; the flag wins). `--timeout <sec>` (default 900) is the separate overall limit.
 
 **Known limit:** with stock Rooibos, an `@async` test that never calls done prints `[Rooibos Result]: PASS`
 after about 5 s, so the run looks like a pass and the watchdog never fires (the device is not silent). Keep

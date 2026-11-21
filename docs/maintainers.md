@@ -119,7 +119,7 @@ flowchart TD
 - Fallbacks (ENG-T14): one best-effort Home key press (through the ECP key path) runs after the lease is held and
   before deploy; a failed Home only warns. The watchdog (`--timeout`) kills the CLI's process group and the run
   fails even if the child never closes. No `[Rooibos Result]` is a failure, even when cases streamed. An idle (output-silence) watchdog
-  (`opts.idleTimeout`, default 120 s, `0` disables; no CLI flag yet) kills the CLI if the device prints nothing; it sits
+  (`--idle-timeout <sec>`, else config `deviceIdleTimeout`, else 120 s; `0` disables; an explicit value is also passed to the rooibos CLI as `--idle-timeout`, unset leaves its argv unchanged) kills the CLI if the device prints nothing; it sits
   above the rooibos CLI's own 90 s `[roku-test] no device output for Ns` exit. Aborted runs get typed messages: a stall
   reads "run aborted: no device output for Ns (idle watchdog)"; the `Brightscript Debugger>` prompt reads "run aborted by
   runtime error in `<suite>`" (suite from the last streamed suite header). Known limit: a stock-rooibos `@async` test that

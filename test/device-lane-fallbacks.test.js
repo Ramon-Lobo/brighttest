@@ -261,3 +261,33 @@ describe('supportsFlag', () => {
     expect(engines.supportsFlag({ kind: 'rooibos', version: '5.16.4', stamp: { flags: ['coverage-dir'] } }, 'coverage-dir')).toBe(true)
   })
 })
+
+describe('idle timeout route (flag, config, rooibos argv)', () => {
+  const run = async (o, c = cfg) => {
+    let argv = null
+    await device.run(c, { ...opts, ...o }, base({ spawn: (_n, a) => { argv = a; return fakeChild({ out: RESULT }) } }))
+    return argv
+  }
+  const idleArg = (a) => a.filter((x) => x.startsWith('--idle-timeout'))
+  it('unset: rooibos argv has no --idle-timeout', async () => {
+    expect(idleArg(await run({}))).toEqual([])
+  })
+  it('flag only: passes --idle-timeout', async () => {
+    expect(idleArg(await run({ idleTimeout: 5 }))).toEqual(['--idle-timeout=5'])
+  })
+  it('config only: passes the configured value', async () => {
+    expect(idleArg(await run({}, { ...cfg, deviceIdleTimeout: 7 }))).toEqual(['--idle-timeout=7'])
+  })
+  it('flag beats config', async () => {
+    expect(idleArg(await run({ idleTimeout: 5 }, { ...cfg, deviceIdleTimeout: 7 }))).toEqual(['--idle-timeout=5'])
+  })
+  it('0 is explicit: passed through and disables the lane watchdog', async () => {
+    expect(idleArg(await run({ idleTimeout: 0 }))).toEqual(['--idle-timeout=0'])
+  })
+  it('config value drives the lane watchdog and its abort line', async () => {
+    const code = await device.run({ ...cfg, deviceIdleTimeout: 0.05 }, { ...opts, timeout: 30 },
+      base({ killGraceMs: 10, spawn: () => fakeChild({ hang: true }) }))
+    expect(code).toBe(1)
+    expect(process.stderr.write.mock.calls.join('')).toMatch(/no device output for 0\.05s \(idle watchdog\)/)
+  })
+})
