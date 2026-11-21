@@ -42,6 +42,26 @@ describe('studio port collision', () => {
     expect(b.address().port).toBe(next)
   })
 
+  it('every port of the fallback range busy: one clear line naming the range, code EADDRINUSE', async () => {
+    const a = await studio.start({ port: 0, rootDir: root() }); open.push(a)
+    const b = await studio.start({ port: 0, rootDir: root() }); open.push(b)
+    const pa = a.address().port, pb = b.address().port
+    const err = await studio.start({ port: pa, portFallback: [pb], rootDir: root() }).catch((e) => e)
+    expect(err.code).toBe('EADDRINUSE')
+    expect(err.message).not.toMatch(/\n/)
+    expect(err.message).toMatch(new RegExp(`ports ${pa}-${pb} are in use`))
+    expect(err.message).toMatch(/--port/)
+  })
+
+  it('--port busy (no fallback list) never moves to another port', async () => {
+    const a = await studio.start({ port: 0, rootDir: root() }); open.push(a)
+    const pa = a.address().port
+    const err = await studio.start({ port: pa, portFallback: null, rootDir: root() }).catch((e) => e)
+    expect(err.code).toBe('EADDRINUSE')
+    expect(err.port).toBe(pa)
+    expect(err.message).toMatch(new RegExp(`port ${pa} is in use`))
+  })
+
   it('--port is optional (null → default with fallback)', () => {
     expect(parseStudioArgs([]).port).toBeNull()
     expect(parseStudioArgs(['--port', '8741']).port).toBe(8741)
