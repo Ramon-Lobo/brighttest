@@ -7,7 +7,8 @@ step model that the runner executes against the device.
 
 ```yaml
 appId: dev              # channel to launch (default: dev). --app overrides it.
-config: { timeout: 8 }  # optional per-flow overrides (currently: timeout, in seconds)
+config: { timeout: 8 }  # optional per-flow overrides (timeout in seconds, noSystemDialog, ready*)
+requires: { firmware: ">=12.5" }  # optional: skip the flow on a device that does not match
 steps:
   - launch
   - assertVisible: { id: homeScreen }
@@ -25,6 +26,8 @@ error rather than being silently misparsed.
 |---|---|
 | `launch` / `launch: { contentId, mediaType }` | Start the app, optionally deep-linking |
 | `press: <Key>` / `press: { key, count }` | One or N keypresses (`Up`/`Down`/`Left`/`Right`/`Select`/`Back`/…) |
+| `holdKey: { key, ms }` | Hold a key down for `ms` milliseconds (keydown, wait, keyup; see below) |
+| `requires: { … }` | Skip the rest of the flow unless the device matches (see below) |
 | `pressUntil: { key, visible: <selector>, max }` | Repeat a key until a selector appears (e.g. scroll a row) |
 | `focus: <selector>` | Arrow-key **path-find** focus onto a node (see below) |
 | `text: "hello"` | Type text into the focused field via `Lit_` keypresses |
@@ -42,6 +45,22 @@ error rather than being silently misparsed.
 | `expectNoLog: <text>` | Fail if any log line so far in this flow matches |
 | `screenshot: <name>` | Save a PNG/JPG artifact |
 | `back` / `home` | Convenience for `press: Back` / `press: Home` |
+
+**Key names are validated.** `press`, `pressUntil` and `holdKey` accept only the ECP key names `Home`, `Rev`, `Fwd`, `Play`, `Select`, `Left`, `Right`, `Down`, `Up`, `Back`, `InstantReplay`, `Info`, `Backspace`, `Search`, `Enter`, `FindRemote`, `VolumeDown`, `VolumeMute`, `VolumeUp`, `PowerOff`, `ChannelUp`, `ChannelDown`, `InputTuner`, `InputHDMI1`..`InputHDMI4`, `InputAV1`, plus `Lit_<char>` (one literal character). Names are case-sensitive. A typo such as `press: Rigth` fails when the flow is parsed, by `e2e lint` and by `e2e run` alike, with `unknown key "Rigth"; valid keys: …`. When every flow in a run fails this validation (or a bad `requires:` / `holdKey`), the run stops before the first device request.
+
+**`holdKey: { key, ms }`** sends `keydown`, waits `ms` (1 to 30000), then sends `keyup`. The `keyup` is always attempted, also when the `keydown` or the wait fails, so a key is not left held on the device. If the hold itself failed, that error is reported; if only the `keyup` failed, the step fails with `keyup <Key> failed (HTTP <status>)`.
+
+**`requires:`** skips instead of failing. Put it at the top of the flow or as a step (a step-level `requires` skips the rest of the flow from that step; earlier steps keep their result). Keys, all optional but at least one:
+
+| Key | Meaning |
+|---|---|
+| `firmware: ">=12.5"` | Software version compared per dotted number; operators `>=` (default when bare), `>`, `<=`, `<`, `=` |
+| `videoMode: 1080p` | Equals the device's reported video mode (falls back to `ui-resolution` when the device has no `video-mode`), case-insensitive |
+| `deviceClass: box` | One of `tv`, `box`, `stick` (from `is-tv` and `is-stick`) |
+
+The values come from the `device-info` record the run already reads at the start (no extra request). A value the device did not report counts as unmet and the reason says so. A skipped flow prints `○ <flow> skipped: <reason>`, counts in the summary as `N skipped`, and does not change the exit code. There is no JUnit output in the e2e lane yet, so the reason appears on the console only.
+
+**`config: { noSystemDialog: true }`** refuses to act while a system dialog is the foreground: before `press`, `holdKey`, `text`, `back`, `home`, `focus` and `pressUntil` the runner reads the tree and fails the step with `noSystemDialog: a system dialog is in front; refusing to <action>` (no key is sent), and a `launch` that ends with a system dialog in front fails with the same prefix. It reuses the launch readiness gate's detection (root node subtype `SystemDialog` or `StdDlgSystem`), whose shapes are not yet confirmed on hardware.
 
 **Launch parameters apply on a fresh launch only.** Params are the flat keys of the `launch` map, for example `launch: { netdiag: "http://127.0.0.1:8787/status/503" }`; do not nest them under a `params:` key, because the nested object is sent as `params=[object Object]`. The runner rejects any launch param whose value is not a string, number or boolean (objects, arrays and null), before any device call. The legacy example app reads `netdiag=` and `stresskb=` in `examples/legacy-app/source/main.brs`. Params reach the channel only when it starts, and Roku ignores them if the channel is already running. When params are set, the runner presses Home and waits 800 ms before it launches, so they always reach a fresh start. `examples/legacy-app/flows/network-legacy.e2e.yaml` passes `netdiag` with the same URL that `examples/legacy-app/source/Config.brs` uses as its default, so a pass of that flow does not prove the param path worked.
 
