@@ -1,7 +1,7 @@
 {
   "rules": [
-    { "match": { "method": "GET", "path": "/home" }, "respond": { "status": 200, "json": { "title": "Mocked hero" } } },
-    { "match": { "method": "POST", "path": "/track" }, "respond": { "status": 204 } },
-    { "match": { "method": "GET", "path": "/search" }, "respond": { "status": 503 } }
+    { "id": "home", "method": "GET", "url": "/home", "status": 200, "json": { "title": "Mocked hero" } },
+    { "id": "track", "method": "POST", "url": "/track", "status": 204 },
+    { "id": "search", "method": "GET", "url": "/search", "status": 503 }
   ]
 }
