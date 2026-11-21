@@ -54,7 +54,7 @@
     "mermaid": "11.17.0",
     "vitepress": "1.6.4",
     "vitepress-plugin-mermaid": "2.0.17",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.12"
   },
   "//overrides": [
     "Transitive security fixes not reachable through a direct dependency bump.",
@@ -69,6 +69,11 @@
     "brace-expansion": "^1.1.18",
     "ip-address": "^10.7.6",
     "postcss": "^8.5.25",
-    "dompurify": "^3.4.18"
+    "dompurify": "^3.4.18",
+    "vitest": {
+      "vite": {
+        "esbuild": "0.21.5"
+      }
+    }
   }
 }
