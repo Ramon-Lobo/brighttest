@@ -84,6 +84,66 @@ describe('focusTo path-finding (simulated grid)', () => {
   })
 })
 
+// Fake device with a focused node that does not move for `still` presses, then (optionally) goes via `mid`
+// to the target. Target runSearch sits down-right of the start so both axes are wanted.
+function makeStaticDevice({ subtype, still, mid = false }) {
+  const state = { presses: 0 }
+  const box = (b) => `bounds="{${b.x}, ${b.y}, ${b.w}, ${b.h}}"`
+  const start = { x: 100, y: 100, w: 400, h: 200 }
+  const midB = { x: 300, y: 500, w: 100, h: 50 }
+  const tgt = { x: 800, y: 900, w: 200, h: 60 }
+  const treeXml = () => {
+    let f
+    if (state.presses < still) f = `<${subtype} name="kb" ${box(start)} focused="true" />`
+    else if (mid && state.presses === still) f = `<Button name="mid" ${box(midB)} focused="true" />`
+    else f = ''
+    const hit = !(state.presses < still) && !(mid && state.presses === still)
+    return `<sgnodes><All_Nodes node-count="4"><Default name="" />` +
+      `<Scene name="root" bounds="{0, 0, 1920, 1080}">${f}` +
+      `<Button name="mid" ${box(midB)}${mid && state.presses === still ? ' focused="true"' : ''} />` +
+      `<Button name="runSearch" ${box(tgt)}${hit && !(mid && state.presses === still) ? ' focused="true"' : ''} />` +
+      `</Scene></All_Nodes><status>OK</status></sgnodes>`
+  }
+  return {
+    state,
+    async keypress() { state.presses++; return 200 },
+    async ecpGet() { return { status: 200, text: treeXml() } },
+  }
+}
+
+describe('focusTo composite focus', () => {
+  for (const n of [3, 5]) {
+    it(`presses through a non-moving keyboard (${n} static presses)`, async () => {
+      const d = makeStaticDevice({ subtype: 'Keyboard', still: n })
+      const r = await focusTo(d, { id: 'runSearch' }, FAST)
+      expect(r.presses).toBe(n)
+      expect(d.state.presses).toBe(n)
+    })
+  }
+  it('gives up past the cap with an edge error and bounded presses', async () => {
+    const d = makeStaticDevice({ subtype: 'Keyboard', still: 13 }) // cap is per axis (6 v + 6 h = 12), so 13 static presses can never get through
+    await expect(focusTo(d, { id: 'runSearch' }, FAST)).rejects.toMatchObject({
+      code: 'FOCUS_FAILED', message: expect.stringMatching(/reached an edge/),
+    })
+    expect(d.state.presses).toBeLessThanOrEqual(12)
+  })
+  it('ordinary node still hits the edge after one press per axis', async () => {
+    const d = makeStaticDevice({ subtype: 'Button', still: 99 })
+    await expect(focusTo(d, { id: 'runSearch' }, FAST)).rejects.toThrow(/reached an edge .* after 2 press/)
+    expect(d.state.presses).toBe(2)
+  })
+  it('a composite that never moves terminates with an error', async () => {
+    const d = makeStaticDevice({ subtype: 'VKBGrid', still: 1e9 })
+    await expect(focusTo(d, { id: 'runSearch' }, FAST)).rejects.toMatchObject({ code: 'FOCUS_FAILED' })
+    expect(d.state.presses).toBeLessThanOrEqual(12)
+  })
+  it('composite that moves to a new node on press 2 keeps converging', async () => {
+    const d = makeStaticDevice({ subtype: 'Keyboard', still: 2, mid: true })
+    const r = await focusTo(d, { id: 'runSearch' }, FAST)
+    expect(r.presses).toBe(3)
+  })
+})
+
 describe('flow parser — focus step', () => {
   it('parses focus with a selector and optional maxPresses', () => {
     const flow = parseFlow('steps:\n  - focus: { id: tile, maxPresses: 12 }\n')
