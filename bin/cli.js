@@ -95,7 +95,7 @@ function parseSkillsArgs(rest) {
 // `brighttest instrument build [--out <zip>] [--strict|--no-strict] [--verbose] [--config <path>]`
 const INSTRUMENT_ACTIONS = ['build'];
 function parseInstrumentArgs(rest) {
-  const o = { instrumentAction: null, out: null, strict: null, verbose: false, config: null, sideload: false, help: false, unknown: [] };
+  const o = { instrumentAction: null, out: null, strict: null, verbose: false, config: null, sideload: false, host: null, wait: null, max: null, expect: null, as: null, purpose: null, help: false, unknown: [] };
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
     if (i === 0 && !a.startsWith('-')) { o.instrumentAction = a; continue; }
@@ -107,6 +107,13 @@ function parseInstrumentArgs(rest) {
     else if (a === '--config' || a === '-c') o.config = rest[++i];
     else if (a.startsWith('--config=')) o.config = a.slice(9);
     else if (a === '--sideload') o.sideload = true;
+    else if (a === '--host') o.host = rest[++i];
+    else if (a.startsWith('--host=')) o.host = a.slice(7);
+    else if (a === '--wait') o.wait = rest[++i];
+    else if (a === '--max') o.max = rest[++i];
+    else if (a === '--expect') o.expect = rest[++i];
+    else if (a === '--as') o.as = rest[++i];
+    else if (a === '--purpose') o.purpose = rest[++i];
     else if (a === '--help' || a === '-h') o.help = true;
     else o.unknown.push(a);
   }
@@ -134,6 +141,10 @@ Options:
   --strict           Fail (exit 4) when something could not be instrumented, even though the build is valid.
   --no-strict        Turn strict off (overrides brighttest.json). Default: "instrument": { "strict": false }.
   --verbose          List every informational entry of the report.
+  --sideload         After a successful build, install the package on the device under the device lease
+                     (needs --host; the dev password comes from ROKU_PASSWORD). Retries once after Delete.
+  --host <ip>        Device for --sideload (required with it; never guessed from the cache).
+  --wait/--max/--expect <dur>, --as <name>, --purpose <text>   Device lease options (see: device --help).
   -c, --config <p>   Path to brighttest.json (default: ./brighttest.json).
   -h, --help         Show this help.
 
@@ -142,6 +153,7 @@ One build = one fresh Program and plugin (no watch support).
 
 Exit codes: 0 ok, 1 build failure (bsc or plugin error, BT9003 staged-output-invalid), 2 usage,
 4 strict-mode failure (a could-not-instrument entry with strict on). Exit 3 belongs to \`instrument verify\`.
+With --sideload: 1 also covers auth, TCP-80 and installer failures; 75/77/78 are device-lease codes.
 
 stderr on failure: one line per blocking item, \`BT9003 staged-output-invalid <file>:<line> (...)\` or
 \`strict: <kind> <file>:<line> <reason>\`, then \`instrument build failed: N error(s), no package written\`.
@@ -492,10 +504,19 @@ async function main() {
       process.exit(2);
     }
     if (o.unknown.length) { console.error(`[brighttest instrument] unknown option(s): ${o.unknown.join(' ')}`); process.exit(2); }
-    if (o.sideload) { console.error('[brighttest instrument] --sideload is not available yet; sideload the package with your usual tool after the build'); process.exit(2); }
+    let target = null;
+    if (o.sideload) {
+      // Explicit host only (no cached-device guess); the password comes from ROKU_PASSWORD / the credential path.
+      const { splitHost } = require('../lib/device-command');
+      const inline = splitHost(o.host);
+      if (!inline.host) { console.error('[brighttest instrument] --sideload needs --host <ip> (no cached-device guess)'); process.exit(2); }
+      target = { host: inline.host, password: require('../lib/devices').resolveDevice({ host: inline.host, password: inline.password }).password };
+    }
     const cfg = loadConfig(process.cwd(), o.config);
     const r = await require('../lib/instrument/build').build(cfg, { out: o.out, strict: o.strict, verbose: o.verbose });
-    process.exit(r.exitCode);
+    if (r.exitCode !== 0 || !target) process.exit(r.exitCode);
+    const code = await require('../lib/instrument/sideload').sideload(cfg, { zip: r.out, ...target, wait: o.wait, max: o.max, expect: o.expect, as: o.as, purpose: o.purpose });
+    process.exit(code);
   }
   if (argv[0] === 'e2e') {
     const eOpts = parseE2eArgs(argv.slice(1));
