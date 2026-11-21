@@ -1,0 +1,7 @@
+{
+  "rootDir": ".",
+  "sourceGlobs": ["manifest", "source/**/*"],
+  "testsFilePattern": "**/*.spec.bs",
+  "stagingDir": ".brighttest",
+  "instrument": { "net": { "unmatched": "fail" } }
+}

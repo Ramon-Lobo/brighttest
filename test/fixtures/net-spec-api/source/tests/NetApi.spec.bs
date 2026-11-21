@@ -1,0 +1,70 @@
+namespace tests
+  @suite("netapi")
+  class NetApiTests extends rooibos.BaseTestSuite
+
+    @describe("BTNet_ per-test API")
+
+    @beforeEach
+    function reset()
+      BTNet_reset()
+    end function
+
+    @it("mocks a JSON response")
+    function _()
+      BTNet_mock({ method: "GET", url: "https://api.example.com/v1/home", status: 200, body: "{""rows"":3}" })
+      m.assertEqual(fetchText("https://api.example.com/v1/home"), "{""rows"":3}")
+    end function
+
+    @it("reset drops the rule of the previous test, so the request is unmatched again")
+    function _()
+      m.assertTrue(Instr(1, fetchText("https://api.example.com/v1/home"), "no rule matched") > 0)
+    end function
+
+    @it("plays a response sequence and the last one repeats")
+    function _()
+      BTNet_mock({ url: "https://api.example.com/v1/seq", responses: [{ body: "one" }, { body: "two" }] })
+      m.assertEqual(fetchText("https://api.example.com/v1/seq"), "one")
+      m.assertEqual(fetchText("https://api.example.com/v1/seq"), "two")
+      m.assertEqual(fetchText("https://api.example.com/v1/seq"), "two")
+    end function
+
+    @it("times limits how often a rule matches")
+    function _()
+      BTNet_mock({ url: "https://api.example.com/v1/once", body: "first", times: 1 })
+      m.assertEqual(fetchText("https://api.example.com/v1/once"), "first")
+      m.assertTrue(Instr(1, fetchText("https://api.example.com/v1/once"), "no rule matched") > 0)
+    end function
+
+    @it("injects a status fault")
+    function _()
+      BTNet_fault({ url: "https://api.example.com/v1/down", kind: "status", status: 503 })
+      m.assertTrue(Instr(1, fetchText("https://api.example.com/v1/down"), "injected 503") > 0)
+    end function
+
+    @it("logs requests since the reset and filters them")
+    function _()
+      BTNet_mock({ url: "https://api.example.com/v1/**", body: "ok" })
+      fetchText("https://api.example.com/v1/a")
+      postText("https://api.example.com/v1/track", "{""e"":1}")
+      all = BTNet_requests()
+      m.assertEqual(all.count(), 2)
+      posts = BTNet_requests({ method: "POST", url: "**/v1/track" })
+      m.assertEqual(posts.count(), 1)
+      m.assertEqual(posts[0].body, "{""e"":1}")
+      m.assertEqual(posts[0].status, 200)
+      m.assertEqual(BTNet_requests({ url: "**/nothing" }).count(), 0)
+    end function
+
+    @it("the request log is empty again after the next reset")
+    function _()
+      m.assertEqual(BTNet_requests().count(), 0)
+    end function
+
+    @it("loads a rules file from the project")
+    function _()
+      BTNet_useFixture("fixtures/net/replay.rules.json")
+      m.assertEqual(fetchText("https://api.example.com/v1/replay"), "from-file")
+    end function
+
+  end class
+end namespace

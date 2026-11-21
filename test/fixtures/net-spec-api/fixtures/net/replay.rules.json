@@ -1,0 +1,3 @@
+{ "rules": [
+  { "method": "GET", "url": "https://api.example.com/v1/replay", "body": "from-file" }
+] }
