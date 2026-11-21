@@ -57,6 +57,20 @@ device that another process is using makes only its own flows wait; the other de
 no run holds one device while waiting for another, so sharded runs cannot deadlock. A run that cannot get a
 device within `--wait` (default 30m) exits **75**. `npx brighttest device status` shows who has each device.
 
+### Resetting devices and dropping dead ones: `--reset-device`
+
+```bash
+npx brighttest e2e run flows/ --host 10.0.0.5:pw,10.0.0.6:pw --reset-device
+```
+
+Before planning, each host (in its own lease window) gets an attempt: installer `Delete`, Home, wait for a Home
+screen (see `device reset` in the [device lease guide](/guide/device-lease)), then a launch of the app
+(`--app`, default `dev`) to check the device leaves Home. A host that fails **2 consecutive attempts** (it
+never left Home, or the reset itself failed) is marked dead: the run prints one line naming it and the
+reason, and its flows go to the remaining hosts. If every host is dead the run exits 1 without running flows.
+The Delete removes the sideloaded app, so this flag suits CI setups that sideload right before the run
+(or devices where the dev channel is reinstalled by the job). A host without a dev password counts as dead.
+
 ## Non-default ECP port
 
 A Roku serves ECP on port 8060. To target a stub or fake on another port (for example a loopback fake on

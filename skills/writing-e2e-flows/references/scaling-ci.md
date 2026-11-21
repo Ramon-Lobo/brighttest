@@ -51,6 +51,13 @@ npx brighttest e2e run flows/ --host 10.0.0.5:Test1234,10.0.0.6:0000 --screensho
 Screenshots and videos are written under a per-device subfolder (`<dir>/<host>/…`) so parallel devices never
 clobber each other.
 
+## Reset devices first: `--reset-device`
+
+`npx brighttest e2e run flows/ --host a:pw,b:pw --reset-device` runs installer Delete, Home, a Home check and an app
+launch per host before planning. A host that fails 2 consecutive attempts (never left Home) is dropped with one
+summary line and its flows go to the others. The Delete removes the sideloaded app: sideload right before the run.
+`npx brighttest device reset --host <ip:pw>` does the reset alone, under the lease.
+
 ## Deep-link matrix
 
 Run each flow once per content id — ideal for verifying a details/playback screen across many titles:

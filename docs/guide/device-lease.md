@@ -72,6 +72,18 @@ brighttest command started inside it re-uses the same lease instead of waiting f
 Durations are `90s`, `10m`, `1h` or plain milliseconds. The device lanes (`--device`, `--cross-check`,
 `e2e`) accept `--wait`, `--as`, `--purpose` and `--no-lease`.
 
+## Resetting a stuck device: `device reset`
+
+```bash
+npx brighttest device reset --host 10.0.0.5:Test1234
+```
+
+Takes the lease (no Home x2 press), sends the installer `Delete` (the dev password is required; this frees a
+halted app or a stuck installer page, about 1.3 s on a device), presses Home, then polls `active-app` until a
+Home screen shows (10 s limit). Exit 0 when Home is reached; exit 1 when the Delete fails, the password is
+refused or Home never shows (the lease is released either way); 75/77/78 are the lease codes. The sideloaded
+app is removed, so sideload again afterwards. For CI see `e2e run --reset-device` in [scaling](/e2e/scaling).
+
 ## Multi-step debugging: a session lock
 
 `device with` holds the device for one command. For several steps in a row (an agent poking at a device while
