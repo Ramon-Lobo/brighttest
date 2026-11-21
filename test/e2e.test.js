@@ -89,6 +89,24 @@ describe('selector engine', () => {
     expect(matchOne(roots, { focused: true }).id).toBe('settingsTile')
     expect(matchOne(roots, { textContains: 'ett' }).id).toBe('settingsTile')
   })
+  it('focused: true selects only the deepest focused node of a focus chain', () => {
+    const chain = parseTree(`<sgnodes><All_Nodes>
+      <MainScene name="root" focused="true">
+        <Group name="container" focused="true">
+          <RowList name="row" focused="true">
+            <Button name="item" focused="true" />
+            <Button name="other" />
+          </RowList>
+          <Label name="plain" />
+        </Group>
+      </MainScene></All_Nodes></sgnodes>`).roots
+    expect(matchAll(chain, { focused: true }).map((n) => n.id)).toEqual(['item'])
+    expect(matchOne(chain, { focused: true }).id).toBe('item')
+    // other keys still AND with the deepest-focused node
+    expect(matchAll(chain, { focused: true, subtype: 'Button' }).map((n) => n.id)).toEqual(['item'])
+    expect(matchAll(chain, { focused: true, subtype: 'Group' })).toEqual([])
+    expect(matchAll(chain, { subtype: 'Button' })).toHaveLength(2)
+  })
   it('rejects an empty selector', () => {
     expect(() => matchAll(roots, {})).toThrow(/at least one of/)
   })

@@ -62,6 +62,8 @@ A selector matches nodes in the live tree. Combine keys to narrow (all must hold
 
 Extra filters: `visible: true|false`, `focusable: true`, `focused: true`.
 
+`focused: true` selects the **deepest** focused node. The device flags every node on the focus chain (scene, containers, the focused leaf) as focused, so the selector keeps only the focused node that has no focused descendant; other keys in the same selector then apply to that node.
+
 ::: warning Selectors use `id`, not `testId`
 A dedicated `testId` field is **invisible** to `sgnodes` — Roku only dumps a fixed set of built-in
 fields, and a node's `id` surfaces there as the `name=` attribute. So the selectable hook is the
