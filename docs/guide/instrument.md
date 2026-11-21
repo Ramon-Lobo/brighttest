@@ -208,6 +208,23 @@ text matches `\bBTNet_\w+` is excluded from the build, and each one prints
 `out`. It works per file, not per suite, so keep `BTNet_` calls in their own spec files. `--cross-check` reports their
 suites as `headless-only`, not as a divergence.
 
+## The LAN hub on a device, and `doctor`
+
+The hub that headless runs start on loopback also has a LAN form for a real device. It is tied to the device lease, with
+no second lease:
+
+- `e2e run` starts it for a host only after that host's lease is held, binds all interfaces, and stops it before it
+  releases the lease. If the lease is lost or expires, the hub stops itself. A run with the lease bypassed gets no hub.
+  It is opt-in for now (`net` in the config).
+- It answers only the leased device's IP (and only a private LAN address). Any other peer gets a bare `404`, and the run
+  prints one line per peer: `[brighttest hub] refused a request from <ip>: the hub for <device> answers only that device`.
+  A second session asking for the same device's hub in the same process is refused (`PEER_LOCKED`) and the first hub is
+  not touched.
+- `brighttest doctor --host <ip>` adds a `hub-bind` check: it opens and closes a TCP listener on all interfaces. It
+  proves only that this machine can listen. It does **not** prove the device can reach the hub (a firewall or Wi-Fi
+  isolation can still block it); that is proved on a device with an instrumented build. The check line says so, and a
+  failed bind prints its own `fix:` line. The ECP fix texts are unchanged.
+
 ## Rules to know
 
 - **Single build.** One build uses one fresh `Program` and one plugin instance. There is no watch mode; reusing a plugin
