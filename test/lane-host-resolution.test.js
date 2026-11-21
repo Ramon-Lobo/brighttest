@@ -165,3 +165,43 @@ describe('resolveLaneOpts', () => {
     expect(o.host).toBe('10.0.0.1:pw')
   })
 })
+
+describe('no silent cached-device fallback with several known devices', () => {
+  beforeEach(() => { rememberDevice('10.0.0.5', 'pw1'); rememberDevice('10.0.0.6', 'pw2') })
+
+  it('--device fails naming --host, and never spawns or prints a password', async () => {
+    const spawn = vi.fn(), acquire = vi.fn()
+    const code = await device.run(cfg, {}, { acquireForLane: acquire, spawn })
+    expect(code).toBe(2)
+    expect(spawn).not.toHaveBeenCalled()
+    expect(acquire).not.toHaveBeenCalled()
+    const out = errors.join('\n')
+    expect(out).toContain('pass --host')
+    expect(out).not.toMatch(/pw1|pw2/)
+  })
+
+  it('--cross-check fails before any headless work', async () => {
+    const headless = vi.fn()
+    const code = await crossCheck.run(cfg, {}, { headless, acquireForLane: vi.fn(), buildAndRun: vi.fn() })
+    expect(code).toBe(2)
+    expect(headless).not.toHaveBeenCalled()
+    expect(errors.join('\n')).toContain('pass --host')
+  })
+
+  it('an explicit --host is used as given (with its cached password), ROKU_HOST still resolves', async () => {
+    const a = await runDevice({ host: '10.0.0.5' })
+    expect(a.code).toBe(0)
+    expect(argOf(a.seen.args, 'host')).toBe('10.0.0.5')
+    expect(argOf(a.seen.args, 'password')).toBe('pw1')
+    process.env.ROKU_HOST = '10.0.0.6'
+    const b = await runDevice({})
+    expect(argOf(b.seen.args, 'host')).toBe('10.0.0.6')
+    expect(argOf(b.seen.args, 'password')).toBe('pw2')
+  })
+
+  it('an explicit --host is never replaced by ROKU_HOST or the cache', async () => {
+    process.env.ROKU_HOST = '10.0.0.6'
+    const { seen } = await runDevice({ host: '10.0.0.9', password: 'x' })
+    expect(argOf(seen.args, 'host')).toBe('10.0.0.9')
+  })
+})
