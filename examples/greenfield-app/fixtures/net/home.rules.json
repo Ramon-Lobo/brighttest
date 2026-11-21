@@ -1,0 +1,7 @@
+{
+  "rules": [
+    { "match": { "method": "GET", "path": "/home" }, "respond": { "status": 200, "json": { "title": "Mocked hero" } } },
+    { "match": { "method": "POST", "path": "/track" }, "respond": { "status": 204 } },
+    { "match": { "method": "GET", "path": "/search" }, "respond": { "status": 503 } }
+  ]
+}

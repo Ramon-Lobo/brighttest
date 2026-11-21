@@ -1,0 +1,21 @@
+# Tasks: a Task node, callFunc on a plain Node, and callFunc through a 3-level component chain.
+appId: dev
+config: { timeout: 15 }
+steps:
+  - home                                       # fresh start: a running app ignores launch
+  - launch
+  - assertVisible: { id: homeScreen }
+  - press: { key: Down, count: 5 }             # menu item 5: Tasks
+  - press: Select
+  - assertVisible: { id: tasksScreen }
+  - press: Select                              # "Run counter task"
+  - assertText: { id: taskResult, contains: "500500" }
+  - press: Down
+  - press: Select                              # "callFunc store"
+  - assertText: { id: storeResult, equals: "store: 1" }
+  - assertState: { path: global.counter, equals: 1 }
+  - press: Down
+  - press: Select                              # "callFunc leaf widget"
+  - assertText: { id: leafResult, equals: "leaf: leaf>mid>base" }
+  - back
+  - assertVisible: { id: homeScreen }

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="SettingsPanel" extends="Group">
+  <interface>
+    <field id="action" type="string" alwaysNotify="true" />
+    <function name="focusDefault" />
+  </interface>
+  <script type="text/brightscript" uri="SettingsPanel.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Log.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Crash.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Catalog.brs" />
+
+  <children>
+    <Group id="settingsScreen">
+      <Label id="settingsTitle" text="Settings" translation="[80,40]" width="800" />
+      <ButtonGroup id="settingsButtons" translation="[1550,300]">
+        <Button id="editName" text="Edit name" />
+        <Button id="toggleFlag" text="Toggle flag" />
+        <Button id="saveName" text="Save name" />
+        <Button id="crashButton" text="Crash" />
+      </ButtonGroup>
+      <Label id="flagLabel" text="flag: false" translation="[80,120]" width="400" />
+      <Label id="nameEcho" text="name: " translation="[480,120]" width="800" />
+      <TextEditBox id="nameBox" translation="[80,180]" width="900" />
+      <Keyboard id="nameKeyboard" translation="[80,270]" />
+    </Group>
+  </children>
+</component>

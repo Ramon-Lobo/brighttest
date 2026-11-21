@@ -1,0 +1,15 @@
+class Api
+    sub setUrl(u as string)
+        print u
+    end sub
+end class
+
+sub t1(t as roUrlTransfer, s as string)
+    t.setUrl("http://a.test/t1")
+    s.setUrl("http://a.test/t1b")
+end sub
+
+sub t2()
+    a2 = new Api()
+    a2.setUrl("http://a.test/t2")
+end sub

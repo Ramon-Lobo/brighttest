@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="InitCommentScene" extends="Scene">
+  <interface>
+    <field id="initRan" type="boolean" value="false" />
+
+  </interface>
+  <script type="text/brightscript" uri="InitCommentScene.brs" />
+
+</component>

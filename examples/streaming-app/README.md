@@ -36,13 +36,15 @@ source/
     Format.brs           # duration / progress formatting  │ pure logic,
     Search.brs           # case-insensitive title filter    │ covered headless
     Watchlist.brs        # continue-watching list (cap 10)  ┘
-  tests/*.spec.bs        # 20 headless unit tests over the lib/ helpers
+    BTState.brs          # publish app state for inspection (the __bt_state convention)
+  tests/*.spec.bs        # headless suites: unit (lib/) + a StateProbe @SGNode suite
 components/
-  MainScene.xml/.brs     # mounts the active panel, routes verb:id actions, owns the registry
+  MainScene.xml/.brs     # mounts the active panel, routes verb:id actions, owns the registry + state
   panels/*.xml/.brs      # Home / Details / Player / Search
+  StateProbe.xml/.brs    # test fixture: proves the BTState convention headless (@SGNode)
 flows/
   play-a-title.e2e.yaml  # Home → Details → play → assert playback → Back → Home
-  search.e2e.yaml        # Home → Search → type → assert results narrow → Back → Home
+  search.e2e.yaml        # Home → Search → type → assert results + app state → Back → Home
 brighttest.json
 ```
 
@@ -71,6 +73,21 @@ Put `ROKU`/`PASSWORD` in a `.env` next to the `Makefile` (auto-loaded, gitignore
 
 Both flows pass end to end: focus navigation across the poster grid, Select transitions, live playback,
 keyboard search, and Back-to-Home.
+
+## Inspecting app state
+
+Roku's ECP can't read `m.global` or custom fields — only a node's built-in attributes. So `MainScene`
+mirrors a JSON snapshot (current screen, `m.global` scalars, the watchlist) into a hidden `__bt_state`
+node via `BTState_publish`. brighttest reads it back: `e2e inspect` prints an **App state** block, studio
+shows a **State** tab and per-step state in the run trace, and flows assert on it:
+
+```yaml
+- assertState: { path: current, equals: SearchPanel }
+- assertState: { path: global.lastverb, equals: search }
+```
+
+See [App state](../../docs/e2e/app-state.md) for the full story. The `StateProbe` `@SGNode` suite proves
+the same convention works headless, with no device.
 
 ## Notes (the video-specific bits, learned the hard way)
 

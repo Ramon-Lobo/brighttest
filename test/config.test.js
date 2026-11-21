@@ -136,3 +136,27 @@ describe('writeBsConfig', () => {
     expect(bs.files.every((f) => typeof f === 'string')).toBe(true)
   })
 })
+
+describe('deviceLease config', () => {
+  let d
+  beforeEach(() => { d = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-cfg-lease-')) })
+  afterEach(() => fs.rmSync(d, { recursive: true, force: true }))
+
+  it('has defaults when brighttest.json has no deviceLease block', () => {
+    expect(loadConfig(d, null).deviceLease).toEqual({
+      enabled: true, wait: '30m', maxHold: '60m', sessionIdle: '10m', sessionMax: '45m',
+      hygiene: 'home', studioIdle: '5m', studioYield: '60s',
+    })
+  })
+
+  it('merges a partial block over the defaults; env and flags win over config', async () => {
+    fs.writeFileSync(path.join(d, 'brighttest.json'), JSON.stringify({ deviceLease: { wait: '1s', hygiene: 'none' } }))
+    const cfg = loadConfig(d, null)
+    expect(cfg.deviceLease).toMatchObject({ wait: '1s', hygiene: 'none', maxHold: '60m' })
+    const { resolveSettings } = await import('../lib/device-lease.js').then((m) => m.default || m)
+    expect(resolveSettings({ cfg, env: {} })).toMatchObject({ waitMs: 1000, hygiene: 'none', maxHoldMs: 3600000, studioIdleMs: 300000, studioYieldMs: 60000 })
+    expect(resolveSettings({ cfg, env: { BRIGHTTEST_LEASE_WAIT: '3s' } }).waitMs).toBe(3000)
+    expect(resolveSettings({ cfg, env: { BRIGHTTEST_LEASE_WAIT: '3s' }, flags: { wait: '0' } }).waitMs).toBe(0)
+    expect(resolveSettings({ cfg: { deviceLease: { enabled: false } }, env: {} }).enabled).toBe(false)
+  })
+})

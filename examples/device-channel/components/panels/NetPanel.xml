@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="NetPanel" extends="Group">
+  <interface>
+    <field id="action" type="string" alwaysNotify="true" />
+    <function name="focusDefault" />
+  </interface>
+  <script type="text/brightscript" uri="NetPanel.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Log.brs" />
+
+  <children>
+    <Group id="netScreen">
+      <Label id="netTitle" text="Network" translation="[80,60]" width="800" />
+      <Button id="netRun" text="Run request shapes" translation="[80,140]" />
+      <Label id="netStatus" text="status: idle" translation="[80,260]" width="1400" />
+    </Group>
+  </children>
+</component>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="SearchScreen" extends="Group">
+  <interface>
+    <field id="action" type="assocarray" alwaysNotify="true" />
+    <field id="focusEnter" type="boolean" value="false" onChange="onFocusEnter" />
+    <field id="errorText" type="string" value="" onChange="onError" />
+  </interface>
+  <script type="text/brightscript" uri="SearchScreen.brs" />
+  <children>
+    <Label id="searchHeader" text="Search" translation="[80, 40]" />
+    <Label id="searchQuery" text="Query: " translation="[80, 100]" />
+    <Label id="searchError" text="" translation="[80, 160]" />
+    <Keyboard id="searchKeyboard" translation="[80, 220]" />
+    <Button id="runSearch" text="Go" translation="[700, 220]" minWidth="160" />
+  </children>
+</component>

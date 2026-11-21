@@ -96,6 +96,11 @@ Two-tier setup works well:
 - **Before merge / nightly (self-hosted runner near a Roku):** `brighttest --device …` for on-device
   coverage + real render timing, and `brighttest --cross-check …` to confirm the headless lane still
   matches the device. Put device credentials in CI secrets (`ROKU_HOST`, `ROKU_PASSWORD`).
+- **Sharing the Roku with local users or agents:** device lanes take a per-device lease, so a CI job on the
+  same machine (same OS user) queues behind them. Set `BRIGHTTEST_AGENT=ci:<run id>` and a longer
+  `BRIGHTTEST_LEASE_WAIT` (e.g. `45m`); add `npx brighttest device status` before and after the device steps.
+  CI running as another OS user: point `BRIGHTTEST_LEASE_DIR` on both sides at one shared group-writable dir.
+  Use one CI concurrency group per device. Exit 75 = the device stayed busy; 77 = the lease was lost.
 
 ## Teaching your AI agent
 

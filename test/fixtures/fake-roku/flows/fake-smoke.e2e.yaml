@@ -1,0 +1,12 @@
+# Passes on `healthy`; sends 4 keypresses. On `crash-mid-flow` the fake crashes after the 3rd.
+appId: dev
+config: { timeout: 3 }
+steps:
+  - launch
+  - assertVisible: { id: title }
+  - press: Down
+  - press: Down
+  - press: Down
+  - assertText: { id: title, equals: "Home" }
+  - press: Down
+  - assertVisible: { id: hero }

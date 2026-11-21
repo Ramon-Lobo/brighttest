@@ -84,6 +84,10 @@ npx brighttest --device   --host <ip> --password <pw>            # on-device run
 npx brighttest --cross-check --host <ip> --password <pw>         # diff headless vs device
 ```
 
+Device commands share a device safely: each takes a per-device lease and queues while another terminal,
+worktree, agent or CI job uses it (`npx brighttest device status` shows who; see the
+[device lease guide](https://ramon-lobo.github.io/brighttest/guide/device-lease)).
+
 The command exits non-zero on any test failure, so it drops straight into CI. With `--lcov`, a missing
 coverage report also fails the run so CI never silently loses coverage.
 
@@ -204,9 +208,11 @@ All optional — sensible defaults apply. Drop a `brighttest.json` at your proje
 
 - **Unit tests** — pure functions, parsing, formatting, data models, crypto: the fast, headless sweet spot.
 - **Integration tests** — `@SGNode` components with their children and `onChange` wiring (headless), and
-  the request/response logic of Task/API code via HTTP fixtures.
+  the request/response logic of Task/API code, tested as pure functions (brighttest does not mock HTTP).
 - **End-to-end UI** — the [`brighttest e2e`](docs/e2e/index.md) lane drives the full app through the
   remote (launch, D-pad navigation, text entry) and asserts on the live screen, on real hardware.
+  `brighttest studio` adds a local web app to inspect the live tree, drive the remote, author, run and
+  record flows, and profile on a device.
 
 ## How it works
 

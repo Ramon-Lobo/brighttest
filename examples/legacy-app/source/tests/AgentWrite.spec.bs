@@ -1,0 +1,24 @@
+namespace tests
+  ' Hand-rolled store hosted as a node: handleAction mutates, dispatchAction publishes.
+  @suite("AgentWrite")
+  @SGNode("LegacyStore")
+  class AgentWriteTests extends rooibos.BaseTestSuite
+
+    @describe("dispatchAction")
+
+    @it("publishes the new tier through the state field")
+    function _()
+      m.top.callFunc("dispatchAction", { type: "tier", value: "premium" })
+      m.assertEqual(m.top.state.tier, "premium")
+      m.assertEqual(m.top.actionCount, 1)
+    end function
+
+    @it("resetHome restores the initial state")
+    function _()
+      m.top.callFunc("dispatchAction", { type: "tier", value: "premium" })
+      m.top.callFunc("resetHome")
+      m.assertEqual(m.top.state.tier, "free")
+    end function
+
+  end class
+end namespace

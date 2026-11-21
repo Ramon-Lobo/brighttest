@@ -8,3 +8,6 @@ coverage/
 
 # brs-node HTTP temp files
 .node-xhr-content-*
+
+# local tool caches
+.impeccable/

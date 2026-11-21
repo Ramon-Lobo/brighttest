@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="HomePanel" extends="Group">
+  <interface>
+    <field id="action" type="string" alwaysNotify="true" />
+    <function name="focusDefault" />
+  </interface>
+  <script type="text/brightscript" uri="HomePanel.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Log.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Catalog.brs" />
+
+  <children>
+    <Group id="homeScreen">
+      <Label id="homeTitle" text="Device Channel" translation="[80,60]" width="1200" />
+      <LabelList id="menuList" translation="[80,160]" itemSize="[320,50]" numRows="8" />
+      <RowList id="homeRows" translation="[480,160]" itemComponentName="TileItem" itemSize="[1300,260]" numRows="2" rowItemSize="[[220,160]]" rowItemSpacing="[[20,0]]" rowHeights="[160]" rowSpacings="[60]" showRowLabel="[true]" rowLabelOffset="[[0,10]]" focusXOffset="[0]" />
+    </Group>
+  </children>
+</component>

@@ -1,0 +1,65 @@
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import e2e from '../lib/e2e/run.js'
+import { loadConfig } from '../lib/config.js'
+
+// e2e lane wiring under the lease with a stub device: one lease per host around its units, sharded hosts
+// independent, Home hygiene only for `run`, release on errors, lease exit codes win over the lane's 1.
+let dir, cfg, log, flow
+beforeEach(() => {
+  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-e2e-lease-'))
+  cfg = loadConfig(dir, null)
+  log = []
+  // A flow that fails to parse: the unit fails without driving the (stub) device, enough to test wiring.
+  flow = path.join(dir, 'bad.e2e.yaml')
+  fs.writeFileSync(flow, 'steps: [')
+  vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
+  vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+})
+afterEach(() => { vi.restoreAllMocks(); fs.rmSync(dir, { recursive: true, force: true }) })
+
+const createDevice = ({ host }) => ({
+  deviceInfo: async () => { log.push(`info ${host}`); if (host === 'down') throw new Error('unreachable'); return { model: 'Stub', developerEnabled: true } },
+})
+function acquireForLane(busy = []) {
+  return async ({ host, hygiene }) => {
+    log.push(`acquire ${host} hygiene=${hygiene}`)
+    if (busy.includes(host)) return { code: 75 }
+    return { lease: { release: () => log.push(`release ${host}`) } }
+  }
+}
+
+describe('e2e run under the lease', () => {
+  it('takes one lease per host around its units, with hygiene, and releases it', async () => {
+    const code = await e2e.run(cfg, { e2eAction: 'run', flows: [flow, flow], host: '10.0.0.1' }, { createDevice, acquireForLane: acquireForLane() })
+    expect(code).toBe(1) // the flow is bad; the lease wiring is what we check
+    expect(log).toEqual(['acquire 10.0.0.1 hygiene=true', 'info 10.0.0.1', 'release 10.0.0.1'])
+  })
+
+  it('sharded hosts are independent: a busy host does not block the other; exit 75 wins', async () => {
+    const code = await e2e.run(cfg, { e2eAction: 'run', flows: [flow, flow], host: '10.0.0.1,10.0.0.2', screenshotsMode: 'off' },
+      { createDevice, acquireForLane: acquireForLane(['10.0.0.2']) })
+    expect(code).toBe(75)
+    expect(log).toContain('info 10.0.0.1')
+    expect(log).toContain('release 10.0.0.1')
+    expect(log).not.toContain('info 10.0.0.2')
+    expect(log).not.toContain('release 10.0.0.2')
+  })
+
+  it('releases when the device fails mid-run', async () => {
+    await e2e.run(cfg, { e2eAction: 'run', flows: [flow], host: 'down' }, { createDevice, acquireForLane: acquireForLane() })
+    expect(log).toEqual(['acquire down hygiene=true', 'info down', 'release down'])
+  })
+
+  it('inspect and record hold the lease for the call, without hygiene', async () => {
+    for (const action of ['inspect', 'record']) {
+      log = []
+      await e2e.run(cfg, { e2eAction: action, flows: [], host: 'down' }, { createDevice, acquireForLane: acquireForLane() })
+      expect(log).toEqual(['acquire down hygiene=false', 'info down', 'release down'])
+    }
+    const code = await e2e.run(cfg, { e2eAction: 'inspect', flows: [], host: '10.0.0.9' }, { createDevice, acquireForLane: acquireForLane(['10.0.0.9']) })
+    expect(code).toBe(75)
+  })
+})

@@ -9,11 +9,13 @@
   import FileTree from './lib/FileTree.svelte';
   import HierarchyTree from './lib/HierarchyTree.svelte';
   import SelectorPlayground from './lib/SelectorPlayground.svelte';
+  import AppState from './lib/AppState.svelte';
   import ContextMenu from './lib/ContextMenu.svelte';
   import Runs from './lib/pages/Runs.svelte';
   import Devices from './lib/pages/Devices.svelte';
   import Record from './lib/pages/Record.svelte';
   import Placeholder from './lib/pages/Placeholder.svelte';
+  import Profile from './lib/pages/Profile.svelte';
   import PromptModal from './lib/PromptModal.svelte';
 
   const ic = {
@@ -22,6 +24,7 @@
     runs: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="7.5"/><path d="M8 7l5 3-5 3z" fill="currentColor" stroke="none"/></svg>',
     record: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="7.5"/><circle cx="10" cy="10" r="3.5" fill="currentColor" stroke="none"/></svg>',
     devices: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2.5" y="4" width="15" height="10" rx="1.5"/><path d="M7 17h6"/></svg>',
+    profile: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 12h3l2.5-7 4 10 2.5-5H18"/></svg>',
     settings: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 6h12M4 10h12M4 14h12"/><circle cx="8" cy="6" r="1.6" fill="var(--color-panel)"/><circle cx="13" cy="10" r="1.6" fill="var(--color-panel)"/><circle cx="7" cy="14" r="1.6" fill="var(--color-panel)"/></svg>',
   };
   const PAGES = [
@@ -29,6 +32,7 @@
     { id: 'runs', label: 'Runs' },
     { id: 'record', label: 'Record' },
     { id: 'devices', label: 'Devices' },
+    { id: 'profile', label: 'Profile' },
     { id: 'settings', label: 'Settings' },
   ];
 
@@ -48,19 +52,22 @@
   let treeBusy = false, shotBusy = false;
 
   async function grabTree() {
-    if (treeBusy || !studio.live || (studio.page !== 'inspect' && studio.page !== 'record')) return;
+    if (treeBusy || studio.lease || !studio.live || (studio.page !== 'inspect' && studio.page !== 'record')) return;
     treeBusy = true;
     try {
       const d = await api.tree();
+      if (d.code === 'LOCKED') { studio.lease = d; studio.status = 'paused'; return; }
       if (d.error) { studio.status = d.error; return; }
-      studio.scene = d.scene; studio.nodes = d.nodes; studio.status = `${d.nodes.length} nodes`;
+      studio.scene = d.scene; studio.nodes = d.nodes; studio.appState = d.appState; studio.status = `${d.nodes.length} nodes`;
     } catch { studio.status = 'tree error'; } finally { treeBusy = false; }
   }
   async function grabShot() {
-    if (shotBusy || !studio.live || (studio.page !== 'inspect' && studio.page !== 'record')) return;
+    if (shotBusy || studio.lease || !studio.live || (studio.page !== 'inspect' && studio.page !== 'record')) return;
     shotBusy = true;
     try {
-      const blob = await (await fetch(api.screenshotUrl())).blob();
+      const r = await fetch(api.screenshotUrl());
+      if (r.status === 423) { studio.lease = await r.json(); return; }
+      const blob = await r.blob();
       const url = URL.createObjectURL(blob);
       const prev = shotSrc; shotSrc = url;
       if (prev.startsWith('blob:')) URL.revokeObjectURL(prev);
@@ -100,7 +107,7 @@
       if (d.type === 'start') { runId = d.runId; runSteps = d.steps.map((s) => ({ ...s, status: 'idle', detail: '', selector: null })); }
       else if (d.type === 'step') {
         runSteps = runSteps.map((s, i) => i === d.index
-          ? { ...s, status: d.status, detail: d.detail || d.error || s.detail, selector: d.selector ?? s.selector, ...(d.scene !== undefined ? { scene: d.scene, nodes: d.nodes, frame: d.frame } : {}) }
+          ? { ...s, status: d.status, detail: d.detail || d.error || s.detail, selector: d.selector ?? s.selector, ...(d.scene !== undefined ? { scene: d.scene, nodes: d.nodes, appState: d.appState, frame: d.frame } : {}) }
           : s);
         if (d.status === 'running') studio.runHighlight = d.selector;
       } else if (d.type === 'error') { setMsg('run error: ' + d.error, true); studio.runHighlight = null; es.close(); running = false; }
@@ -162,6 +169,24 @@
   let promptState = $state(null);
   function askText(title, initial = '', password = false) { return new Promise((resolve) => { promptState = { title, initial, password, resolve }; }); }
   function resolvePrompt(v) { const r = promptState?.resolve; promptState = null; r?.(v); }
+  // Device lease: while another holder has the device, device polling pauses and a banner says who has it.
+  // "Take over when free" queues Studio like any other waiter; it never preempts.
+  async function leaseCheck() {
+    if (!studio.lease) return;
+    try {
+      const l = await api.lease();
+      if (l.holding) { studio.lease = null; studio.status = ''; return; }
+      studio.lease = { ...studio.lease, lease: l };
+    } catch {}
+  }
+  async function takeOver() {
+    try { const l = await api.leaseAction('acquire'); studio.lease = l.holding ? null : { ...studio.lease, lease: l }; } catch {}
+  }
+  const leaseText = (l) => {
+    const h = l?.lease?.holder;
+    if (h && !h.mine) return `Device in use by ${h.agent} — "${h.purpose}" (since ${new Date(h.since).toTimeString().slice(0, 5)})`;
+    return l?.error || 'Studio released the device';
+  };
   async function refreshDevice() { studio.device = await api.device().catch(() => ({ connected: false })); }
 
   onMount(() => {
@@ -170,8 +195,10 @@
     let t1, t2;
     const treeLoop = async () => { await grabTree(); t1 = setTimeout(treeLoop, 300); };
     const shotLoop = async () => { await grabShot(); t2 = setTimeout(shotLoop, 900); };
-    treeLoop(); shotLoop();
-    return () => { clearTimeout(t1); clearTimeout(t2); };
+    const leaseLoop = async () => { await leaseCheck(); t3 = setTimeout(leaseLoop, 3000); };
+    let t3;
+    treeLoop(); shotLoop(); leaseLoop();
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
   });
 </script>
 
@@ -181,11 +208,22 @@
     <span class="device">{studio.device?.connected ? `${studio.device.model} · fw ${studio.device.firmware}` : studio.device ? 'no device' : 'connecting…'}</span>
     <div class="spacer"></div>
     {#if studio.page === 'inspect'}
-      <label class="tog"><input type="checkbox" bind:checked={studio.showAll} /> all nodes</label>
+      <label class="tog" title="also outline structural containers with no id, text or focus"><input type="checkbox" bind:checked={studio.showAll} /> all nodes</label>
+      <label class="tog" title="also outline nodes the device isn't drawing — hidden, transparent, or scrolled out of view"><input type="checkbox" bind:checked={studio.showOffscreen} /> offscreen</label>
       <label class="tog"><input type="checkbox" bind:checked={studio.live} /> live</label>
       <span class="status">{studio.status}</span>
     {/if}
   </header>
+  {#if studio.lease}
+    <div class="leasebar" role="status">
+      <span>{leaseText(studio.lease)}{studio.lease.lease?.queue?.length ? ` · ${studio.lease.lease.queue.length} queued` : ''}</span>
+      {#if studio.lease.lease?.queued}
+        <span class="queued">Studio is queued — it takes the device when free</span>
+      {:else}
+        <button onclick={takeOver}>Take over when free</button>
+      {/if}
+    </div>
+  {/if}
 
   <div class="body">
     <nav class="rail">
@@ -236,25 +274,32 @@
               <div class="eyebrow">program monitor <span class="tip">right-click a node for actions</span></div>
               <Stage {shotSrc} oncontext={onNodeContext} />
             </div>
-            <div class="card panel">
-              <div class="tabs">
-                <button class:on={tab === 'node'} onclick={() => (tab = 'node')}>Node</button>
-                <button class:on={tab === 'tree'} onclick={() => (tab = 'tree')}>Tree</button>
-                <button class:on={tab === 'selector'} onclick={() => (tab = 'selector')}>Selector</button>
+            <!-- Inspector tabs and the remote sit side by side: driving the device and reading the
+                 resulting node state are the same loop, so they should not compete for vertical space. -->
+            <div class="simrow">
+              <div class="card panel">
+                <div class="tabs">
+                  <button class:on={tab === 'node'} onclick={() => (tab = 'node')}>Node</button>
+                  <button class:on={tab === 'tree'} onclick={() => (tab = 'tree')}>Tree</button>
+                  <button class:on={tab === 'selector'} onclick={() => (tab = 'selector')}>Selector</button>
+                  <button class:on={tab === 'state'} onclick={() => (tab = 'state')}>State</button>
+                </div>
+                <div class="panelbody">
+                  {#if tab === 'node'}
+                    <Inspector onadd={addStep} />
+                  {:else if tab === 'tree'}
+                    <HierarchyTree />
+                  {:else if tab === 'selector'}
+                    <SelectorPlayground onadd={addStep} />
+                  {:else}
+                    <AppState onadd={addStep} />
+                  {/if}
+                </div>
               </div>
-              <div class="panelbody">
-                {#if tab === 'node'}
-                  <Inspector onadd={addStep} />
-                {:else if tab === 'tree'}
-                  <HierarchyTree />
-                {:else}
-                  <SelectorPlayground onadd={addStep} />
-                {/if}
+              <div class="card remotecard">
+                <div class="eyebrow">remote</div>
+                <div class="remotewrap"><Remote onact={onRemote} /></div>
               </div>
-            </div>
-            <div class="card remotecard">
-              <div class="eyebrow">remote</div>
-              <div class="remotewrap"><Remote onact={onRemote} /></div>
             </div>
           </section>
         </div>
@@ -267,6 +312,8 @@
       {:else if studio.page === 'record'}
         <Record {shotSrc} active={rec.active} {recText} stepCount={rec.steps.length} msg={recMsg}
           onstart={recStart} onstop={recStop} onclear={recClear} onsave={recSave} onpress={recPress} oncontext={onNodeContext} />
+      {:else if studio.page === 'profile'}
+        <Profile />
       {:else if studio.page === 'settings'}
         <Placeholder title="Settings" blurb="Studio and project configuration." planned={['Edit brighttest.json (flows dir, source globs)', 'Default device host / password', 'Screenshot cadence and overlay preferences']} />
       {/if}
@@ -297,6 +344,9 @@
   .device { font-family: var(--font-mono); font-size: 12px; color: var(--color-haze); }
   .spacer { flex: 1; }
   .tog { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--color-haze); cursor: pointer; }
+  .leasebar { display: flex; gap: 12px; align-items: center; padding: 6px 14px; font-size: 12px; background: var(--color-panel); border-bottom: 1px solid var(--color-haze); }
+  .leasebar button { font-size: 12px; }
+  .leasebar .queued { color: var(--color-haze); }
   .status { font-family: var(--font-mono); font-size: 11px; color: var(--color-haze); min-width: 68px; text-align: right; }
 
   .body { flex: 1; display: flex; min-height: 0; }
@@ -317,7 +367,9 @@
   .inspect { height: 100%; }
 
   .work { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; padding: 18px; height: 100%; box-sizing: border-box; }
-  .sim { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 18px; min-height: 0; }
+  .sim { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 18px; min-height: 0; }
+  /* Inspector tabs take the free width; the remote column hugs its natural size. */
+  .simrow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; min-height: 0; }
   .card.feed { display: flex; flex-direction: column; gap: 12px; }
   .card.panel { display: grid; grid-template-rows: auto 1fr; min-height: 0; }
   .tabs { display: flex; gap: 4px; margin-bottom: 12px; }
@@ -325,8 +377,14 @@
   .tabs button:hover { color: var(--color-text); }
   .tabs button.on { color: var(--color-violet); background: rgba(124,108,255,.12); border-color: rgba(124,108,255,.3); }
   .panelbody { min-height: 0; overflow: auto; }
-  .card.remotecard { display: flex; flex-direction: column; gap: 10px; }
+  /* Hug the content at the top of its column rather than stretching into a mostly-empty tall card. */
+  .card.remotecard { display: flex; flex-direction: column; gap: 10px; align-self: start; }
   .remotewrap { display: flex; justify-content: center; }
+  /* Below this the two columns get too cramped to use, so fall back to stacking them. */
+  @media (max-width: 1500px) {
+    .simrow { grid-template-columns: minmax(0, 1fr); }
+    .card.remotecard { align-self: stretch; }
+  }
   .editorcol { display: grid; gap: 14px; min-height: 0; }
   .card.treecard { min-height: 0; overflow: hidden; display: flex; }
   .sm { padding: 3px 9px; line-height: 1; }

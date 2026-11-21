@@ -1,0 +1,49 @@
+namespace tests
+  @suite("Format and Http helpers (pure)")
+  class FormatTests extends rooibos.BaseTestSuite
+
+    @describe("Format_titleCase")
+
+    @it("capitalizes each word and lowercases the rest")
+    @params("hello wORLD", "Hello World")
+    @params("", "")
+    function _(input as string, expected as string)
+      m.assertEqual(Format_titleCase(input), expected)
+    end function
+
+    @describe("Http_join")
+
+    @it("joins base and path with exactly one slash")
+    @params("http://h:1", "/a", "http://h:1/a")
+    @params("http://h:1/", "a", "http://h:1/a")
+    @params("http://h:1//", "/a", "http://h:1/a")
+    @params("http://h:1", "", "http://h:1")
+    function _(base as string, path as string, expected as string)
+      m.assertEqual(Http_join(base, path), expected)
+    end function
+
+    @describe("Config_baseUrl")
+
+    @it("defaults to the loopback origin")
+    function _()
+      m.assertEqual(Config_baseUrl({}), "http://127.0.0.1:8787")
+    end function
+
+    @it("honours BT_BASE_URL")
+    function _()
+      m.assertEqual(Config_baseUrl({ BT_BASE_URL: "http://10.0.0.2:9000" }), "http://10.0.0.2:9000")
+    end function
+
+    @describe("Reducer")
+
+    @it("signs in and out without mutating the previous state")
+    function _()
+      s0 = Reducer_initial()
+      s1 = Reducer_apply(s0, { type: "user/signIn", tier: "premium" })
+      m.assertEqual(s1.user.tier, "premium")
+      m.assertEqual(s0.user.tier, "free")
+      m.assertEqual(Reducer_apply(s1, { type: "user/signOut" }).user.signedIn, false)
+    end function
+
+  end class
+end namespace

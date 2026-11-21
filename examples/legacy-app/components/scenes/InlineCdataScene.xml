@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Census fixture: a Scene whose init is an inline CDATA script, with no separate .brs file. -->
+<component name="InlineCdataScene" extends="Scene">
+  <script type="text/brightscript"><![CDATA[
+    sub init()
+      print "BTFIX:inlinecdata-init"
+      m.top.findNode("inlineLabel").text = "inline cdata"
+    end sub
+  ]]></script>
+  <children>
+    <Label id="inlineLabel" text="" />
+  </children>
+</component>

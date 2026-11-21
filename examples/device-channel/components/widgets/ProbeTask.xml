@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="ProbeTask" extends="Task">
+  <interface>
+    <field id="lines" type="array" />
+  </interface>
+  <script type="text/brightscript" uri="ProbeTask.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Probes.brs" />
+</component>

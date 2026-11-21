@@ -1,0 +1,16 @@
+# Dialogs: open a confirm dialog on the Scene, answer it, check the recorded result.
+appId: dev
+config: { timeout: 15 }
+steps:
+  - home                                       # fresh start: a running app ignores launch
+  - launch
+  - assertVisible: { id: homeScreen }
+  - press: { key: Down, count: 2 }             # menu item 2: Dialogs
+  - press: Select
+  - assertVisible: { id: dialogsScreen }
+  - press: Down                                # second button: confirm dialog
+  - press: Select
+  - assertVisible: { id: deviceDialog }
+  - press: Select                              # first dialog button
+  # NB: on fw 16.0.4 a closed Dialog node stays in the sgnodes tree, so assert the recorded result, not assertGone.
+  - assertState: { path: global.lastdialog, equals: "dialog:0" }

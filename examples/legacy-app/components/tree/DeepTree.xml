@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Nine levels of nesting. -->
+<component name="DeepTree" extends="Group">
+  <children>
+    <Group id="l1"><Group id="l2"><Group id="l3"><Group id="l4"><Group id="l5"><Group id="l6"><Group id="l7">
+      <Group id="l8"><ViewC id="l9" /></Group>
+    </Group></Group></Group></Group></Group></Group></Group>
+  </children>
+</component>
