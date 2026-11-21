@@ -1,7 +1,7 @@
 # Needs the network mock layer (fixtures/net/*). heroTitle comes from a mocked GET /home, opening a
 # tile sends one tracking POST, a 503 from /search shows as searchError.
 appId: dev
-config: { timeout: 10 }
+config: { timeout: 10, net: { fixtures: [fixtures/net/home.rules.json] } }
 steps:
   - launch
   - assertText: { id: heroTitle, equals: "Mocked hero" }
