@@ -117,6 +117,28 @@ Three matchers, one per step (`equals` and `contains` are unchanged):
 A failure says which part was wrong: no state published, layer not found (with the layers that exist),
 path not found, or the actual value.
 
+### The registry layer
+
+List the registry sections the agent should publish in `brighttest.json`. With no sections configured there
+is no `registry` layer, and the other layers are unchanged.
+
+```json
+"instrument": { "state": { "registrySections": ["prefs"] } }
+```
+
+Each configured section is published under `registry.<section>.<key>`. A value that is a JSON object or array
+is kept structured; anything else is a string. The agent only reads (`GetKeyList` and `Read`).
+
+```yaml
+- assertState: { layer: registry, path: prefs.theme, equals: dark }
+- assertState: { path: registry.prefs.watchlist, deepEquals: [a, b] }
+```
+
+The layer follows the same limits as the others: caps on depth, array items and string length, and the publish
+byte cap (64 KB by default). A section the byte cap cuts is replaced by `$truncated:bytes` and named in the
+`truncated` list, never an error. Keys that look secret (`token`, `password`, `secret`, `sessionid`,
+`authorization`, `apikey`) are published as `<redacted:key>`.
+
 ### The 256 KB limit
 
 The reader accepts at most **256 KB** (262,144 bytes) of published text, the largest size measured to
