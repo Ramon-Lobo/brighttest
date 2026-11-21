@@ -532,6 +532,43 @@ describe('B2: force, reclaim and heartbeat do not get undone by the old holder',
     expect(fs.existsSync(holderFile())).toBe(false)
   })
 
+  it('holder.json missing then back (same dir.id) within the re-check is not LOST', async () => {
+    let lost = null
+    let calls = 0
+    let saved = null
+    const a = await acquire(opts({ onLost: (r) => { lost = r }, recheckSleep: () => { if (++calls === 2) fs.writeFileSync(holderFile(), JSON.stringify(saved)) } }))
+    saved = readHolder()
+    fs.unlinkSync(holderFile())
+    a.heartbeat()
+    expect(calls).toBe(2)
+    expect(lost).toBe(null)
+    expect(readHolder().leaseId).toBe(a.leaseId)
+    a.release()
+  })
+
+  it('holder.json that stays missing (same dir.id) is LOST after the bounded re-check', async () => {
+    let lost = null
+    let calls = 0
+    const a = await acquire(opts({ onLost: (r) => { lost = r }, recheckSleep: () => { calls++ } }))
+    fs.unlinkSync(holderFile())
+    a.heartbeat()
+    expect(calls).toBe(5)
+    expect(lost).toBe('lease file gone')
+  })
+
+  it('a changed dir.id skips the re-check and re-asserts', async () => {
+    let lost = null
+    let calls = 0
+    const a = await acquire(opts({ onLost: (r) => { lost = r }, recheckSleep: () => { calls++ } }))
+    fs.unlinkSync(holderFile())
+    fs.writeFileSync(path.join(path.dirname(holderFile()), 'dir.id'), 'otherid')
+    a.heartbeat()
+    expect(calls).toBe(0)
+    expect(lost).toBe(null)
+    expect(readHolder().leaseId).toBe(a.leaseId)
+    a.release()
+  })
+
   it('heartbeat and addChild never overwrite a newer lease', async () => {
     let lost = null
     const a = await acquire(opts({ maxHoldMs: 10000, onLost: (r) => { lost = r } }))
