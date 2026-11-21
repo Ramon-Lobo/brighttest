@@ -627,21 +627,16 @@ async function main() {
   if (argv[0] === 'studio') {
     const o = parseStudioArgs(argv.slice(1));
     if (o.help) { console.log(STUDIO_HELP); process.exit(0); }
-    const fs = require('fs'), path = require('path');
-    if (!fs.existsSync(path.join(__dirname, '..', 'lib', 'studio', 'public', 'index.html'))) {
-      console.error('[brighttest studio] the studio UI is not built yet. Run: npm run studio:build');
-      process.exit(2);
-    }
     // The raw --host/--password go to the server, which owns the device rules (explicit host wins, several cached
     // devices fail instead of guessing, none starts device-less). The CLI never resolves the host for studio.
     // Without --port, fall back to 8701-8709 when 8700 is taken (parallel worktrees each running a Studio).
     const fallback = o.port ? null : [8701, 8702, 8703, 8704, 8705, 8706, 8707, 8708, 8709];
     let server;
     try {
-      server = await require('../lib/studio/server').start(studioStartOptions(o, { port: o.port || 8700, portFallback: fallback, rootDir: process.cwd(), cfg: loadConfig(process.cwd(), null) }));
+      server = await require('../lib/studio/server').start(studioStartOptions(o, { requireUi: true, port: o.port || 8700, portFallback: fallback, rootDir: process.cwd(), cfg: loadConfig(process.cwd(), null) }));
     } catch (e) {
       console.error(`[brighttest studio] ${e.message}`);
-      process.exit(1);
+      process.exit(e.code === 'UI_NOT_BUILT' ? 2 : 1);
     }
     const port = server.address().port;
     if (!o.port && port !== 8700) console.log(`(port 8700 is in use; using ${port})`);
