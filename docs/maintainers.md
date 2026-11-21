@@ -247,9 +247,11 @@ This patch makes node suites *run and settle* headless. On its own it doesn't ma
 fire — that's the separate [brs-node patch](#brs-node-onchange-patch) below. Together they give full
 `@SGNode` fidelity headless (ButtonEx: **95/95, 0 divergent** vs device). What remains device-only is
 behaviour tied to real wall-clock render timing — animations playing out over frames and live remote
-input. `Task` run loops block `@SGNode` tests, so Task logic is tested as pure functions, and brighttest has no
-HTTP mocking of its own (the pinned `@ramonlobo/brs-node` fork has an undocumented
-`tmp:/rt-http-fixtures.json` hook that a spec must write itself). The device lane is the fidelity reference
+input. `Task` run loops block `@SGNode` tests, so Task logic is tested as pure functions. Headless HTTP is
+mocked by brighttest itself: it rewrites `roUrlTransfer.setUrl` call sites to a loopback server driven by
+`instrument.net.fixtures` or the per-test `BTNet_` spec API, with no fork hook involved (see
+[HTTP fixtures](./writing-tests/http-fixtures.md)); it is headless-only, so `BTNet_` specs are skipped on `--device`, and
+requests that bypass a rewritten `setUrl` are not covered. The device lane is the fidelity reference
 for render timing and remote input; `--cross-check` polices the line.
 
 ## brs-node `onChange` patch {#brs-node-onchange-patch}
