@@ -36,8 +36,17 @@ const until = async (cond, ms = 3000) => {
 }
 
 describe('Perfetto per-ESN state and auto-restart (PRF-01)', () => {
-  let home, dir, srv, port, posts, savedWS
+  let home, dir, srv, port, posts, savedWS, captures, streams, realCreateWriteStream
   beforeEach(async () => {
+    captures = []
+    streams = []
+    // Track every trace file stream a capture opens so teardown can wait for it to close.
+    realCreateWriteStream = fs.createWriteStream
+    fs.createWriteStream = (...args) => {
+      const s = realCreateWriteStream.apply(fs, args)
+      streams.push(s)
+      return s
+    }
     home = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-pf-home-'))
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-pf-dir-'))
     posts = []
@@ -52,12 +61,29 @@ describe('Perfetto per-ESN state and auto-restart (PRF-01)', () => {
     globalThis.WebSocket = FakeWS
   })
   afterEach(async () => {
+    // Settle every capture the test started BEFORE removing the temp dir: stop restart loops, wait for
+    // an in-flight restart to finish, close sockets, then end and await every trace stream.
+    for (const pf of captures) pf.stopping = true
+    const deadline = Date.now() + 3000
+    while (captures.some((pf) => pf.restarting) && Date.now() < deadline) await new Promise((r) => setTimeout(r, 5))
+    for (const pf of captures) { try { pf.socket && pf.socket.close() } catch { /* already closed */ } }
+    await Promise.all(streams.map((s) => new Promise((resolve) => {
+      if (s.closed || s.destroyed) return resolve()
+      const t = setTimeout(resolve, 3000)
+      s.once('close', () => { clearTimeout(t); resolve() })
+      s.end()
+    })))
+    fs.createWriteStream = realCreateWriteStream
     globalThis.WebSocket = savedWS
     await new Promise((r) => srv.close(r))
     fs.rmSync(home, { recursive: true, force: true })
     fs.rmSync(dir, { recursive: true, force: true })
   })
-  const make = (extra = {}) => new PerfettoCapture({ host: '127.0.0.1', ecpPort: port, channelId: 'dev', dir, esn: ESN, stateDir: home, ...extra })
+  const make = (extra = {}) => {
+    const pf = new PerfettoCapture({ host: '127.0.0.1', ecpPort: port, channelId: 'dev', dir, esn: ESN, stateDir: home, ...extra })
+    captures.push(pf)
+    return pf
+  }
 
   it('persists the enable per ESN and survives a new instance (Studio restart)', async () => {
     await make().enable()
