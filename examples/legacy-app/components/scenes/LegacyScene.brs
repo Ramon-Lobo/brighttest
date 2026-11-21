@@ -22,7 +22,9 @@ end sub
 sub runStress()
     print "BTFIX:stress"
     sb = m.top.findNode("stress")
-    sb.callFunc("growGlobal", 500, 256)
+    kb = 256
+    if m.global.stressKb <> invalid then kb = m.global.stressKb
+    sb.callFunc("growGlobal", 500, kb)
     sb.callFunc("buildTree", 1500)
     sb.callFunc("buildTree", 6000)
 end sub

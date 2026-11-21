@@ -114,3 +114,6 @@ the same convention works headless, with no device.
 - **New title?** Add an entry to `data/feed.json` (drop a poster in `images/`).
 - **New journey?** Add a panel, wire the `verb:id` action in `MainScene.brs`, and drop a `*.e2e.yaml` in
   `flows/`. Keep every node `id`-tagged so flows can select it.
+
+Note: `brighttest.json` `sourceGlobs` include `data/**` and `images/**` so instrumented and test builds
+stage `data/feed.json` and the posters; without them the feed is empty (`titleCount` reads 0).

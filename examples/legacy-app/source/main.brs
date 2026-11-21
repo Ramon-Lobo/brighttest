@@ -6,9 +6,14 @@ sub Main(args as dynamic)
     cfg = Config_get()
     sceneName = "LegacyScene"
     stress = false
+    stressKb = 256
     if type(args) = "roAssociativeArray"
         if args.scene <> invalid and args.scene <> "" then sceneName = args.scene
         if args.stress <> invalid then stress = true
+        if args.stresskb <> invalid
+            kb = Val(args.stresskb)
+            if kb = 1 or kb = 16 or kb = 64 or kb = 256 then stressKb = Int(kb)
+        end if
         if args.netdiag <> invalid and args.netdiag <> "" then cfg.netDiagUrl = args.netdiag
         if args.noinput = invalid
             m.input = CreateObject("roInput")
@@ -33,6 +38,7 @@ sub Main(args as dynamic)
         ' (no node ref here: roSGNode creation outside a scene context logs a non-fatal error)
         meta: { created: CreateObject("roDateTime") }
         stress: stress
+        stressKb: stressKb
     })
     m.global.launchCount = m.global.launchCount + 1
     scene = screen.CreateScene(sceneName) : screen.show() : scene.setFocus(true)

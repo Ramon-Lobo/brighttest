@@ -1,6 +1,6 @@
 {
   "rootDir": ".",
-  "sourceGlobs": ["manifest", "source/**/*", "!source/main.brs", "components/**/*"],
+  "sourceGlobs": ["manifest", "source/**/*", "!source/main.brs", "components/**/*", "data/**", "images/**"],
   "testsFilePattern": "**/*.spec.bs",
   "stagingDir": ".brighttest",
   "diagnosticFilters": [1140]
