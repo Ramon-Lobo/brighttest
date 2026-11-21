@@ -101,7 +101,8 @@ describe('sgdebug console client', () => {
 // logs every received line, `target <n>` moves the `*`, and sgperf output is per-thread stats.
 const TARGET_LIST = (sel) => ['main', 'Native UI', 'Live TV Guide', 'Sample Channel', 'Backdrops']
   .map((n, i) => `${i === sel ? '*' : ' '} [${i}] ${n}`).join('\r\n');
-function transcriptConsole(received, { banner = 'X0000000000A (Roku Ultra - 16.0.4.853)', targetOutput } = {}) {
+function transcriptConsole(received, { banner = 'X0000000000A (Roku Ultra - 16.0.4.853)', targetOutput, names, stub = false } = {}) {
+  const list = (sel) => (names ? names.map((n, i) => `${i === sel ? '*' : ' '} [${i}] ${n}`).join('\r\n') : TARGET_LIST(sel));
   let sel = 0;
   return new Promise((resolve) => {
     server = net.createServer((sock) => {
@@ -111,8 +112,9 @@ function transcriptConsole(received, { banner = 'X0000000000A (Roku Ultra - 16.0
         for (const line of d.toString().split(/\r?\n/).filter(Boolean)) {
           received.push(line);
           let out = '';
-          if (line === 'target list') out = TARGET_LIST(sel);
-          else if (line.startsWith('target ')) { sel = Number(line.slice(7)); out = targetOutput ?? TARGET_LIST(sel); }
+          if (line === 'target list') out = list(sel);
+          else if (line.startsWith('target ')) { sel = Number(line.slice(7)); out = targetOutput ?? list(sel); }
+          else if (stub && sel !== 0 && !['help', 'free', 'plugins', 'chanperf', 'sgnodes', 'showkey'].includes(line)) out = 'Command not recognized';
           else if (line === 'sgperf report') out = sel === 0 ? '' : 'thread node calls: create  1201 + op   902  @   0.0% rendezvous';
           setTimeout(() => sock.write(line + '\r\n' + out + '\r\n>'), 30);
         }
@@ -131,6 +133,33 @@ describe('channel target selection (BUG-B1; device check pending DQ-1)', () => {
     expect(r.raw).toBe('thread node calls: create  1201 + op   902  @   0.0% rendezvous');
     expect(r.parsed.ok).toBe(true);
     expect(JSON.stringify(r)).not.toContain('X0000000000A');
+  });
+
+  it('stub target (listed but not running): rejects with an explicit error', async () => {
+    const received = [];
+    const port = await transcriptConsole(received, { stub: true });
+    await expect(sgdebug.run('127.0.0.1', 'sgperf_report', { port, quietMs: 120, channel: 'Sample Channel' }))
+      .rejects.toThrow(/not running|stub/);
+    expect(received).toEqual(['target list', 'target 3', 'sgperf report']);
+  });
+
+  it('stub error also covers loaded_textures and names the target title', async () => {
+    const port = await transcriptConsole([], { stub: true });
+    await expect(sgdebug.run('127.0.0.1', 'loaded_textures', { port, quietMs: 120, channel: 'Sample Channel' }))
+      .rejects.toThrow(/target "Sample Channel" is listed but not running/);
+  });
+
+  it('index instability: swapped list order sends a different index and still works', async () => {
+    const a = [];
+    let port = await transcriptConsole(a, { names: ['main', 'Native UI', 'Sample Channel', 'Backdrops', 'Media Hub'] });
+    await sgdebug.run('127.0.0.1', 'sgperf_report', { port, quietMs: 120, channel: 'Sample Channel' });
+    await new Promise((r) => { for (const s of socks) s.destroy(); server.close(r); server = null; });
+    const b = [];
+    port = await transcriptConsole(b, { names: ['main', 'Native UI', 'Media Hub', 'Backdrops', 'Sample Channel'] });
+    const r = await sgdebug.run('127.0.0.1', 'sgperf_report', { port, quietMs: 120, channel: 'Sample Channel' });
+    expect(a).toEqual(['target list', 'target 2', 'sgperf report']);
+    expect(b).toEqual(['target list', 'target 4', 'sgperf report']);
+    expect(r.raw).toContain('thread node calls');
   });
 
   it('does not select a target for global commands or when no channel is given', async () => {
