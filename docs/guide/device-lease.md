@@ -67,6 +67,7 @@ brighttest command started inside it re-uses the same lease instead of waiting f
 | `--max <dur>` | Hard cap on the hold (default 60m). 5 s before it, the command is stopped (exit 77). At most about 24.8 days |
 | `--expect <dur>` | Expected hold time, shown to waiters as an estimate |
 | `--no-hygiene` | Skip the Home ×2 press after acquiring |
+| `--lease <token>` | Run under that session lease (see below) instead of queueing; same as `BRIGHTTEST_LEASE=<token>` |
 
 Durations are `90s`, `10m`, `1h` or plain milliseconds. The device lanes (`--device`, `--cross-check`,
 `e2e`) accept `--wait`, `--as`, `--purpose` and `--no-lease`.
