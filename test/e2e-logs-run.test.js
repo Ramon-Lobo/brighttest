@@ -56,9 +56,10 @@ describe('e2e run with 8085 log capture', () => {
   }, 15000)
 
   it('debugger-crash: reports the backtrace, sends Home, writes a bundle', async () => {
-    const { code, stub } = await runFlow('debugger-crash', ['launch', 'assertLog: "never printed"'])
+    // The crash happens live (third key press), after the run's own launch.
+    const { code, stub } = await runFlow('crash-mid-flow', ['launch', 'press: { key: Down, count: 3 }', 'assertLog: "never printed"'])
     expect(code).toBe(1)
-    expect(out).toMatch(/app crashed: Type Mismatch.*pkg:\/components\/Home\.brs\(42\)/)
+    expect(out).toMatch(/APP_CRASHED: app crashed: Type Mismatch.*pkg:\/components\/Home\.brs\(42\)/)
     expect(JSON.stringify(stub.keypresses)).toMatch(/Home/)
     const bundle = path.join(dir, 'shots', 'log-smoke-failure')
     expect(fs.readFileSync(path.join(bundle, 'log-tail.txt'), 'utf8')).toMatch(/Brightscript Debugger>/)
