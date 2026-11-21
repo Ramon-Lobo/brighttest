@@ -20,7 +20,7 @@ sub Main(args as dynamic)
     #end if
     m.global = screen.getGlobalNode() ' in Main(), m is a plain AA: bind the screen's global node first
     ' scene init reads global config, so the bag must exist before CreateScene; focus only after show
-    ' state bag: nested AAs, secrets (DUMMY values), long list/string, node ref, date
+    ' state bag: nested AAs, secrets (DUMMY values), long list/string, date
     m.global.addFields({
         config: cfg
         user: { tier: "free", profile: { name: "Sample User", prefs: { captions: false } } }
@@ -30,7 +30,7 @@ sub Main(args as dynamic)
         launchCount: 0
         bigList: Util_range(60)
         bigString: String(2100, "x")
-        nodeRef: CreateObject("roSGNode", "Group")
+        ' (no node ref here: roSGNode creation outside a scene context logs a non-fatal error)
         meta: { created: CreateObject("roDateTime") }
         stress: stress
     })
