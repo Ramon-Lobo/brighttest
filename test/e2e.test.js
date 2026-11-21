@@ -1,10 +1,10 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { parseTree, parseTuple, flatten, focusSignature } from '../lib/e2e/sgnodes.js'
 import { matchAll, matchOne, describe as describeSel } from '../lib/e2e/select.js'
 import { parseFlow, normalizeStep, FlowError } from '../lib/e2e/flow.js'
 import { parseChallenge, buildDigestHeader, multipart } from '../lib/e2e/ecp.js'
 import { parseE2eArgs } from '../bin/cli.js'
-import { execStep } from '../lib/e2e/run.js'
+import { execStep, inspectNodes } from '../lib/e2e/run.js'
 import { extractAppState } from '../lib/e2e/appstate.js'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -332,5 +332,29 @@ describe('cli parseE2eArgs', () => {
     const o = parseE2eArgs(['inspect', '--id', 'hero', '--assert', 'field', '--field', 'uri', '--out', 'flows/x.e2e.yaml'])
     expect(o).toMatchObject({ assert: 'field', field: 'uri', out: 'flows/x.e2e.yaml' })
     expect(o.sel).toEqual({ id: 'hero' })
+  })
+})
+
+describe('e2e inspect <selector> detail view', () => {
+  const XML = `<?xml version="1.0" encoding="UTF-8" ?>
+<sgnodes><All_Nodes><Scene name="Root"><Group name="Panel1"><Label name="NodeA" text="One"/></Group><Group name="Panel2"><Label name="NodeA" text="Two"/></Group></Scene></All_Nodes></sgnodes>`
+  const plain = { bold: (s) => s, dim: (s) => s, red: (s) => s, green: (s) => s, yellow: (s) => s }
+  function capture(xml, selector) {
+    const parsed = parseTree(xml)
+    const roots = parsed.roots || parsed
+    let out = ''
+    const spy = vi.spyOn(process.stdout, 'write').mockImplementation((s) => { out += s; return true })
+    try { inspectNodes(roots, selector, {}, plain) } finally { spy.mockRestore() }
+    return out
+  }
+  it('counts each matched node once (duplicate ids under two parents)', () => {
+    const out = capture(XML, { id: 'NodeA' })
+    expect(out).toContain('2 node(s) matched')
+    expect((out.match(/Node  Label #NodeA/g) || []).length).toBe(2)
+  })
+  it('says custom fields are not visible over ECP, and shows published app state when present', () => {
+    expect(capture(XML, { id: 'Panel1' })).toMatch(/custom interface fields and m\.global are not visible over ECP/)
+    const withState = XML.replace('</Scene>', '<Label name="__bt_state" text="{&quot;user&quot;:&quot;a&quot;}"/></Scene>')
+    expect(capture(withState, { id: 'Panel1' })).toContain('App state')
   })
 })
