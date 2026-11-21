@@ -254,9 +254,11 @@ steps:
   A miss says what was expected, what was seen, and lists up to five logged `METHOD /path` lines (no queries, headers or bodies).
 - `clearHttp` drops this flow's rules and hides the log so far. Rules and fixtures a flow adds are dropped when it ends, and a
   flow never sees an earlier flow's requests.
-- `recordHttp: { file }` starts keeping passthrough exchanges (redacted) and `recordHttp: stop` writes them as a HAR; an open
-  recording is written when the flow ends. It refuses without `config.net.upstreamHosts`. The proxy records for the whole run
-  once any flow records, and the HAR holds only the window between the two steps.
+- `recordHttp: { file }` opens a recording window on the proxy and `recordHttp: stop` closes it and writes the HAR (redacted,
+  same format as before). Only passthrough exchanges that begin after the start and finish before the stop are kept; traffic
+  before, after or in flight across the edges is not. An open recording is closed and written when the flow ends, so it
+  never stays on after a failed step. The window buffer is bounded (500 exchanges / 64 MB); past that, `stop` fails with a
+  "recording buffer overflow" error and nothing is written. It refuses without `config.net.upstreamHosts`.
 - `config.net` keys: `fixtures` (list of files in the project root, flow-scoped), `unmatched` (`fail` | `passthrough`; default
   `fail` when fixtures are listed, else `passthrough`), `upstreamHosts`, `record`, `redact`. A bad value is a flow parse error.
 - **Fail fast.** A flow with network steps and no hub (lease bypassed, hub failed to start) fails before the device is touched.
