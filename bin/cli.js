@@ -328,6 +328,7 @@ Usage:
   brighttest device status [--host <h>] [--json]           Who holds each device, since when, who waits
   brighttest device with [options] -- <cmd…>               Hold the lease while <cmd> runs (FIFO queue)
   brighttest device unlock --force --host <h> --reason "…" [--kill]   Human override (audited)
+  brighttest device hook                                   Claude Code PreToolUse Bash guard (hook JSON on stdin)
   brighttest device log [--host <h>] [--tail <n>] [--json] The lease audit log (events.log)
 
 Options (with):
@@ -617,6 +618,7 @@ async function main() {
   if (argv[0] === 'device') {
     const o = parseDeviceArgs(argv.slice(1));
     if (o.help || !o.deviceAction) { console.log(DEVICE_HELP); process.exit(o.help ? 0 : 2); }
+    if (o.deviceAction === 'hook') process.exit(await require('../lib/device-hook').main()); // PreToolUse guard: always exit 0
     const cfg = loadConfig(process.cwd(), null);
     const code = await require('../lib/device-command').run(o, cfg);
     process.exit(code);
