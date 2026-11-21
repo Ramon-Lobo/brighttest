@@ -225,6 +225,24 @@ no second lease:
   isolation can still block it); that is proved on a device with an instrumented build. The check line says so, and a
   failed bind prints its own `fix:` line. The ECP fix texts are unchanged.
 
+### The hub token: `--net` and `BRIGHTTEST_HUB_TOKEN`
+
+`instrument build --net` bakes a hub token into the package, and the e2e run's hub accepts only that token. You choose the
+token with the `BRIGHTTEST_HUB_TOKEN` environment variable.
+
+```
+export BRIGHTTEST_HUB_TOKEN=<32 lowercase hex characters>
+brighttest instrument build --net --sideload
+brighttest e2e run ...   # same shell, same value
+```
+
+- The value must be exactly 32 lowercase hex characters. With `--net`, a missing or malformed value stops the build
+  (exit 1): `instrument build --net needs a hub token: set BRIGHTTEST_HUB_TOKEN to 32 lowercase hex characters (the e2e run's hub accepts the same value)`.
+- Export the same value for the `e2e run` that uses network steps. A build and a run with different values do not match.
+- The build bakes the value in. After you change it, rebuild and sideload again; an installed build keeps its old token.
+- The token is a secret. Keep it out of the repository, `brighttest.json`, flow files and logs; set it in your shell or CI
+  secret store.
+
 ## Network steps in e2e flows
 
 A flow can mock and check the app's HTTP traffic on a device. The steps need an instrumented build
