@@ -460,9 +460,14 @@ describe('fake-roku FIX-06 gaps', () => {
     fs.rmSync(logFile, { force: true })
     try {
       const { stub, a } = await boot('healthy', { logFile })
+      // The server logs `close` asynchronously after the client socket ends, so poll for each event instead of a
+      // fixed sleep; waiting for console:close before the debug connect keeps the order deterministic.
+      const events = (n) => stub.log.filter((l) => l.event).length >= n
+      const waitFor = async (n) => { for (let i = 0; i < 200 && !events(n); i++) await new Promise((r) => setTimeout(r, 25)) }
       await tcp(a.consolePort, { until: />$/ })
+      await waitFor(2)
       await tcp(a.debugPort, { until: /catalog loaded/ })
-      await new Promise((r) => setTimeout(r, 100))
+      await waitFor(4)
       const ev = stub.log.filter((l) => l.event).map((l) => `${l.service}:${l.event}`)
       expect(ev).toEqual(['console:connect', 'console:close', 'debug:connect', 'debug:close'])
       const lines = fs.readFileSync(logFile, 'utf8').trim().split('\n').map((l) => JSON.parse(l))
