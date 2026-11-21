@@ -26,7 +26,7 @@ error rather than being silently misparsed.
 |---|---|
 | `launch` / `launch: { contentId, mediaType }` | Start the app, optionally deep-linking |
 | `press: <Key>` / `press: { key, count }` | One or N keypresses (`Up`/`Down`/`Left`/`Right`/`Select`/`Back`/…) |
-| `holdKey: { key, ms }` | Hold a key down for `ms` milliseconds (keydown, wait, keyup; see below) |
+| `holdKey: { key, ms }` | Hold a key down for `ms` milliseconds (keydown, wait, keyup; see below). The map form is required: a scalar `holdKey: Right` is a parse error |
 | `requires: { … }` | Skip the rest of the flow unless the device matches (see below) |
 | `pressUntil: { key, visible: <selector>, max }` | Repeat a key until a selector appears (e.g. scroll a row) |
 | `focus: <selector>` | Arrow-key **path-find** focus onto a node (see below) |
@@ -48,17 +48,17 @@ error rather than being silently misparsed.
 
 **Key names are validated.** `press`, `pressUntil` and `holdKey` accept only the ECP key names `Home`, `Rev`, `Fwd`, `Play`, `Select`, `Left`, `Right`, `Down`, `Up`, `Back`, `InstantReplay`, `Info`, `Backspace`, `Search`, `Enter`, `FindRemote`, `VolumeDown`, `VolumeMute`, `VolumeUp`, `PowerOff`, `ChannelUp`, `ChannelDown`, `InputTuner`, `InputHDMI1`..`InputHDMI4`, `InputAV1`, plus `Lit_<char>` (one literal character). Names are case-sensitive. A typo such as `press: Rigth` fails when the flow is parsed, by `e2e lint` and by `e2e run` alike, with `unknown key "Rigth"; valid keys: …`. When every flow in a run fails this validation (or a bad `requires:` / `holdKey`), the run stops before the first device request.
 
-**`holdKey: { key, ms }`** sends `keydown`, waits `ms` (1 to 30000), then sends `keyup`. The `keyup` is always attempted, also when the `keydown` or the wait fails, so a key is not left held on the device. If the hold itself failed, that error is reported; if only the `keyup` failed, the step fails with `keyup <Key> failed (HTTP <status>)`.
+**`holdKey: { key, ms }`** sends `keydown`, waits `ms` (1 to 30000), then sends `keyup`. The `keyup` is always attempted, also when the `keydown` or the wait fails, so a key is not left held on the device. If the hold itself failed, that error is reported and a failing `keyup` is appended as `(keyup also failed: …)`; if only the `keyup` failed, the step fails with `keyup <Key> failed (HTTP <status>)`. The `keyup` is retried like any queued request (a repeated keyup is harmless). Limits: Ctrl-C or SIGTERM in the middle of a hold can leave the key down on the device (the lease handler re-raises the signal), and a Studio abort during a hold still sends the `keyup`, up to `ms` later. `holdKey` without a map or a `key`, and a non-boolean `config.noSystemDialog`, are parse errors.
 
 **`requires:`** skips instead of failing. Put it at the top of the flow or as a step (a step-level `requires` skips the rest of the flow from that step; earlier steps keep their result). Keys, all optional but at least one:
 
 | Key | Meaning |
 |---|---|
-| `firmware: ">=12.5"` | Software version compared per dotted number; operators `>=` (default when bare), `>`, `<=`, `<`, `=` |
+| `firmware: ">=12.5"` | Software version (always quote it: an unquoted `12.10` is a number and is rejected, because YAML would read it as 12.1) compared per dotted number; operators `>=` (default when bare), `>`, `<=`, `<`, `=` |
 | `videoMode: 1080p` | Equals the device's reported video mode (falls back to `ui-resolution` when the device has no `video-mode`), case-insensitive |
 | `deviceClass: box` | One of `tv`, `box`, `stick` (from `is-tv` and `is-stick`) |
 
-The values come from the `device-info` record the run already reads at the start (no extra request). A value the device did not report counts as unmet and the reason says so. A skipped flow prints `○ <flow> skipped: <reason>`, counts in the summary as `N skipped`, and does not change the exit code. There is no JUnit output in the e2e lane yet, so the reason appears on the console only.
+The values come from the `device-info` record the run already reads at the start (no extra request). A value the device did not report counts as unmet and the reason says so. A skipped flow prints `○ <flow> skipped: <reason>`, counts in the summary as `N skipped`, and does not change the exit code. If every flow in the run is skipped, nothing was tested, so the run prints `no flow ran: N skipped by requires:` and exits 1 (a run where some flow ran and passed still exits 0). Skipped flows are counted separately from step counts. A `requires` inside a sub-flow (`runFlow`), flow-level or step-level, skips the whole parent flow from that `runFlow` step on, not just the sub-flow. Studio shows a skip as a `skipped` event and does not mark the run failed. There is no JUnit output in the e2e lane yet, so the reason appears on the console only.
 
 **`config: { noSystemDialog: true }`** refuses to act while a system dialog is the foreground: before `press`, `holdKey`, `text`, `back`, `home`, `focus` and `pressUntil` the runner reads the tree and fails the step with `noSystemDialog: a system dialog is in front; refusing to <action>` (no key is sent), and a `launch` that ends with a system dialog in front fails with the same prefix. It reuses the launch readiness gate's detection (root node subtype `SystemDialog` or `StdDlgSystem`), whose shapes are not yet confirmed on hardware.
 

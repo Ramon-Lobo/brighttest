@@ -119,6 +119,12 @@ A step is a **bare word** (`launch`, `back`, `home`) or a **single-key map** (`p
 `assertVisible: { id: x }`). It's a deliberately small YAML subset — anything outside it raises a clear,
 line-referenced error rather than being silently misparsed.
 
+Key names are validated at parse time (`press: Rigth` fails with the valid list). `holdKey: { key: Right, ms: 500 }`
+holds a key (keydown, wait, keyup; the keyup is always sent). `requires: { firmware: ">=12.5", videoMode: 1080p,
+deviceClass: box }` at the top of a flow (or as a step) skips instead of failing; quote `firmware` versions. A run
+where every flow is skipped exits 1 (`no flow ran`). `config: { noSystemDialog: true }` refuses key presses while a
+system dialog is in front. Details: docs `e2e/flows`.
+
 ## Shared devices
 
 `brighttest e2e run|inspect|record` take a per-device **lease**: if another terminal, agent or CI job is
