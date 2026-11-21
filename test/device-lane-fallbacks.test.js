@@ -81,6 +81,37 @@ describe('idle watchdog', () => {
     expect(code).toBe(0)
     expect(log).not.toContain('kill')
   })
+  const MEM = 'channel: mem=12345 KB\n'
+  const beat = (chunk) => () => {
+    const c = fakeChild({ hang: true })
+    const t = setInterval(() => c.stdout.emit('data', Buffer.from(chunk)), 40)
+    c.on('close', () => clearInterval(t))
+    return c
+  }
+  it('mem-only chunks do not extend the idle timeout', async () => {
+    const code = await device.run(cfg, { ...opts, timeout: 30, idleTimeout: 0.15 }, base({ killGraceMs: 10, spawn: beat(MEM) }))
+    expect(code).toBe(1)
+    expect(log).toContain('kill')
+    expect(errs()).toMatch(/idle watchdog/)
+  })
+  it('a mixed chunk re-arms the idle timer', async () => {
+    const c0 = fakeChild({ hang: true })
+    const code = await device.run(cfg, { ...opts, timeout: 30, idleTimeout: 0.15 }, base({ spawn: () => {
+      let n = 0
+      const t = setInterval(() => { c0.stdout.emit('data', Buffer.from(MEM + 'tick\n')); if (++n === 5) { clearInterval(t); c0.stdout.emit('data', Buffer.from(RESULT)); c0.emit('close', 0) } }, 60)
+      return c0 } }))
+    expect(code).toBe(0)
+    expect(log).not.toContain('kill')
+  })
+  it('a non-mem chunk re-arms the idle timer', async () => {
+    const c0 = fakeChild({ hang: true })
+    const code = await device.run(cfg, { ...opts, timeout: 30, idleTimeout: 0.15 }, base({ spawn: () => {
+      let n = 0
+      const t = setInterval(() => { c0.stdout.emit('data', Buffer.from('tick\n')); if (++n === 5) { clearInterval(t); c0.stdout.emit('data', Buffer.from(RESULT)); c0.emit('close', 0) } }, 60)
+      return c0 } }))
+    expect(code).toBe(0)
+    expect(log).not.toContain('kill')
+  })
   it('idleTimeout 0 disables it', async () => {
     const code = await device.run(cfg, { ...opts, idleTimeout: 0 }, base({ spawn: () => fakeChild({ out: RESULT, delay: 60 }) }))
     expect(code).toBe(0)
