@@ -113,6 +113,11 @@ function parseInstrumentArgs(rest) {
   return o;
 }
 
+// Options for studio's start(): the raw parsed flags, never a host resolved here (the server decides the device).
+function studioStartOptions(o, extra) {
+  return { host: o.host, password: o.password, app: o.app, flowsDir: o.flowsDir, ...extra };
+}
+
 const INSTRUMENT_HELP = `
 brighttest instrument — build an instrumented (debug-only) package of your app
 
@@ -520,13 +525,13 @@ async function main() {
       console.error('[brighttest studio] the studio UI is not built yet. Run: npm run studio:build');
       process.exit(2);
     }
-    // Resolve the device from flag → env / project .env → cache; start device-less if none (connect in the UI).
-    const r = require('../lib/devices').resolveDevice({ host: o.host, password: o.password });
+    // The raw --host/--password go to the server, which owns the device rules (explicit host wins, several cached
+    // devices fail instead of guessing, none starts device-less). The CLI never resolves the host for studio.
     // Without --port, fall back to 8701-8709 when 8700 is taken (parallel worktrees each running a Studio).
     const fallback = o.port ? null : [8701, 8702, 8703, 8704, 8705, 8706, 8707, 8708, 8709];
     let server;
     try {
-      server = await require('../lib/studio/server').start({ host: r.host, password: r.password, port: o.port || 8700, portFallback: fallback, app: o.app, rootDir: process.cwd(), flowsDir: o.flowsDir, cfg: loadConfig(process.cwd(), null) });
+      server = await require('../lib/studio/server').start(studioStartOptions(o, { port: o.port || 8700, portFallback: fallback, rootDir: process.cwd(), cfg: loadConfig(process.cwd(), null) }));
     } catch (e) {
       console.error(`[brighttest studio] ${e.message}`);
       process.exit(1);
@@ -534,6 +539,8 @@ async function main() {
     const port = server.address().port;
     if (!o.port && port !== 8700) console.log(`(port 8700 is in use; using ${port})`);
     const url = `http://localhost:${port}`;
+    // Display only: the server already chose the device with its own rules.
+    const r = o.host ? { host: o.host, source: 'flag' } : require('../lib/devices').resolveDevice({});
     const dev = r.host ? `device ${r.host}${r.source !== 'flag' ? ` (${r.source})` : ''}` : 'no device — discover one in the Devices tab';
     console.log(`brighttest studio → ${url}  ·  ${dev}`);
     if (o.open) {
@@ -603,4 +610,4 @@ async function main() {
 // Only run the CLI when executed directly (not when required by tests).
 if (require.main === module) main();
 
-module.exports = { parseArgs, parseInstrumentArgs, INSTRUMENT_ACTIONS, parseSkillsArgs, parseInitArgs, parseE2eArgs, parseStudioArgs, parseDeviceArgs, parseDoctorArgs, SKILLS_ACTIONS, E2E_ACTIONS, DEVICE_ACTIONS, SCREENSHOT_MODES };
+module.exports = { studioStartOptions, parseArgs, parseInstrumentArgs, INSTRUMENT_ACTIONS, parseSkillsArgs, parseInitArgs, parseE2eArgs, parseStudioArgs, parseDeviceArgs, parseDoctorArgs, SKILLS_ACTIONS, E2E_ACTIONS, DEVICE_ACTIONS, SCREENSHOT_MODES };
