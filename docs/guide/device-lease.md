@@ -65,9 +65,14 @@ brighttest command started inside it re-uses the same lease instead of waiting f
 | `--as <agent>` / `--purpose <text>` | Holder label and purpose (`BRIGHTTEST_AGENT`, `BRIGHTTEST_PURPOSE`) |
 | `--wait <dur>` | How long to queue (default 30m). `0` = fail at once if the device is busy or anyone is queued |
 | `--max <dur>` | Hard cap on the hold (default 60m). 5 s before it, the command is stopped (exit 77). At most about 24.8 days |
-| `--expect <dur>` | Expected hold time, shown to waiters as an estimate |
+| `--expect <dur>` | Expected hold time, shown to waiters as an estimate (see below) |
 | `--no-hygiene` | Skip the Home ×2 press after acquiring |
 | `--lease <token>` | Run under that session lease (see below) instead of queueing; same as `BRIGHTTEST_LEASE=<token>` |
+
+**Estimated wait.** The waiting line and `device status` show "est. wait". It is the holder's remaining time
+(its `--expect`, else the median of the last 10 holds in `events.log` with the same first two words of purpose,
+for example `e2e run`) plus the expected hold of each ticket ahead. With no history it is left out. It is only
+an estimate: it never makes a lane give up or skip the queue.
 
 Durations are `90s`, `10m`, `1h` or plain milliseconds. The device lanes (`--device`, `--cross-check`,
 `e2e`) accept `--wait`, `--as`, `--purpose` and `--no-lease`.
@@ -130,8 +135,10 @@ npx brighttest device unlock --lease "$TOKEN"
 - A holder that crashes (even `kill -9`) frees the device within about a second, because waiters check
   its PID. If it started child processes (the Rooibos CLI, a `device with` command) that are still running,
   the device stays held until they exit: the device *is* still in use.
-- A waiter that is killed (`kill -9`) loses its place in the queue after 5 seconds. (The design allows 60 s so a
-  restarted waiter could take its place back; that arrives with ticket adoption, LSE-T11.)
+- A waiter that is killed (`kill -9`, or an agent's Bash tool timeout) keeps its place in the queue for 60
+  seconds. A new waiter with the same `--as` and `--purpose` in that window adopts the ticket and keeps the
+  place (the `events.log` gets an `adopted` entry); after 60 s the ticket is removed. Adoption never extends
+  the 60 s.
 - A holder that hangs is bounded by its deadline (`maxHold`, default 60 minutes).
 - Laptop sleep is safe: the heartbeat is not used to decide liveness. A holder that sleeps past its deadline
   exits 77 when it wakes, and the run has to be redone.
