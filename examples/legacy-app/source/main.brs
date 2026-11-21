@@ -18,8 +18,8 @@ sub Main(args as dynamic)
     #if STRESS
     stress = true
     #end if
-    scene = screen.CreateScene(sceneName)
-    scene.setFocus(true)
+    ' the scene init reads m.global.config, so the bag must exist before CreateScene;
+    ' focus is set only once the screen is shown
     ' state bag: nested AAs, secrets (DUMMY values), long list/string, node ref, date
     m.global.addFields({
         config: cfg
@@ -35,7 +35,7 @@ sub Main(args as dynamic)
         stress: stress
     })
     m.global.launchCount = m.global.launchCount + 1
-    screen.show()
+    scene = screen.CreateScene(sceneName) : screen.show() : scene.setFocus(true)
     reg = CreateObject("roRegistrySection", "legacy_prefs")
     if reg.exists("lastTier") then m.global.setField("user", { tier: reg.read("lastTier"), profile: m.global.user.profile })
     while true

@@ -44,6 +44,24 @@ node tools/scale.js --copies 12 --out /some/scratch/dir    # ~1,000 files; nothi
 
 Copy 0 is the app; copies 1..N-1 repeat `components/` under `components/cK/` with `_cK` component names.
 
+## Plain sideload (no brighttest)
+
+The app is plain BrightScript, so it can be sideloaded as is. Enable developer mode on the device first.
+Specs (`*.bs`, `source/tests/`) are left out of the package.
+
+```
+cd examples/legacy-app
+zip -r /some/scratch/legacy-app.zip manifest source components certs -x '*.bs' -x 'source/tests/*'
+curl --digest -u "rokudev:$ROKU_PASSWORD" --connect-timeout 5 --max-time 60 \
+  -F mysubmit=Install -F "archive=@/some/scratch/legacy-app.zip" "http://<host>/plugin_install"
+```
+
+Or use the helper (host explicit, password from the environment only, never printed):
+
+```
+ROKU_PASSWORD=... sh tools/sideload.sh --host <ip>
+```
+
 ## Run
 
 ```
