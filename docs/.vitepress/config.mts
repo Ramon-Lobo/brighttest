@@ -54,6 +54,7 @@ export default withMermaid({
           { text: 'CI integration', link: '/guide/ci' },
           { text: 'Sharing a device (lease)', link: '/guide/device-lease' },
           { text: 'Instrumented builds', link: '/guide/instrument' },
+          { text: 'Network fault model', link: '/guide/net-faults' },
           { text: 'Agent skills', link: '/guide/agent-skills' },
           { text: 'Troubleshooting & how it works', link: '/guide/troubleshooting' },
         ],
