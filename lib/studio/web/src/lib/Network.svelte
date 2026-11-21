@@ -14,6 +14,8 @@
   let msg = $state('');
   let err = $state(false);
   let state = $state('connecting'); // connecting | live | down | none | locked
+  let hellos = $state(null);    // hub hello count (null: unknown)
+  let lastHelloAt = $state(null);
   let lastSeq = 0;
   let es = null;
 
@@ -58,6 +60,8 @@
     try {
       const d = await api.netRequests(raw);
       if (d.requests) rows = d.requests.map((r) => ({ ...r }));
+      hellos = typeof d.hellos === 'number' ? d.hellos : null;
+      lastHelloAt = typeof d.lastHelloAt === 'number' ? d.lastHelloAt : null;
     } catch { /* keep what we have */ }
   }
 
@@ -88,7 +92,12 @@
   const shown = $derived(rows.filter((r) => !filter || `${r.method} ${r.host}${r.path} ${r.status ?? ''} ${r.source ?? ''}`.toLowerCase().includes(filter.toLowerCase())));
   const cls = (r) => (r.error || (r.status && r.status >= 400) ? 'bad' : r.status ? 'ok' : 'pend');
 
-  onMount(() => { connect(); return () => { if (es) es.close(); }; });
+  onMount(() => {
+    connect();
+    // While nothing has arrived, refresh so the hello hint updates once the device dials in.
+    const t = setInterval(() => { if (state === 'live' && !rows.length) reload(); }, 3000);
+    return () => { clearInterval(t); if (es) es.close(); };
+  });
 </script>
 
 {#if state === 'none'}
@@ -106,7 +115,13 @@
   {#if state === 'down'}<p class="empty err">Stream disconnected, retrying. <button class="lnk" onclick={connect}>Reconnect</button></p>{/if}
   {#if msg}<p class="msg" class:err>{msg}</p>{/if}
   {#if !shown.length}
-    <p class="empty">No requests yet. Run the instrumented app; script HTTP calls appear here.</p>
+    {#if hellos === 0}
+      <p class="empty">No hello from the device yet. Check the build has --net and the same hub token, then launch.</p>
+    {:else if hellos > 0}
+      <p class="empty">Device said hello at {lastHelloAt ? new Date(lastHelloAt).toLocaleTimeString() : 'an unknown time'}; no requests yet.</p>
+    {:else}
+      <p class="empty">No requests yet. Run the instrumented app; script HTTP calls appear here.</p>
+    {/if}
   {:else}
     <table>
       <thead><tr><th>method</th><th>status</th><th>host / path</th><th>size</th><th>ms</th><th>source</th><th>rule</th></tr></thead>

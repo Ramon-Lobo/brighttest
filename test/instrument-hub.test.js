@@ -61,6 +61,20 @@ describe('hub token, route and refusal rules', () => {
     expect((await req(hub, 'POST', `/bt/${TOKEN}/hello`, '{}')).status).toBe(200);
   });
 
+  it('counts hellos and records the last-seen time', async () => {
+    const hub = await start();
+    expect(hub.hellos).toBe(0);
+    expect(hub.lastHelloAt).toBeNull();
+    await req(hub, 'GET', '/bt/nope/hello');
+    expect(hub.hellos).toBe(0);
+    expect(hub.lastHelloAt).toBeNull();
+    const t0 = Date.now();
+    await req(hub, 'GET', `/bt/${TOKEN}/hello`);
+    expect(hub.hellos).toBe(1);
+    expect(hub.lastHelloAt).toBeGreaterThanOrEqual(t0);
+    expect(hub.lastHelloAt).toBeLessThanOrEqual(Date.now());
+  });
+
   it('accepts any of several tokens', async () => {
     const hub = await start({ tokens: ['a-1', 'b-2'] });
     expect((await req(hub, 'GET', '/bt/b-2/hello')).status).toBe(200);
