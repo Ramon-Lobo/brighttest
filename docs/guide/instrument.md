@@ -62,6 +62,38 @@ inside the device lease so it never collides with another brighttest lane on the
 - Lease options: `--wait`, `--max`, `--expect`, `--as`, `--purpose` (same meaning as `brighttest device with`).
   The lease cannot be bypassed for this command.
 
+## Release gate: `instrument verify`
+
+```bash
+npx brighttest instrument verify build/store.zip      # a zip or an unpacked directory
+```
+
+Exit **0** when the package is clean, **3** when any instrumentation marker is found (the markers and their paths are
+printed to stderr), **2** on a missing or unreadable input. Run it in CI on the package you are about to publish.
+`BT_AGENT=false` and the greenfield libraries are not markers.
+
+## Census: `instrument census`
+
+```bash
+npx brighttest instrument census                       # markdown report to stdout
+npx brighttest instrument census --json --out .brighttest/census   # JSON to stdout, census.json + census.md in the dir
+```
+
+A static scan of the app in the current directory (no device, no network, nothing in your tree is written unless
+`--out` is given): Scenes, Tasks, `m.global.addFields` keys, registry section literals, `setUrl` and `CreateObject`
+sites, and a "could not instrument" section. Inline-CDATA Scenes are reported only.
+
+## Brownfield setup: `init --brownfield`
+
+```bash
+npx brighttest init --brownfield [--force]
+```
+
+For an existing app you do not want to edit. It runs the census, writes the `instrument` block into `brighttest.json`
+(`strict: false`, and `state.registrySections` proposed from the registry sections the census found), and adds
+`.brighttest/` and `*.bt-instrumented.zip` to `.gitignore`. It adds no example spec and no npm test script. An existing
+`instrument` block is kept unless you pass `--force`.
+
 ## Configuration
 
 `brighttest.json`, all optional:
