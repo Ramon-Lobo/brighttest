@@ -107,6 +107,12 @@ flowchart TD
   - drop records whose `SF:` path matches `(^|/)rooibos/` (framework-injected);
   - join and write to the `--lcov` path.
 - `extractLcov` is exported for unit testing.
+- Fallbacks (ENG-T14): one best-effort Home key press (through the ECP key path) runs after the lease is held and
+  before deploy; a failed Home only warns. The watchdog (`--timeout`) kills the CLI's process group and the run
+  fails even if the child never closes. No `[Rooibos Result]` is a failure. When the rooibos CLI supports
+  `--coverage-dir` (`supportsFlag` in `engines.js`: stamp `flags`, else rooibos >= 5.17.0), `--lcov` also passes
+  `--coverage-dir=<staging>/device/coverage`; console lcov is preferred, and `<dir>/lcov.info` (run through
+  `extractLcov`) is read only when the console yields nothing.
 
 ## E2E lane (`lib/e2e/`)
 
