@@ -8,7 +8,7 @@ import { createRequire } from 'node:module'
 // INS-F-T2: lib/instrument/build.js gates (ADR 0019 Amendment (d) R1, R5), the generated BT_config.brs and the config lane.
 const require = createRequire(import.meta.url)
 const JSZip = require('jszip')
-const { build, tripsStrict, renderBtConfig, STRICT_TABLE } = require('../lib/instrument/build')
+const { build, tripsStrict, renderBtConfig, validateStateConfig, STRICT_TABLE } = require('../lib/instrument/build')
 const { verify } = require('../lib/instrument/verify')
 const { loadConfig, writeBsConfig } = require('../lib/config')
 const createPlugin = require('../lib/instrument/plugin')
@@ -142,6 +142,21 @@ describe('instrument build: success path', () => {
     expect(r.exitCode).not.toBe(0)
     expect(r.out === null || !fs.existsSync(r.out)).toBe(true)
     expect(r.log.join('\n')).toContain(key)
+  })
+
+  it.each([
+    ['maxBytes', 1024, true], ['maxBytes', 1048576, true], ['maxBytes', 1023, false], ['maxBytes', 1048577, false],
+    ['intervalMs', 100, true], ['intervalMs', 60000, true], ['intervalMs', 99, false], ['intervalMs', 60001, false],
+  ])('publish.%s=%s range check (accepted: %s)', (k, v, ok) => {
+    const call = () => validateStateConfig({ state: { publish: { [k]: v } } })
+    if (ok) return expect(call).not.toThrow()
+    expect(call).toThrow(`instrument.state.publish.${k} must be an integer from`)
+    expect(call).toThrow(`(got ${v})`)
+  })
+
+  it('names the full key for string and non-integer publish values', () => {
+    expect(() => validateStateConfig({ state: { publish: { maxBytes: '4096' } } })).toThrow('instrument.state.publish.maxBytes')
+    expect(() => validateStateConfig({ state: { publish: { intervalMs: 2.5 } } })).toThrow('instrument.state.publish.intervalMs')
   })
 
   it('bakes the four settings into the built package', async () => {

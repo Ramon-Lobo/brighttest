@@ -159,14 +159,15 @@ key out and the agent uses its built-in default.
   `focus`, `registry`). `a.b.c` matches that path exactly and `a.b.*` matches everything below `a.b`. Matching
   ignores case.
 - **`publish.maxBytes`** is an integer, the size at which the agent cuts the published document (default 65536).
-  The runtime accepts 1024 to 1048576.
+  The build accepts 1024 to 1048576.
 - **`publish.intervalMs`** is an integer, how often the agent republishes, in milliseconds (default 500). The
-  runtime accepts 100 to 60000.
+  build accepts 100 to 60000.
 
-A value of the wrong type fails the instrument build, and the error names the full key, for example
-`instrument.state.publish.maxBytes must be an integer number` or
-`instrument.state.redact.paths must be an array of strings`. Nothing is coerced. An integer outside the ranges
-above is not a build error: the runtime ignores it and uses the default.
+A value of the wrong type, or an integer outside the ranges above, fails the instrument build, and the error
+names the full key, for example
+`instrument.state.publish.maxBytes must be an integer from 1024 to 1048576 (got 99)` or
+`instrument.state.redact.paths must be an array of strings`. Nothing is coerced. The runtime still ignores an
+out-of-range value and uses the default, but only as a safety net: the build never emits one.
 
 ### The 256 KB limit
 
