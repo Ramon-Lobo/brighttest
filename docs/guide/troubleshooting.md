@@ -107,6 +107,25 @@ fix text prints).
 `brighttest e2e run` runs the same check first. On a Limited or developer-disabled device it stops before the
 device lease, any launch or any keypress, and prints the same fix text.
 
+## `brighttest doctor --engines`: what can the headless engine do?
+
+```sh
+brighttest doctor --engines          # capability table, engine flavor (patched or stock), probe result
+brighttest doctor --engines --json   # the same as JSON
+```
+
+Runs a tiny probe app (`brs/probes/engine-caps/`) with the resolved `brs-node` and compares what the engine
+does with what its `package.json#brighttest` metadata claims. No device is contacted. Exit 0 when they agree,
+1 when the probe fails or disagrees (a patch was lost or added without updating the stamp; the message names
+the patch and both values), 2 when no engine is installed. An engine without a stamp has no metadata to
+compare, so its probe column is shown as the evidence only.
+
+`BRS-02` (`Label.forceUpperCase`) is a **non-device** capability: a headless convenience that a real Roku
+does not have. The table marks it NON-DEVICE, and any headless run on an engine that has it prints a warning
+on stderr for each use in your sources, for example
+`nondevice-field: Label.forceUpperCase used in source/tests/Title.spec.bs:12 (non-device behavior: ...)`.
+Specs that rely on it will not match the device.
+
 ## "Waiting for the device lease" / exit 75, 77 or 78
 
 Device commands queue for the device ([device lease](./device-lease)). Run `npx brighttest device status`
