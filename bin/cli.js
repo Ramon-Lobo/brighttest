@@ -80,6 +80,23 @@ function parseDoctorArgs(rest) {
   return o;
 }
 
+// `brighttest net convert <file.har> [-o <rules.json>]` — HAR to hand-editable rules (NET-N-T7).
+const NET_HELP = `brighttest net convert <file.har> [-o <rules.json>]
+  Turn a recorded HAR into a rules file (one rule per entry, ids har-1..n). Prints to stdout without -o.
+  Redacted values stay redacted. Exits 1 for an unreadable or non-HAR input.`;
+function parseNetArgs(argv) {
+  const o = { action: null, file: null, out: null, help: false };
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === '--help' || a === '-h') o.help = true;
+    else if (a === '-o' || a === '--out') o.out = argv[++i];
+    else if (a.startsWith('--out=')) o.out = a.slice(6);
+    else if (!o.action) o.action = a;
+    else if (!o.file) o.file = a;
+  }
+  return o;
+}
+
 // `brighttest skills [install|update|export|list|uninstall] …` — a positional subcommand with its own parser.
 const SKILLS_ACTIONS = ['install', 'update', 'export', 'list', 'uninstall'];
 function parseSkillsArgs(rest) {
@@ -479,6 +496,7 @@ Usage:
   brighttest instrument build                        Build an instrumented debug package, never for release (see: instrument --help)
   brighttest e2e run <flow…> --host <ip>             On-device UI e2e tests from YAML flows (see: e2e --help)
   brighttest studio --host <ip>                      Visual studio to author/debug flows on a device (see: studio --help)
+  brighttest net convert <file.har> [-o <rules.json>]  Turn a recorded HAR into hand-editable net rules
   brighttest doctor --host <ip> [--json]             Check a device's capabilities and print exact fixes
   brighttest devices                                 Discover Rokus on the network and cache one's credentials
   brighttest device status|with|unlock|log           Share a device safely: the device lease (see: device --help)
@@ -639,6 +657,11 @@ async function main() {
     }
     return; // keep the process alive — the server is listening
   }
+  if (argv[0] === 'net') {
+    const n = parseNetArgs(argv.slice(1));
+    if (n.help || n.action !== 'convert') { console.log(NET_HELP); process.exit(n.help ? 0 : 2); }
+    process.exit(require('../lib/instrument/net-convert').run(n));
+  }
   if (argv[0] === 'device') {
     const o = parseDeviceArgs(argv.slice(1));
     if (o.help || !o.deviceAction) { console.log(DEVICE_HELP); process.exit(o.help ? 0 : 2); }
@@ -716,4 +739,4 @@ async function main() {
 // Only run the CLI when executed directly (not when required by tests).
 if (require.main === module) main();
 
-module.exports = { studioStartOptions, parseArgs, parseInstrumentArgs, INSTRUMENT_ACTIONS, parseSkillsArgs, parseInitArgs, parseE2eArgs, parseStudioArgs, parseDeviceArgs, parseDoctorArgs, SKILLS_ACTIONS, E2E_ACTIONS, DEVICE_ACTIONS, SCREENSHOT_MODES };
+module.exports = { parseNetArgs, studioStartOptions, parseArgs, parseInstrumentArgs, INSTRUMENT_ACTIONS, parseSkillsArgs, parseInitArgs, parseE2eArgs, parseStudioArgs, parseDeviceArgs, parseDoctorArgs, SKILLS_ACTIONS, E2E_ACTIONS, DEVICE_ACTIONS, SCREENSHOT_MODES };

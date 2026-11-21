@@ -160,6 +160,22 @@ Every net run writes `.brighttest/net/last-run.ndjson` (redacted), one event per
 and `net.error` (`kind` is `unmatched`, `upstream`, `fault:timeout`, `fault:reset`). Failing requests are also listed
 under "Network failures" at the end of the run. Requests a test deliberately leaves unmatched appear there too.
 
+Requests no rule matched are also listed under "Unmatched requests (N)" as method and path only (no query, headers
+or bodies).
+
+## Turning a HAR into rules
+
+```bash
+brighttest net convert .brighttest/net/run.har -o fixtures/net/home.rules.json
+```
+
+`net convert` writes one rule per HAR entry (`har-1`, `har-2`, ...), in recorded order, with method, url, status,
+headers and body (`json` for JSON bodies). Edit the file by hand, then list it under `instrument.net.fixtures`. A URL
+requested more than once gets `times: 1` on all but the last rule so replay serves the responses in recorded order.
+Values the recorder redacted stay redacted (redacted query values become `*`, redacted headers are blanked), and
+entries whose body still holds a redacted value are reported on stderr. Without `-o` the rules print to stdout. An
+unreadable or non-HAR input exits 1 with a message.
+
 ## On the device
 
 `BTNet_*` specs are headless-only. With `--device`, a spec file that uses `BTNet_` is left out of the build and the
