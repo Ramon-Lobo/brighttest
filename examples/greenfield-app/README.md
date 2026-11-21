@@ -44,5 +44,10 @@ brighttest --coverage
 | `network.e2e.yaml` + `fixtures/net/*` | TP-NET |
 | `state.e2e.yaml` + `fixtures/state/premium.json` | TP-STA |
 
-The `fixtures/net/*` and `fixtures/state/*` files are shape placeholders for features that do not exist
-yet; adjust them when those features land. Pair with `test/fixtures/fake-origin` for a live origin.
+`fixtures/net/home.rules.json` is live: `network.e2e.yaml` loads it and it must stay correct. The
+`fixtures/state/*` files are shape placeholders for a feature that does not exist yet; adjust them when it
+lands. Pair with `test/fixtures/fake-origin` for a live origin.
+
+`network.e2e.yaml` is a net-mock flow. It needs a build made with `instrument build --net`, the same
+`BRIGHTTEST_HUB_TOKEN` value set at build time and at run time, and the instrument hub running (`e2e run`
+starts it). See the token section in `docs/guide/instrument.md`.
