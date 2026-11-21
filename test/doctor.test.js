@@ -58,6 +58,17 @@ describe('doctor against the fake', () => {
     expect(r.out).toContain('16.0.4')
     expect(r.out).not.toContain('FAKE-SERIAL-0001')
   })
+  it('video mode line names the ui-resolution fallback when the device has no video-mode', async () => {
+    const r = await runDoctor('healthy')
+    expect(r.out).toContain('  video mode: 1080p (ui-resolution; no video-mode)\n')
+  })
+  it('video mode line is unchanged when the device reports video-mode', async () => {
+    const caps = { model: 'x', softwareVersion: '16.0.4', developerEnabled: true, ecpSettingMode: 'permissive', videoMode: '720p', videoModeSource: 'video-mode', uiResolution: '1080p' }
+    const get = capture()
+    await doctor.run({ host: '127.0.0.1' }, { createDevice: () => ({ deviceCapabilities: async () => caps }), probeBind: async () => ({ ok: true }) })
+    expect(get()).toContain('  video mode: 720p\n')
+    expect(get()).not.toContain('no video-mode')
+  })
   it('limited: exit 1 with the Settings path', async () => {
     const r = await runDoctor('limited')
     expect(r.code).toBe(1)

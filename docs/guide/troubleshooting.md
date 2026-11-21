@@ -121,7 +121,7 @@ brighttest doctor --host <ip> --json     # the same as JSON (checks[] with id, o
 ```
 
 It reads `query/device-info` only: no password, no lease, no keypresses. Exit 0 when every check passes, 1
-when a check fails or the device does not answer. The serial number is hidden unless you pass `--show-serial`.
+when a check fails or the device does not answer. The serial number is hidden unless you pass `--show-serial`. Some firmware (16.0.4, for one) reports no `video-mode`, so doctor falls back to `ui-resolution` and prints `video mode: <value> (ui-resolution; no video-mode)`; JSON output carries `videoModeSource`.
 The two fixable states are **Limited** ECP (Settings → System → Advanced system settings → Control by mobile
 apps → Network access → Permissive) and **developer mode disabled** (enable it with the remote sequence the
 fix text prints).
