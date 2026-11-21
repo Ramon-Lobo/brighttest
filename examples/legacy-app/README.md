@@ -19,7 +19,8 @@ to stress instrumentation the way long-lived apps do. Invented content only. Fix
   `tierLabel` follows `m.global.user.tier`.
 - Structure: 9-level `DeepTree`; `ViewBase > ViewA > ViewB > ViewC` inheritance (init only in `ViewC`, inline
   CDATA script); 40 widgets (relative and `pkg:/` script includes); scenes `LegacyScene` (default), `BaseScene`
-  and `DerivedScene` (both with `init`), `BareScene` (no init, no script). Select with launch param `scene=<Name>`.
+  and `DerivedScene` (both with `init`), `BareScene` (no init, no script), `InlineCdataScene` (init as inline CDATA, no .brs), `OverhangFixtureScene`
+  (extends `OverhangPanelSetScene`; census fixture, not launched by default). Select with launch param `scene=<Name>`.
 - Markers: `print "BTFIX:<event>"` on startup, scene init, keys, tasks, exit.
 - Failure paths: keys Up Up Down Down crash (dot on invalid); Left Right Left Right run `END`.
 - Net diagnostics: launch `netdiag=<url>`; Label `netDiag` shows `code=<n> reason=<s> event=<yes|no>` and

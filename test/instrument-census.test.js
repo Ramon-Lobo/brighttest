@@ -41,9 +41,11 @@ describe('census of examples/legacy-app', () => {
   })
   it('finds Scenes with chains and init, and the synthesized plan for the init-less Scene', () => {
     const by = Object.fromEntries(c.scenes.map((s) => [s.component, s]))
-    expect(Object.keys(by).sort()).toEqual(['BareScene', 'BaseScene', 'DerivedScene', 'LegacyScene'])
+    expect(Object.keys(by).sort()).toEqual(['BareScene', 'BaseScene', 'DerivedScene', 'InlineCdataScene', 'LegacyScene', 'OverhangFixtureScene'])
     expect(by.DerivedScene.extendsChain).toEqual(['BaseScene', 'Scene'])
     expect(by.BareScene).toMatchObject({ hasInit: false, plan: 'synthesize' })
+    expect(by.InlineCdataScene).toMatchObject({ hasInit: false, plan: 'skipped:inline-cdata-scene' })
+    expect(by.OverhangFixtureScene).toMatchObject({ hasInit: false, plan: 'synthesize', extendsChain: ['OverhangPanelSetScene'] })
     expect(by.LegacyScene).toMatchObject({ hasInit: true, plan: 'bootstrap', file: 'components/scenes/LegacyScene.xml' })
   })
   it('finds Tasks with their function names', () => {
@@ -73,17 +75,17 @@ describe('census of examples/legacy-app', () => {
     expect(reasons('components/scenes/LegacyScene.brs', 8)).toEqual(['content-node URL'])
   })
   it('lists the vendor candidate as informational (excluded by default, ADR 0019 (d) R5) and finds no parse problems', () => {
-    expect(c.skipped.filter((s) => !s.informational).map(key)).toEqual([])
+    expect(c.skipped.filter((s) => !s.informational).map(key)).toEqual(['inline-cdata-scene|components/scenes/InlineCdataScene.xml|4'])
     expect(c.skipped.filter((s) => s.informational).map(key)).toEqual(['excluded-candidate|source/vendor/VendorClient.brs|5'])
     expect(c.skipped.find((s) => s.kind === 'excluded-candidate')).toMatchObject({ excludedBy: 'default' })
     expect(c.parseErrors).toEqual([])
   })
   it('renders census.md with the same counts and a could-not-instrument section, and writes census.{json,md}', () => {
     const md = renderMarkdown(c)
-    expect(md).toContain('Could not instrument (0)')
+    expect(md).toContain('Could not instrument (1)')
     expect(md).toContain('Informational (1)')
     expect(md).toContain('3 roUrlTransfer literals, 1 dynamic CreateObject, 4 sync get, 1 async get, 3 certificate calls')
-    expect(md).toContain('## Scenes (4)')
+    expect(md).toContain('## Scenes (6)')
     const out = write(c, path.join(tmp, 'out'))
     expect(JSON.parse(fs.readFileSync(out.json, 'utf8'))).toEqual(JSON.parse(JSON.stringify(c)))
     expect(fs.readFileSync(out.md, 'utf8')).toContain('# Instrumentation census: legacy-app')

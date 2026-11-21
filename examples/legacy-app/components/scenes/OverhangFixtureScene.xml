@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Census fixture: a plain, self-contained Scene using OverhangPanelSetScene as its component type. -->
+<component name="OverhangFixtureScene" extends="OverhangPanelSetScene">
+  <children>
+    <Label id="overhangLabel" text="overhang fixture" />
+  </children>
+</component>
