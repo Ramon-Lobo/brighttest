@@ -135,6 +135,33 @@ describe('e2e preflight', () => {
   })
 })
 
+describe('e2e preflight: unreachable host', () => {
+  const flow = path.join(path.dirname(new URL(import.meta.url).pathname), 'fixtures/fake-roku/flows/fake-smoke.e2e.yaml')
+  it('fails only that host with the fix text, no stack trace, and the other host still runs', async () => {
+    const { stub, a } = await boot('healthy')
+    const get = capture()
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-unr-'))
+    const flow2 = path.join(dir, 'second.e2e.yaml')
+    fs.copyFileSync(flow, flow2)
+    const acquire = vi.fn(async () => ({ lease: null }))
+    const createDeviceDep = (o) => o.host === '127.0.0.2'
+      ? { host: o.host, ecpPort: o.ecpPort, deviceCapabilities: async () => { throw new TypeError('fetch failed') } }
+      : createDevice(o)
+    let code, thrown = null
+    try {
+      code = await e2e.run(loadConfig(dir, null), { e2eAction: 'run', flows: [flow, flow2], host: '127.0.0.1,127.0.0.2', ecpPort: a.ecpPort, password: 'rokudev-test', screenshotsMode: 'off' }, { acquireForLane: acquire, createDevice: createDeviceDep })
+    } catch (e) { thrown = e }
+    fs.rmSync(dir, { recursive: true, force: true })
+    expect(thrown).toBe(null)
+    expect(code).toBe(1)
+    expect(get()).toContain('[127.0.0.2] preflight failed: device not reachable')
+    expect(get()).toContain('No answer from 127.0.0.2')
+    expect(get()).not.toMatch(/\n\s+at /)
+    expect(acquire).toHaveBeenCalledTimes(1) // only the reachable host got as far as the lease
+    expect(stub.log.some((l) => /^\/(launch|keypress)\//.test(l.endpoint))).toBe(true)
+  })
+})
+
 describe('doctor args', () => {
   it('parses flags', () => {
     expect(parseDoctorArgs(['--host=1.2.3.4', '--json', '--show-serial', '--ecp-port', '9'])).toMatchObject({ host: '1.2.3.4', json: true, showSerial: true, ecpPort: '9' })
