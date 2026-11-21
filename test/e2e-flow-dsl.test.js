@@ -34,16 +34,28 @@ describe('flow DSL parsing (ROB-09)', () => {
   it('parses flow-level requires (inline and block) and step-level requires', () => {
     expect(flow('requires: { firmware: ">=99", videoMode: 2160p, deviceClass: TV }\n', ['launch']).requires)
       .toEqual({ firmware: { op: '>=', version: '99' }, videoMode: '2160p', deviceClass: 'tv' })
-    expect(flow('requires:\n  firmware: 12.5\n', ['launch']).requires).toEqual({ firmware: { op: '>=', version: '12.5' } })
+    expect(flow('requires:\n  firmware: "12.5"\n', ['launch']).requires).toEqual({ firmware: { op: '>=', version: '12.5' } })
     expect(flow('', ['requires: { firmware: "<10" }']).steps[0]).toMatchObject({ op: 'requires', requires: { firmware: { op: '<', version: '10' } } })
     expect(flow('', ['launch']).requires).toBeNull()
   })
   it('rejects bad requires', () => {
     expect(() => flow('requires: { color: red }\n', ['launch'])).toThrow(/line 2: requires: unknown requirement "color"; valid: firmware, videoMode, deviceClass/)
     expect(() => flow('requires: { firmware: new }\n', ['launch'])).toThrow(/firmware must be a version/)
+    let err
+    try { flow('requires: { firmware: 12.10 }\n', ['launch']) } catch (e) { err = e }
+    expect(err.message).toMatch(/quote the version, e\.g\. ">=12\.10"/)
+    expect(err.validation).toBe(true)
     expect(() => flow('requires: { deviceClass: phone }\n', ['launch'])).toThrow(/deviceClass must be one of tv, box, stick/)
     expect(() => flow('requires: {}\n', ['launch'])).toThrow(/empty/)
     expect(() => flow('', ['requires: 5'])).toThrow(/needs a map/)
+  })
+  it('holdKey scalar and missing key, and a non-boolean noSystemDialog, are validation errors', () => {
+    for (const fn of [() => flow('', ['holdKey: Right']), () => flow('', ['holdKey: { ms: 5 }']), () => flow('config: { noSystemDialog: yes }\n', ['launch'])]) {
+      let err
+      try { fn() } catch (e) { err = e }
+      expect(err && err.validation).toBe(true)
+    }
+    expect(() => flow('', ['holdKey: Right'])).toThrow(/holdKey needs a map/)
   })
   it('config.noSystemDialog must be a boolean', () => {
     expect(flow('config: { noSystemDialog: true }\n', ['launch']).config.noSystemDialog).toBe(true)
@@ -106,7 +118,14 @@ describe('holdKey against the fake Roku', () => {
   it('keyup-fails: the step errors, but the keyup was still attempted (503)', async () => {
     const { stub, device } = await boot('keyup-fails')
     await expect(device.holdKey('Right', 20)).rejects.toThrow(/keyup Right failed \(HTTP 503\)/)
-    expect(stub.log.filter((l) => l.endpoint === '/keyup/Right').map((l) => l.status)).toEqual([503])
+    const ups = stub.log.filter((l) => l.endpoint === '/keyup/Right').map((l) => l.status)
+    expect(ups.length).toBeGreaterThanOrEqual(1) // the keyup retries like any queued request
+    expect(ups.every((s) => s === 503)).toBe(true)
+  })
+  it('both edges failing reports the keydown error with the keyup failure appended', async () => {
+    const { device, stub } = await boot('keyup-fails')
+    stub.setFault({ mode: 'status', status: 500, path: '/key*' })
+    await expect(device.holdKey('Up', 10)).rejects.toThrow(/keydown Up failed \(HTTP 500\) \(keyup also failed: keyup Up failed \(HTTP 5\d\d\)\)/)
   })
   it('a failing keydown still sends the keyup', async () => {
     const { stub, device } = await boot('healthy')
@@ -139,14 +158,20 @@ describe('e2e run with the DSL against the fake Roku', () => {
   }
 
   for (const [name, req] of [['req-firmware', '{ firmware: ">=99" }'], ['req-video', '{ videoMode: "2160p" }'], ['req-class', '{ deviceClass: "tv" }']]) {
-    it(`${name}: skipped with the reason, no launch, exit 0`, async () => {
+    it(`${name}: skipped with the reason, no launch, and as the only flow the run exits 1`, async () => {
       const { code, endpoints } = await run('healthy', name, `appId: dev\nrequires: ${req}\nsteps:\n  - launch\n`)
-      expect(code).toBe(0)
+      expect(code).toBe(1)
       expect(out).toMatch(/skipped: requires /)
       expect(out).toMatch(/1 skipped/)
       expect(endpoints.filter((e) => e.startsWith('/launch/'))).toEqual([])
     }, 15000)
   }
+
+  it('every flow skipped: exit 1 with "no flow ran: N skipped by requires:"', async () => {
+    const { code } = await run('healthy', 'req-all', 'appId: dev\nrequires: { firmware: ">=99" }\nsteps:\n  - launch\n')
+    expect(code).toBe(1)
+    expect(out).toMatch(/no flow ran: 1 skipped by requires:/)
+  }, 15000)
 
   it('a met requires runs normally', async () => {
     const { code, endpoints } = await run('healthy', 'req-ok', 'appId: dev\nrequires: { firmware: ">=10", videoMode: 1080p, deviceClass: box }\nsteps:\n  - launch\n')
@@ -156,7 +181,7 @@ describe('e2e run with the DSL against the fake Roku', () => {
 
   it('step-level requires skips the rest of the flow, keeping earlier passes', async () => {
     const { code, endpoints } = await run('healthy', 'req-step', 'appId: dev\nsteps:\n  - launch\n  - requires: { firmware: ">=99" }\n  - press: Right\n')
-    expect(code).toBe(0)
+    expect(code).toBe(0) // launch ran, so the flow counts as run
     expect(out).toMatch(/○ requires.*skipped: requires firmware >=99, device has 16\.0\.4/)
     expect(endpoints.filter((e) => e.startsWith('/keypress/Right'))).toEqual([])
   }, 15000)
@@ -172,7 +197,9 @@ describe('e2e run with the DSL against the fake Roku', () => {
     const { code, stub } = await run('keyup-fails', 'hold', 'appId: dev\nsteps:\n  - launch\n  - holdKey: { key: Right, ms: 100 }\n')
     expect(code).toBe(1)
     expect(out).toMatch(/keyup Right failed \(HTTP 503\)/)
-    expect(stub.log.filter((l) => l.endpoint === '/keyup/Right').map((l) => l.status)).toEqual([503])
+    const ups = stub.log.filter((l) => l.endpoint === '/keyup/Right').map((l) => l.status)
+    expect(ups.length).toBeGreaterThanOrEqual(1)
+    expect(ups.every((s) => s === 503)).toBe(true)
   }, 15000)
 
   it('badkey: parse error naming Rigth, and the device is never contacted', async () => {

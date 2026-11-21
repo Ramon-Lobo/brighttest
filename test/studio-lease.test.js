@@ -203,6 +203,22 @@ describe('Studio server and the lease', () => {
     return { events, done }
   }
 
+  it('/api/run skips (no failed step, no key sent) when flow-level requires is unmet, and for a step-level one', async () => {
+    fs.mkdirSync(path.join(dir, 'flows'), { recursive: true })
+    fs.writeFileSync(path.join(dir, 'flows', 'req.e2e.yaml'), 'appId: dev\nrequires: { firmware: ">=99" }\nsteps:\n  - press: Right\n')
+    const a = sse('/api/run?file=req.e2e.yaml')
+    await a.done
+    expect(a.events.find((e) => e.type === 'skipped').reason).toMatch(/requires firmware >=99, device has 16\.0\.4/)
+    expect(a.events.at(-1)).toMatchObject({ type: 'done', ok: true })
+    expect(a.events.some((e) => e.status === 'fail')).toBe(false)
+    fs.writeFileSync(path.join(dir, 'flows', 'reqstep.e2e.yaml'), 'appId: dev\nsteps:\n  - requires: { deviceClass: tv }\n  - press: Right\n')
+    const b = sse('/api/run?file=reqstep.e2e.yaml')
+    await b.done
+    expect(b.events.find((e) => e.status === 'skipped')).toMatchObject({ op: 'requires' })
+    expect(b.events.at(-1)).toMatchObject({ type: 'done', ok: true })
+    expect(fake.keypresses).toEqual([])
+  })
+
   it('a flow running through /api/run is aborted when the lease is released', async () => {
     fs.mkdirSync(path.join(dir, 'flows'), { recursive: true })
     fs.writeFileSync(path.join(dir, 'flows', 'slow.e2e.yaml'), 'appId: dev\nsteps:\n  - wait: 5000\n  - home\n')
