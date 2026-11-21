@@ -62,4 +62,28 @@ describe('e2e run under the lease', () => {
     const code = await e2e.run(cfg, { e2eAction: 'inspect', flows: [], host: '10.0.0.9' }, { createDevice, acquireForLane: acquireForLane(['10.0.0.9']) })
     expect(code).toBe(75)
   })
+
+  it('starts the LAN hub inside the lease (when asked) and stops it before the release; no hub by default', async () => {
+    const startLanHub = async ({ deviceHost, lease }) => {
+      log.push(`hub start ${deviceHost} leaseHeld=${!!lease}`)
+      return { stop: async () => { log.push(`hub stop ${deviceHost}`) } }
+    }
+    await e2e.run(cfg, { e2eAction: 'run', flows: [flow], host: '10.0.0.1', lanHub: true }, { createDevice, acquireForLane: acquireForLane(), startLanHub })
+    expect(log).toEqual(['acquire 10.0.0.1 hygiene=true', 'hub start 10.0.0.1 leaseHeld=true', 'info 10.0.0.1', 'hub stop 10.0.0.1', 'release 10.0.0.1'])
+    log.length = 0
+    await e2e.run(cfg, { e2eAction: 'run', flows: [flow], host: '10.0.0.1' }, { createDevice, acquireForLane: acquireForLane(), startLanHub })
+    expect(log.some((l) => l.startsWith('hub'))).toBe(false)
+  })
+
+  it('a hub that fails to start is reported and the run goes on; the lease is still released', async () => {
+    const startLanHub = async () => { throw new Error('boom') }
+    await e2e.run(cfg, { e2eAction: 'run', flows: [flow], host: '10.0.0.1', lanHub: true }, { createDevice, acquireForLane: acquireForLane(), startLanHub })
+    expect(log).toEqual(['acquire 10.0.0.1 hygiene=true', 'info 10.0.0.1', 'release 10.0.0.1'])
+  })
+
+  it('a busy lease starts no hub', async () => {
+    const startLanHub = vi.fn()
+    await e2e.run(cfg, { e2eAction: 'run', flows: [flow], host: '10.0.0.2', lanHub: true }, { createDevice, acquireForLane: acquireForLane(['10.0.0.2']), startLanHub })
+    expect(startLanHub).not.toHaveBeenCalled()
+  })
 })
