@@ -120,7 +120,8 @@ path not found, or the actual value.
 ### The registry layer
 
 List the registry sections the agent should publish in `brighttest.json`. With no sections configured there
-is no `registry` layer, and the other layers are unchanged.
+is no `registry` layer, and the other layers are unchanged. The value is an array of section names; entries
+that are not strings or are blank are dropped, and the layer appears only when at least one name is left.
 
 ```json
 "instrument": { "state": { "registrySections": ["prefs"] } }
@@ -138,6 +139,34 @@ The layer follows the same limits as the others: caps on depth, array items and 
 byte cap (64 KB by default). A section the byte cap cuts is replaced by `$truncated:bytes` and named in the
 `truncated` list, never an error. Keys that look secret (`token`, `password`, `secret`, `sessionid`,
 `authorization`, `apikey`) are published as `<redacted:key>`.
+
+### Redact paths and publish limits
+
+Three more optional keys under `instrument.state` in `brighttest.json` tune what the agent publishes. Leave a
+key out and the agent uses its built-in default.
+
+```json
+"instrument": {
+  "state": {
+    "redact": { "paths": ["scene.profile.email", "registry.prefs.*"] },
+    "publish": { "maxBytes": 131072, "intervalMs": 1000 }
+  }
+}
+```
+
+- **`redact.paths`** is an array of strings. A value at a listed path is published as `<redacted:key>`, on top
+  of the secret-looking keys that are always redacted. A path starts with the layer name (`global`, `scene`,
+  `focus`, `registry`). `a.b.c` matches that path exactly and `a.b.*` matches everything below `a.b`. Matching
+  ignores case.
+- **`publish.maxBytes`** is an integer, the size at which the agent cuts the published document (default 65536).
+  The runtime accepts 1024 to 1048576.
+- **`publish.intervalMs`** is an integer, how often the agent republishes, in milliseconds (default 500). The
+  runtime accepts 100 to 60000.
+
+A value of the wrong type fails the instrument build, and the error names the full key, for example
+`instrument.state.publish.maxBytes must be an integer number` or
+`instrument.state.redact.paths must be an array of strings`. Nothing is coerced. An integer outside the ranges
+above is not a build error: the runtime ignores it and uses the default.
 
 ### The 256 KB limit
 
