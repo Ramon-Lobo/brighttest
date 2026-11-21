@@ -68,13 +68,13 @@ running Roku. Its pages:
   `--flows-dir` (default `./flows`).
 - **Devices** — discover and switch Roku devices.
 - **Profile** — performance sessions with markers, exportable as a Perfetto trace; `.bsprof` files can be imported.
-- **Settings**
+- **Settings** — a placeholder page that lists planned options; it has no working controls yet (`lib/studio/web/src/App.svelte`, `Placeholder`).
 
 The Studio UI bundle must be built before `brighttest studio` will start: run `npm run studio:build` first. Without it the command exits with code 2 (`bin/cli.js`, checks `lib/studio/public/index.html`).
 
 ### Network panel
 
-The Network view is a tab next to Node / Tree / Selector / State on the Inspect page (`lib/studio/web/src/App.svelte`, `lib/studio/web/src/lib/Network.svelte`). It shows the HTTP traffic seen by the instrument hub's net proxy. It needs the device lease: Studio starts the instrument hub itself while it holds the lease (host and port from `instrument.hub.host` and `instrument.hub.port`, token from `BRIGHTTEST_HUB_TOKEN`, 32 lowercase hex) and stops it when the lease is released. Without a valid `BRIGHTTEST_HUB_TOKEN` the hub is not started and the panel shows a message naming that variable. Without a hub the `/api/net/*` and `/api/bt/stream` routes answer 503 `NO_HUB`; without the lease they answer 423 (`lib/studio/server.js`, `handleNet`).
+The Network view is a tab next to Node / Tree / Selector / State on the Inspect page (`lib/studio/web/src/App.svelte`, `lib/studio/web/src/lib/Network.svelte`). It shows the HTTP traffic seen by the instrument hub's net proxy. It needs the device lease: Studio starts the instrument hub itself, only when it was started with a device host (`lib/studio/server.js:536`; a device added or switched to later gets no hub), while it holds the lease (host and port from `instrument.hub.host` and `instrument.hub.port`, token from `BRIGHTTEST_HUB_TOKEN`, 32 lowercase hex) and stops it when the lease is released. Without a valid `BRIGHTTEST_HUB_TOKEN` the hub is not started and the panel shows a message naming that variable. Without a hub the `/api/net/*` and `/api/bt/stream` routes answer 503 `NO_HUB`; without the lease they answer 423 (`lib/studio/server.js`, `handleNet`).
 
 - **Live stream.** Rows arrive over the hub event stream (`GET /api/bt/stream`) and the list is loaded from `GET /api/net/requests` (newest 500). Each row shows method, status, host and path, size, ms, source and the matching rule. The view has a text filter and a Clear button that empties the view only.
 - **Mock this.** Select a row and press **Mock this** to turn the recorded response into a `- mockHttp: {...}` step (`GET /api/net/mock-this`). The step is inserted into the flow editor as an unsaved edit. Responses over the body limit are refused with a message to export the HAR and use `net convert`. **Copy as rule JSON** copies the same rule, **Block (503)** adds a live 503 rule for the path, and **Clear live rules** removes live rules.
