@@ -95,6 +95,14 @@ the lane value yet. `--timeout <sec>` (default 900) is the separate overall limi
 after about 5 s, so the run looks like a pass and the watchdog never fires (the device is not silent). Keep
 async tests calling done, and cross-check suspicious passes on the headless lane.
 
+## E2E run fails with `APP_CRASHED`
+
+**Symptom:** a `brighttest e2e run` wait fails fast with `APP_CRASHED: app <id> is no longer in front (active: ...); it exited or crashed`, instead of timing out on a selector.
+
+**Cause:** after a missed poll, the wait asked the device which app is active and it was not the app under test, so the app exited or crashed. The error is non-retryable (`retryable: false`).
+
+**Fix:** check that the app launched and was not halted (for example by a crash, a back-out to Home, or another app taking over), then re-run.
+
 ## Coverage % looks low
 
 Coverage reflects only the lines your tests exercised. A big utility file with a few tested functions will
