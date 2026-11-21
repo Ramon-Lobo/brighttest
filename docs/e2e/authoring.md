@@ -7,7 +7,7 @@ Three tools help you go from a running app to a working flow: `inspect` (see the
 
 Dumps a readable summary of what's on screen: node counts by subtype, the ids present (as `name=`), the
 focused node, and sample text. Use it to discover what to target. Note that a node created as `Group`
-is listed as `RenderableNode`, so use the subtype names `inspect` actually prints.
+is listed as `RenderableNode`, so use the subtype names `inspect` actually prints. Custom fields do not appear in the node query at all (re-confirmed on firmware 16.0.4).
 
 ```bash
 npx brighttest e2e inspect --host <roku-ip> --app dev

@@ -166,8 +166,8 @@ key out and the agent uses its built-in default.
 A value of the wrong type, or an integer outside the ranges above, fails the instrument build, and the error
 names the full key, for example
 `instrument.state.publish.maxBytes must be an integer from 1024 to 1048576 (got 99)` or
-`instrument.state.redact.paths must be an array of strings`. Nothing is coerced. The runtime still ignores an
-out-of-range value and uses the default, but only as a safety net: the build never emits one.
+`instrument.state.redact.paths must be an array of strings`. Nothing is coerced. The device-side agent also ignores a non-integer or out-of-range value and uses the default
+(`lib/instrument/runtime/source/bt/BT_core.brs`, `BT_pubInt`), but only as a safety net: the build never emits one.
 
 ### The 256 KB limit
 
