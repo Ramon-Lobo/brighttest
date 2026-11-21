@@ -175,6 +175,14 @@ describe('parseBacktrace', () => {
       { index: 0, fn: 'onKey(key as String) As Boolean', file: 'pkg:/components/Home.brs', line: 42 },
     ])
   })
+  it('keeps a clean message when the banner has a period before the code (no "&hec)" garble)', () => {
+    const bt = parseBacktrace(['BRIGHTSCRIPT: ERROR: Runtime Error. (runtime error &hec) in pkg:/components/scenes/LegacyScene.brs(95)'])
+    expect(bt.code).toBe('&hec')
+    expect(bt.summary).toBe('Runtime Error (runtime error &hec) at pkg:/components/scenes/LegacyScene.brs(95)')
+    expect(bt.summary).not.toMatch(/^&hec\)/)
+    const bt2 = parseBacktrace(['------ Runtime Error. (runtime error &hec) in pkg:/a.brs(95)'])
+    expect(bt2.summary).toMatch(/^runtime error \(runtime error &hec\) at pkg:\/a\.brs\(95\)$/)
+  })
 })
 
 describe('failure bundle and flow parsing', () => {
