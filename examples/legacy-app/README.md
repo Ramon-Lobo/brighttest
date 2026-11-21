@@ -13,7 +13,7 @@ to stress instrumentation the way long-lived apps do. Invented content only. Fix
   `GetToString` and `AsyncGetToString`; a `Poster.uri` and a `Video` content url (media, not covered).
   `source/vendor/**` also uses `roUrlTransfer`; `brighttest.json` lists it under `instrumentExclude`.
 - State: `m.global` as a bag (`addFields` in `main.brs`, later `setField` and in-place AA replacement on Play),
-  dummy secrets (`authToken`, `sessionId`, `password`), a 60-item array, a 2 KB+ string, a node ref, an
+  dummy secrets (`authToken`, `sessionId`, `password`), a 60-item array, a 2 KB+ string, an
   `roDateTime`, an integer `launchCount`; registry sections `legacy_prefs`, `legacy_session` (read at startup,
   written on exit); `LegacyStore` with `handleAction`, `dispatchAction`, `resetHome` and field observers.
   `tierLabel` follows `m.global.user.tier`.
@@ -22,7 +22,11 @@ to stress instrumentation the way long-lived apps do. Invented content only. Fix
   and `DerivedScene` (both with `init`), `BareScene` (no init, no script), `InlineCdataScene` (init as inline CDATA, no .brs), `OverhangFixtureScene`
   (extends `OverhangPanelSetScene`; census fixture, not launched by default). Select with launch param `scene=<Name>`.
 - Markers: `print "BTFIX:<event>"` on startup, scene init, keys, tasks, exit.
-- Failure paths: keys Up Up Down Down crash (dot on invalid); Left Right Left Right run `END`.
+- Failure paths: keys Up Up Down Down crash (Dot operator on invalid, `print broken.value`) at
+  `LegacyScene.brs(86)` on the plain build and `LegacyScene.brs(91)` on the instrumented build (shifted by
+  instrumentation); Left Right Left Right run `END`.
+- Clean log: a plain render (no keys) prints no `main.brs` error line; the strict check is that the device log
+  has no `pkg:/source/main.brs(...)` error.
 - Net diagnostics: launch `netdiag=<url>`; Label `netDiag` shows `code=<n> reason=<s> event=<yes|no>` and
   the same text is printed as `NETDIAG ...`.
 - Stress mode: launch param `stress=1` or `bs_const STRESS=true`: 500 global fields / 256 KB, plus trees of
@@ -30,7 +34,8 @@ to stress instrumentation the way long-lived apps do. Invented content only. Fix
 - No-`roInput` mode: launch param `noinput=1`. Build variant without `supports_input_launch`: `manifest.noinput`.
 - Specs (`source/tests`): `AgentCount`, `AgentSerializer`, `AgentWrite` (`@SGNode`). `InducedCrash` is
   `@ignore`d; unignored it crashes at `source/Config.brs:67` (`Legacy_explode`) called from
-  `source/tests/InducedCrash.spec.bs:13` (call spans lines 13-16).
+  `source/tests/InducedCrash.spec.bs:13` (call spans lines 13-16). That line is only the ignored spec and is not
+  run by the fixture flow; the flow crash is the `LegacyScene.brs` line above.
 - Flows: `state-read`, `state-write`, `network-legacy` (`flows/*.e2e.yaml`).
 
 ## Census ground truth and scaling
