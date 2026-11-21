@@ -408,7 +408,7 @@ describe('staleness and reclaim (D8, D9)', () => {
     expect(s.liveTickets(KEY).map((t) => t.leaseId)).toEqual(['dead', 'live'])
     clock.t += 2000
     expect(s.liveTickets(KEY).map((t) => t.leaseId)).toEqual(['live'])
-    expect(lease.TICKET_GRACE_MS).toBe(5000) // 60000 returns with ticket adoption (LSE-T11)
+    expect(lease.TICKET_GRACE_MS).toBe(60000) // F12 / TP-LSE-23, 42: adoption window
   })
 })
 
@@ -581,5 +581,112 @@ describe('B2: force, reclaim and heartbeat do not get undone by the old holder',
     expect(lost).toBe('held by another lease')
     expect(readHolder().leaseId).toBe(b.leaseId)
     expect(readHolder().heartbeatAt).toBe(new Date(jumped.t).toISOString())
+  })
+})
+
+describe('ticket adoption, ETA and --expect (LSE-T11, TP-LSE-23)', () => {
+  const q = () => path.join(dir, KEY, 'queue')
+  const iso = (t) => new Date(t).toISOString()
+  const writeTicket = (name, t) => {
+    fs.mkdirSync(q(), { recursive: true })
+    const p = path.join(q(), name)
+    fs.writeFileSync(p, JSON.stringify({ hostname: 'this-host', waitUntil: iso(clock.t + 600000), queuedAt: iso(clock.t), ...t }))
+    const s = clock.t / 1000
+    fs.utimesSync(p, s, s)
+    return p
+  }
+  const heldBy = async (pid, extra = {}) => acquire(opts({ pid, pidStartValue: `start-${pid}`, ...extra }))
+  const logReleased = (purpose, heldMs) => createStore(seams()).logEvent(KEY, { ev: 'released', leaseId: 'x', agent: 'a', purpose, heldMs })
+
+  it('adopts a dead same-agent/purpose ticket inside the 60 s window and keeps its place', async () => {
+    const holder = await heldBy(1001, { agent: 'h', purpose: 'hold' })
+    const dead = writeTicket('000000000000100-deadwaiter.json', { leaseId: 'deadwaiter', agent: 'qa#1', purpose: 'p1', pid: 9999, queuedAt: iso(1e8) })
+    writeTicket('000000000000200-other.json', { leaseId: 'other', agent: 'qa#2', purpose: 'p2', pid: 1003 })
+    clock.t += 59000 // inside the 60 s window
+    let adopted
+    const p = acquire(opts({ pid: 1002, pidStartValue: 'start-1002', agent: 'qa#1', purpose: 'p1', waitMs: 600000,
+      sleep: async (ms) => { clock.t += ms; if (!adopted) { adopted = fs.readdirSync(q()); holder.release() } } }))
+    const l = await p
+    expect(adopted[0]).toMatch(/^000000000000100-[0-9a-f]+\.json$/) // the dead ticket's slot, new leaseId
+    expect(adopted[0]).not.toContain('deadwaiter')
+    expect(adopted).toHaveLength(2)
+    expect(events().some((e) => e.ev === 'adopted' && e.agent === 'qa#1')).toBe(true)
+    expect(fs.existsSync(dead)).toBe(false)
+    expect(l.record.holder.agent).toBe('qa#1')
+    l.release()
+  })
+
+  it('does not adopt after the window, for another agent/purpose, or from a live waiter', async () => {
+    await heldBy(1001, { agent: 'h', purpose: 'hold' })
+    writeTicket('000000000000100-late.json', { leaseId: 'late', agent: 'qa#1', purpose: 'p1', pid: 9999 })
+    clock.t += lease.TICKET_GRACE_MS + 1
+    const s = createStore(seams())
+    const mk = (agent, purpose, pid) => ({ leaseId: 'new' + pid, agent, purpose, pid, hostname: 'this-host', waitUntil: iso(clock.t + 1e6) })
+    expect(s.adoptTicket(KEY, mk('qa#1', 'p1', 1002))).toBeNull() // past the grace
+    clock.t -= lease.TICKET_GRACE_MS + 1
+    const s2 = createStore(seams())
+    expect(s2.adoptTicket(KEY, mk('qa#9', 'p1', 1002))).toBeNull() // other agent
+    expect(s2.adoptTicket(KEY, mk('qa#1', 'p2', 1002))).toBeNull() // other purpose
+    writeTicket('000000000000300-live.json', { leaseId: 'live', agent: 'qa#3', purpose: 'p3', pid: 1003 })
+    expect(s2.adoptTicket(KEY, mk('qa#3', 'p3', 1004))).toBeNull() // owner alive
+    expect(s2.adoptTicket(KEY, mk('qa#1', 'p1', 1002))).toMatch(/000000000000100-new1002\.json$/)
+  })
+
+  it('only one of two adopters gets a ticket', () => {
+    writeTicket('000000000000100-deadwaiter.json', { leaseId: 'deadwaiter', agent: 'qa#1', purpose: 'p1', pid: 9999 })
+    const s = createStore(seams())
+    const mk = (id) => ({ leaseId: id, agent: 'qa#1', purpose: 'p1', pid: 1002, hostname: 'this-host', waitUntil: iso(clock.t + 1e6) })
+    expect(s.adoptTicket(KEY, mk('aaaa'))).not.toBeNull()
+    expect(s.adoptTicket(KEY, mk('bbbb'))).toBeNull()
+  })
+
+  it('ETA: median heldMs of the last 10 released events with the same purpose verb', () => {
+    for (const ms of [999999, 1000, 3000, 2000]) logReleased('e2e run --suite a', ms) // 999999 is the 11th-oldest below
+    for (let i = 0; i < 9; i++) logReleased('e2e run --suite b', 2000)
+    logReleased('device with -- x', 77)
+    const s = createStore(seams())
+    // last 10 of "e2e run": 1000,3000,2000 + nine 2000 -> drop the oldest outlier(s); median 2000
+    const hold = { acquiredAt: iso(clock.t - 500), holder: { purpose: 'e2e run --suite z' }, leaseId: 'h' }
+    fs.mkdirSync(path.join(dir, KEY), { recursive: true })
+    fs.writeFileSync(holderFile(), JSON.stringify({ ...hold, schema: 'brighttest-lease/v1', mode: 'command', deadline: iso(clock.t + 9e6), holder: { ...hold.holder, pid: 1001, pidStart: 'start-1001', hostname: 'this-host' } }))
+    expect(s.statusOf(KEY).etaMs).toBe(1500) // median 2000 - 500 elapsed
+  })
+
+  it('ETA adds the expected hold of each ticket ahead; a waiter sees its own wait; unknown history gives null', async () => {
+    for (const ms of [2000, 4000, 6000]) logReleased('e2e run', ms) // median 4000
+    const h = await heldBy(1001, { agent: 'h', purpose: 'e2e run', expectMs: 10000 })
+    writeTicket('000000000000100-a.json', { leaseId: 'a', agent: 'a', purpose: 'e2e run', pid: 1003 })
+    writeTicket('000000000000200-b.json', { leaseId: 'b', agent: 'b', purpose: 'mystery job', pid: 1004 })
+    clock.t += 3000
+    const st = createStore(seams()).statusOf(KEY)
+    expect(st.queue.map((t) => t.etaMs)).toEqual([7000, 11000]) // holder remaining 7 s; + a's 4 s
+    expect(st.etaMs).toBeNull() // b has no history
+    h.release()
+  })
+
+  it('--expect: the holder expectMs drives the ETA over history, and the wait line shows it; ETA never blocks', async () => {
+    for (const ms of [2000, 2000, 2000]) logReleased('device with', ms)
+    const h = await heldBy(1001, { agent: 'h', purpose: 'device with', expectMs: 30000 })
+    expect(readHolder().expectMs).toBe(30000)
+    clock.t += 5000
+    const waits = []
+    let n = 0
+    const p = acquire(opts({ pid: 1002, pidStartValue: 'start-1002', agent: 'w', purpose: 'device with', waitMs: 600000,
+      onWait: (snap) => waits.push(snap),
+      sleep: async (ms) => { clock.t += ms; if (++n === 3) h.release() } }))
+    const l = await p
+    expect(Math.abs(waits[0].etaMs - 25000)).toBeLessThan(500) // fake clock moved a poll or two
+    expect(formatWaitLine(waits[0])).toMatch(/You are #2 in queue; est\. wait ~2[45]s/)
+    expect(l.record.holder.agent).toBe('w')
+    l.release()
+    // a wedged events log cannot break status
+    fs.writeFileSync(path.join(dir, KEY, 'events.log'), 'not json\n')
+    expect(() => createStore(seams()).statusOf(KEY)).not.toThrow()
+  })
+
+  it('--expect parses through the CLI settings (units, invalid)', () => {
+    expect(lease.resolveSettings({ flags: { expect: '30s' }, env: {} }).expectMs).toBe(30000)
+    expect(lease.resolveSettings({ env: {} }).expectMs).toBeNull()
+    expect(() => lease.resolveSettings({ flags: { expect: 'soon' }, env: {} })).toThrow(LeaseError)
   })
 })
