@@ -210,9 +210,9 @@ describe('TP-MCP-07 navigate_to and screenshot', () => {
 })
 
 describe('app_state', () => {
-  it('says the build is not instrumented when __bt_state is absent', async () => {
+  it('says the state is unreadable when the fake publishes an empty __bt_agent node and no __bt_state', async () => {
     const { c } = await ready()
-    expect(payload(await c.tool('app_state')).code).toBe('STATE_NOT_PUBLISHED')
+    expect(payload(await c.tool('app_state')).code).toBe('STATE_UNREADABLE')
   })
   // Drives Session.appState with a fake device so the published node can be __bt_agent only (what an
   // instrumented build publishes) without a subprocess.
@@ -234,6 +234,11 @@ describe('app_state', () => {
     const t = nodes('<Label name="__bt_state" text="{&quot;current&quot;:&quot;Home&quot;}" />')
     const r = await readWith({ agent: t, all: t })
     expect(r.ok.state).toEqual({ current: 'Home' })
+  })
+  it('is STATE_UNREADABLE when __bt_agent is present but unreadable and there is no __bt_state', async () => {
+    const t = nodes('<Label name="__bt_agent" text="not json" />')
+    const r = await readWith({ agent: t, all: t })
+    expect(r.err.code).toBe('STATE_UNREADABLE')
   })
   it('is STATE_NOT_PUBLISHED when neither node exists', async () => {
     const t = nodes('<Label name="x" />')

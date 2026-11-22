@@ -30,7 +30,7 @@ Set `ROKU_HOST` explicitly in the MCP server configuration, and use `list_device
 | `press` | A remote key, `count` times (at most 20 per call), spaced by the ECP queue gap. |
 | `navigate_to` | Move focus onto the first node matching a `selector`; returns the keys pressed and the focused node. |
 | `screenshot` | Inline image of the sideloaded app (dev channel in front). |
-| `app_state` | The app's `__bt_state` snapshot from an instrumented build. |
+| `app_state` | The app's self-published state from an instrumented build: the `__bt_agent` node (global, scene and focus layers) first, else the legacy `__bt_state` node. |
 | `run_flow` | Run one `*.e2e.yaml` (or `*.e2e.yml`) flow from the project; returns per-step results. |
 | `net_requests` | Requests seen by the session's net proxy (method, url, status, duration, `mocked`), with credentials redacted. Filters: `method`, `url` glob, `status`; `limit` caps the output. |
 | `net_mock` | Answer requests that match a `url` glob (and optional `method`) with a canned status and JSON or text body. The mock lasts until the session ends. |
@@ -71,7 +71,7 @@ Selectors use the same keys as flows: `id`, `subtype`, `text`, `textContains`, `
 
 Failures come back as a tool result with `isError: true` and a typed `code` (for example `DEVICE_BUSY`,
 `INVALID_KEY`, `KEY_NOT_ALLOWED` (a valid key that the server blocks, see Blocked keys), `PATH_REJECTED`, `PRESS_BUDGET_EXHAUSTED`, `TOOL_TIMEOUT`, `SCREENSHOT_NOT_FOREGROUND`,
-`STATE_NOT_PUBLISHED`). Malformed requests use JSON-RPC errors (`-32602` for bad arguments or an unknown tool).
+`STATE_NOT_PUBLISHED` (no state node at all), `STATE_UNREADABLE` (a state node is published but cannot be read)). Malformed requests use JSON-RPC errors (`-32602` for bad arguments or an unknown tool).
 
 ## Safety limits
 
