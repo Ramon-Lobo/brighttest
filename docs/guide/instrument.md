@@ -15,6 +15,21 @@ npx brighttest instrument build                       # -> .brighttest/instrumen
 npx brighttest instrument build --out build/debug.zip --strict
 ```
 
+## Example: the sample app
+
+`examples/sample-app/brighttest.json` is shaped for the unit lanes: it excludes `source/main.brs` and includes the
+specs. An instrument build needs the opposite, so the example ships `brighttest.instrument.json` (includes `main.brs`,
+excludes `source/tests/**`). `rootDir` resolves against the **current directory**, so run from the app folder and pass
+the config:
+
+```bash
+cd examples/sample-app
+node ../../bin/cli.js instrument build --config brighttest.instrument.json
+# -> .brighttest/instrument/app.bt-instrumented.zip
+```
+
+In your own project the same recipe is `npx brighttest instrument build --config brighttest.instrument.json`.
+
 ## What a build does
 
 1. Builds to a **temporary** package path (`deploy` is never passed to brighterscript).

@@ -51,6 +51,17 @@ node ../../bin/cli.js --coverage --lcov coverage/lcov.info   # + LCOV coverage (
 node ../../bin/cli.js --device --host <ip> --password <pw>   # the same suites on real hardware
 ```
 
+### Instrumented debug build (no device)
+
+`brighttest.json` is shaped for the unit lanes (no `main.brs`, specs included), so the instrument build uses its own
+config. Run from this folder (`rootDir` resolves against the cwd):
+
+```bash
+node ../../bin/cli.js instrument build --config brighttest.instrument.json   # -> .brighttest/instrument/app.bt-instrumented.zip
+```
+
+Debug only; never ship it (see `docs/guide/instrument.md`).
+
 ### On-device E2E
 
 E2E drives the **running app**, so first sideload the app build (tests excluded), then run the flows.
