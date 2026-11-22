@@ -424,7 +424,8 @@ describe('TP-MCP-09 lease per tool call', () => {
     const exit = vi.spyOn(process, 'exit').mockImplementation(() => { throw new Error('process.exit called') })
     let lost
     const fakeLib = { acquire: async (o) => { lost = o.onLost; return { release() {} } } }
-    const c = startMcp({ a, leaseLib: fakeLib, limits: { pressGapMs: 0 } })
+    // a real gap keeps the call running when the lease is lost (a zero gap can finish all 20 presses first)
+    const c = startMcp({ a, leaseLib: fakeLib, limits: { pressGapMs: 250 } })
     await c.initialize()
     const p = c.toolAsync('press', { key: 'Down', count: 20 })
     for (let i = 0; i < 100 && !lost; i++) await new Promise((r) => setTimeout(r, 10))
