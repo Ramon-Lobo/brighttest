@@ -372,3 +372,47 @@ describe('ring buffer and body spill (TP-NET-15 harness part)', () => {
     expect(h.proxy.size).toBe(2000);
   });
 });
+
+describe('refused requests carry status and bytes on net.error', () => {
+  const errOf = (h) => h.events.find((e) => e.kind === 'net.error').data;
+  it('host not in the allow-list: 403 with the bytes of the body sent', async () => {
+    const o = await origin();
+    const h = await harness({ upstreamHosts: ['allowed.test'], unmatched: 'passthrough' });
+    const r = await request(`${h.base}${o.url}/home`);
+    const d = errOf(h);
+    expect(d.refused).toBe(true);
+    expect(d.status).toBe(403);
+    expect(d.bytes).toBe(Buffer.byteLength(r.body));
+    expect(d.bytes).toBeGreaterThan(0);
+  });
+  it('private address with an empty allow-list: 403 with bytes', async () => {
+    const h = await harness({ upstreamHosts: [], unmatched: 'passthrough' });
+    const r = await request(`${h.base}http://169.254.169.254/latest`);
+    const d = errOf(h);
+    expect(d.status).toBe(403);
+    expect(d.bytes).toBe(Buffer.byteLength(r.body));
+  });
+  it('redirect to a blocked target: 403 with bytes', async () => {
+    const o = await origin();
+    const h = await harness({ upstreamHosts: [`127.0.0.1:${o.port}`], unmatched: 'passthrough' });
+    const r = await request(`${h.base}${o.url}/redirect?to=${encodeURIComponent('http://169.254.169.254/x')}`);
+    expect(r.status).toBe(403);
+    const d = h.events.filter((e) => e.kind === 'net.error').pop().data;
+    expect(d.status).toBe(403);
+    expect(d.bytes).toBe(Buffer.byteLength(r.body));
+  });
+  it('malformed target: 400 with bytes', async () => {
+    const h = await harness();
+    const r = await request(`${h.base}not-a-url`);
+    const d = errOf(h);
+    expect(r.status).toBe(400);
+    expect(d.status).toBe(400);
+    expect(d.bytes).toBe(Buffer.byteLength(r.body));
+  });
+  it('served responses keep their net.response shape and gain no net.error', async () => {
+    const h = await harness();
+    h.proxy.ruleSet.addConfig([{ url: 'https://api.test/**', status: 200 }]);
+    await request(`${h.base}https://api.test/ok`);
+    expect(h.events.some((e) => e.kind === 'net.error')).toBe(false);
+  });
+});
