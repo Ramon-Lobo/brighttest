@@ -14,7 +14,19 @@
       ]
     },
     {
+      "name": "testing-app-state",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
       "name": "using-brighttest-mcp",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "using-brighttest-studio",
       "files": [
         "SKILL.md"
       ]
