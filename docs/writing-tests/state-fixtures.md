@@ -67,9 +67,8 @@ lowercases them when you read them back.
 
 ## Caveats
 
-- **Verify the fixture path.** A path typo makes `BTState_load` throw. In an `@SGNode` `beforeEach` a throw currently
-  shows as a `CRASH` line in the Rooibos output, and the run can still report success (a known runner issue, not
-  specific to fixtures). Check the output for `CRASH`.
+- **Verify the fixture path.** A path typo makes `BTState_load` throw. In a `beforeEach` the throw shows as a `CRASH`
+  line in the Rooibos output and fails the run.
 - **Simulated state, not a device run.** The spec shows your app reacts correctly to that state. It does not show the
   device reaches it.
 - Headless and device lanes both stage the helper; the fixtures only matter where the spec runs.

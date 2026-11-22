@@ -20,14 +20,15 @@ describe('BTState_ snapshot fixtures on the scene lanes', () => {
     expect(res.status).toBe(0)
   }, 120000)
 
-  // Known runner bug (out of scope here, logged as a finding): a throw from BTState_load in an @SGNode beforeEach makes
-  // Rooibos print CRASH then "Total 0 / Success", and brighttest exits 0. When fixed, this passes and `.fails` must go.
-  it.fails('missing fixture -> non-zero exit (Rooibos beforeEach crash reports success)', () => {
+  // A throw from BTState_load in an @SGNode beforeEach makes Rooibos print CRASH then "Total 0 / Success"; the runner
+  // guard fails the run from the CRASH line in the report tree.
+  it('missing fixture -> non-zero exit (beforeEach crash is not reported as success)', () => {
     const dir = makeProject('state-fixtures')
     const f = path.join(dir, 'source', 'tests', 'Snapshot.spec.bs')
     fs.writeFileSync(f, fs.readFileSync(f, 'utf8').replace('premium.json', 'nope.json'))
     const res = runCli(dir)
     expect(res.status).not.toBe(0)
+    expect(res.output).toContain('nope.json')
   }, 120000)
 
   it('a wrong expectation fails with the expected message', () => {

@@ -6,8 +6,8 @@
 ' Reserved prefix: BTState_ (the agent's own publisher helpers use other names).
 
 ' Reads a snapshot file (for example "pkg:/fixtures/state/premium.json") and returns the parsed document.
-' Throws a string when the file is missing, empty or not a JSON object. Check the path: in an @SGNode beforeEach a throw
-' currently shows up as a CRASH line in the Rooibos output and the run can still report success.
+' Throws a string when the file is missing, empty or not a JSON object. Check the path: a throw in a beforeEach shows up
+' as a CRASH line in the Rooibos output and fails the run.
 function BTState_load(path as string) as object
   text = ReadAsciiFile(path)
   if text = invalid or text = "" then throw "BTState_load: cannot read " + path

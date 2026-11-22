@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { palette, relLoc, lineSplitter, parseSummary, failureMessages, makeReporter } from '../lib/reporter.js'
+import { palette, relLoc, lineSplitter, parseSummary, laneFailures, treeFailures, failureMessages, makeReporter } from '../lib/reporter.js'
 
 describe('palette', () => {
   it('wraps strings in ANSI codes when enabled', () => {
@@ -179,5 +179,28 @@ describe('crashed test line', () => {
 
   it('collects the crash message without the runtime error code', () => {
     expect(failureMessages(CRASH_OUT)).toEqual({ raises: "'Dot' Operator attempted with invalid reference." })
+  })
+})
+
+describe('laneFailures report-tree guard', () => {
+  const summary = (t, p, f, c) => `Total:   ${t}\nPassed:  ${p}\nCrashed: ${c}\nFailed:  ${f}\nIgnored: 0\nRESULT: Success\n`
+  const crashTree = '|--Suite\n|  |--first test : CRASH\n|  |  Message: boom (runtime error &h02)\n'
+
+  it('counts a tree-only CRASH when the summary says Total 0 / Success', () => {
+    const out = crashTree + summary(0, 0, 0, 0)
+    expect(treeFailures(out)).toEqual(['first test'])
+    expect(laneFailures(out, 0).failed).toBe(1)
+  })
+
+  it('does not double count a tree failure the summary already counted', () => {
+    const out = '|--Suite\n|  |--t : FAIL\n' + summary(1, 0, 1, 0)
+    expect(laneFailures(out, 1).failed).toBe(1)
+    expect(laneFailures(out, 0).failed).toBe(1)
+  })
+
+  it('does not trigger for empty or all-ignored groups', () => {
+    expect(laneFailures(summary(0, 0, 0, 0), 0).failed).toBe(0)
+    expect(laneFailures('|--Suite\n|  |--t : IGNORE\n' + summary(1, 0, 0, 0), 0).failed).toBe(0)
+    expect(treeFailures('no tree here')).toEqual([])
   })
 })
