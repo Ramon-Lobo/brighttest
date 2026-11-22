@@ -92,8 +92,8 @@ Usage: brighttest mcp
   list_devices, device_doctor, inspect_tree, press, navigate_to, screenshot, app_state, run_flow.
 
   The device comes only from the usual resolution chain (ROKU_HOST, ROKU_PASSWORD, project .env, device cache);
-  no tool takes a host, a password or an absolute path. The first device tool call takes the device lease for the
-  session; it is released when stdin closes. Per-session caps apply to presses and flow runs.
+  no tool takes a host, a password or an absolute path. Each device tool call takes the device lease for that call
+  only and releases it when the call ends (busy: DEVICE_BUSY at once). Per-session caps apply to presses and flow runs.
   Exit codes: 0 on a clean end of input, 1 on an internal error, 2 on a usage error.
 `;
 
