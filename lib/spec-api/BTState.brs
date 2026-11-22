@@ -7,7 +7,7 @@
 
 ' Reads a snapshot file (for example "pkg:/fixtures/state/premium.json") and returns the parsed document.
 ' Throws a string when the file is missing, empty or not a JSON object. Check the path: a throw in a beforeEach shows up
-' as a CRASH line in the Rooibos output and fails the run.
+' as a CRASH line in the Rooibos output and fails the run (later tests in that group are still skipped and the summary can read Total 0 until the Rooibos fix ships).
 function BTState_load(path as string) as object
   text = ReadAsciiFile(path)
   if text = invalid or text = "" then throw "BTState_load: cannot read " + path
