@@ -6,7 +6,7 @@ fixtures. Invented product names only. See `docs/guide/store-fixtures.md` for th
 - `source/Store.brs`: opens the store, reads the catalogue, places one order.
 - `csfake/GetCatalog.xml`, `csfake/CheckOrder.xml`, `csfake/PlaceOrder.xml`: the fixtures the engine reads.
 - `source/tests/Store.spec.bs`: lists the catalogue, buys `gold-monthly`, rejects an unknown product.
-- `brighttest.json` sets `"instrument": { "net": true }`; see the guide for why.
+- `brighttest.json` needs no `instrument` block: the headless run mounts the package root, so `pkg:/csfake/*` resolves.
 
 ```
 cd examples/store-fixtures-app

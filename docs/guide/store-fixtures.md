@@ -47,21 +47,12 @@ event reports code `-3` ("Invalid Product Order"). The `<id>` in `PlaceOrder.xml
 `CheckOrder.xml`, otherwise "Order Mismatch". Results arrive as `roChannelStoreEvent` messages on your port. A
 missing or unparsable file gives an empty response, not an error in your app.
 
-## Make `pkg:/` visible to the headless run
+## `pkg:/` in the headless run
 
-The default headless lane starts the engine without a package root, so `pkg:/csfake/...` does not exist and every
-catalogue comes back empty (the sample's first run failed this way). The lane that does mount the staged build as
-the package root is the one used for network fixtures. Turning it on is enough:
-
-```json
-{
-  "sourceGlobs": ["manifest", "csfake/**/*", "source/**/*"],
-  "instrument": { "net": true }
-}
-```
-
-This starts the instrument hub for the run even if your specs make no HTTP calls. It is a workaround, not a
-documented feature of the store support; if the default lane later mounts the package root, you can drop it.
+The default headless lane mounts the staged build as the package root, so `pkg:/csfake/...` resolves with no extra
+config: include `csfake/**/*` in `sourceGlobs` and the fixtures are found. The same holds with a `deviceInfo` block
+(that path passes the root to the engine API too) and on the network-fixture lane. `instrument.net` is not needed
+for store fixtures. The `@SGNode` scene-runner path (coverage-headless) mounts its own root and is unchanged.
 
 ## Example spec
 
