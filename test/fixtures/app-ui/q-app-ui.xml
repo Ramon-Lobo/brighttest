@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<app-ui>
+	<status>OK</status>
+	<topscreen>
+		<plugin id="dev" name="Open Cinema" />
+		<screen type="SGScreen" focused="true">
+			<MainScene children="0" extends="Scene" focused="true" focusable="true" rcid="0" bounds="{0, 0, 2418, 1374}">
+				<Poster rcid="0" inheritParentTransform="false" inheritParentOpacity="false" bounds="{0, 0, 1920, 1080}" uri="/RokuOS/Artwork/SceneGraph/GenevaTheme/Base/FHD/background.png" loadStatus="3" index="0" />
+				<Rectangle name="bg" rcid="0" bounds="{0, 0, 1920, 1080}" color="#0c0e14ff" index="0" />
+				<RenderableNode children="1" name="stage" focused="true" rcid="0" bounds="{74, 46, 1772, 1328}" index="0">
+					<HomePanel children="3" extends="Group" focused="true" rcid="0" bounds="{74, 46, 1772, 1328}" index="0">
+						<Label name="homeScreen" rcid="0" translation="{80, 56}" bounds="{80, 56, 209, 36}" text="Open Cinema" color="#e7eaf3ff" index="0" />
+						<RenderableNode children="3" name="searchButton" rcid="0" translation="{1560, 52}" bounds="{1554, 46, 292, 60}" index="0">
+							<Rectangle name="searchRing" rcid="0" visible="false" translation="{-6, -6}" color="#7c6cffff" index="0" />
+							<Rectangle rcid="0" bounds="{0, 0, 280, 48}" color="#1b2030ff" index="1" />
+							<Label rcid="0" translation="{24, 12}" bounds="{24, 12, 106, 36}" text="Search" color="#e7eaf3ff" index="0" />
+						</RenderableNode>
+						<RenderableNode children="11" name="rows" focused="true" rcid="0" translation="{0, 140}" bounds="{74, 140, 822, 1234}" index="1">
+							<Label rcid="0" translation="{80, 0}" bounds="{80, 0, 294, 36}" text="Continue Watching" color="#8a90a6ff" index="0" />
+							<RenderableNode children="3" name="tile-tears-of-steel" focused="true" rcid="0" translation="{80, 44}" bounds="{74, 38, 192, 356}" index="0">
+								<Rectangle rcid="0" translation="{-6, -6}" bounds="{-6, -6, 192, 272}" color="#7c6cffff" index="0" />
+								<Poster rcid="0" bounds="{0, 0, 180, 260}" uri="pkg:/images/tears-of-steel.jpg" loadStatus="3" index="0" />
+								<Label rcid="0" translation="{0, 266}" bounds="{0, 266, 180, 84}" text="Tears of Steel" color="#e7eaf3ff" index="0" />
+							</RenderableNode>
+							<Label rcid="0" translation="{80, 420}" bounds="{80, 420, 330, 36}" text="Blender Open Movies" color="#8a90a6ff" index="1" />
+							<RenderableNode children="3" name="tile-big-buck-bunny" rcid="0" translation="{80, 464}" bounds="{74, 458, 192, 356}" index="1">
+								<Rectangle rcid="0" visible="false" translation="{-6, -6}" color="#7c6cffff" index="0" />
+								<Poster rcid="0" bounds="{0, 0, 180, 260}" uri="pkg:/images/big-buck-bunny.jpg" loadStatus="3" index="0" />
+								<Label rcid="0" translation="{0, 266}" bounds="{0, 266, 180, 84}" text="Big Buck Bunny" color="#e7eaf3ff" index="0" />
+							</RenderableNode>
+							<RenderableNode children="3" name="tile-sintel" rcid="0" translation="{290, 464}" bounds="{284, 458, 192, 308}" index="2">
+								<Rectangle rcid="0" visible="false" translation="{-6, -6}" color="#7c6cffff" index="0" />
+								<Poster rcid="0" bounds="{0, 0, 180, 260}" uri="pkg:/images/sintel.jpg" loadStatus="3" index="0" />
+								<Label rcid="0" translation="{0, 266}" bounds="{0, 266, 180, 36}" text="Sintel" color="#e7eaf3ff" index="0" />
+							</RenderableNode>
+							<RenderableNode children="3" name="tile-tears-of-steel" rcid="0" translation="{500, 464}" bounds="{494, 458, 192, 356}" index="3">
+								<Rectangle rcid="0" visible="false" translation="{-6, -6}" color="#7c6cffff" index="0" />
+								<Poster rcid="0" bounds="{0, 0, 180, 260}" uri="pkg:/images/tears-of-steel.jpg" loadStatus="3" index="0" />
+								<Label rcid="0" translation="{0, 266}" bounds="{0, 266, 180, 84}" text="Tears of Steel" color="#e7eaf3ff" index="0" />
+							</RenderableNode>
+							<RenderableNode children="3" name="tile-elephants-dream" rcid="0" translation="{710, 464}" bounds="{704, 458, 192, 356}" index="4">
+								<Rectangle rcid="0" visible="false" translation="{-6, -6}" color="#7c6cffff" index="0" />
+								<Poster rcid="0" bounds="{0, 0, 180, 260}" uri="pkg:/images/elephants-dream.jpg" loadStatus="3" index="0" />
+								<Label rcid="0" translation="{0, 266}" bounds="{0, 266, 180, 84}" text="Elephant's Dream" color="#e7eaf3ff" index="0" />
+							</RenderableNode>
+							<Label rcid="0" translation="{80, 840}" bounds="{80, 840, 295, 36}" text="Reference Streams" color="#8a90a6ff" index="2" />
+							<RenderableNode children="3" name="tile-apple-bipbop" rcid="0" translation="{80, 884}" bounds="{74, 878, 192, 356}" index="5">
+								<Rectangle rcid="0" visible="false" translation="{-6, -6}" color="#7c6cffff" index="0" />
+								<Rectangle rcid="0" bounds="{0, 0, 180, 260}" color="#1b2030ff" index="1" />
+								<Label rcid="0" translation="{0, 266}" bounds="{0, 266, 180, 84}" text="Apple BipBop" color="#e7eaf3ff" index="0" />
+							</RenderableNode>
+							<RenderableNode children="3" name="tile-apple-fmp4" rcid="0" translation="{290, 884}" bounds="{284, 878, 192, 356}" index="6">
+								<Rectangle rcid="0" visible="false" translation="{-6, -6}" color="#7c6cffff" index="0" />
+								<Rectangle rcid="0" bounds="{0, 0, 180, 260}" color="#1b2030ff" index="1" />
+								<Label rcid="0" translation="{0, 266}" bounds="{0, 266, 180, 84}" text="Apple fMP4 (advanced)" color="#e7eaf3ff" index="0" />
+							</RenderableNode>
+							<RenderableNode children="3" name="tile-mux-test" rcid="0" translation="{500, 884}" bounds="{494, 878, 192, 356}" index="7">
+								<Rectangle rcid="0" visible="false" translation="{-6, -6}" color="#7c6cffff" index="0" />
+								<Rectangle rcid="0" bounds="{0, 0, 180, 260}" color="#1b2030ff" index="1" />
+								<Label rcid="0" translation="{0, 266}" bounds="{0, 266, 180, 84}" text="Mux Test Stream" color="#e7eaf3ff" index="0" />
+							</RenderableNode>
+						</RenderableNode>
+					</HomePanel>
+				</RenderableNode>
+				<Label name="__bt_state" rcid="0" visible="false" text="{&quot;current&quot;:&quot;HomePanel&quot;,&quot;global&quot;:{&quot;channel&quot;:&quot;Open Cinema&quot;,&quot;lastverb&quot;:&quot;play&quot;,&quot;titlecount&quot;:7},&quot;watchlist&quot;:[{&quot;id&quot;:&quot;tears-of-steel&quot;,&quot;length&quot;:734,&quot;position&quot;:2,&quot;updated&quot;:0}]}" color="#fefefeff" index="0" />
+			</MainScene>
+		</screen>
+	</topscreen>
+</app-ui>

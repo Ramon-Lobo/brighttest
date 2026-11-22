@@ -127,3 +127,15 @@ jobs:
       - env: { ROKU_HOST: "${{ secrets.ROKU_HOST }}", ROKU_PASSWORD: "${{ secrets.ROKU_PASSWORD }}" }
         run: npx brighttest e2e run flows/ --screenshots e2e-artifacts --screenshots-mode failure
 ```
+
+## Tree source fallback
+
+The e2e lane reads the screen from `/query/sgnodes/all`. When that read fails 3 times in a row (a `FAILED`
+body or a render-thread RPC timeout; `APP_UI_FALLBACK_AFTER` in `lib/e2e/sgnodes.js`), the tree is read
+from `/query/app-ui` instead. Limited mode and "channel not running" never fall back. If `app-ui` fails too,
+you get the original sgnodes error.
+
+The tree result says which source it used: `source` is `sgnodes` or `app-ui`, and `parentLinks` is `true` or
+`false`. An `app-ui` tree has **no parent links**: nodes carry no `parent` field, and anything that needs a
+parent fails with the error code `TREE_NO_PARENT_LINKS` rather than matching nothing. Id, subtype, text and
+other node selectors work the same on both sources.
