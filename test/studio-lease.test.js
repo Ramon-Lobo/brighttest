@@ -19,10 +19,16 @@ const cfg = { deviceLease: { studioIdle: '10s', studioYield: '5s', wait: '30s' }
 const seams = () => ({ dir, now: () => clock.t, sleep: async (ms) => { clock.t += ms; await new Promise((r) => setImmediate(r)) }, timers: false, identity: {} })
 const other = (extra = {}) => lease.acquire({ ...seams(), key: '127.0.0.1', agent: 'device-qa#1', purpose: 'e2e run', pid: process.ppid, waitMs: 0, exitOnLost: false, ...extra })
 const env = () => ({ BRIGHTTEST_LEASE_DIR: dir })
-const mk = () => new StudioLease({ host: '127.0.0.1', cfg, env: env(), now: () => clock.t, log: (s) => logs.push(s), acquireOpts: seams() })
+const made = [] // every StudioLease a test creates, stopped before the temp dir is removed
+const track = (s) => { made.push(s); return s }
+const mk = () => track(new StudioLease({ host: '127.0.0.1', cfg, env: env(), now: () => clock.t, log: (s) => logs.push(s), acquireOpts: seams() }))
 
-beforeEach(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-studio-lease-')); clock = { t: Date.now() }; logs = [] })
-afterEach(() => fs.rmSync(dir, { recursive: true, force: true }))
+beforeEach(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-studio-lease-')); clock = { t: Date.now() }; logs = []; made.length = 0 })
+afterEach(async () => {
+  for (const s of made.splice(0)) { try { s.cancel() } catch {} try { s.release('test cleanup') } catch {} }
+  await new Promise((r) => setTimeout(r, 50)) // let in-flight lease writes land before the dir goes
+  fs.rmSync(dir, { recursive: true, force: true })
+})
 
 describe('StudioLease', () => {
   it('first poll acquires; idle release after studioIdle; then polls are refused until a user action', async () => {
@@ -155,7 +161,7 @@ describe('Studio server and the lease', () => {
     port = server.address().port
   })
   afterEach(async () => {
-    server.close(); await fake.stop()
+    await new Promise((r) => server.close(r)); await fake.stop()
     if (prevPort === undefined) delete process.env.ROKU_ECP_PORT; else process.env.ROKU_ECP_PORT = prevPort
     delete process.env.BRIGHTTEST_LEASE_DIR; delete process.env.BRIGHTTEST_CACHE
   })
@@ -336,8 +342,8 @@ describe('Studio server with a device pool', () => {
     server = await studio.start({ password: 'rokudev-test', port: 0, rootDir: dir, cfg: poolCfg, leaseOpts: { acquireOpts: seams(), now: () => clock.t, log: (s) => logs.push(s), tickMs: 20 } })
     port = server.address().port
   })
-  afterEach(() => {
-    server.close()
+  afterEach(async () => {
+    await new Promise((r) => server.close(r))
     if (prevPort === undefined) delete process.env.ROKU_ECP_PORT; else process.env.ROKU_ECP_PORT = prevPort
     delete process.env.BRIGHTTEST_LEASE_DIR; delete process.env.BRIGHTTEST_CACHE
   })
@@ -385,7 +391,7 @@ describe('Studio server with a device pool', () => {
 // LSE-T13 review fixes: pool yield, stale take-over, pool status text, member password.
 describe('StudioLease pool mode and cancellation', () => {
   const POOL = ['127.0.0.1', '127.0.0.2']
-  const mkPool = (acq = seams(), hosts = POOL) => new StudioLease({ cfg, env: env(), now: () => clock.t, log: (s) => logs.push(s), acquireOpts: acq, pool: hosts })
+  const mkPool = (acq = seams(), hosts = POOL) => track(new StudioLease({ cfg, env: env(), now: () => clock.t, log: (s) => logs.push(s), acquireOpts: acq, pool: hosts }))
   // The fake clock's sleep jumps time forward, so a waiter on it times out in ~40 ms of real time (CI is faster than a
   // laptop). Tests that need a waiter to stay queued use this: a frozen clock and a real 10 ms pause per poll.
   const patient = () => ({ ...seams(), sleep: (ms) => new Promise((r) => setTimeout(r, 10)) })
