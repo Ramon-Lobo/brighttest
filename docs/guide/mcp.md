@@ -35,11 +35,26 @@ Set `ROKU_HOST` explicitly in the MCP server configuration, and use `list_device
 | `net_requests` | Requests seen by the session's net proxy (method, url, status, duration, `mocked`), with credentials redacted. Filters: `method`, `url` glob, `status`; `limit` caps the output. |
 | `net_mock` | Answer requests that match a `url` glob (and optional `method`) with a canned status and JSON or text body. The mock lasts until the session ends. |
 
-::: warning Net tools: current limitation
-The MCP session's net proxy has no hub mounted, so live app traffic does not reach `net_requests` or `net_mock` yet.
-They are only exercised through the proxy path (tests and stubs), not against a running app on a device. Both take
-the device lease per call, like `press`. See the [network recipe](./network-recipe) for the manual alternatives,
-including the observe-only `[bt:net]` breadcrumbs (`instrument.net.observe: true`).
+::: warning Net tools: the net window
+The first `net_requests` or `net_mock` call opens a **net window**: the session takes one device lease for the whole
+window and starts its own hub on the configured hub port (`instrument.hub.port`, default 8790). The app sees live
+traffic only through this session hub, so the build must point at the same host and port. `net_requests` shows the
+hub (`hub`: `host`, `port`, `leaseId`, `startedAt`) while the window is open, and `null` otherwise. `leaseId` is only the
+first 8 characters; the full lease id stays inside the server and is never put in tool output or logs.
+
+The app and the session hub must share the hub token. Set `BRIGHTTEST_HUB_TOKEN` in the MCP server's environment to the
+same value you used for `instrument build --net` (see [the hub token](./instrument#the-hub-token---net-and-brighttest-hub-token)).
+Without it the hub starts but the app's requests are refused.
+
+Inside the window the other device tools reuse the window's lease instead of taking their own, and every device call
+renews its idle timer. The window is released after 10 minutes without a device call (the `deviceLease.sessionIdle`
+setting, never longer than that), at the lease's hard cap (`deviceLease.sessionMax`), when the lease is lost, or when
+the session ends. Release closes the hub and clears the `hub` record. Mocks and the request list stay until the
+session ends. After the release the next device call takes one lease per call again, and the next net call opens a
+new window. If the hub cannot start (for example its port is in use), the window is released and the call fails with
+`NET_FAILED`. Another session cannot use the device while a window is open (`DEVICE_BUSY`), so keep it short. See the
+[network recipe](./network-recipe) for the manual alternatives, including the observe-only `[bt:net]` breadcrumbs
+(`instrument.net.observe: true`).
 
 Both tools mask headers and query values with the defaults plus your `instrument.net.redact` config, and drop
 `user:password@` from URLs. Limits: URL globs are at most 256 characters with at most 8 `*` (`NET_PATTERN_TOO_COMPLEX`),
@@ -56,7 +71,7 @@ Failures come back as a tool result with `isError: true` and a typed `code` (for
 
 ## Safety limits
 
-- **Lease, per call.** Each device-touching call (`press`, `navigate_to`, `inspect_tree`, `screenshot`, `app_state`,
+- **Lease, per call.** Outside a net window (see above), each device-touching call (`press`, `navigate_to`, `inspect_tree`, `screenshot`, `app_state`,
   `run_flow`, `net_requests`, `net_mock`) takes the [device lease](./device-lease) when it starts and releases it when it ends, also on error and
   on timeout. Nothing is held between calls, so a human or another agent can use the device in between. If another
   party holds it, the call fails at once with `DEVICE_BUSY` and sends no request. A lost lease becomes a `LEASE_LOST`
