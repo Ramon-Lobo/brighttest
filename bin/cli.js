@@ -11,37 +11,6 @@ function askLine(q, hidden = false) {
   });
 }
 
-// `--device any`: resolve the device from deviceLease.pool. An explicit --host (or inline ip:pw) always wins and the
-// pool is not used. Otherwise the pool lease (first free member, FIFO across the pool) is taken here and exported as
-// BRIGHTTEST_LEASE, so the lane's own acquire re-uses it on the chosen host. Returns { host, lease } or { code }.
-async function pickPoolDevice(cfg, opts, deps = {}) {
-  if (opts.host) return { host: null, lease: null };
-  const pool = (cfg.deviceLease && cfg.deviceLease.pool) || [];
-  if (!pool.length) {
-    console.error('[brighttest] --device any needs a device pool: set "deviceLease": { "pool": ["<ip>", "<ip>"] } in brighttest.json (or pass --host)');
-    return { code: 2 };
-  }
-  const dc = deps.deviceCommand || require('../lib/device-command');
-  const L = deps.lease || require('../lib/device-lease');
-  const env = deps.env || process.env;
-  let s;
-  try { s = L.resolveSettings({ cfg, env, flags: { wait: opts.wait } }); } catch (e) { return { code: dc.leaseErrorExit(e) }; }
-  if (opts.noLease || env.BRIGHTTEST_NO_LEASE === '1' || !s.enabled) {
-    console.error(`[brighttest lease] WARNING: running WITHOUT the device lease; --device any uses the first pool device (${pool[0]}) whether or not it is busy.`);
-    return { host: pool[0], lease: null };
-  }
-  let l;
-  try {
-    l = await L.acquirePool({
-      hosts: pool, agent: opts.as, purpose: opts.purpose || 'device run (pool)', env,
-      waitMs: s.waitMs, maxHoldMs: s.maxHoldMs, onWait: dc.printWait,
-    });
-  } catch (e) { return { code: dc.leaseErrorExit(e) }; }
-  env.BRIGHTTEST_LEASE = l.leaseId;
-  console.error(`[brighttest lease] --device any: using ${l.poolHost}`);
-  return { host: l.poolHost, lease: l };
-}
-
 function parseArgs(argv) {
   const opts = { device: false, coverage: false, junit: null, host: null, password: null, config: null, lcov: null };
   const DEFAULT_LCOV = 'coverage/lcov.info';
@@ -50,7 +19,7 @@ function parseArgs(argv) {
     if (a === '--device' || a === '-d') {
       opts.device = true;
       // `--device any`: take the first free device of deviceLease.pool (an explicit --host still wins).
-      if (a === '--device' && argv[i + 1] === 'any') { opts.devicePool = true; i++; }
+      if (argv[i + 1] === 'any') { opts.devicePool = true; i++; }
     }
     else if (a === '--host') opts.host = argv[++i];
     else if (a === '--password' || a === '--pass') opts.password = argv[++i];
@@ -381,6 +350,7 @@ function parseDeviceArgs(rest) {
     let v;
     if (a === '--') { o.cmd = rest.slice(i + 1); break; }
     if (i === 0 && DEVICE_ACTIONS.includes(a)) { o.deviceAction = a; continue; }
+    if ((a === '--device' || a === '-d') && rest[i + 1] === 'any') { o.devicePool = true; i++; continue; } // pool: with
     if ((v = val('--host')) !== undefined) o.host = v;
     else if ((v = val('--password')) !== undefined || (v = val('--pass')) !== undefined) o.password = v;
     else if ((v = val('--ecp-port')) !== undefined) o.ecpPort = v;
@@ -412,6 +382,7 @@ brighttest device — share one Roku safely between processes, worktrees and age
 Usage:
   brighttest device status [--host <h>] [--json]           Who holds each device, since when, who waits
   brighttest device with [options] -- <cmd…>               Hold the lease while <cmd> runs (FIFO queue)
+  brighttest device with --device any -- <cmd…>            Same, on the first free device of deviceLease.pool (--host wins)
   brighttest device lock [--host <h>] [options] [--json]  Take a session lease for multi-step debugging; prints the token
   brighttest device renew [--lease <token>]                Push a session's idle expiry forward (every use of the token does too)
   brighttest device unlock [--lease <token>]               Release your session (token from --lease or BRIGHTTEST_LEASE)
@@ -800,24 +771,17 @@ async function main() {
   else { lane = require('../lib/headless'); label = 'headless'; }
   console.log(`brighttest: ${label} lane\n`);
   let code;
-  let poolLease = null;
   try {
-    if (opts.devicePool && (opts.device || opts.crossCheck)) {
-      const picked = await pickPoolDevice(cfg, opts);
-      if (picked.code != null) process.exit(picked.code);
-      poolLease = picked.lease;
-      if (picked.host) opts.host = picked.host;
-    }
     if (!opts.device) require('../lib/engine-caps').warnNonDeviceUse(cfg); // BRS-02 is non-device: say so on stderr
     code = await lane.run(cfg, opts);
   } catch (e) {
     if (e && e.name === 'EngineError') { console.error(`[brighttest] ${e.message}`); process.exit(2); }
     throw e;
-  } finally { if (poolLease) poolLease.release(); }
+  }
   process.exit(code);
 }
 
 // Only run the CLI when executed directly (not when required by tests).
 if (require.main === module) main();
 
-module.exports = { pickPoolDevice, parseNetArgs, studioStartOptions, parseArgs, parseInstrumentArgs, INSTRUMENT_ACTIONS, parseSkillsArgs, parseInitArgs, parseE2eArgs, parseStudioArgs, parseDeviceArgs, parseDoctorArgs, SKILLS_ACTIONS, E2E_ACTIONS, DEVICE_ACTIONS, SCREENSHOT_MODES };
+module.exports = { parseNetArgs, studioStartOptions, parseArgs, parseInstrumentArgs, INSTRUMENT_ACTIONS, parseSkillsArgs, parseInitArgs, parseE2eArgs, parseStudioArgs, parseDeviceArgs, parseDoctorArgs, SKILLS_ACTIONS, E2E_ACTIONS, DEVICE_ACTIONS, SCREENSHOT_MODES };
