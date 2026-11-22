@@ -29,7 +29,7 @@ function fakeLeaseLib({ busy = false } = {}) {
       st.held = true; st.idleMs = o.idleMs; touch()
       return {
         leaseId: st.leaseId,
-        release: (why) => { st.held = false; st.released.push(why) },
+        release: (why) => { st.validAtRelease = live(); st.held = false; st.released.push(why) },
         assertHeld: () => { if (!st.held) throw lost() },
       }
     },
@@ -86,6 +86,18 @@ describe('net window lease', () => {
     expect(w.isOpen).toBe(false)
     expect(lib.st.held).toBe(false)
     expect(onRelease).toHaveBeenCalledWith('idle expiry')
+  })
+
+  it('releases before the lease record expires: tokenValid is still true at the idle release', async () => {
+    const lib = fakeLeaseLib()
+    const w = await mk(lib, { idleMs: 60000 }).open()
+    await vi.advanceTimersByTimeAsync(30000)
+    const end = w.begin()
+    await vi.advanceTimersByTimeAsync(5000)
+    end() // arms idle, then renews the record
+    await vi.advanceTimersByTimeAsync(70000)
+    expect(w.isOpen).toBe(false)
+    expect(lib.st.validAtRelease).toBe(true) // the record was still live when the window let go
   })
 
   it('does not idle-release under a running call', async () => {
@@ -325,7 +337,7 @@ describe('net window lease on process stop', () => {
     return { p, dir, exited, waitFor, holders: () => holders(dir) }
   }
 
-  it.each(['SIGTERM', 'SIGINT', 'SIGHUP'])('%s releases the lease before the process ends', async (sig) => {
+  it.skipIf(process.platform === 'win32').each(['SIGTERM', 'SIGINT', 'SIGHUP'])('%s releases the lease before the process ends', async (sig) => {
     const x = await openWindowIn()
     try {
       x.p.kill(sig)
@@ -335,7 +347,7 @@ describe('net window lease on process stop', () => {
     } finally { x.p.kill('SIGKILL'); fs.rmSync(x.dir, { recursive: true, force: true }) }
   }, 20000)
 
-  it('an uncaught error (onFatal) releases the window lease and exits 1', async () => {
+  it.skipIf(process.platform === 'win32')('an uncaught error (onFatal) releases the window lease and exits 1', async () => {
     const x = await openWindowIn()
     try {
       x.p.kill('SIGUSR2')
