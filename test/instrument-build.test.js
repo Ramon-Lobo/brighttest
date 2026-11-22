@@ -130,6 +130,51 @@ describe('instrument build: success path', () => {
     expect(renderBtConfig(z, { state: { caps: { depth: 3 }, redact: {}, publish: {} } })).toBe(base)
   })
 
+  it('emits callFuncAllow from instrument.state.callable, nothing when unset (STA-S-T6-F1)', () => {
+    const z = '0'.repeat(32)
+    const t = renderBtConfig(z, { state: { callable: ['resetCounter', 'ns_BT_url'] } })
+    expect(t).toContain('        callFuncAllow: ["resetCounter", "ns_BT_url"]\n')
+    expect(renderBtConfig(z, { state: { callable: [] } })).not.toContain('callFuncAllow')
+    const base = renderBtConfig(z, { state: { caps: { depth: 3 } } })
+    expect(base).not.toContain('callFuncAllow')
+    expect(renderBtConfig(z, { state: { caps: { depth: 3 }, callable: [] } })).toBe(base)
+    expect(() => validateStateConfig({ state: { callable: ['a_b', 'bt_reset', '_x1'] } })).not.toThrow()
+  })
+
+  it('snapshots the BT_config fragment with callFuncAllow', () => {
+    const t = renderBtConfig('0'.repeat(32), { hub: { host: '10.0.0.2', port: 9000 }, state: { registrySections: ['prefs'], callable: ['resetHome'] } })
+    expect(t).toBe([
+      '#if BT_AGENT',
+      "' brighttest instrument config. Generated for this build only; not part of the source tree.",
+      'function BT_config() as object',
+      '    return {',
+      `        token: "${'0'.repeat(32)}"`,
+      '        hub: { host: "10.0.0.2", port: 9000 }',
+      '        features: { net: true, state: true, op: true }',
+      '        registrySections: ["prefs"]',
+      '        callFuncAllow: ["resetHome"]',
+      '        caps: { depth: 6, arrayItems: 50, stringBytes: 2048 }',
+      '    }',
+      'end function',
+      '#end if',
+      '',
+    ].join('\n'))
+  })
+
+  it.each([
+    ['instrument.state.callable must be an array of strings', 'resetHome'],
+    ['instrument.state.callable must be an array of strings', ['a', 3]],
+    ['instrument.state.callable entries must be identifiers', ['bad name']],
+    ['instrument.state.callable entries must be identifiers', ['x.fn']],
+    ['instrument.state.callable entries must be identifiers', ['1abc']],
+    ['instrument.state.callable entries must be identifiers', ['a'.repeat(65)]],
+    ['instrument.state.callable entries must be identifiers', ['']],
+    ['instrument.state.callable has a duplicate name', ['go', 'GO']],
+    ['instrument.state.callable must have at most 64 names', Array.from({ length: 65 }, (_, i) => 'f' + i)],
+  ])('rejects instrument.state.callable (%s)', (msg, v) => {
+    expect(() => validateStateConfig({ state: { callable: v } })).toThrow(msg)
+  })
+
   it.each([
     ['instrument.state.redact.paths', { redact: { paths: 'a.b' } }],
     ['instrument.state.redact.paths', { redact: { paths: ['a', 3] } }],
