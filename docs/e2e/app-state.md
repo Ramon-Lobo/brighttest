@@ -152,7 +152,7 @@ Rules, all enforced on the device:
   does not touch it.
 
 Publish rate cap: when the last published document is larger than 16384 bytes, the publish interval is at least
-1000 ms (`max(publish.intervalMs, 1000)`), and the agent logs an `agent.rate` event each time it clamps.
+1000 ms (`max(publish.intervalMs, 1000)`), and the agent logs one `agent.rate` event when it starts clamping (it reports the real period; `docChars` is the character count of the published label, not bytes).
 
 ### The registry layer
 

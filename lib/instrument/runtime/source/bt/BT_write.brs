@@ -141,6 +141,7 @@ end function
 function BT_wMCall(n as object, req as object) as object
     r = n.callFunc("BT_op", req)
     if BT_wKind(r) <> "object" then return BT_wErr("M_NOT_AVAILABLE", "that node has no BT_op (not instrumented or excluded)")
+    if r.ok = false and BT_wIsStr(r.error) then return r
     if not BT_wIs(r.btop, true) then return BT_wErr("M_NOT_AVAILABLE", "that node has no BT_op (not instrumented or excluded)")
     return r
 end function
@@ -149,7 +150,13 @@ function BT_wMGet(n as object, segs as object, args as object, caps as object, r
     r = BT_wMCall(n, { op: "get", path: segs })
     if not r.ok then return r
     if not r.found then return { ok: true, result: { found: false } }
-    return BT_wGetDone(BT_serialize(r.value, caps, "m." + args.path, 0, trunc, redact), trunc)
+    root = "m"
+    if segs.count() > 0 then
+        root = "m." + args.path
+        last = segs[segs.count() - 1]
+        if BT_isSecretKey(last) or BT_redactMatch(root, redact) then return { ok: true, result: { found: true, value: "<redacted:" + last + ">" } }
+    end if
+    return BT_wGetDone(BT_serialize(r.value, caps, root, 0, trunc, redact), trunc)
 end function
 
 ' ---- registry
@@ -742,9 +749,9 @@ function BT_wCadence(cfg as dynamic, subscribed as boolean, hubLive as boolean, 
 end function
 
 ' The event posted each time BT_wCadence clamps the interval ("" when it did not).
-function BT_wClampEvent(cfg as dynamic, docBytes as integer, session as string) as string
+function BT_wClampEvent(cfg as dynamic, docBytes as integer, session as string, periodMs = 1000 as integer) as string
     if docBytes <= 16384 or BT_pubIntervalMs(cfg) >= 1000 then return ""
-    return FormatJson({ v: 1, kind: "agent.rate", session: session, data: { docBytes: docBytes, intervalMs: BT_pubIntervalMs(cfg), clampedMs: 1000 } })
+    return FormatJson({ v: 1, kind: "agent.rate", session: session, data: { docChars: docBytes, intervalMs: BT_pubIntervalMs(cfg), clampedMs: periodMs } })
 end function
 
 ' ---- transport (BT_AgentTask)

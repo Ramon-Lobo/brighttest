@@ -76,6 +76,26 @@ describe('BT_mOp and the m layer (headless, fork engine)', () => {
       '    print "H3:" + FormatJson(BT_wApply({ op: "get", args: { layer: "m", node: { id: "ghost" }, path: "rowIndex" } }, ctx))',
       '    print "H4:" + FormatJson(BT_wApply({ op: "snapshot", args: { nodes: ["panel"] } }, ctx).result.layers.keys())',
       '    print "H5:" + FormatJson(BT_layers(g, sc, BT_config(), []).keys())',
+      // host m layer through a fake component whose callFunc forwards to BT_mOp
+      '    fm = { rowIndex: 2, nested: { a: 1 }, secret: { x: "s3" }, top: "t" }',
+      '    fm.callFunc = function(n as string, a as dynamic) as dynamic',
+      '        return BT_mOp(m.fm, a)',
+      '    end function',
+      '    fm.fm = fm',
+      '    print "F1:" + FormatJson(BT_wMCall(fm, { op: "set", path: ["top"], value: "z" }))',
+      '    print "F2:" + FormatJson(BT_wMCall(fm, { op: "set", path: ["nope"], value: 1 }))',
+      '    print "F3:" + FormatJson(BT_wMCall(fm, { op: "set", path: ["rowIndex"], value: "x" }))',
+      '    print "F4:" + FormatJson(BT_wSetPathX({ node: fm, layer: "m" }, ["rowIndex"], "x", true))',
+      '    print "F5:" + FormatJson(BT_wSetPathX({ node: fm, layer: "m" }, ["nope"], 1, true))',
+      '    print "F6:" + FormatJson(BT_wSetPathX({ node: fm, layer: "m" }, ["rowIndex"], 7, false))',
+      '    print "F6M:" + FormatJson([fm.rowIndex])',
+      '    print "F7:" + FormatJson(BT_wMGet(fm, [], { path: "" }, BT_capsFrom(BT_config()), invalid, []))',
+      '    print "F8:" + FormatJson(BT_wMGet(fm, ["secret", "x"], { path: "secret.x" }, BT_capsFrom(BT_config()), BT_config().redact.paths, []))',
+      '    print "F9:" + FormatJson(BT_wMGet(fm, ["nested", "a"], { path: "nested.a" }, BT_capsFrom(BT_config()), BT_config().redact.paths, []))',
+      '    nb = { callFunc: function(n as string, a as dynamic) as dynamic',
+      '        return invalid',
+      '    end function }',
+      '    print "F10:" + FormatJson(BT_wMCall(nb, {}))',
       // rate cap
       '    print "C1:" + FormatJson([BT_wCadence(BT_config(), false, false, 16384), BT_wCadence(BT_config(), false, false, 16385), BT_wCadence(BT_config(), false, true, 20000), BT_wCadence({ publish: { intervalMs: 2000 } }, false, false, 20000)])',
       '    print "C2:" + BT_wClampEvent(BT_config(), 16384, "s") + "|" + BT_wClampEvent(BT_config(), 16385, "s") + "|" + BT_wClampEvent({ publish: { intervalMs: 1000 } }, 99999, "s")',
@@ -115,6 +135,23 @@ describe('BT_mOp and the m layer (headless, fork engine)', () => {
     expect(t('H2').error).toMatch(/^M_NOT_AVAILABLE/)
     expect(t('H3').error).toMatch(/^NODE_NOT_FOUND/)
   })
+  it('host: m-layer refusals pass through BT_wMCall, not M_NOT_AVAILABLE', () => {
+    expect(t('F1').error).toMatch(/^M_PATH_FORBIDDEN/)
+    expect(t('F2').error).toMatch(/^FIELD_NOT_FOUND/)
+    expect(t('F3').error).toMatch(/^TYPE_MISMATCH/)
+    expect(t('F4').error).toMatch(/^TYPE_MISMATCH/)
+    expect(t('F5').error).toMatch(/^FIELD_NOT_FOUND/)
+    expect(t('F10').error).toMatch(/^M_NOT_AVAILABLE/)
+  })
+  it('host: m get with no path works, redacts configured paths, and a set round-trips', () => {
+    expect(t('F6')).toMatchObject({ ok: true })
+    expect(t('F6M')).toEqual([7])
+    expect(t('F7').ok).toBe(true)
+    expect(JSON.stringify(t('F7'))).toContain('rowIndex')
+    expect(JSON.stringify(t('F8'))).not.toContain('s3')
+    expect(JSON.stringify(t('F8'))).toMatch(/redacted/)
+    expect(t('F9').result.value).toBe(1)
+  })
   it('the m layer is never in the snapshot or the published layers', () => {
     expect(t('H4')).not.toContain('m')
     expect(t('H5')).toEqual(['focus', 'global', 'scene'])
@@ -124,7 +161,7 @@ describe('BT_mOp and the m layer (headless, fork engine)', () => {
     const ev = out.split(/\r?\n/).find((l) => l.startsWith('C2:')).slice(3).split('|')
     expect(ev[0]).toBe('')
     expect(ev[2]).toBe('')
-    expect(JSON.parse(ev[1])).toMatchObject({ kind: 'agent.rate', session: 's', data: { docBytes: 16385, intervalMs: 500, clampedMs: 1000 } })
+    expect(JSON.parse(ev[1])).toMatchObject({ kind: 'agent.rate', session: 's', data: { docChars: 16385, intervalMs: 500, clampedMs: 1000 } })
   })
 })
 

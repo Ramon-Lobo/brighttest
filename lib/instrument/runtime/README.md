@@ -74,3 +74,8 @@ copies named runtime files only.
      - `top`, `global` and any `__bt*` key are not reachable; set never creates a key (existing fields only);
      - a path never crosses a node reference (PATH_UNDER_NODE); every write is type-checked with BT_wCompat.
     Redaction, caps and the 64 KB limit are applied by the host (BT_wMGet) on the value this returns.
+
+## Rate cap and m-layer errors
+
+- `BT_wMCall` passes any `{ ok: false, error: <string> }` reply from `BT_mOp` through unchanged (M_PATH_FORBIDDEN, FIELD_NOT_FOUND, TYPE_MISMATCH, PATH_UNDER_NODE, BAD_PATH). `M_NOT_AVAILABLE` is only for a missing `BT_op`, a non-object reply, or an `ok: true` reply without the `btop` marker.
+- The publish size that drives the rate cap is `Len(label.text)`, which counts characters, not bytes. The `agent.rate` event reports it as `docChars` and carries the real period in `clampedMs`; it is logged once when clamping starts, not every tick.
