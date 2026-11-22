@@ -55,7 +55,7 @@ function apps() {
 }
 
 // A node model: { sn, type, attrs, children }. Rendered recursively.
-function buildTree(kind, agentText, { focusIndex = 0, lateNode = null } = {}) {
+function buildTree(kind, agentText, { focusIndex = 0, lateNode = null, netBody = null } = {}) {
   let sn = 0;
   const mk = (type, attrs = {}, children = []) => ({ sn: ++sn, type, attrs, children });
   if (kind === 'facade') return mk('OsdOverlay', { name: 'osd', bounds: '{0, 0, 1920, 1080}' });
@@ -68,6 +68,7 @@ function buildTree(kind, agentText, { focusIndex = 0, lateNode = null } = {}) {
   }
   scene.children.push(mk('Rectangle', { name: 'bg', color: '#101010ff', bounds: '{0, 0, 1920, 1080}' }));
   scene.children.push(mk('Label', { name: '__bt_agent', text: agentText, bounds: '{0, 0, 10, 10}' }));
+  if (netBody !== null && netBody !== undefined) scene.children.push(mk('Label', { name: 'netBody', text: netBody, bounds: '{0, 10, 10, 10}' }));
   const total = { 'large-3k': 3000, 'large-6k': 6000 }[kind];
   if (total) {
     const queue = [scene];

@@ -26,6 +26,14 @@ Port 0 picks a free port.
 `--screenshot-not-ok`, `--screenshot-format png|jpg`, `--banner-split`, `--rooibos pass|fail`,
 `--fault-path <path> [--fault-status N]` (default 500; `/keyup/*` is a prefix glob), `--agent-text <file>`.
 
+`--hub http://127.0.0.1:<port>` (module option `hub`; module option `env` overrides the environment for tests):
+FIX-07 fetch through the hub. On start, on `launch/dev` and on `keypress/Info` the stub does one GET of
+`/bt/<token>/net/;http://fixture.invalid/fixture/netbody` against the hub, the token read from the
+`BRIGHTTEST_HUB_TOKEN` environment variable (name from `HUB_TOKEN_ENV`). The body, cut to 200 characters, is
+`Label netBody` in the tree (placeholder `netbody: pending` before the first answer). Any hub error, a missing
+token or a non-200 shows `netbody: error`; the stub keeps running. The token is never printed or logged. The label
+exists only when `--hub` is set.
+
 ## Request log (`--log`, JSONL)
 
 HTTP lines (ECP and installer): `service`, `method`, `endpoint`, `url`, `status`, `start`/`end`, `startMs`/`endMs`,

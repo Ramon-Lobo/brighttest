@@ -2,7 +2,7 @@
 'use strict';
 // FX-FAKEROKU: zero-dependency scripted stub Roku (ECP, installer, 8080 console, 8085 log/debug).
 //   node test/fixtures/fake-roku/server.js --scenario healthy [--host 127.0.0.1] [--ecp-port 8060]
-//        [--installer-port 8090] [--console-port 8080] [--debug-port 8085] [--log requests.jsonl]
+//        [--installer-port 8090] [--console-port 8080] [--debug-port 8085] [--log requests.jsonl] [--hub http://127.0.0.1:<port>]
 // Loopback by default. Port 0 picks a free port. `--list` prints the scenario names.
 const http = require('http');
 const net = require('net');
@@ -10,6 +10,17 @@ const fs = require('fs');
 const crypto = require('crypto');
 const B = require('./bodies');
 const { SCENARIOS } = require('./scenarios');
+const { HUB_TOKEN_ENV } = require('../../../lib/instrument/hub');
+
+// FIX-07: fetch through the hub. One GET of this fixed target through the hub (route /bt/<token>/net/;<target>),
+// on launch and on a keypress of NETBODY_KEY; the body (cut to NETBODY_MAX) lands in Label `netBody`.
+const NETBODY_PATH = '/fixture/netbody';
+const NETBODY_TARGET = `http://fixture.invalid${NETBODY_PATH}`;
+const NETBODY_KEY = 'Info';
+const NETBODY_MAX = 200;
+const NETBODY_PLACEHOLDER = 'netbody: pending';
+const NETBODY_ERROR = 'netbody: error';
+const NETBODY_TIMEOUT_MS = 3000;
 
 const PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
@@ -54,6 +65,36 @@ function createFakeRoku(opts = {}) {
     debugConnections: 0, perfRunning: false, target: 'dev',
   };
   let installedArchiveBytes = 0;
+  let fetchGen = 0;
+  if (opts.hub) state.netBody = NETBODY_PLACEHOLDER;
+
+  // One GET through the hub. Never throws, never logs; any failure shows the fixed error string (no token, host or stack).
+  function fetchNetBody() {
+    if (!opts.hub) return Promise.resolve();
+    const gen = ++fetchGen;
+    const set = (t) => { if (gen === fetchGen) state.netBody = t; };
+    return new Promise((resolve) => {
+      let done = false;
+      const end = (t) => { if (done) return; done = true; set(t); resolve(); };
+      try {
+        const token = (opts.env || process.env)[HUB_TOKEN_ENV];
+        if (!token) return end(NETBODY_ERROR);
+        const base = new URL(opts.hub);
+        const req = http.get({
+          hostname: base.hostname, port: base.port, path: `/bt/${encodeURIComponent(token)}/net/;${NETBODY_TARGET}`, timeout: NETBODY_TIMEOUT_MS,
+        }, (res) => {
+          if (res.statusCode !== 200) { res.resume(); return end(NETBODY_ERROR); }
+          const chunks = [];
+          let size = 0;
+          res.on('data', (c) => { if (size < NETBODY_MAX * 4) { chunks.push(c); size += c.length; } });
+          res.on('end', () => end(Buffer.concat(chunks).toString('utf8').slice(0, NETBODY_MAX)));
+          res.on('error', () => end(NETBODY_ERROR));
+        });
+        req.on('timeout', () => req.destroy());
+        req.on('error', () => end(NETBODY_ERROR));
+      } catch { end(NETBODY_ERROR); }
+    });
+  }
 
   function record(service, req, start, status, attempt, inflightAtStart) {
     const entry = {
@@ -80,7 +121,7 @@ function createFakeRoku(opts = {}) {
 
   const fwInfo = () => ({ softwareVersion: cfg.softwareVersion, softwareBuild: cfg.softwareBuild, modelName: cfg.modelName, modelNumber: cfg.modelNumber });
   const tree = () => B.buildTree(cfg.tree, state.agentText, {
-    focusIndex: state.focusIndex,
+    focusIndex: state.focusIndex, netBody: state.netBody,
     lateNode: cfg.lateNodeMs && Date.now() - state.launchedAt >= cfg.lateNodeMs ? cfg.lateNodeId : null,
   });
   // Path-scoped faults: `path` is exact ('/keypress/Home') or a prefix glob ('/keyup/*').
@@ -133,6 +174,7 @@ function createFakeRoku(opts = {}) {
       keypresses.push({ kind: m[1], key, time: new Date().toISOString() });
       if (m[1] !== 'keyup') {
         state.keyCount++;
+        if (key === NETBODY_KEY) fetchNetBody();
         if (key === 'Home') state.activeApp = 'roku';
         else moveFocus(key);
         if (cfg.crashAfterKeys && !state.crashed && state.keyCount >= cfg.crashAfterKeys) crash();
@@ -146,6 +188,7 @@ function createFakeRoku(opts = {}) {
       if (m[1] === 'dev' && state.launch404Left > 0) { state.launch404Left--; return reply(res, 404, 'Not Found', { 'Content-Type': 'text/plain' }); }
       state.launchedAt = Date.now();
       state.crashed = false;
+      fetchNetBody();
       if (m[1] === 'dev' && !cfg.launchStays) { state.activeApp = 'dev'; state.bounceLeft = cfg.launchBounce; }
       return reply(res, 200);
     }
@@ -368,6 +411,7 @@ function createFakeRoku(opts = {}) {
         } else ports[k] = await listen(servers[k], want[k]);
       }
       state.launchedAt = Date.now();
+      fetchNetBody();
       return {
         host, ecpPort: ports.ecp, installerPort: ports.installer, consolePort: ports.console, debugPort: ports.debug,
         ecpUrl: `http://${host}:${ports.ecp}`, installerUrl: `http://${host}:${ports.installer}`,
@@ -388,7 +432,7 @@ const VALUE_FLAGS = {
   '--console-latency-ms': ['consoleLatencyMs', Number], '--installer-mode': ['installerMode'],
   '--screenshot-format': ['screenshotFormat'], '--rooibos': ['rooibos'],
   '--fault-path': ['faultPath'], '--fault-status': ['faultStatus', Number],
-  '--agent-text': ['agentTextFile'],
+  '--agent-text': ['agentTextFile'], '--hub': ['hub'],
 };
 const BOOL_FLAGS = { '--delete-fails': ['deleteFails', true], '--screenshot-not-ok': ['screenshotOk', false], '--banner-split': ['bannerSplit', true] };
 
@@ -416,4 +460,4 @@ if (require.main === module) {
   for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => stub.stop().then(() => process.exit(0)));
 }
 
-module.exports = { createFakeRoku, parseArgs, SCENARIOS, DEFAULTS };
+module.exports = { createFakeRoku, parseArgs, SCENARIOS, DEFAULTS, NETBODY_PATH, NETBODY_TARGET, NETBODY_KEY, NETBODY_MAX, NETBODY_PLACEHOLDER, NETBODY_ERROR };

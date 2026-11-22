@@ -4,6 +4,7 @@ import net from 'net'
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
+import http from 'http'
 
 const require = createRequire(import.meta.url)
 const { createFakeRoku, SCENARIOS, parseArgs } = require('./fixtures/fake-roku/server.js')
@@ -560,6 +561,89 @@ describe('fake-roku FIX-06 gaps', () => {
     stub.emitDebugRaw('par'); stub.emitDebugRaw('t')
     const out = await p
     expect(out.endsWith('part')).toBe(true)
+  })
+})
+
+describe('FIX-07 fetch through the hub', () => {
+  const TOKEN = 'ab'.repeat(16)
+  const ENV = { BRIGHTTEST_HUB_TOKEN: TOKEN }
+  const hubs = []
+  // Local hub stub: the same route shape as the real hub (token in the path), 404 on a wrong token.
+  async function hubStub({ status = 200, body = 'fixture body' } = {}) {
+    const seen = []
+    const server = http.createServer((req, res) => {
+      seen.push(req.url)
+      if (!req.url.startsWith(`/bt/${TOKEN}/net/;`)) { res.writeHead(404); return res.end() }
+      res.writeHead(status, { 'Content-Type': 'text/plain' }); res.end(body)
+    })
+    await new Promise((r) => server.listen(0, '127.0.0.1', r))
+    hubs.push(server)
+    return { seen, url: `http://127.0.0.1:${server.address().port}`, server }
+  }
+  afterEach(async () => { await Promise.all(hubs.splice(0).map((s) => new Promise((r) => { s.closeAllConnections?.(); s.close(r) }))) })
+  const netBody = async (a) => {
+    const all = await (await ecp(a, '/query/sgnodes/all')).text()
+    return (all.match(/name="netBody"[^>]*text="([^"]*)"/) || all.match(/text="([^"]*)"[^>]*name="netBody"/) || [])[1]
+  }
+  const bodyIs = async (a, want) => { for (let i = 0; i < 200 && (await netBody(a)) !== want; i++) await new Promise((r) => setTimeout(r, 25)); expect(await netBody(a)).toBe(want) }
+
+  it('parseArgs reads --hub', () => { expect(parseArgs(['--hub', 'http://127.0.0.1:1']).hub).toBe('http://127.0.0.1:1') })
+
+  it('no --hub: no netBody label', async () => {
+    const { a } = await boot('healthy', { env: ENV })
+    expect(await netBody(a)).toBeUndefined()
+  })
+
+  it('fetches on launch and on the scripted key, body shown in the tree', async () => {
+    const hub = await hubStub({ body: 'x'.repeat(500) })
+    const { a } = await boot('healthy', { hub: hub.url, env: ENV })
+    await bodyIs(a, 'x'.repeat(200))
+    expect(hub.seen.length).toBe(1)
+    expect(hub.seen[0]).toBe(`/bt/${TOKEN}/net/;http://fixture.invalid/fixture/netbody`)
+    await post(a, '/keypress/Info')
+    await until(() => hub.seen.length === 2, 'the keypress fetch')
+    await post(a, '/launch/dev')
+    await until(() => hub.seen.length === 3, 'the launch fetch')
+  })
+
+  it('placeholder before the first response', async () => {
+    const hub = await hubStub()
+    hub.server.removeAllListeners('request')
+    hub.server.on('request', () => {}) // never answers
+    const { a } = await boot('healthy', { hub: hub.url, env: ENV })
+    expect(await netBody(a)).toBe('netbody: pending')
+  })
+
+  it('non-200, wrong token, missing token and hub down show the fixed error; ECP still answers', async () => {
+    const bad = await hubStub({ status: 500 })
+    const one = await boot('healthy', { hub: bad.url, env: ENV })
+    await bodyIs(one.a, 'netbody: error')
+    const ok = await hubStub()
+    const wrong = await boot('healthy', { hub: ok.url, env: { BRIGHTTEST_HUB_TOKEN: 'cd'.repeat(16) } })
+    await bodyIs(wrong.a, 'netbody: error')
+    const none = await boot('healthy', { hub: ok.url, env: {} })
+    await bodyIs(none.a, 'netbody: error')
+    const url = ok.url
+    await new Promise((r) => { ok.server.closeAllConnections?.(); ok.server.close(r) })
+    const down = await boot('healthy', { hub: url, env: ENV })
+    await bodyIs(down.a, 'netbody: error')
+    expect(await (await ecp(down.a, '/query/device-info')).text()).toContain('<device-info>')
+    await post(down.a, '/keypress/Info')
+    await bodyIs(down.a, 'netbody: error')
+  })
+
+  it('the token never appears in the request log, the tree or the stdout of the CLI', async () => {
+    const hub = await hubStub()
+    const logFile = path.join(os.tmpdir(), `fake-roku-hub-${process.pid}.jsonl`)
+    try {
+      const { stub, a } = await boot('healthy', { hub: hub.url, env: ENV, logFile })
+      await bodyIs(a, 'fixture body')
+      await post(a, '/keypress/Info')
+      const tree = await (await ecp(a, '/query/sgnodes/all')).text()
+      expect(tree).not.toContain(TOKEN)
+      expect(JSON.stringify(stub.log)).not.toContain(TOKEN)
+      expect(fs.readFileSync(logFile, 'utf8')).not.toContain(TOKEN)
+    } finally { fs.rmSync(logFile, { force: true }) }
   })
 })
 
