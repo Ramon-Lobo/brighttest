@@ -1,0 +1,26 @@
+namespace tests
+  @suite("roChannelStore against csfake fixtures (headless)")
+  class StoreTests extends rooibos.BaseTestSuite
+
+    @describe("catalogue and purchase")
+
+    @it("lists the fixture catalogue")
+    function _()
+      s = Store_open(true)
+      m.assertEqual(Store_catalogCodes(s), ["gold-monthly"])
+    end function
+
+    @it("completes a purchase of a catalogue product")
+    function _()
+      s = Store_open(true)
+      m.assertTrue(Store_buy(s, "gold-monthly"))
+    end function
+
+    @it("rejects a product that is not in the catalogue")
+    function _()
+      s = Store_open(true)
+      m.assertFalse(Store_buy(s, "no-such-product"))
+    end function
+
+  end class
+end namespace

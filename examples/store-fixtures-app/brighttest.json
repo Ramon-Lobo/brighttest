@@ -1,0 +1,8 @@
+{
+  "rootDir": ".",
+  "sourceGlobs": ["manifest", "csfake/**/*", "source/**/*", "!source/main.brs"],
+  "testsFilePattern": "**/*.spec.bs",
+  "stagingDir": ".brighttest",
+  "diagnosticFilters": [1140],
+  "instrument": { "net": true }
+}

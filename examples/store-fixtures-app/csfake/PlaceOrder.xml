@@ -1,0 +1,13 @@
+<result>
+  <order>
+    <id>order-0001</id>
+    <items>
+      <orderItem>
+        <code>gold-monthly</code>
+        <name>Gold monthly</name>
+        <cost>$4.99</cost>
+        <qty>1</qty>
+      </orderItem>
+    </items>
+  </order>
+</result>
