@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createRequire } from 'node:module'
+import { bootStub, startMcp, payload, cleanupMcp } from './fixtures/mcp-harness.js'
 
 const require = createRequire(import.meta.url)
 const { createNetWindow, MAX_IDLE_MS } = require('../lib/mcp/net-window.js')
@@ -145,5 +146,106 @@ describe('net window lease', () => {
     const w = mk(fakeLeaseLib({ busy: true }))
     await expect(w.open()).rejects.toMatchObject({ code: 'BUSY' })
     expect(w.isOpen).toBe(false)
+  })
+})
+
+// ---- the session hub in the window (commit 2): real MCP server, stub device, stubbed startLanHub ----
+describe('net window hub', () => {
+  const realLib = require('../lib/device-lease.js')
+  function spyLib() {
+    const calls = []
+    const lib = { ...realLib, acquire: async (o) => { calls.push({ mode: o.mode, token: o.token }); return realLib.acquire(o) } }
+    return { lib, calls }
+  }
+  function hubStub({ fail } = {}) {
+    const starts = []
+    const stops = []
+    const fn = async (o) => {
+      starts.push(o)
+      if (fail) throw Object.assign(new Error(fail.message || 'boom'), { code: fail.code })
+      return { stop: async () => { stops.push(1) } }
+    }
+    return { fn, starts, stops }
+  }
+  async function boot(extra = {}) {
+    vi.useRealTimers()
+    const { a } = await bootStub('healthy')
+    const hub = hubStub(extra.hub)
+    const sp = spyLib()
+    const c = startMcp({ a, leaseLib: sp.lib, startLanHub: hub.fn })
+    await c.initialize()
+    return { c, hub, sp }
+  }
+  afterEach(async () => { await cleanupMcp() })
+
+  it('starts the hub on the first net call with a random token, the session proxy and the hub port', async () => {
+    const { c, hub, sp } = await boot()
+    const d = payload(await c.tool('net_requests'))
+    expect(hub.starts).toHaveLength(1)
+    const o = hub.starts[0]
+    expect(o.port).toBe(8790)
+    expect(o.deviceHost).toBe('127.0.0.1')
+    expect(o.tokens).toHaveLength(1)
+    expect(o.tokens[0]).toMatch(/^[0-9a-f]{32}$/)
+    expect(o.netProxy).toBe(c.server.session.net().proxy)
+    expect(o.lease.held()).toBe(true)
+    expect(d.hub).toMatchObject({ host: expect.anything(), port: 8790 })
+    expect(Object.keys(d.hub).sort()).toEqual(['host', 'leaseId', 'port', 'startedAt'])
+    expect(d.hub.leaseId).toBe(o.lease.leaseId)
+    expect(JSON.stringify(c.lines)).not.toContain(o.tokens[0])
+    expect(c.stderr()).not.toContain(o.tokens[0])
+    expect(sp.calls[0]).toMatchObject({ mode: 'session' })
+    // a second net call neither restarts the hub nor takes another lease
+    await c.tool('net_requests')
+    expect(hub.starts).toHaveLength(1)
+    expect(sp.calls.filter((x) => x.mode === 'session')).toHaveLength(1)
+    expect(sp.calls.slice(1).every((x) => x.token === d.hub.leaseId)).toBe(true)
+  })
+
+  it('device tools inside the window re-enter the lease; no command lease is taken', async () => {
+    const { c, sp } = await boot()
+    await c.tool('net_requests')
+    const r = await c.tool('inspect_tree')
+    expect(r.result.isError).not.toBe(true)
+    expect(sp.calls.filter((x) => x.mode === 'command' && !x.token)).toHaveLength(0)
+    expect(sp.calls.at(-1).token).toBeTruthy()
+  })
+
+  it('after release: record cleared, hub stopped, mocks kept, next device call takes a command lease', async () => {
+    const { c, hub, sp } = await boot()
+    await c.tool('net_mock', { match: { url: '**/x' }, respond: { status: 200, body: 'x' } })
+    const s = c.server.session
+    expect(s.hubInfo).not.toBeNull()
+    s.win.release('idle expiry')
+    await new Promise((r) => setTimeout(r, 10))
+    expect(s.hubInfo).toBeNull()
+    expect(s.win).toBeNull()
+    expect(hub.stops).toHaveLength(1)
+    expect(s.net().rules).toBe(1)
+    const n = sp.calls.length
+    await c.tool('inspect_tree')
+    expect(sp.calls[n]).toMatchObject({ mode: 'command' })
+    expect(sp.calls[n].token).toBeUndefined()
+  })
+
+  it('a hub start failure releases the window and fails with NET_FAILED', async () => {
+    const { c } = await boot({ hub: { fail: { message: 'listen failed', code: 'EADDRINUSE' } } })
+    const r = await c.tool('net_requests')
+    expect(r.result.isError).toBe(true)
+    expect(payload(r).code).toBe('NET_FAILED')
+    expect(c.server.session.win).toBeNull()
+    expect(c.server.session.hubInfo).toBeNull()
+    // the lease is free again: a device call works under a command lease
+    expect((await c.tool('inspect_tree')).result.isError).not.toBe(true)
+  })
+
+  it('session end stops the hub and releases the window lease', async () => {
+    const { c, hub } = await boot()
+    await c.tool('net_requests')
+    await c.close()
+    expect(hub.stops).toHaveLength(1)
+    expect(c.server.session.win).toBeNull()
+    const st = realLib.status({ dir: c.lease })
+    expect(JSON.stringify(st)).not.toContain('brighttest mcp net window')
   })
 })
