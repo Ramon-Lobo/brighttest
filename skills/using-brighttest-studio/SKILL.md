@@ -25,7 +25,16 @@ brighttest studio --host <ip> [--password <pw>] [--port 8700] [--app dev] [--flo
 - Studio takes the device lease like every other device lane (`lib/studio/lease.js`; see
   `docs/guide/device-lease.md`). When Studio releases the device it stops any running profiling session or Perfetto capture
   (`lib/studio/server.js`).
-- Studio never writes app state; its State tab is read-only (see `testing-app-state`).
+- The State tab is a state inspector for instrumented builds: click a value in the `global`, `scene` or `registry` layer to
+  edit it. The edit goes through the hub (the same validation as a `setState` flow step) and an ack chip walks received,
+  applied, reflected, or shows the error. Snapshots can be saved, restored, deleted, diffed, exported and imported. It needs
+  the device lease: every state route answers 423 while another session holds the device, and nothing is written. Values are
+  redacted by default (the app's agent masks secret-looking keys itself; Studio adds `instrument.state.redact.paths`), and
+  "show raw" reveals only what Studio masks on top of that, behind a banner. A `<redacted:...>` marker is not a real value:
+  Studio always refuses to write one, and a restore skips masked values (it reports how many). Registry values are edited
+  one `<section>.<key>` at a time; a structured value is read only.
+  A snapshot holds at most 64 KB and the store keeps 20. Without an instrumented build the tab stays read-only (see
+  `testing-app-state`).
 
 ## What the UI gives you
 

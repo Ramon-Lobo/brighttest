@@ -43,6 +43,16 @@ describe('LAN hub under the lease', () => {
       .rejects.toMatchObject({ code: 'LEASE_LOST' })
   })
 
+  it('masks configured state paths in cmd.sent events (registry.write, restore layers, set)', async () => {
+    const { hub } = await lan({ rest: { redactPaths: ['global.user.nickname', 'registry.*.cardlast4'] } })
+    hub.push({ op: 'registry.write', args: { section: 'prefs', key: 'cardlast4', value: '4242' } }, { ack: 'applied' })
+    hub.push({ op: 'restore', args: { name: 'n', layers: { global: { user: { nickname: 'Zed' } } } } }, { ack: 'applied' })
+    hub.push({ op: 'set', args: { layer: 'global', path: 'user.nickname', value: 'Zed' } }, { ack: 'applied' })
+    const text = JSON.stringify(hub.log.since(0))
+    expect(text).toContain('cmd.sent')
+    expect(text).not.toMatch(/4242|Zed/)
+  })
+
   it('serves the leased device peer and stops with stop()', async () => {
     const { hub } = await lan()
     expect((await get(hub.port, `/bt/${TOKEN}/hello`)).status).toBe(200)

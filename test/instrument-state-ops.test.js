@@ -183,6 +183,16 @@ describe('state-ops snapshot store and layer-scoped diff (TP-STA-10)', () => {
     expect(() => ops.diffSnapshots('a', 'zz')).toThrow(/not found/);
   });
 
+  it('loggable masks registry.write by registry.<section>.<key> and restore args.layers by configured paths', () => {
+    const paths = ['global.user.nickname', 'registry.*.cardlast4'];
+    const w = loggable({ id: 'c', seq: 1, op: 'registry.write', args: { section: 'prefs', key: 'cardlast4', value: '4242' } }, paths);
+    expect(w.args.value).toBe('<redacted:cardlast4>');
+    expect(loggable({ id: 'c', seq: 1, op: 'registry.write', args: { section: 'prefs', key: 'theme', value: 'dark' } }, paths).args.value).toBe('dark');
+    const r = loggable({ id: 'c', seq: 2, op: 'restore', args: { name: 'n', layers: { global: { user: { nickname: 'Zed', tier: 'a' } }, registry: { prefs: { cardlast4: '4242' } } } } }, paths);
+    expect(r.args.layers.global.user).toEqual({ nickname: '<redacted:nickname>', tier: 'a' });
+    expect(r.args.layers.registry.prefs.cardlast4).toBe('<redacted:cardlast4>');
+  });
+
   it('loggable masks sensitive path segments and configured paths', () => {
     const c = { id: 'c-1', seq: 1, op: 'set' };
     expect(loggable({ ...c, args: { layer: 'global', path: 'user.authToken', value: 'dummy-secret-1' } }).args.value).toBe('<redacted:authToken>');
