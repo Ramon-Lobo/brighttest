@@ -163,3 +163,55 @@ to see who holds it (agent, purpose, worktree, since when) and who is queued.
 - **A lease that never frees**: a crashed holder frees within about a second unless a child process it
   started is still running (`device status` shows the PID). If the holder is yours and stuck:
   `npx brighttest device unlock --force --host <ip> --reason "…" [--kill]`.
+
+## Console command says the target is "listed but not running" (or returns nothing)
+
+**Symptom:** a Studio console command (`sgperf`, `textures`, `chanperf`) returns an empty result, or fails with
+`target "<name>" is listed but not running (stub command set); bring the channel to the foreground and retry`,
+or `console target not found for channel "<name>" (targets: ...)`.
+
+**Cause:** these commands act on the console's *execution target*, which defaults to `main` (the system UI),
+where they return nothing useful. The channel's own target has to be selected first with `target <n>`; Studio
+does this for you (`target list`, then `target <n>`). A channel that is listed but not in the foreground answers
+with a stub command set, where every targeted command is "Command not recognized", and Studio reports that as the
+error above instead of an empty result. Global commands (`free`, `plugins`, `fps_display`) need no target.
+
+**Fix:** bring the channel to the foreground (launch it) and retry. If the target is not found, check the channel
+name against the listed targets in the message.
+
+## `sgperf` report is empty
+
+**Symptom:** `sgperf` start, then report, returns an empty report (parsed as not ok) even though a target is selected.
+
+**Cause:** the report lists per-thread node activity between start and report. An idle app that creates no nodes
+and runs no node operations in that window has nothing to report. This is not a Studio defect.
+
+**Fix:** exercise the app between start and report (navigate, scroll, open a screen), then report again. The
+distinction from a missing target: a missing or stub target is an explicit error; an idle app is just empty.
+
+## `assertLog` sees nothing, or old lines from a previous run
+
+**Symptom:** `assertLog` times out, or the run fails with `Console connection is already in use` /
+`log capture unavailable: ...`.
+
+**Cause:** log capture reads the device's BrightScript console on port 8085, and the device allows exactly one
+client. A telnet session or another tool holding the port blocks capture. On connect the console replays recent
+history; the runner discards that burst (everything before the first short idle gap), so a flow only sees its own
+output. A `Brightscript Debugger>` prompt in live output means the app crashed.
+
+**Fix:** close any other client on 8085 and re-run. Use `ROKU_LOG_PORT` for a different console port. Failed
+steps write a `<flow>-failure/` bundle with `log-tail.txt` (last 50 lines). See [E2E flows](/e2e/flows).
+
+## Screenshot fails, or the app is not in front (Home)
+
+**Symptom:** `screenshot not ok: no sideloaded app is in the foreground (launch the dev channel first)`, or
+`launch of <id> did not hold: Home in front after <n> ms`, or a failure bundle containing `screenshot-error.json`
+instead of an image.
+
+**Cause:** the device screenshot is of the sideloaded dev channel only, so it fails while Home or another app is
+in front. The launch readiness check tolerates Home for a short grace window after launch, then fails the launch.
+If the tree read hangs or fails, readiness falls back to the app UI tree instead of waiting forever, so a slow
+tree read is not by itself a failed launch. A screenshot also needs the device dev password.
+
+**Fix:** check the app launched and stayed up (a crash or back-out sends the device to Home), and that the dev
+password is set. `screenshot-error.json` holds the exact reason.
