@@ -5,6 +5,7 @@ import os from 'node:os'
 import path from 'node:path'
 import zlib from 'node:zlib'
 import { spawnSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 
 const require = createRequire(import.meta.url)
 const { makeTrace, SYNTH_A, SYNTH_B, varint, ld, vf } = require('./fixtures/perfetto/make-trace.js')
@@ -325,7 +326,7 @@ describe('perfetto summary: output size and name memory (REV-PRF03-C78)', () => 
       const buf = Buffer.alloc(piece.length * n).fill(piece)
       const r = summarizeTrace(buf, { limits: { maxBytes: buf.length + 1, maxPackets: +n + 1 } })
       console.log(JSON.stringify({ ok: r.ok, ub: r.ok && r.summary.unmatchedBegin }))`
-    const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..')
+    const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
     const c = spawnSync(process.execPath, ['--max-old-space-size=96', '-e', script, root, '200000'], { encoding: 'utf8', timeout: 120000 })
     expect(c.status).toBe(0)
     expect(JSON.parse(c.stdout)).toEqual({ ok: true, ub: 200000 })

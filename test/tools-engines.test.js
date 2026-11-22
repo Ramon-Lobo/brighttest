@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { createRequire } from 'node:module'
+import { fileURLToPath } from 'node:url'
 const require = createRequire(import.meta.url)
 const E = require('../lib/engines.js')
 
@@ -13,7 +14,7 @@ function pkg(name, json) {
   fs.writeFileSync(path.join(d, 'package.json'), JSON.stringify({ name, ...json }))
 }
 const STAMP = { upstream: 'brs-node@2.7.0', patches: { 'BRS-01': 1, 'BRS-03': 1, 'BRS-02': 1 }, nonDevice: ['BRS-02'] }
-const __dirname_ = path.dirname(new URL(import.meta.url).pathname)
+const __dirname_ = path.dirname(fileURLToPath(import.meta.url))
 const P = () => ({ paths: [dir] })
 
 beforeEach(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-eng-')); E.resetEngines(); E.resetBanner() })
