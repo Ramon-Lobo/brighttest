@@ -1,9 +1,12 @@
 #if BT_AGENT
-' brighttest instrument runtime: render-thread agent (STA-S-T1, read-only).
-' Child of the Scene. Owns the __bt_agent Label and a BT_AgentTask whose ticks drive each publish. No write path in v0.
+' brighttest instrument runtime: render-thread agent (STA-S-T1 read, STA-S-T6 write).
+' Child of the Scene. Owns the __bt_agent Label and a BT_AgentTask. The Task's ticks drive each publish; commands the Task
+' relays from the hub are applied here, on the render thread, in seq order. After a command changed state the Label is
+' republished before the `reflected` ack is sent, so reflected means "a reader of the Label sees the change".
 sub init()
     m.seq = 0
     m.renderMs = 0
+    m.ctx = { global: m.global, scene: m.top.getScene(), cfg: BT_config(), state: { subscribed: false } }
     m.label = m.top.createChild("Label")
     m.label.id = "__bt_agent"
     m.label.translation = [-10000, -10000]
@@ -13,11 +16,47 @@ sub init()
     m.task = CreateObject("roSGNode", "BT_AgentTask")
     m.task.interval = BT_pubIntervalMs(BT_config())
     m.task.observeField("tick", "BT_agentOnTick")
+    m.task.observeField("cmds", "BT_agentOnCmds")
     m.task.control = "RUN"
 end sub
 
 sub BT_agentOnTick()
     BT_agentPublish()
+end sub
+
+sub BT_agentOnCmds()
+    cmds = ParseJson(m.task.cmds)
+    if type(cmds) <> "roArray" then return
+    session = m.task.session
+    lines = []
+    last = 0
+    if m.lastSeq <> invalid and m.lastSession = session then last = m.lastSeq
+    m.lastSession = session
+    for each cmd in cmds
+        if type(cmd) = "roAssociativeArray" and cmd.seq <> invalid and cmd.id <> invalid then
+            if cmd.seq > last then
+                h = BT_wHandle(cmd, m.ctx, session)
+                for each a in h.acks
+                    lines.push(a)
+                end for
+                m.task.subscribed = m.ctx.state.subscribed
+                if h.ok and BT_wIs(cmd.ack, "reflected") then
+                    BT_agentPublish()
+                    lines.push(BT_wAck(cmd, session, "reflected", invalid))
+                end if
+                last = cmd.seq
+            end if
+        end if
+    end for
+    m.lastSeq = last
+    if lines.count() > 0 then
+        BT_agentPublish()
+        out = ""
+        for each l in lines
+            out = out + l + Chr(10)
+        end for
+        m.task.acks = out
+    end if
 end sub
 
 sub BT_agentPublish()

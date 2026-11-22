@@ -285,13 +285,36 @@ steps:
 
 ## Hub state routes
 
-The hub also carries host-side state writes (the agent side lands later). Same token, peer and lease rules as the other
+The hub also carries host-side state writes and relays them to the agent. Same token, peer and lease rules as the other
 routes: a wrong token or peer is a bare `404`, a lost lease is `423`, a wrong `?session=` is `409 {resync}`.
 
 | Method and path | Purpose |
 |---|---|
 | `POST /bt/<token>/state` | Queue one command `{op, args, ack?}` (`ack` is `applied`, the default, or `reflected`). `202 {id, seq, session}`. A body over 64 KB is `413 {error: "STATE_TOO_LARGE"}`, never truncated; a bad op or body is `400 {error: "BAD_COMMAND"}`. |
-| `GET /bt/<token>/state[?id=<cmd id>]` | Command status (`pending`, `done`, `failed`, `timeout`, `abandoned`), gaps, and the last redacted `state.snapshot`. Open commands time out when this is read. |
+| `GET /bt/<token>/state[?id=<cmd id>]` | Command status (`pending`, `done`, `failed`, `timeout`, `abandoned`), gaps, and the last redacted `state.snapshot`. Open commands time out on a hub timer and when this is read. |
+
+### How the agent applies a write
+
+The agent's Task says hello, keeps one `GET /bt/<token>/cmd?after=<seq>&session=<id>` long-poll open (`200` commands,
+`204` idle, `409 {resync}`) and the render-thread agent applies the commands in seq order. It answers with `cmd.ack`
+events on `POST /bt/<token>/events`: `received`, then `applied` (with `ok`, `result` or an `error` such as
+`TYPE_MISMATCH: field count holds a number; got a string`), then `reflected` once the `__bt_agent` Label was
+republished (only when the command asked for `ack: reflected`). A session mismatch is `409` and nothing is replayed.
+
+- Ops: `ping`, `get`, `set`, `merge`, `snapshot`, `restore`, `registry.read`, `registry.write`, `callFunc`, `subscribe`.
+  `dispatch` and `focus` answer `NOT_SUPPORTED` for now. Any other op answers `op not allowed`. There is no file system
+  op and no registry delete.
+- Layers: `global`, `scene`, `node` (`node: {id}`), and `registry` for `get`. `set` is type-checked against the
+  current value, never writes below a node reference (`PATH_UNDER_NODE`), and a field a node does not have is
+  `FIELD_NOT_FOUND` (only `global` creates fields). A refused write leaves the app running.
+- Registry writes go to `instrument.state.registrySections` only, and are flushed. `callFunc` runs only the names in
+  the config's `callFuncAllow` list (empty by default); the build does not emit that list yet.
+- `snapshot {name}` stores the layers host-side; `restore {name}` writes them back. Restore is best effort: values that
+  were cut, redacted (`<redacted:...>`) or are node references are skipped and listed, fields added after the snapshot
+  are listed in `added` and left in place, and an object field comes back whole.
+- Payloads over 64 KB, in a command or in a result, fail with `STATE_TOO_LARGE` and are never truncated.
+- With a live hub session and no `subscribe`r the agent samples every 5 s (ten times `publish.intervalMs`); subscribed,
+  or with no hub, it samples every `publish.intervalMs` (500 ms by default).
 
 Agent `cmd.ack` events on `POST events` complete commands. Queued commands are logged as `cmd.sent` events with values
 under sensitive keys (and `instrument.state.redact.paths`) masked before they reach `events.ndjson`.
