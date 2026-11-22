@@ -11,7 +11,8 @@ let proj, empty
 
 function run(cwd, args) {
   // Strip lease/device env so a help call can never reach a device.
-  const env = { PATH: process.env.PATH, HOME: cwd }
+  const env = { PATH: process.env.PATH, HOME: cwd, USERPROFILE: cwd }
+  if (process.env.SystemRoot) env.SystemRoot = process.env.SystemRoot
   return spawnSync(process.execPath, [CLI, ...args], { cwd, env, encoding: 'utf8', timeout: 30000 })
 }
 

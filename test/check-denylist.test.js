@@ -5,7 +5,7 @@ import os from 'node:os'
 import path from 'node:path'
 
 const script = path.resolve(__dirname, '../scripts/check-denylist.js')
-let tmp, repo, list, firstCommit
+let tmp, repo, list, firstCommit, emptyFile
 
 function sh(cmd, args, cwd) {
   const r = spawnSync(cmd, args, { cwd, encoding: 'utf8' })
@@ -15,7 +15,7 @@ function sh(cmd, args, cwd) {
 const git = (...a) => sh('git', ['-c', 'user.name=t', '-c', 'user.email=t@example.com', ...a], repo)
 
 function check(args, env = {}, cwd = repo) {
-  const e = { ...process.env, HOME: tmp, BRIGHTTEST_DENYLIST: '', ...env }
+  const e = { ...process.env, HOME: tmp, USERPROFILE: tmp, BRIGHTTEST_DENYLIST: '', ...env }
   if (!e.BRIGHTTEST_DENYLIST) delete e.BRIGHTTEST_DENYLIST
   const r = spawnSync('node', [script, ...args], { cwd, env: e, encoding: 'utf8' })
   return { code: r.status, out: r.stdout, err: r.stderr, all: r.stdout + r.stderr }
@@ -108,7 +108,9 @@ describe('check-denylist scanning', () => {
     const rootRange = JSON.parse(check(['--range', `${git('rev-list', '--max-parents=0', 'HEAD')}..HEAD`, '--json'], env()).out)
     expect(rootRange.hits.every((h) => h.kind !== 'message')).toBe(true)
     // the first commit message is only in range when the range starts before it
-    const empty = git('hash-object', '-t', 'tree', '/dev/null')
+    emptyFile = path.join(tmp, 'empty-input')
+    fs.writeFileSync(emptyFile, '')
+    const empty = git('hash-object', '-t', 'tree', emptyFile)
     const full = JSON.parse(check(['--range', `${empty}..HEAD`, '--json'], env()).out)
     expect(full.hits.find((h) => h.kind === 'message')).toMatchObject({ commit: firstCommit.slice(0, 10), masked: 'z*******d' })
   })

@@ -148,7 +148,7 @@ describe('acquire / release', () => {
     expect(Date.parse(h.deadline) - Date.parse(h.acquiredAt)).toBe(60 * 60000)
     expect(JSON.stringify(h)).not.toContain('X01234567890')
     expect(JSON.stringify(h)).not.toContain('pw9')
-    expect(fs.statSync(holderFile()).mode & 0o777).toBe(0o600)
+    if (process.platform !== 'win32') expect(fs.statSync(holderFile()).mode & 0o777).toBe(0o600)
     expect(l.release()).toBe(true)
     expect(fs.existsSync(holderFile())).toBe(false)
     expect(l.release()).toBe(false) // idempotent
@@ -335,6 +335,7 @@ describe('staleness and reclaim (D8, D9)', () => {
   })
 
   it('F10: an unusable lease dir throws IO (exit 78), never proceeds unlocked', async () => {
+    if (process.platform === 'win32') return // chmod does not deny writes on Windows
     if (process.getuid && process.getuid() === 0) return // root ignores modes
     fs.chmodSync(dir, 0o500)
     const err = await acquire(opts()).catch((e) => e)

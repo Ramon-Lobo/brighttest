@@ -240,7 +240,7 @@ describe('--device any parsing', () => {
 })
 
 describe('pool review fixes', () => {
-  it('gitIdentity (a git spawn) runs once per pick, not per acquire or poll under the gate', async () => {
+  it.skipIf(process.platform === 'win32')('gitIdentity (a git spawn) runs once per pick, not per acquire or poll under the gate', async () => {
     const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-fakegit-'))
     const counter = path.join(bin, 'count')
     fs.writeFileSync(path.join(bin, 'git'), `#!/bin/sh\necho x >> "${counter}"\nexit 1\n`, { mode: 0o755 })
