@@ -10,7 +10,7 @@
 //   unreachable    true -> nothing listens (ports are allocated then released)
 //   activeApp      initial active app: 'dev' | 'roku' | 'native-ui' | 'dynamic-menu'
 //   tree           'small' | 'large-3k' | 'large-6k' | 'facade' | 'dialog-root'
-//   sgnodes        'ok' | 'fail' | 'cold-stall' | 'hang'
+//   sgnodes        'ok' | 'fail' | 'cold-stall' | 'hang' | 'hang-sgnodes'
 //   launchBounce   number of active-app queries that report Roku after launch/dev before dev shows
 //   launchStays    true -> launch/dev answers 200 but the app never becomes active
 //   launch404Count number of launch/dev calls that 404 right after a successful sideload
@@ -51,6 +51,8 @@ const SCENARIOS = {
   'system-dialog-root': { tree: 'dialog-root' },
   'launch-404-after-sideload': { launch404Count: 2 },
   'sgnodes-fails': { sgnodes: 'fail' },
+  // sgnodes never answers (client timeout), app-ui still works.
+  'sgnodes-hangs': { sgnodes: 'hang-sgnodes' },
   // Interpretation: app stopped at the debugger: tree queries hang, 8085 shows the debugger prompt.
   'halted-app': { sgnodes: 'hang', debugOnConnect: 'halted' },
   // Interpretation: installer answers 200 with a generic HTML page that has no Success/Failure text.

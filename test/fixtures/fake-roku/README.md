@@ -48,6 +48,8 @@ Run `--list`. Added by FIX-06: `console-slow` (700 ms per console write), `keypr
 8085 after a successful install, replayed to later connections), `focus-grid`, `installer-500`, `late-node`.
 `sgnodes-fails`: every `/query/sgnodes/*` answers a `FAILED` body; `/query/app-ui` still serves the scenario tree
 (no parent links), so the ROB-10 fallback source can be exercised.
+`sgnodes-hangs`: every `/query/sgnodes/*` request is accepted and never answered (the client timeout fires);
+`/query/app-ui` still serves the tree.
 
 ## Flows (`flows/`)
 

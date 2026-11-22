@@ -158,6 +158,8 @@ function createFakeRoku(opts = {}) {
     if (state.crashed) return reply(res, 200, B.sgnodesFailed());
     // sgnodes-fails: every /query/sgnodes/* answers FAILED; /query/app-ui still serves the tree (ROB-10 fallback source).
     if (cfg.sgnodes === 'fail' && p !== '/query/app-ui') return reply(res, 200, B.sgnodesFailed());
+    // sgnodes-hangs: sgnodes accepts and never answers; /query/app-ui still serves the tree (ROB-10 hang follow-up).
+    if (cfg.sgnodes === 'hang-sgnodes' && p !== '/query/app-ui') return;
     if (cfg.sgnodes === 'hang') return;
     if (cfg.sgnodes === 'cold-stall') {
       const wait = state.launchedAt + cfg.coldStallMs - Date.now();
