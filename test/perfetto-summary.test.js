@@ -210,6 +210,72 @@ describe('perfetto summary: bounded memory and ADR keys', () => {
   })
 })
 
+describe('perfetto summary: retained-memory guards (REV-PRF03-C76)', () => {
+  const GIB = 1024 * 1024 * 1024
+  // Runs fn, asserts it finishes quickly and the heap does not grow by anywhere near 1 GiB; returns the result.
+  const bounded = (fn, ms = 15000) => {
+    if (global.gc) global.gc()
+    const before = process.memoryUsage().heapUsed
+    const t = Date.now()
+    const r = fn()
+    expect(Date.now() - t).toBeLessThan(ms)
+    expect(process.memoryUsage().heapUsed - before).toBeLessThan(GIB / 2)
+    return r
+  }
+  const rep = (chunk, n) => Buffer.alloc(chunk.length * n).fill(chunk)
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b)
+
+  it('100 packets of 100,000 empty length-delimited fields stay bounded', () => {
+    const pkt = ld(1, rep(Buffer.from([0x7a, 0x00]), 100000)) // field 15, wire type 2, length 0
+    const buf = Buffer.concat(Array.from({ length: 100 }, () => pkt))
+    const r = bounded(() => summarizeTrace(buf))
+    expect(r.ok).toBe(true)
+    expect(r.summary.input.packets).toBe(100)
+    expect(r.summary.undecoded).toEqual({ 'packet.field15': 10000000 })
+  })
+  it('many distinct unknown field numbers collapse into the overflow key, deterministically', () => {
+    const fields = Buffer.concat(Array.from({ length: 100000 }, (_, i) => vf(1000 + i, 0)))
+    const buf = ld(1, fields)
+    const r = bounded(() => summarizeTrace(buf))
+    expect(r.ok).toBe(true)
+    const u = r.summary.undecoded
+    expect(Object.keys(u).length).toBe(257)
+    expect(u.overflow).toBe(100000 - 256)
+    expect(same(r, summarizeTrace(buf))).toBe(true)
+  })
+  it('many distinct track uuids are E_TRACE_TOO_LARGE', () => {
+    const buf = Buffer.concat(Array.from({ length: 100001 }, (_, i) => ld(1, ld(60, vf(1, i + 1)))))
+    expect(code(bounded(() => summarizeTrace(buf)))).toBe('E_TRACE_TOO_LARGE')
+  })
+  it('many distinct interned iids packed into field-12 sub-messages are E_TRACE_TOO_LARGE', () => {
+    const entries = (from) => Buffer.concat(Array.from({ length: 60000 }, (_, i) => ld(2, vf(1, from + i))))
+    const buf = Buffer.concat([ld(1, ld(12, entries(1))), ld(1, ld(12, entries(70000)))])
+    expect(code(bounded(() => summarizeTrace(buf)))).toBe('E_TRACE_TOO_LARGE')
+  })
+  it('many distinct clocks packed into one clock snapshot are E_TRACE_TOO_LARGE', () => {
+    const snap = (from) => ld(6, Buffer.concat(Array.from({ length: 60000 }, (_, i) => ld(1, vf(1, from + i)))))
+    const buf = Buffer.concat([ld(1, snap(1)), ld(1, snap(70000))])
+    expect(code(bounded(() => summarizeTrace(buf)))).toBe('E_TRACE_TOO_LARGE')
+  })
+  it('a flood of tiny zlib blocks is E_TRACE_TOO_LARGE and fast', () => {
+    const one = ld(1, ld(50, zlib.deflateSync(Buffer.alloc(0))))
+    const buf = rep(one, 100001)
+    expect(code(bounded(() => summarizeTrace(buf), 5000))).toBe('E_TRACE_TOO_LARGE')
+    expect(code(summarizeTrace(rep(one, 3)))).toBe('E_TRACE_EMPTY') // blocks under the cap decode to nothing
+  })
+  it('MAX_FIELDS: 100,000 fields in one message pass, 100,001 are E_TRACE_TOO_LARGE', () => {
+    const e = Buffer.from([0x78, 0x00])
+    expect(code(summarizeTrace(ld(1, rep(e, 100000))))).toBe('ok')
+    const r = summarizeTrace(ld(1, rep(e, 100001)))
+    expect(code(r)).toBe('E_TRACE_TOO_LARGE')
+    expect(r.error.offset).toBe(null)
+  })
+  it('counts track_event_defaults.fieldN and ignores field 11', () => {
+    const raw = ld(1, ld(59, ld(11, Buffer.concat([vf(5, 1), vf(5, 2), vf(6, 1), vf(11, 7)]))))
+    expect(sum(raw).undecoded).toEqual({ 'track_event_defaults.field5': 2, 'track_event_defaults.field6': 1 })
+  })
+})
+
 describe('perfetto summary: clock scoping', () => {
   const spec = (id) => ({ packets: [
     { seq: 1, flags: 1, clocks: [{ id, inc: true, mult: 1 }] },
