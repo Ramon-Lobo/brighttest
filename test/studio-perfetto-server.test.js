@@ -41,7 +41,7 @@ describe('Studio server Perfetto wiring (PRF-01b)', () => {
   const boot = async (perfettoOpts = {}) => {
     server = await studio.start({
       host: '127.0.0.1', password: 'rokudev-test', port: 0, rootDir: root,
-      leaseOpts: { acquireOpts: { dir: path.join(root, 'lease'), timers: false, identity: {} } },
+      leaseOpts: { acquireOpts: { dir: path.join(root, 'lease'), timers: false, identity: {}, foregroundCheck: false } },
       perfettoOpts: { stateDir: home, restartDelayMs: 5, ...perfettoOpts },
     })
     port = server.address().port

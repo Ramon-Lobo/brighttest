@@ -10,5 +10,6 @@ export default defineConfig({
     // Many files compile with bsc or spawn the CLI; the 5s default flakes when the suite runs files in parallel on a loaded machine.
     testTimeout: 30000,
     hookTimeout: 30000,
+    setupFiles: ['./test/support/no-foreground-check.js'],
   },
 })

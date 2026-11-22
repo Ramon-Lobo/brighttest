@@ -5,8 +5,8 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-// TP-LSE-27 (a)-(e), headless: `device with --device any` on two fake hosts (127.0.0.1 and 127.0.0.2, never
-// contacted: --no-hygiene) in a temp lease dir. The worker logs enter/exit with the ROKU_HOST the child got.
+// TP-LSE-27 (a)-(e), headless: `device with --device any` on two fake hosts (127.0.0.1 and 127.0.0.2; the lease
+// foreground advisory contacts the chosen member unless opted out, hygiene is off: --no-hygiene) in a temp lease dir. The worker logs enter/exit with the ROKU_HOST the child got.
 const here = path.dirname(fileURLToPath(import.meta.url))
 const CLI = path.join(here, '..', '..', 'bin', 'cli.js')
 const A = '127.0.0.1'
