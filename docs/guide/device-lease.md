@@ -97,7 +97,7 @@ device setting, and it applies to `device with` only (not to `e2e run`).
 ## Resetting a stuck device: `device reset`
 
 ```bash
-npx brighttest device reset --host 10.0.0.5:Test1234
+npx brighttest device reset --host 10.0.0.5:changeme
 ```
 
 Takes the lease (no Home x2 press), sends the installer `Delete` (the dev password is required; this frees a
