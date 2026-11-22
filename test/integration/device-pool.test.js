@@ -170,7 +170,8 @@ describe('TP-LSE-27 device pool of two (headless)', () => {
     expect(await waitFor(() => fs.existsSync(pidFile), 30000)).toBe(true)
     const childPid = Number(fs.readFileSync(pidFile, 'utf8'))
     const holder = path.join(dir, 'leases', A, 'holder.json')
-    expect(JSON.parse(fs.readFileSync(holder, 'utf8')).holder.childPids).toContain(childPid)
+    const recorded = () => { try { return JSON.parse(fs.readFileSync(holder, 'utf8')).holder.childPids || [] } catch { return [] } }
+    expect(await waitFor(() => recorded().includes(childPid), 10000)).toBe(true) // recorded right after spawn, not before the child runs
     c.kill('SIGTERM')
     await exited
     const alive = (pid) => { try { process.kill(pid, 0); return true } catch { return false } }
