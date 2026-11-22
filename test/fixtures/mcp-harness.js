@@ -28,7 +28,7 @@ export async function bootStub(scenario = 'healthy', extra = {}) {
 }
 
 // An in-process MCP server on PassThrough streams, pointed at a stub device. Real lease code, isolated lease dir.
-export function startMcp({ a, cwd, limits, leaseDir, password = PASSWORD, env = {}, leaseLib } = {}) {
+export function startMcp({ a, cwd, limits, leaseDir, password = PASSWORD, env = {}, leaseLib, startLanHub } = {}) {
   const input = new PassThrough()
   const output = new PassThrough()
   const errput = new PassThrough()
@@ -58,7 +58,7 @@ export function startMcp({ a, cwd, limits, leaseDir, password = PASSWORD, env = 
   }
   const server = createMcpServer({
     input, output, errput, cwd: cwd || tmpdir(), limits, env: sessionEnv,
-    deps: { devices, ...(leaseLib ? { leaseLib } : {}), createDevice: (o) => createDevice({ ...o, installerPort: a && a.installerPort }) },
+    deps: { devices, startLanHub: startLanHub || (async () => ({ stop: async () => {} })), ...(leaseLib ? { leaseLib } : {}), createDevice: (o) => createDevice({ ...o, installerPort: a && a.installerPort }) },
   })
   const waitFor = async (pred) => {
     for (let i = 0; i < 2000; i++) {
