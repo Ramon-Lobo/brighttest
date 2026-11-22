@@ -69,6 +69,13 @@ steps:
 - `callFunc` passes at most one argument, and only names listed in `instrument.state.callable` run. The flow
   fails at start if a name is missing from that list, and you must rebuild after adding one.
 
+## Snapshot fixtures for headless specs
+
+A Studio "save as spec fixture" file (`fixtures/state/<name>.json`) seeds `m.global` in an `@SGNode` `beforeEach`:
+`snap = BTState_load("pkg:/fixtures/state/<name>.json")`, then `BTState_seedGlobals(snap.layers.global)`. Markers,
+built-ins and type mismatches are skipped, `raw: true` fixtures are unredacted, and a missing file shows as a `CRASH`
+line in the Rooibos output (verify the path). Guide: `docs/writing-tests/state-fixtures.md`.
+
 ## Config (brighttest.json)
 
 ```json

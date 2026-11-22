@@ -27,8 +27,19 @@ describe('writeBsConfig with BTState_ specs', () => {
     const helper = o.find((f) => f.dest === 'source/bt/BTState.brs')
     expect(helper.src).toBe(path.join(here, '..', 'lib', 'spec-api', 'BTState.brs'))
     expect(fs.existsSync(helper.src)).toBe(true)
-    const ship = o.find((f) => f.dest === 'fixtures/state')
-    expect(ship.src.split(path.sep).join('/')).toBe(path.join(tmp, 'fixtures', 'state', '**', '*').split(path.sep).join('/'))
+    expect(o.find((f) => f.dest === 'fixtures/state')).toEqual({ src: 'fixtures/state/**/*', dest: 'fixtures/state' })
+  })
+
+  it('ships a literal relative pair even when the project root has "(x86)" in it', () => {
+    const root = path.join(tmp, 'Program Files (x86)', 'app')
+    fs.mkdirSync(path.join(root, 'fixtures', 'state'), { recursive: true })
+    fs.mkdirSync(path.join(root, 'source', 'tests'), { recursive: true })
+    fs.writeFileSync(path.join(root, 'manifest'), 'title=x\n')
+    fs.writeFileSync(path.join(root, 'source', 'tests', 'A.spec.bs'), 'x = btstate_load("pkg:/fixtures/state/a.json")\n')
+    const c = { rootDir: root, sourceGlobs: ['manifest', 'source/**/*'], testsFilePattern: '**/*.spec.bs', stagingDir: path.join(root, '.brighttest') }
+    const o = objs(JSON.parse(fs.readFileSync(writeBsConfig(c, 'headless-scene').bsconfigPath, 'utf8')).files)
+    expect(o.find((f) => f.dest === 'fixtures/state')).toEqual({ src: 'fixtures/state/**/*', dest: 'fixtures/state' })
+    expect(o.some((f) => f.dest === 'source/bt/BTState.brs')).toBe(true)
   })
 
   it('adds no fixtures line when the project has no fixtures/state', () => {

@@ -6,7 +6,7 @@ namespace tests
   class SnapshotFixture extends rooibos.BaseTestSuite
     protected override function beforeEach()
       m.snap = BTState_load("pkg:/fixtures/state/premium.json")
-      m.written = BTState_seedGlobals(m.snap.layers.global)
+      m.seeded = BTState_seedGlobals(m.snap.layers.global)
     end function
 
     @describe("seeding m.global from fixtures/state/premium.json")
@@ -22,13 +22,29 @@ namespace tests
       m.assertTrue(m.global.user.signedIn)
       m.assertEqual(m.global.region, "us")
       m.assertFalse(m.global.hasField("nav"))
-      m.assertEqual(m.written.count(), 2)
+      m.assertEqual(m.seeded.written.count(), 2)
+      m.assertEqual(m.seeded.skipped.count(), 0)
     end function
 
     @it("lets the app read the seeded values")
     function _()
       m.top.callFunc("refresh")
       m.assertEqual(m.top.label, "Tier: premium")
+    end function
+
+    @it("skips markers, built-ins, invalid values and type mismatches from a Studio-shaped fixture")
+    function _()
+      studio = BTState_load("pkg:/fixtures/state/studio.json")
+      m.global.addFields({ count: "text" })
+      r = BTState_seedGlobals(studio.layers.global)
+      m.assertEqual(m.global.plan, "gold")
+      for each k in ["token", "playlist", "screen", "focusednode", "mixed", "list", "empty"]
+        m.assertFalse(m.global.hasField(k), k + " must not land on m.global")
+      end for
+      m.assertEqual(m.global.count, "text")
+      m.assertEqual(r.written.count(), 1)
+      m.assertEqual(r.written[0], "plan")
+      m.assertTrue(r.skipped.count() >= 9)
     end function
 
     @it("updates an existing field when seeded again")

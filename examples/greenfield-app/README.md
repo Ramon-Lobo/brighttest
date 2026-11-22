@@ -45,8 +45,9 @@ brighttest --coverage
 | `state.e2e.yaml` + `fixtures/state/premium.json` | TP-STA |
 
 `fixtures/net/home.rules.json` is live: `network.e2e.yaml` loads it and it must stay correct. The
-`fixtures/state/*` files are shape placeholders for a feature that does not exist yet; adjust them when it
-lands. Pair with `test/fixtures/fake-origin` for a live origin.
+`fixtures/state/premium.json` has the layered shape Studio saves (`{v, name, layers: {global, scene}}`), so a
+headless spec can load it with `BTState_load` and seed it with `BTState_seedGlobals(snap.layers.global)`
+(see `docs/writing-tests/state-fixtures.md`). Pair with `test/fixtures/fake-origin` for a live origin.
 
 `network.e2e.yaml` is a net-mock flow. It needs a build made with `instrument build --net`, the same
 `BRIGHTTEST_HUB_TOKEN` value set at build time and at run time, and the instrument hub running (`e2e run`
