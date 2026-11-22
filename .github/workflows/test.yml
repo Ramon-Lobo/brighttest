@@ -39,6 +39,26 @@ jobs:
       - run: npm ci
       - run: npm run test:integration
 
+  # Windows unit pass. Non-required (continue-on-error) until it has been green for a while; unit suite only
+  # (the integration files depend on POSIX signals and stay on ubuntu).
+  test-windows:
+    runs-on: windows-latest
+    name: test (windows, node 22)
+    continue-on-error: true
+    timeout-minutes: 20
+    steps:
+      # Keep LF in the working tree: skills, fixtures and byte-compare tests assume it.
+      - run: git config --global core.autocrlf false
+        shell: bash
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm run test:unit
+        shell: bash
+
   # Dependency security gate.
   #
   # Scoped to --omit=dev on purpose. Auditing the full tree would pin this job permanently red on
