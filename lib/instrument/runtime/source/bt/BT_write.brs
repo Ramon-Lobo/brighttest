@@ -215,6 +215,12 @@ end function
 ' Set `value` at segs (non-empty) under the node field segs[0]. Returns { ok } or an error. A missing leaf is created
 ' inside an object; a missing top-level field is created on the global node only.
 function BT_wSetPath(root as object, segs as object, value as dynamic) as object
+    return BT_wSetPathX(root, segs, value, false)
+end function
+
+' dry = true runs every check of a real write but changes nothing (used to validate a whole `ops` batch first). A path that
+' runs into a missing object in dry mode is accepted: the real write would create it.
+function BT_wSetPathX(root as object, segs as object, value as dynamic, dry as boolean) as object
     node = root.node
     name = segs[0]
     k = BT_wKind(value)
@@ -222,10 +228,12 @@ function BT_wSetPath(root as object, segs as object, value as dynamic) as object
     if segs.count() = 1 then
         if node.hasField(name) then
             if not BT_wCompat(node.getField(name), value) then return BT_wMismatch("field " + name, node.getField(name), value)
+            if dry then return { ok: true }
             if not node.setField(name, value) then return BT_wErr("SET_FAILED", "the node refused field " + name)
             return { ok: true }
         end if
         if root.layer <> "global" then return BT_wErr("FIELD_NOT_FOUND", "no field " + name + " on that node")
+        if dry then return { ok: true }
         fld = {}
         fld[name] = value
         node.addFields(fld)
@@ -246,6 +254,7 @@ function BT_wSetPath(root as object, segs as object, value as dynamic) as object
         r = BT_wChild(cur, segs[i])
         if not r.found then
             if BT_wKind(cur) <> "object" then return BT_wErr("BAD_PATH", "no element " + segs[i])
+            if dry then return { ok: true }
             cur[segs[i]] = {}
             r = BT_wChild(cur, segs[i])
         end if
@@ -260,6 +269,7 @@ function BT_wSetPath(root as object, segs as object, value as dynamic) as object
     else if BT_wKind(cur) <> "object" then
         return BT_wErr("BAD_PATH", "no element " + last)
     end if
+    if dry then return { ok: true }
     if BT_wKind(cur) = "array" then
         cur[Val(last)] = value
     else
@@ -269,8 +279,45 @@ function BT_wSetPath(root as object, segs as object, value as dynamic) as object
     return { ok: true }
 end function
 
+' `set` with `ops: [{ path, value }, ...]` is one command with one ack. All-or-nothing on validation (design D6: validated
+' as a whole): every op's path, value type and node reference is checked against the current state first, and if any op
+' fails nothing is applied and the error names the op as ops[N] (0-based). The checks cannot see changes an earlier op of
+' the same batch makes (for example op 0 sets `a` to a number and op 1 writes `a.b`); if such an op fails while applying,
+' the ops before it stay applied (no rollback, as in D6) and the error says how many were.
+function BT_wSetBatch(args as object, ctx as object) as object
+    ops = args.ops
+    if BT_wKind(ops) <> "array" or ops.count() = 0 then return BT_wErr("BAD_COMMAND", "ops must be a non-empty list of { path, value }")
+    if args.doesExist("path") or args.doesExist("value") then return BT_wErr("BAD_COMMAND", "ops cannot be combined with path or value")
+    root = BT_wRoot(args, ctx)
+    if not root.ok then return root
+    all = []
+    for i = 0 to ops.count() - 1
+        o = ops[i]
+        tag = " (ops[" + i.toStr() + "]; nothing was applied)"
+        if BT_wKind(o) <> "object" then return BT_wErr("BAD_COMMAND", "each op must be { path, value }" + tag)
+        segs = BT_wSplit(o.path)
+        if segs.count() = 0 then return BT_wErr("BAD_PATH", "op needs a path" + tag)
+        if not o.doesExist("value") then return BT_wErr("BAD_COMMAND", "op needs a value" + tag)
+        r = BT_wSetPathX(root, segs, o.value, true)
+        if not r.ok then
+            r.error = r.error + tag
+            return r
+        end if
+        all.push(segs)
+    end for
+    for i = 0 to ops.count() - 1
+        r = BT_wSetPath(root, all[i], ops[i].value)
+        if not r.ok then
+            r.error = r.error + " (ops[" + i.toStr() + "]; " + i.toStr() + " op(s) applied before it)"
+            return r
+        end if
+    end for
+    return { ok: true, result: { ops: ops.count() } }
+end function
+
 function BT_wSet(args as object, ctx as object) as object
     if BT_wIs(args.layer, "registry") then return BT_wErr("BAD_LAYER", "use registry.write for the registry")
+    if args.doesExist("ops") then return BT_wSetBatch(args, ctx)
     segs = BT_wSplit(args.path)
     if segs.count() = 0 then return BT_wErr("BAD_PATH", "set needs a path")
     if not args.doesExist("value") then return BT_wErr("BAD_COMMAND", "set needs a value")
