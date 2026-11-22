@@ -293,3 +293,8 @@ input, timeout), it allows the command and logs to `events.log`, and it always e
 The lease only protects access that goes through brighttest (or `device with`). A script that opens its
 own connection to the device, a URL built in code, another terminal or another machine can still interfere.
 Wrap such commands in `brighttest device with -- …`.
+
+The lease controls who can send commands to the device. It does not keep the app alive or restart it, and its
+caps (`maxHold`, the session cap, the idle timeout) do not either. A long run can outlast the device's own
+screensaver window, about 10 minutes after the last input, even while the lease is valid. See
+[Long device runs stop after about 10 minutes](/guide/troubleshooting#long-device-runs-stop-after-about-10-minutes).
