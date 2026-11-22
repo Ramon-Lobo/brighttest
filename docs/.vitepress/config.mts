@@ -54,6 +54,7 @@ export default withMermaid({
           { text: 'CI integration', link: '/guide/ci' },
           { text: 'Sharing a device (lease)', link: '/guide/device-lease' },
           { text: 'Instrumented builds', link: '/guide/instrument' },
+          { text: 'roChannelStore fixtures', link: '/guide/store-fixtures' },
           { text: 'Network fault model', link: '/guide/net-faults' },
           { text: 'Agent skills', link: '/guide/agent-skills' },
           { text: 'Agent surface (MCP)', link: '/guide/mcp' },

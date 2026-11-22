@@ -1,0 +1,11 @@
+<result>
+  <products>
+    <product>
+      <code>gold-monthly</code>
+      <name>Gold monthly</name>
+      <cost>$4.99</cost>
+      <productType>MonthlySub</productType>
+      <qty>1</qty>
+    </product>
+  </products>
+</result>
