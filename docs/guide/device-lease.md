@@ -77,6 +77,23 @@ an estimate: it never makes a lane give up or skip the queue.
 Durations are `90s`, `10m`, `1h` or plain milliseconds. The device lanes (`--device`, `--cross-check`,
 `e2e`) accept `--wait`, `--as`, `--purpose` and `--no-lease`.
 
+## Keeping the app alive on long runs: `--keepalive`
+
+```bash
+npx brighttest device with --keepalive -- <long command>        # one key every 240 s
+npx brighttest device with --keepalive=120 -- <long command>
+```
+
+Opt-in, off by default. While the wrapped command runs, `device with` sends one ECP `Fwd` keypress from the
+host every `<sec>` seconds (default 240, minimum 60, `0` = off); the first one is sent after one full interval.
+Each send is logged to stderr. After 3 failures in a row it stops and logs a warning; the wrapped command is
+not affected. It uses the lease `device with` already holds, never sends Home, Back, Select or any key that
+moves focus, and stops when the command exits or on SIGINT/SIGTERM.
+
+What was tested: `Fwd` every 240 s kept the sample app alive for 45 minutes with no stall at about 595 s. Other
+keys and intervals have not been tested, so none are offered. It does not change the device screensaver or any
+device setting, and it applies to `device with` only (not to `e2e run`).
+
 ## Resetting a stuck device: `device reset`
 
 ```bash

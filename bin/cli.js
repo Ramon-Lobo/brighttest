@@ -346,7 +346,7 @@ const DEVICE_ACTIONS = ['status', 'with', 'unlock', 'log', 'lock', 'renew', 'hoo
 function parseDeviceArgs(rest) {
   const o = {
     deviceAction: null, host: null, password: null, ecpPort: null, as: null, purpose: null, wait: null, max: null, idle: null,
-    expect: null, noHygiene: false, json: false, tail: null, force: false, reason: null, kill: false, lease: null,
+    expect: null, keepalive: null, noHygiene: false, json: false, tail: null, force: false, reason: null, kill: false, lease: null,
     cmd: [], help: false, unknown: [],
   };
   for (let i = 0; i < rest.length; i++) {
@@ -365,6 +365,8 @@ function parseDeviceArgs(rest) {
     else if ((v = val('--max')) !== undefined) o.max = v;
     else if ((v = val('--expect')) !== undefined) o.expect = v;
     else if ((v = val('--idle')) !== undefined) o.idle = v;
+    else if (a === '--keepalive') o.keepalive = rest[i + 1] !== undefined && /^\d+$/.test(rest[i + 1]) ? rest[++i] : '';
+    else if (a.startsWith('--keepalive=')) o.keepalive = a.slice(12);
     else if ((v = val('--tail')) !== undefined) o.tail = parseInt(v, 10) || null;
     else if ((v = val('--reason')) !== undefined) o.reason = v;
     else if ((v = val('--lease')) !== undefined) o.lease = v;
@@ -408,6 +410,7 @@ Options (with):
   --idle <dur>         (lock) Session idle TTL, renewed by every use (default 10m)
   --max <dur>          (lock) Session hard cap (default 45m)
   --no-hygiene         Skip the Home ×2 reset after acquiring
+  --keepalive[=sec]    (with) Send an ECP Fwd keypress every <sec> (default 240, min 60, 0 = off) while <cmd> runs
   --ecp-port <n>       ECP port (or ROKU_ECP_PORT) — local fakes only; part of the lease key when not 8060
 Durations: 90s, 10m, 1h or milliseconds.
 
