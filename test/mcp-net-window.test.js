@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createRequire } from 'node:module'
+import { spawn } from 'node:child_process'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
 import { bootStub, startMcp, payload, cleanupMcp } from './fixtures/mcp-harness.js'
 
 const require = createRequire(import.meta.url)
@@ -7,23 +11,30 @@ const { createNetWindow, MAX_IDLE_MS } = require('../lib/mcp/net-window.js')
 
 // NET-N-T15: the net window lease, headless, on a fake clock and an in-memory lease library.
 function fakeLeaseLib({ busy = false } = {}) {
-  const st = { held: false, leaseId: 'lease-abc', acquires: [], released: [] }
+  // Models the lease FILE: expiresAt moves only on acquire, a token re-entry or a renew (as the real session lease does).
+  const st = { held: false, leaseId: 'lease-abc', idleMs: 0, expiresAt: 0, acquires: [], released: [], renews: 0 }
+  const live = () => st.held && Date.now() < st.expiresAt
+  const touch = () => { st.expiresAt = Date.now() + st.idleMs }
+  const lost = () => Object.assign(new Error('lease is not held'), { code: 'LEASE_LOST' })
   return {
     st,
     async acquire(o) {
       st.acquires.push(o)
       if (o.token) {
-        if (!st.held || o.token !== st.leaseId) throw Object.assign(new Error('lease is not held'), { code: 'LEASE_LOST' })
+        if (!live() || o.token !== st.leaseId) throw lost()
+        touch()
         return { leaseId: st.leaseId, reentrant: true, release() {} }
       }
       if (busy) throw Object.assign(new Error('busy'), { code: 'BUSY' })
-      st.held = true
+      st.held = true; st.idleMs = o.idleMs; touch()
       return {
         leaseId: st.leaseId,
         release: (why) => { st.held = false; st.released.push(why) },
-        assertHeld: () => { if (!st.held) throw Object.assign(new Error('not held'), { code: 'LEASE_LOST' }) },
+        assertHeld: () => { if (!st.held) throw lost() },
       }
     },
+    renew(token) { if (token !== st.leaseId || !live()) throw lost(); st.renews++; touch() },
+    tokenValid(token) { return token === st.leaseId && live() },
   }
 }
 
@@ -86,6 +97,43 @@ describe('net window lease', () => {
     end()
     await vi.advanceTimersByTimeAsync(61000)
     expect(w.isOpen).toBe(false)
+  })
+
+  it('keeps the lease file alive across a short call followed by idle time (I1)', async () => {
+    const lib = fakeLeaseLib()
+    const w = await mk(lib, { idleMs: 60000 }).open()
+    await vi.advanceTimersByTimeAsync(50000)
+    const re = await w.reenter({ host: 'h' })
+    const end = w.begin()
+    await vi.advanceTimersByTimeAsync(600) // a 600 ms call
+    end()
+    await vi.advanceTimersByTimeAsync(55000) // idle, but inside the window's TTL measured from the call's end
+    expect(re.reentrant).toBe(true)
+    expect(w.isOpen).toBe(true)
+    expect(lib.st.held).toBe(true)
+    expect(lib.st.renews).toBeGreaterThan(0)
+    w.release()
+  })
+
+  it('keeps the lease file alive for a call longer than the TTL (I1)', async () => {
+    const lib = fakeLeaseLib()
+    const w = await mk(lib, { idleMs: 60000 }).open()
+    const end = w.begin()
+    await vi.advanceTimersByTimeAsync(200000)
+    expect(w.isOpen).toBe(true)
+    expect(lib.tokenValid('lease-abc')).toBe(true)
+    end()
+    expect(w.isOpen).toBe(true)
+    w.release()
+  })
+
+  it('treats an expired lease record as lost while idle (I1)', async () => {
+    const lib = fakeLeaseLib()
+    const w = await mk(lib, { idleMs: 60000 }).open()
+    lib.st.expiresAt = Date.now() + 1000 // the file expires early: another agent may take the device
+    await vi.advanceTimersByTimeAsync(20000)
+    expect(w.isOpen).toBe(false)
+    expect(w.lostWhy).toMatch(/lease lost/)
   })
 
   it('releases at session end and is idempotent', async () => {
@@ -191,7 +239,10 @@ describe('net window hub', () => {
     expect(o.lease.held()).toBe(true)
     expect(d.hub).toMatchObject({ host: expect.anything(), port: 8790 })
     expect(Object.keys(d.hub).sort()).toEqual(['host', 'leaseId', 'port', 'startedAt'])
-    expect(d.hub.leaseId).toBe(o.lease.leaseId)
+    expect(d.hub.leaseId).toBe(o.lease.leaseId.slice(0, 8))
+    expect(d.hub.leaseId).toHaveLength(8)
+    expect(JSON.stringify(c.lines)).not.toContain(o.lease.leaseId)
+    expect(c.server.session.hubInfo.leaseId).toBe(o.lease.leaseId)
     expect(JSON.stringify(c.lines)).not.toContain(o.tokens[0])
     expect(c.stderr()).not.toContain(o.tokens[0])
     expect(sp.calls[0]).toMatchObject({ mode: 'session' })
@@ -199,7 +250,7 @@ describe('net window hub', () => {
     await c.tool('net_requests')
     expect(hub.starts).toHaveLength(1)
     expect(sp.calls.filter((x) => x.mode === 'session')).toHaveLength(1)
-    expect(sp.calls.slice(1).every((x) => x.token === d.hub.leaseId)).toBe(true)
+    expect(sp.calls.slice(1).every((x) => x.token === o.lease.leaseId)).toBe(true)
   })
 
   it('device tools inside the window re-enter the lease; no command lease is taken', async () => {
@@ -248,4 +299,49 @@ describe('net window hub', () => {
     const st = realLib.status({ dir: c.lease })
     expect(JSON.stringify(st)).not.toContain('brighttest mcp net window')
   })
+})
+
+// ---- signals and onFatal release the window's lease (I2) ----
+describe('net window lease on process stop', () => {
+  const child = path.join(__dirname, 'fixtures', 'mcp-signal-child.js')
+  const holders = (dir) => fs.readdirSync(dir).filter((k) => fs.existsSync(path.join(dir, k, 'holder.json')))
+
+  async function openWindowIn() {
+    vi.useRealTimers()
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-mcp-sig-'))
+    const env = { ...process.env, BRIGHTTEST_LEASE_DIR: dir, BRIGHTTEST_AGENT: 'mcp-test' }
+    delete env.BRIGHTTEST_LEASE; delete env.BRIGHTTEST_NO_LEASE
+    const p = spawn(process.execPath, [child], { env, cwd: dir, stdio: ['pipe', 'pipe', 'pipe'] })
+    let out = ''
+    p.stdout.on('data', (d) => { out += d.toString() })
+    const exited = new Promise((r) => p.on('exit', (code, sig) => r({ code, sig })))
+    const waitFor = async (pred) => { for (let i = 0; i < 400 && !pred(); i++) await new Promise((r) => setTimeout(r, 25)); }
+    const send = (o) => p.stdin.write(JSON.stringify({ jsonrpc: '2.0', ...o }) + '\n')
+    send({ id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18' } })
+    send({ id: 2, method: 'tools/call', params: { name: 'net_requests', arguments: {} } })
+    await waitFor(() => out.includes('"id":2'))
+    expect(out).toContain('"id":2')
+    expect(holders(dir)).toHaveLength(1) // the window holds the session lease
+    return { p, dir, exited, waitFor, holders: () => holders(dir) }
+  }
+
+  it.each(['SIGTERM', 'SIGINT', 'SIGHUP'])('%s releases the lease before the process ends', async (sig) => {
+    const x = await openWindowIn()
+    try {
+      x.p.kill(sig)
+      const r = await x.exited
+      expect(r.sig).toBe(sig) // default signal semantics kept
+      expect(x.holders()).toHaveLength(0)
+    } finally { x.p.kill('SIGKILL'); fs.rmSync(x.dir, { recursive: true, force: true }) }
+  }, 20000)
+
+  it('an uncaught error (onFatal) releases the window lease and exits 1', async () => {
+    const x = await openWindowIn()
+    try {
+      x.p.kill('SIGUSR2')
+      const r = await x.exited
+      expect(r.code).toBe(1)
+      expect(x.holders()).toHaveLength(0)
+    } finally { x.p.kill('SIGKILL'); fs.rmSync(x.dir, { recursive: true, force: true }) }
+  }, 20000)
 })
