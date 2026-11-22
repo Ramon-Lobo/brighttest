@@ -165,6 +165,21 @@ describe('doctor hub bind check', () => {
   it('probeBind opens and closes a real loopback-capable listener', async () => {
     expect((await doctor.probeBind()).ok).toBe(true)
   })
+  it('prints bind, port, advertised address, and that reach is not proven; JSON carries hub', async () => {
+    const stub = createFakeRoku({ scenario: 'healthy' }); const a = await stub.start()
+    let out = ''
+    vi.spyOn(process.stdout, 'write').mockImplementation((s) => { out += s; return true })
+    const deps = { probeBind: async () => ({ ok: true, address: '0.0.0.0', port: 1 }), lanHost: () => '192.0.2.7' }
+    await doctor.run({ host: '127.0.0.1', ecpPort: a.ecpPort }, deps)
+    expect(out).toContain('bind 0.0.0.0:8790')
+    expect(out).toContain('would advertise 192.0.2.7')
+    expect(out).toContain(doctor.HUB_REACH_LINE)
+    out = ''
+    await doctor.run({ host: '127.0.0.1', ecpPort: a.ecpPort, json: true }, deps)
+    await stub.stop()
+    const j = JSON.parse(out)
+    expect(j.hub).toEqual({ bindAddress: '0.0.0.0', port: 8790, advertisedHost: '192.0.2.7', reachProven: false })
+  })
   it('an unreachable device skips the bind check', async () => {
     let out = ''
     vi.spyOn(process.stdout, 'write').mockImplementation((s) => { out += s; return true })
