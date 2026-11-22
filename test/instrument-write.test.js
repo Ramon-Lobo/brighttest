@@ -415,7 +415,7 @@ describe('registry reads honour redact.paths (INS-REDACT-REGISTRY, headless, for
     expect(JSON.stringify(tagged(out, 'S_section:')[0])).not.toContain('dark')
     expect(tagged(out, 'T_sec:')[0].result.value).toBe('<redacted:bt_tokens>')
   })
-  it('KNOWN GAP (follow-up task): a pattern deeper than the exact key is not applied, the raw stored string is returned', () => {
+  it('a non-JSON value is returned as stored: a pattern deeper than its key does not apply', () => {
     expect(val('G_deeper_theme')).toBe('dark')
     expect(val('O_deeper_theme')).toBe('dark')
     expect(tagged(out, 'S_deeper:')[0].result.value.theme).toBe('dark')
@@ -456,7 +456,7 @@ describe('registry JSON values and section reads mask like the published doc (IN
     }
     expect(raw('S_none')).not.toContain('AT1')
   })
-  it('a redact.paths pattern below the key reaches into the JSON value (dotted, [i] and .*)', () => {
+  it('a redact.paths pattern below the key reaches into the JSON value (an object key below an array element, and .* below an object)', () => {
     for (const p of ['G', 'O']) {
       expect(raw(`${p}_below`)).not.toMatch(/1234|"pin":"9"/)
       expect(parsed(`${p}_below`).user.deep).toEqual({ ok: 'fine', pin: '<redacted:pin>' })
