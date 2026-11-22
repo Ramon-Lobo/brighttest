@@ -54,11 +54,7 @@ describe('fake sgnodes-fails: app-ui fallback (TP-ROB-19 fake rows)', () => {
     expect(sg.flatten(t.roots).every((n) => !('parent' in n))).toBe(true)
   })
 
-  // FINDING (ROB-10, lib/e2e/ready.js): launch readiness reads the tree with fetchTree(quick, { retries: 0 }), so only
-  // one sgnodes failure is seen per poll, the 3-failure threshold is never reached, and a persistent sgnodes failure
-  // fails `launch` with "dev not ready ... SGNODES_FAILED" before any step can use the app-ui source. Marked it.fails
-  // so the suite stays green; flip to `it` once launch readiness can fall back.
-  it.fails('fake-smoke flow assertVisible title passes through the fallback', async () => {
+  it('fake-smoke flow assertVisible title passes through the fallback', async () => {
     const { stub, a } = await boot('sgnodes-fails')
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-appui-'))
     let out = ''
