@@ -118,4 +118,20 @@ describe('Studio server Perfetto wiring (PRF-01b)', () => {
     expect(raw).not.toContain(ESN)
     expect(raw).not.toMatch(/\b(off|disabled|stopped|not running)\b/i)
   })
+
+  it('shows a record older than the 6 h window (with its date), while the window still drives re-enable', async () => {
+    state.writeState(ESN, ['dev'], { dir: home, now: Date.now() - 30 * 60 * 60 * 1000 })
+    await boot()
+    const st = await call('status', 'GET')
+    expect(st.json.brighttestRecord).toMatch(/^enabled by brighttest at \d{4}-\d\d-\d\d \d\d:\d\d, device state not queryable$/)
+    expect(JSON.stringify(st.json)).not.toContain(ESN)
+  })
+
+  it('passes a non-default staleMs to the capture (1 h window: a 2 h record is re-enabled)', async () => {
+    state.writeState(ESN, ['dev'], { dir: home, now: Date.now() - 2 * 60 * 60 * 1000 })
+    await boot({ staleMs: 60 * 60 * 1000 })
+    const r = await call('enable')
+    expect(r.json.cached).toBeUndefined()
+    expect(posts).toEqual(['/perfetto/enable/dev'])
+  })
 })

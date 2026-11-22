@@ -155,13 +155,31 @@ describe('Perfetto per-ESN state and auto-restart (PRF-01)', () => {
 
 describe('describeState', () => {
   const { describeState } = require('../lib/studio/perfetto-state.js')
+  const NONE = 'no brighttest record; device state not queryable'
+  const H = 3600 * 1000
+  const p2 = (n) => String(n).padStart(2, '0')
+  const hhmm = (t) => { const d = new Date(t); return `${p2(d.getHours())}:${p2(d.getMinutes())}` }
+  const full = (t) => { const d = new Date(t); return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())} ${hhmm(t)}` }
+  const rec = (enabledAt) => ({ channels: ['dev'], enabledAt })
   it('no record: says so, never off/disabled', () => {
-    for (const r of [null, undefined, {}]) expect(describeState(r)).toBe('no brighttest record; device state not queryable')
+    for (const r of [null, undefined, {}]) expect(describeState(r)).toBe(NONE)
   })
-  it('record: local HH:MM, no ESN, no state claims', () => {
+  it('invalid timestamps give the no-record text', () => {
+    for (const v of [Infinity, -Infinity, NaN, 1e400, 9e15, -1, -5e12, '123']) expect(describeState(rec(v))).toBe(NONE)
+  })
+  it('recent record: local HH:MM only, no ESN, no state claims', () => {
     const at = new Date(2026, 10, 22, 9, 5).getTime()
-    expect(describeState({ channels: ['dev'], enabledAt: at }, { now: at + 1000 })).toBe('enabled by brighttest at 09:05, device state not queryable')
-    expect(describeState({ channels: ['dev'], enabledAt: at }, { now: at + 25 * 3600 * 1000 })).toBe('enabled by brighttest at 2026-11-22 09:05, device state not queryable')
-    expect(describeState({ channels: ['dev'], enabledAt: at, esn: 'TESTESN0001' })).not.toMatch(/TESTESN|\b(off|disabled|stopped|not running)\b/i)
+    const out = describeState({ ...rec(at), esn: 'TESTESN0001' }, { now: at + 1000 })
+    expect(out).toBe(`enabled by brighttest at ${hhmm(at)}, device state not queryable`)
+    expect(out).not.toMatch(/TESTESN|\b(off|disabled|stopped|not running)\b/i)
+  })
+  it('24 h boundary: exactly 24 h has no date, one ms more has', () => {
+    const now = new Date(2026, 10, 22, 12, 0).getTime()
+    expect(describeState(rec(now - 24 * H), { now })).toBe(`enabled by brighttest at ${hhmm(now - 24 * H)}, device state not queryable`)
+    expect(describeState(rec(now - 24 * H - 1), { now })).toBe(`enabled by brighttest at ${full(now - 24 * H - 1)}, device state not queryable`)
+  })
+  it('a future timestamp (clock skew) always shows the date', () => {
+    const now = new Date(2026, 10, 22, 12, 0).getTime()
+    expect(describeState(rec(now + 60000), { now })).toBe(`enabled by brighttest at ${full(now + 60000)}, device state not queryable`)
   })
 })
