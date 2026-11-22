@@ -99,6 +99,20 @@ Each matrix entry launches with `{ contentId, mediaType }` (overriding the flow'
 is labelled by content id in the output and screenshot/video filenames. The matrix also shards across
 devices when you pass multiple hosts.
 
+## JUnit output
+
+`e2e run --junit <file>` writes a JUnit XML report next to the normal console output. Exit codes do not change.
+
+```sh
+npx brighttest e2e run flows/ --host <ip> --junit e2e-artifacts/junit.xml
+```
+
+- One `<testsuite>` per flow file (named by its path under the project root), one `<testcase>` per run of it. A deep-link matrix run adds its contentId to the case name.
+- A failed flow gets `<failure message="step N (op): CODE: text" type="CODE">`: the first failing step and its typed error code when it has one (for example `APP_CRASHED`, `KEY_NOT_ALLOWED`, `TIMEOUT`, `STATE_*`).
+- A flow skipped by `requires:` gets `<skipped message="reason">`. `--fail-on-skip` still decides the exit code; the file keeps the skip as a skip.
+- Failures that stop a flow before it runs (a flow that does not parse, a device that is unreachable, a lease that cannot be had) are written as failures too.
+- The file has no timestamps, durations or ids, so the same results give the same bytes. Missing parent directories are created. A write error is reported and does not change the exit code.
+
 ## Continuous integration
 
 On-device e2e needs a **real Roku on the runner's LAN**, so it can't run on GitHub-hosted runners. The
