@@ -715,7 +715,10 @@ async function main() {
     const cfg = loadConfig(process.cwd(), null);
     if (o.deviceAction === 'reset') process.exit(await require('../lib/e2e/reset').cmdReset(o, cfg));
     const code = await require('../lib/device-command').run(o, cfg);
-    process.exit(code);
+    // process.exit() drops pending async pipe writes (a piped `device log --json` was cut at 8192 bytes):
+    // exit only once stdout has flushed. Streams through the pipe, no extra buffering.
+    process.stdout.write('', () => process.exit(code));
+    return;
   }
   if (argv[0] === 'doctor') {
     const o = parseDoctorArgs(argv.slice(1));
