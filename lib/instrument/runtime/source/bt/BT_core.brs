@@ -234,10 +234,11 @@ function BT_layers(globalNode as dynamic, scene as dynamic, cfg as dynamic, trun
 end function
 
 ' The published document: {v, seq, instrumented, thread, renderMs, snapshot: {layers: {global, scene, focus, registry?}}, truncated}.
-function BT_labelJson(seq as integer, globalNode as dynamic, scene as dynamic, cfg as dynamic, renderMs as integer) as string
+function BT_labelJson(seq as integer, globalNode as dynamic, scene as dynamic, cfg as dynamic, renderMs as integer, lastInput = invalid as dynamic) as string
     trunc = []
     layers = BT_layers(globalNode, scene, cfg, trunc)
     doc = { v: 1, seq: seq, instrumented: true, thread: "render", renderMs: renderMs, snapshot: { layers: layers }, truncated: trunc }
+    if type(lastInput) = "roAssociativeArray" then doc.input = lastInput ' STA-S-T13: last ECP /input mailbox result { id, phase, ok }
     return BT_fit(doc, BT_pubMaxBytes(cfg))
 end function
 #end if

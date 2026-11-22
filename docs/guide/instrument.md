@@ -362,6 +362,27 @@ republished (only when the command asked for `ack: reflected`). A session mismat
 Agent `cmd.ack` events on `POST events` complete commands. Queued commands are logged as `cmd.sent` events with values
 under sensitive keys (and `instrument.state.redact.paths`) masked before they reach `events.ndjson`.
 
+### ECP `/input` mailbox fallback
+
+When no hub is reachable, a host can still send a command through the device's ECP `POST /input` endpoint:
+`device.input(command, { token })` in `lib/e2e/ecp.js`. The agent's `roInput` receiver reassembles the command and applies
+it through the same op allow-list as the hub path.
+
+- **Token.** Every chunk carries `tk=<token>`, the per-build hub token baked at build time (see
+  [the hub token](#the-hub-token---net-and-brighttest-hub-token)). The agent compares it in constant time and drops a
+  chunk with a wrong or missing token silently: no ack, no state. The caller must supply the token (`{ token }` or
+  `createDevice({ hubToken })`); `input()` refuses to send without one.
+- **No hub session.** The agent accepts mailbox commands only while no hub session is live; with a live hub, use the
+  hub routes. A mailbox command has no hub `seq` and no ack channel, so the agent does not queue acks for it. The last
+  mailbox result `{ id, phase, ok }` (phase `applied` or `reflected`) is published in the `__bt_agent` Label as `input`.
+- **Limits.** Each request carries at most 3,500 percent-encoded characters (the device refuses a request line over
+  4,082), no body, and is spaced 220 ms from the previous one. A command takes at most 64 chunks. The receiver joins
+  chunks by `seq`, ignores a repeated chunk or an already-applied chunk id (the last 32 are remembered), never runs a
+  partial command, and drops an incomplete sequence after 10 s without a new chunk. At most 8 sequences are kept; a new
+  one evicts the oldest.
+- **The app's own `roInput` also receives these events.** The `bt`, `tk`, `s`, `n` and `d` keys arrive in the app's
+  `roInput` like any deep-link parameter, so a handler there must ignore keys it does not know.
+
 ## Rules to know
 
 - **Single build.** One build uses one fresh `Program` and one plugin instance. There is no watch mode; reusing a plugin

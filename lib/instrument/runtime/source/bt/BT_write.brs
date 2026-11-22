@@ -574,11 +574,16 @@ function BT_wHandle(cmd as object, ctx as object, session as string) as object
 end function
 
 ' ---- ECP /input mailbox receiver (STA-S-T13) ---------------------------------------------------------------------------
-' A command too long for one /input request arrives as chunks: query keys bt (command id), s (0-based seq), n (total
-' chunks) and d (a slice of the command's JSON text). State `st` is { pending: {}, done: [] } (see BT_inputNew). A command
-' is returned only once every chunk 0..n-1 is present, joined in seq order; a partial one is never returned. A repeated
-' chunk is ignored and a command id that already completed is ignored. Incomplete sequences are dropped by BT_inputSweep
-' after BT_inputTtlMs; at most BT_inputMaxPending sequences and BT_inputMaxChunks chunks per command are kept.
+' A command too long for one /input request arrives as chunks: query keys bt (command id), tk (the per-build hub token),
+' s (0-based seq), n (total chunks) and d (a slice of the command's JSON text). State `st` is { pending: {}, done: [] }
+' (see BT_inputNew). Rules:
+'  - A chunk whose tk differs from the build token (constant-time compare) is dropped silently: no state, no ack.
+'  - A command is returned only once every chunk 0..n-1 is present, joined in seq order; a partial one is never returned.
+'  - A single-chunk command (n=1) completes at once and takes no pending slot.
+'  - A repeated chunk is ignored (the first data wins); a command id that already completed (last 32 kept) is ignored;
+'    n changing mid-sequence, s >= n and n above BT_inputMaxChunks are ignored.
+'  - A sequence is dropped by BT_inputSweep once BT_inputTtlMs passed since its last accepted chunk (sliding window).
+'  - At most BT_inputMaxPending sequences are kept; a new one evicts the oldest.
 
 function BT_inputTtlMs() as integer
     return 10000
@@ -596,7 +601,21 @@ function BT_inputNew() as object
     return { pending: {}, done: [] }
 end function
 
-' Drop sequences first seen more than ttlMs ago. Returns how many were dropped.
+' Constant-time string equality: the whole token is always walked, a length difference counts as a mismatch.
+function BT_inputTokenOk(got as dynamic, want as dynamic) as boolean
+    if not BT_wIsStr(got) or not BT_wIsStr(want) then return false
+    if want = "" then return false
+    diff = 0
+    if Len(got) <> Len(want) then diff = 1
+    for i = 1 to Len(want)
+        a = 0
+        if i <= Len(got) then a = Asc(Mid(got, i, 1))
+        diff = diff + Abs(a - Asc(Mid(want, i, 1)))
+    end for
+    return diff = 0
+end function
+
+' Drop sequences whose last accepted chunk is ttlMs old or older. Returns how many were dropped.
 function BT_inputSweep(st as object, nowMs as integer, ttlMs as integer) as integer
     dropped = 0
     for each k in st.pending.keys()
@@ -608,9 +627,22 @@ function BT_inputSweep(st as object, nowMs as integer, ttlMs as integer) as inte
     return dropped
 end function
 
-' Feed one roInput event's info (an associative array). Returns the complete command text, or invalid.
-function BT_inputFeed(st as object, info as dynamic, nowMs as integer) as dynamic
+function BT_inputSeen(st as object, cid as string) as boolean
+    for each dn in st.done
+        if dn = cid then return true
+    end for
+    return false
+end function
+
+sub BT_inputFinish(st as object, cid as string)
+    st.done.push(cid)
+    if st.done.count() > 32 then st.done.shift()
+end sub
+
+' Feed one roInput event's info (an associative array). Returns { id, text } for a complete command, else invalid.
+function BT_inputFeed(st as object, info as dynamic, nowMs as integer, token as dynamic) as dynamic
     if type(info) <> "roAssociativeArray" then return invalid
+    if not BT_inputTokenOk(info.tk, token) then return invalid
     cid = info.bt
     if not BT_wIsStr(cid) then return invalid
     if cid = "" or Len(cid) > 32 then return invalid
@@ -619,13 +651,21 @@ function BT_inputFeed(st as object, info as dynamic, nowMs as integer) as dynami
     n = Val(info.n, 10)
     if n < 1 or n > BT_inputMaxChunks() or s < 0 or s >= n then return invalid
     if info.s <> s.toStr().trim() or info.n <> n.toStr().trim() then return invalid
-    for each dn in st.done
-        if dn = cid then return invalid
-    end for
+    if BT_inputSeen(st, cid) then return invalid
     BT_inputSweep(st, nowMs, BT_inputTtlMs())
+    if n = 1 then
+        BT_inputFinish(st, cid)
+        return { id: cid, text: info.d }
+    end if
     p = st.pending[cid]
     if p = invalid then
-        if st.pending.count() >= BT_inputMaxPending() then return invalid
+        while st.pending.count() >= BT_inputMaxPending()
+            oldest = invalid
+            for each k in st.pending.keys()
+                if oldest = invalid or st.pending[k].t0 < st.pending[oldest].t0 then oldest = k
+            end for
+            st.pending.delete(oldest)
+        end while
         p = { n: n, parts: {}, got: 0, t0: nowMs }
         st.pending[cid] = p
     end if
@@ -634,27 +674,59 @@ function BT_inputFeed(st as object, info as dynamic, nowMs as integer) as dynami
     if p.parts.doesExist(key) then return invalid
     p.parts[key] = info.d
     p.got = p.got + 1
+    p.t0 = nowMs
     if p.got < p.n then return invalid
     text = ""
     for i = 0 to n - 1
         text = text + p.parts[i.toStr().trim()]
     end for
     st.pending.delete(cid)
-    st.done.push(cid)
-    if st.done.count() > 32 then st.done.shift()
-    return text
+    BT_inputFinish(st, cid)
+    return { id: cid, text: text }
 end function
 
 ' Turn complete command text into a command AA the apply half accepts, or invalid when it is not a JSON object with an
-' op. A mailbox command has no hub seq: seq is 0 and an id is made from the chunk id when the sender gave none.
-function BT_inputCmd(text as dynamic) as dynamic
+' op. A mailbox command has no hub seq: seq is always 0 (a sender-supplied seq is overwritten), and the chunk id is the
+' command id unless the command carries its own.
+function BT_inputCmd(text as dynamic, cid as string) as dynamic
     if not BT_wIsStr(text) then return invalid
     cmd = ParseJson(text)
     if type(cmd) <> "roAssociativeArray" then return invalid
     if not BT_wIsStr(cmd.op) then return invalid
-    if cmd.id = invalid then cmd.id = "input"
+    if cmd.id = invalid then cmd.id = cid
     cmd.seq = 0
     return cmd
+end function
+
+' The hand-over from the Task to the render-thread agent is one string per complete command: <chunk id> LF <text>.
+function BT_inputPack(cid as string, text as string) as string
+    return cid + Chr(10) + text
+end function
+
+' Run one packed command: { ok, acks (ack lines, ordered), cmd, last: { id, phase, ok } or invalid when it did not parse }.
+function BT_inputRun(packed as dynamic, ctx as object, session as string) as dynamic
+    if not BT_wIsStr(packed) then return invalid
+    at = Instr(1, packed, Chr(10))
+    if at < 2 then return invalid
+    cmd = BT_inputCmd(Mid(packed, at + 1), Left(packed, at - 1))
+    if cmd = invalid then return invalid
+    h = BT_wHandle(cmd, ctx, session)
+    phase = "applied"
+    if BT_wIs(cmd.ack, "reflected") and h.ok then phase = "reflected"
+    return { ok: h.ok, acks: h.acks, cmd: cmd, last: { id: cmd.id, phase: phase, ok: h.ok } }
+end function
+
+' Bounded ack queue: nothing is queued without a live hub session (the mailbox has no ack channel then; the Label's
+' `input` entry carries the last result), and at most `cap` lines are kept, oldest dropped first.
+function BT_wQueueAcks(queue as object, lines as object, live as boolean, cap as integer) as object
+    if not live then return queue
+    for each l in lines
+        queue.push(l)
+    end for
+    while queue.count() > cap
+        queue.shift()
+    end while
+    return queue
 end function
 
 ' ---- cadence ---------------------------------------------------------------------------------------------------------
