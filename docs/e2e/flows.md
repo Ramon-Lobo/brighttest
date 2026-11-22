@@ -72,7 +72,7 @@ The values come from the `device-info` record the run already reads at the start
 |---|---|
 | `waitForAgent: { timeout: 10 }` | Wait (seconds) until the agent has said hello for this run; bare `waitForAgent` uses the step timeout |
 | `setState: { layer: global, path: user.tier, value: premium }` | One write. `layer` is `global` (default), `scene`, `node` (add `node: { id: heroTitle }`) or `registry` (`path` is `<section>.<key>`) |
-| `setState: { layer: global, ops: [ { path: a, value: 1 }, { path: b, value: 2 } ] }` | A batch sent as one atomic command (validated as a whole, applied without rollback). Not available for `registry` |
+| `setState: { layer: global, ops: [ { path: a, value: 1 }, { path: b, value: 2 } ] }` | A batch sent as one command with one ack. Every op is checked first (path, type, no crossing a node reference); if any fails, nothing is applied and the error names it as `ops[N]` (0-based). A failure that only shows once an earlier op of the same batch has applied (for example writing `a.b` after setting `a` to a number) leaves the earlier ops applied, with no rollback, and says how many. Not available for `registry` |
 | `snapshot: fresh_home` | Store the agent's state layers under a name, scoped to this flow |
 | `restore: fresh_home` | Write a snapshot of this flow back (best effort); an unknown name fails with `STATE_SNAPSHOT_NOT_FOUND` before anything is sent |
 | `callFunc: { node: { id: homePanel }, fn: bt_resetHome, args: [] }` | Call a node function. `fn` must start with `bt_` or be listed in `instrument.state.callable` in `brighttest.json`; otherwise the flow fails before the device is touched |

@@ -94,6 +94,20 @@ describe('BT_wApply (headless, fork engine)', () => {
         '    s2 = BT_wApply({ op: "snapshot", args: { nodes: ["panel"] } }, ctx).result',
         '    print "L1:" + FormatJson(s1.layers)',
         '    print "L2:" + FormatJson(s2.layers)',
+        // set with ops (batch): one command, validated first
+        '    ctx.global.addFields({ b1: 1, b2: "x", b3: { k: 1 } })',
+        '    print "B1:" + rn(ctx, "set", { layer: "global", ops: [{ path: "b1", value: 5 }, { path: "b3.k", value: 7 }, { path: "b3.new", value: true }, { path: "b2", value: "y" }] })',
+        '    print "B1G:" + FormatJson([ctx.global.b1, ctx.global.b2, ctx.global.b3])',
+        '    print "B2:" + rn(ctx, "set", { layer: "global", ops: [{ path: "b1", value: 9 }, { path: "b2", value: 3 }, { path: "b3.k", value: 8 }] })',
+        '    print "B2G:" + FormatJson([ctx.global.b1, ctx.global.b2, ctx.global.b3])',
+        '    print "B3:" + rn(ctx, "set", { layer: "global", ops: [{ path: "b1", value: 9 }, { path: "ref.id", value: "q" }] })',
+        '    print "B3G:" + FormatJson([ctx.global.b1])',
+        '    print "B4:" + rn(ctx, "set", { layer: "registry", ops: [{ path: "a.b", value: 1 }] })',
+        '    print "B5:" + rn(ctx, "set", { layer: "global", ops: [] })',
+        '    print "B6:" + rn(ctx, "set", { layer: "global", path: "b1", value: 6, ops: [{ path: "b1", value: 1 }] })',
+        '    print "B7:" + rn(ctx, "set", { layer: "node", node: { id: "panel" }, ops: [{ path: "rowIndex", value: 4 }] })',
+        '    print "B7G:" + FormatJson([p.rowIndex])',
+        '    print "B8:" + rn(ctx, "set", { layer: "global", ops: [{ path: "b1" }] })',
         // cadence
         '    print "C:" + FormatJson([BT_wCadence(BT_config(), false, true), BT_wCadence(BT_config(), true, true), BT_wCadence(BT_config(), false, false)])',
         // oversized args and oversized get
@@ -134,6 +148,26 @@ describe('BT_wApply (headless, fork engine)', () => {
   it('TP-STA-12: a path under a node reference is refused; dispatch is not supported yet', () => {
     expect(a(16).error).toMatch(/^PATH_UNDER_NODE/)
     expect(a(15).error).toMatch(/^NOT_SUPPORTED/)
+  })
+  it('set with ops applies the batch in order as one command with one ack', () => {
+    expect(tagged(out, 'B1:')[0]).toEqual({ ok: true, result: { ops: 4 } })
+    expect(tagged(out, 'B1G:')[0]).toEqual([5, 'y', { k: 7, new: true }])
+    expect(tagged(out, 'B7:')[0]).toEqual({ ok: true, result: { ops: 1 } })
+    expect(tagged(out, 'B7G:')[0]).toEqual([4])
+  })
+  it('a failing op in a batch applies nothing and names its index', () => {
+    expect(tagged(out, 'B2:')[0].error).toMatch(/^TYPE_MISMATCH: field b2 holds a string; got a number \(ops\[1\]; nothing was applied\)$/)
+    expect(tagged(out, 'B2G:')[0]).toEqual([5, 'y', { k: 7, new: true }])
+    expect(tagged(out, 'B3:')[0].error).toMatch(/^PATH_UNDER_NODE.*\(ops\[1\]; nothing was applied\)$/)
+    expect(tagged(out, 'B3G:')[0]).toEqual([5])
+    expect(tagged(out, 'B8:')[0].error).toMatch(/^BAD_COMMAND: op needs a value \(ops\[0\]/)
+  })
+  it('ops is refused on the registry layer, when empty, and combined with path/value; single set is unchanged', () => {
+    expect(tagged(out, 'B4:')[0].error).toMatch(/^BAD_LAYER/)
+    expect(tagged(out, 'B5:')[0].error).toMatch(/^BAD_COMMAND: ops must be a non-empty list/)
+    expect(tagged(out, 'B6:')[0].error).toMatch(/^BAD_COMMAND: ops cannot be combined/)
+    expect(a(1)).toEqual({ ok: true, result: { path: 'user.tier' } })
+    expect(a(6).error).toMatch(/^TYPE_MISMATCH: field count holds a number; got a string/)
   })
   it('refuses over-64 KB payloads with a typed STATE_TOO_LARGE, never truncating', () => {
     expect(tagged(out, 'BIG:')[0].error).toMatch(/^STATE_TOO_LARGE/)
