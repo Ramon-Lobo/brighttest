@@ -155,7 +155,9 @@ function createFakeRoku(opts = {}) {
 
   async function sgnodes(req, res, url) {
     const p = url.pathname;
-    if (state.crashed || cfg.sgnodes === 'fail') return reply(res, 200, B.sgnodesFailed());
+    if (state.crashed) return reply(res, 200, B.sgnodesFailed());
+    // sgnodes-fails: every /query/sgnodes/* answers FAILED; /query/app-ui still serves the tree (ROB-10 fallback source).
+    if (cfg.sgnodes === 'fail' && p !== '/query/app-ui') return reply(res, 200, B.sgnodesFailed());
     if (cfg.sgnodes === 'hang') return;
     if (cfg.sgnodes === 'cold-stall') {
       const wait = state.launchedAt + cfg.coldStallMs - Date.now();
