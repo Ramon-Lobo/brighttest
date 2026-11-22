@@ -1,6 +1,8 @@
 ---
 name: debugging-failing-tests
 description: Use when a brighttest run fails, produces no results, hangs, passes headless but fails on device, or when coverage looks wrong — how to read the output, isolate the cause, use --cross-check for fidelity, seed global context for device crashes, and test the Task/API layer.
+triggers: test run fails; no test results; run hangs; passes headless but fails on device; coverage looks wrong; cross-check mismatch; device crash in test; flaky rooibos test
+when-not-to-use: Do not use to author new specs (use writing-rooibos-tests), to debug a failing e2e flow step (use writing-e2e-flows), or to inspect a live device through MCP (use using-brighttest-mcp).
 license: MIT
 metadata:
   source: brighttest

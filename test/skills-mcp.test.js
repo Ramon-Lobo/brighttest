@@ -15,7 +15,7 @@ const ticks = (cell) => (cell.match(/`([^`]+)`/g) || []).map((s) => s.slice(1, -
 
 describe('using-brighttest-mcp skill matches the MCP server (TP-MCP-15)', () => {
   test('frontmatter names the skill', () => {
-    expect(SKILL).toMatch(/^---\nname: using-brighttest-mcp\ndescription: .+\nlicense: MIT\nmetadata:\n  source: brighttest\n---/);
+    expect(SKILL).toMatch(/^---\nname: using-brighttest-mcp\ndescription: .+\n(?:[a-z-]+: .+\n)*license: MIT\nmetadata:\n  source: brighttest\n---/);
   });
 
   test('tool table lists exactly the server tools', () => {
