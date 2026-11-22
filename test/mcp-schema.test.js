@@ -8,8 +8,9 @@ const require = createRequire(import.meta.url)
 const { createMcpServer } = require('../lib/mcp/server.js')
 const { TOOLS, confineFlowPath } = require('../lib/mcp/tools.js')
 
-// TP-MCP-03: the tools/list result is the public brighttest-mcp/v1 contract. A change here needs a contract
-// version bump and a skill update in the same change; regenerate with BT_UPDATE_MCP_SNAPSHOT=1.
+// TP-MCP-03: the tools/list result is the public brighttest-mcp/v1 contract. A breaking change here (tool
+// names, input schemas) needs a contract version bump and a skill update (ADR 0003); description-only edits do not.
+// Regenerate with BT_UPDATE_MCP_SNAPSHOT=1.
 const SNAPSHOT = path.join(__dirname, 'fixtures', 'mcp-tools-list.json')
 
 const canon = (v) => Array.isArray(v) ? v.map(canon) : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, canon(v[k])])) : v

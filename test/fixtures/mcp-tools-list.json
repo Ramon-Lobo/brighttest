@@ -1,7 +1,7 @@
 {
   "tools": [
     {
-      "description": "Read the app self-published state snapshot (the hidden __bt_state node of an instrumented build). Errors with STATE_NOT_PUBLISHED when the build is not instrumented.",
+      "description": "Read the app's self-published state from an instrumented build: the __bt_agent node (its global, scene and focus layers) first, or the legacy __bt_state node when there is no readable agent node. Errors with STATE_NOT_PUBLISHED when neither node is published (the build is not instrumented).",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {},
