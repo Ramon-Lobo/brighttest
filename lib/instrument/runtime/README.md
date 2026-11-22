@@ -79,3 +79,6 @@ copies named runtime files only.
 
 - `BT_wMCall` passes any `{ ok: false, error: <string> }` reply from `BT_mOp` through unchanged (M_PATH_FORBIDDEN, FIELD_NOT_FOUND, TYPE_MISMATCH, PATH_UNDER_NODE, BAD_PATH). `M_NOT_AVAILABLE` is only for a missing `BT_op`, a non-object reply, or an `ok: true` reply without the `btop` marker.
 - The publish size that drives the rate cap is `Len(label.text)`, which counts characters, not bytes. The `agent.rate` event reports it as `docChars` and carries the real period in `clampedMs`; it is logged once when clamping starts, not every tick.
+
+- The m-layer `get` redacts when any segment of the path is a secret key, or any prefix matches a redact pattern in dotted form (`m.list.0`) or `[i]` form (`m.list[0]`, numeric segments). The scene and global layers still check only the leaf (follow-up INS-REDACT-LEAF).
+- `BT_wClampStep` decides the `agent.rate` event: it fires once when clamping starts and only after a hub session is live (a clamp that starts before hello is held and reported after), then re-arms when the clamp ends.

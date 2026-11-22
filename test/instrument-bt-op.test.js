@@ -92,6 +92,16 @@ describe('BT_mOp and the m layer (headless, fork engine)', () => {
       '    print "F7:" + FormatJson(BT_wMGet(fm, [], { path: "" }, BT_capsFrom(BT_config()), invalid, []))',
       '    print "F8:" + FormatJson(BT_wMGet(fm, ["secret", "x"], { path: "secret.x" }, BT_capsFrom(BT_config()), BT_config().redact.paths, []))',
       '    print "F9:" + FormatJson(BT_wMGet(fm, ["nested", "a"], { path: "nested.a" }, BT_capsFrom(BT_config()), BT_config().redact.paths, []))',
+      '    fm.creds = { user: "u" } : fm.list = [{ a: 1 }, 2] : fm.secretStore = { value: "v" }',
+      '    cp = BT_capsFrom(BT_config())',
+      '    print "R1:" + FormatJson(BT_wMGet(fm, ["secretStore", "value"], { path: "secretStore.value" }, cp, [], []))',
+      '    print "R2:" + FormatJson(BT_wMGet(fm, ["creds", "user"], { path: "creds.user" }, cp, ["m.creds"], []))',
+      '    print "R3:" + FormatJson(BT_wMGet(fm, ["list", "0"], { path: "list.0" }, cp, ["m.list[0]"], []))',
+      '    print "R4:" + FormatJson(BT_wMGet(fm, ["secret", "x"], { path: "secret.x" }, cp, [], []))',
+      '    print "R5:" + FormatJson(BT_wMGet(fm, ["list", "1"], { path: "list.1" }, cp, ["m.list[0]", "M.CREDS.*"], []))',
+      '    print "R6:" + FormatJson(BT_wMGet(fm, ["creds", "user"], { path: "creds.user" }, cp, ["M.CREDS.*"], []))',
+      '    print "R7:" + FormatJson(BT_wMGet(fm, ["list", "0", "a"], { path: "list.0.a" }, cp, ["m.list[0]"], []))',
+      '    print "K1:" + FormatJson([BT_wClampStep("e", false, false), BT_wClampStep("e", false, true), BT_wClampStep("e", true, true), BT_wClampStep("", true, true)])',
       '    nb = { callFunc: function(n as string, a as dynamic) as dynamic',
       '        return invalid',
       '    end function }',
@@ -151,6 +161,15 @@ describe('BT_mOp and the m layer (headless, fork engine)', () => {
     expect(JSON.stringify(t('F8'))).not.toContain('s3')
     expect(JSON.stringify(t('F8'))).toMatch(/redacted/)
     expect(t('F9').result.value).toBe(1)
+  })
+  it('host: m get redacts any secret or redacted ancestor segment, in dotted and [i] form', () => {
+    for (const k of ['R1', 'R2', 'R3', 'R4', 'R6', 'R7']) expect(JSON.stringify(t(k)), k).toMatch(/redacted/)
+    expect(JSON.stringify(t('R1'))).not.toContain('"v"')
+    expect(JSON.stringify(t('R2'))).not.toContain('"u"')
+    expect(t('R5').result.value).toBe(2)
+  })
+  it('clamp event is armed once and held until a session is live', () => {
+    expect(t('K1')).toEqual([{ clamped: false, send: false }, { clamped: true, send: true }, { clamped: true, send: false }, { clamped: false, send: false }].map((x) => x))
   })
   it('the m layer is never in the snapshot or the published layers', () => {
     expect(t('H4')).not.toContain('m')

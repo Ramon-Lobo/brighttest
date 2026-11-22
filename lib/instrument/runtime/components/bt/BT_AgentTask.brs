@@ -36,10 +36,9 @@ sub BT_agentTaskRun()
             period = BT_wCadence(cfg, m.top.subscribed, session <> "", m.top.docBytes)
             nextTick = now + period
             clamp = BT_wClampEvent(cfg, m.top.docBytes, session, period)
-            if (clamp <> "") <> clamped then
-                clamped = (clamp <> "")
-                if clamped then queue = BT_wQueueAcks(queue, [clamp], session <> "", 200)
-            end if
+            cs = BT_wClampStep(clamp, clamped, session <> "")
+            clamped = cs.clamped
+            if cs.send then queue = BT_wQueueAcks(queue, [clamp], true, 200)
         end if
         if session = "" and now >= retryAt and BT_wOrigin(cfg) <> "" then
             info = BT_wHelloInfo(cfg)
