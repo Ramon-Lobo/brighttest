@@ -335,6 +335,20 @@ describe('net window hub', () => {
     expect(err).not.toMatch(/request POST \/private\/x failed/)
   })
 
+  it('hub net.error uses the status and bytes of the event; falls back when absent', async () => {
+    const { c } = await boot()
+    await c.tool('net_requests')
+    const sess = c.server.session
+    const ev = (id, method, url, err) => { sess.hubNetEvent('net.request', { id, method, url }); sess.hubNetEvent('net.error', { id, kind: 'upstream', ...err }) }
+    ev(901, 'GET', 'http://h.test/a?q=1', { detail: 'refused: host not allowed', refused: true, status: 403, bytes: 77 })
+    ev(902, 'GET', 'http://h.test/b', { detail: 'bad target url', status: 400, bytes: 12 })
+    ev(903, 'POST', 'http://h.test/c', { detail: 'refused: host not allowed', refused: true })
+    const err = c.stderr()
+    expect(err).toContain('[brighttest hub] request GET /a -> 403 (77 response bytes, source refused)\n')
+    expect(err).toContain('[brighttest hub] request GET /b -> 400 (12 response bytes, source error)\n')
+    expect(err).toMatch(/\[brighttest hub\] request POST \/c -> 403 \(\d+ response bytes, source refused\)\n/)
+  })
+
   it('start and stop hub lines keep their exact format', async () => {
     const { c } = await boot()
     await c.tool('net_requests')
