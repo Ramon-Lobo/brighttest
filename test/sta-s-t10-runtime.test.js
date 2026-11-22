@@ -6,7 +6,7 @@ import { spawn } from 'node:child_process'
 
 // STA-S-T10 runtime (headless, fork engine): the focus op, the task layer, BT_dwHash/BT_dwEmit and BT_taskSnap.
 // The Scene, the agent observer and real threads are not exercised here (device: DQ-5).
-const brsCli = path.resolve(__dirname, '../node_modules/.bin/brs-cli')
+const brsCli = path.resolve(__dirname, '../node_modules/@ramonlobo/brs-node/bin/brs.cli.js')
 const SRC = path.resolve(__dirname, '../lib/instrument/runtime/source')
 const strip = (f) => fs.readFileSync(path.join(SRC, f), 'utf8').split('\n').filter((l) => !l.startsWith('#')).join('\n')
 const RUNTIME = ['bt/BT_core.brs', 'bt/BT_write.brs', 'btop/BT_mOp.brs'].map(strip).join('\n')
