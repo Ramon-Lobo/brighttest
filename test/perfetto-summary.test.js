@@ -6,7 +6,7 @@ import path from 'node:path'
 import zlib from 'node:zlib'
 
 const require = createRequire(import.meta.url)
-const { makeTrace, SYNTH_A, SYNTH_B, varint, ld } = require('./fixtures/perfetto/make-trace.js')
+const { makeTrace, SYNTH_A, SYNTH_B, varint, ld, vf } = require('./fixtures/perfetto/make-trace.js')
 const M = require('../lib/studio/perfetto-summary.js')
 const { summarizeTrace, summarizeFile } = M
 
@@ -79,7 +79,7 @@ describe('perfetto summary: budget (TP-PRF-03, 04)', () => {
   })
   it('rejects bad options with E_BAD_OPTION and never throws', () => {
     for (const o of [{ budgetMs: 0 }, { budgetMs: -1 }, { budgetMs: '10' }, { budgetMs: 10001 }, { topN: 0 }, { topN: 1.5 },
-      { limits: { maxPackets: 0 } }, { limits: { nope: 1 } }, 5, []]) {
+      { limits: { maxPackets: 0 } }, { limits: { nope: 1 } }, { limits: { constructor: 1 } }, { limits: { toString: 1 } }, 5, []]) {
       const r = summarizeTrace(A_NONE, o)
       expect(r.ok).toBe(false)
       expect(r.error.code).toBe('E_BAD_OPTION')
@@ -160,6 +160,68 @@ describe('perfetto summary: limits and files (TP-PRF-11)', () => {
     const c = sum(makeTrace(spec)).counters[0]
     expect(c).toMatchObject({ min: -5, max: '4611686018427387904', last: -5 })
     expect(varint(1).length).toBe(1)
+  })
+})
+
+describe('perfetto summary: bounded memory and ADR keys', () => {
+  const timed = (fn) => { const t = Date.now(); const r = fn(); expect(Date.now() - t).toBeLessThan(20000); return r }
+  const empties = (bytes) => Buffer.alloc(bytes).fill(Buffer.from([0x0a, 0x00]))
+  it('zlib bomb of empty packets returns a typed code', () => {
+    const z = zlib.deflateSync(empties(64 << 20))
+    expect(z.length).toBeLessThan(200000)
+    const before = process.memoryUsage().heapUsed
+    expect(code(timed(() => summarizeTrace(ld(1, ld(50, z)))))).toBe('E_TRACE_TOO_MANY_PACKETS')
+    expect(process.memoryUsage().heapUsed - before).toBeLessThan(1024 * 1024 * 1024)
+  })
+  it('raw large file of empty packets returns a typed code', () => {
+    expect(code(timed(() => summarizeTrace(empties(64 << 20))))).toBe('E_TRACE_TOO_MANY_PACKETS')
+  })
+  it('fires at packet maxPackets + 1 exactly', () => {
+    expect(code(summarizeTrace(empties(10), { limits: { maxPackets: 5 } }))).toBe('ok')
+    expect(code(summarizeTrace(empties(12), { limits: { maxPackets: 5 } }))).toBe('E_TRACE_TOO_MANY_PACKETS')
+  })
+  it('a packet with millions of fields is a typed error', () => {
+    const many = Buffer.alloc(2 * 3000000).fill(Buffer.from([0x78, 0x00])) // field 15 varint 0
+    expect(code(timed(() => summarizeTrace(ld(1, many))))).toBe('E_TRACE_TOO_LARGE')
+  })
+  it('undecoded keys use the ADR scope.fieldN format', () => {
+    const r = sum(makeTrace({ packets: [
+      { seq: 1, flags: 1, clocks: [{ id: 64, inc: true }], clock: 64, track: { uuid: 1, name: 't' } },
+      { seq: 1, ts: 1, event: { type: 9, track: 1, name: 'x' } },
+      { seq: 1, clock: 5, event: { type: 1, track: 1, name: 'x' } }
+    ] })).undecoded
+    expect(Object.keys(r).sort()).toEqual(['packet.field8', 'track_event.field9'])
+  })
+  it('empty inline and interned names become (unnamed)', () => {
+    const s = sum(makeTrace({ packets: [
+      { seq: 1, flags: 1, ts: 0, event: { type: 3, name: '' } },
+      { seq: 1, ts: 1, interned: [{ iid: 1, name: '' }], event: { type: 3, iid: 1 } }
+    ] }))
+    expect(s.instants).toEqual([{ name: '(unnamed)', count: 2 }])
+  })
+  it('counts unknown fields in descriptors, snapshots and defaults', () => {
+    const u = sum(makeTrace({ packets: [
+      { seq: 1, flags: 1, clocks: [{ id: 64, inc: true }], defaults: { clock: 64 }, track: { uuid: 1, name: 't' } },
+      { seq: 1, ts: 1, event: { type: 3, track: 1, name: 'x' } }
+    ] })).undecoded
+    expect(u).toEqual({})
+    const raw = ld(1, Buffer.concat([ld(60, Buffer.concat([vf(1, 1), vf(77, 1)])), ld(59, vf(78, 1)), ld(6, ld(1, Buffer.concat([vf(1, 5), vf(79, 1)])))]))
+    expect(sum(raw).undecoded).toEqual({ 'clock.field79': 1, 'trace_packet_defaults.field78': 1, 'track_descriptor.field77': 1 })
+  })
+})
+
+describe('perfetto summary: clock scoping', () => {
+  const spec = (id) => ({ packets: [
+    { seq: 1, flags: 1, clocks: [{ id, inc: true, mult: 1 }] },
+    { seq: 2, flags: 1, clock: id, track: { uuid: 9, name: 'u' } },
+    { seq: 2, clock: id, ts: 100, event: { type: 1, track: 9, name: 's' } },
+    { seq: 2, clock: id, ts: 130, event: { type: 2, track: 9, name: 's' } }
+  ] })
+  it('sequence-scoped clock ids (64-127) do not leak across sequences', () => {
+    expect(sum(makeTrace(spec(64))).slices[0].totalNs).toBe(30)
+  })
+  it('other clock ids still fall back to another sequence snapshot', () => {
+    expect(sum(makeTrace(spec(5))).slices[0].totalNs).toBe(130)
   })
 })
 
