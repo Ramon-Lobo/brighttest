@@ -12,7 +12,7 @@ const { ProgramBuilder } = require('brighterscript')
 const createPlugin = require(path.resolve(__dirname, '../lib/instrument/plugin.js'))
 const { validateStateConfig } = require(path.resolve(__dirname, '../lib/instrument/build.js'))
 
-const brsCli = path.resolve(__dirname, '../node_modules/.bin/brs-cli')
+const brsCli = path.resolve(__dirname, '../node_modules/@ramonlobo/brs-node/bin/brs.cli.js')
 const SRC = path.resolve(__dirname, '../lib/instrument/runtime/source')
 const strip = (f) => fs.readFileSync(path.join(SRC, f), 'utf8').split('\n').filter((l) => !l.startsWith('#')).join('\n')
 const RUNTIME = ['bt/BT_core.brs', 'bt/BT_write.brs', 'btop/BT_mOp.brs'].map(strip).join('\n')
