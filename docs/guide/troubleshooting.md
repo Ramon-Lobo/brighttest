@@ -129,6 +129,8 @@ The two fixable states are **Limited** ECP (Settings → System → Advanced sys
 apps → Network access → Permissive) and **developer mode disabled** (enable it with the remote sequence the
 fix text prints).
 
+When the device answers, doctor also prints the hub it would use (bind address, default port 8790, and the LAN address it would advertise) and one line: `hub reach: NOT proven by doctor; device-to-hub reachability needs the device (TP-NET-20, owner-run)`. Doctor sends nothing to the device for this; JSON output carries the same facts under `hub`.
+
 `brighttest e2e run` runs the same check first. On a Limited or developer-disabled device it stops before the
 device lease, any launch or any keypress, and prints the same fix text.
 
