@@ -86,11 +86,13 @@
   // ── device console (:8080) ────────────────────────────────────────────────────────────────────
   let conOut = $state('');
   let conErr = $state('');
+  let conStatus = $state('');
   let conBusy = $state(false);
   const CONSOLE_CMDS = ['free', 'sgperf_start', 'sgperf_report', 'sgperf_stop', 'loaded_textures', 'fps_display_on', 'fps_display_off', 'logrendezvous_on', 'logrendezvous_off'];
   async function consoleRun(command) {
-    conBusy = true; conErr = '';
+    conBusy = true; conErr = ''; conStatus = '';
     const r = await api.perfConsole(command).finally(() => (conBusy = false));
+    if (r.status) conStatus = `status: ${r.status} - ${r.reason || ''}`;
     if (r.error) { conErr = r.error; return; }
     let head = `> ${command}`;
     if (r.parsed && r.parsed.ok && r.parsed.threads) {
@@ -268,6 +270,7 @@
     </div>
     <p class="note">sgperf: start → drive the app → report (node ops + rendezvous per thread). logrendezvous prints to the :8085 console.</p>
     {#if conErr}<p class="err">{conErr}</p>{/if}
+    {#if conStatus}<p class="note">{conStatus}</p>{/if}
     {#if conOut}<pre class="console">{conOut}</pre>{/if}
   </div>
 
