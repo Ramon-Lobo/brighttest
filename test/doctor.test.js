@@ -90,6 +90,7 @@ describe('doctor against the fake', () => {
     const r = await runDoctor('healthy', { json: true })
     const j = JSON.parse(r.out)
     expect(j).toMatchObject({ host: '127.0.0.1', reachable: true, softwareVersion: '16.0.4', build: '853', developerEnabled: true, ecpSettingMode: 'permissive', videoMode: '1080p', deviceClass: 'box' })
+    expect(j).toHaveProperty('model')
     expect(j.checks.every((k) => k.ok)).toBe(true)
     expect(r.out).not.toContain('FAKE-SERIAL-0001')
     const s = await runDoctor('healthy', { json: true, showSerial: true })

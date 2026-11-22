@@ -117,7 +117,7 @@ even on hello-world under Node 22. It's unmaintained — use `brs-node` (what br
 
 ```sh
 brighttest doctor --host <ip>            # firmware, ECP mode, developer mode, with the exact fix for anything wrong
-brighttest doctor --host <ip> --json     # the same as JSON (checks[] with id, ok, fix)
+brighttest doctor --host <ip> --json     # the same as JSON: model, softwareVersion, build, ecpSettingMode, developerEnabled, videoMode, deviceClass, checks[] (id, ok, fix); no serial
 ```
 
 It reads `query/device-info` only: no password, no lease, no keypresses. Exit 0 when every check passes, 1
