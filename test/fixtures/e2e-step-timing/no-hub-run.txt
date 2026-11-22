@@ -1,0 +1,10 @@
+device: Ultra · fw 16.0.4 · <host>
+
+timing-smoke  timing-smoke.e2e.yaml
+  ✓ launch — dev
+  ✓ assertLog — seq 7: FakeApp: live line 3
+  ✓ expectNoLog — no line matches "ERROR"
+
+────────────────────────────────────────────────────────
+  brighttest (e2e): 3 passed, 0 failed · 1 run(s) · 1 device(s)
+────────────────────────────────────────────────────────
