@@ -97,3 +97,8 @@ Writes each skill as a standard Agent Skills folder so you can drop it wherever 
 ```sh
 npx brighttest init
 ```
+
+For an app built with brighttest in mind, `npx brighttest init --greenfield` also copies the `BTStore` and `BTHttp`
+templates into `source/brighttest/` and adds `BT_AGENT=false` to `bs_const`. See
+[Instrument: greenfield setup](./instrument.md#greenfield-setup-init-greenfield) for the script-tag wiring, `--force`
+behavior and current limitations.

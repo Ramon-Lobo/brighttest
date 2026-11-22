@@ -3,6 +3,12 @@
 ' Reducers are plain functions: fn(state as object, action as object) as object.
 ' Pure mode (no SceneGraph, safe in the fast lane): store = BTStore_create(reducers, initial)
 '   store.dispatch(action) : store.state
+'
+' Current limitations (recorded scope cut, not yet implemented from the design):
+'   - No `#if BT_AGENT` branches: no state.action emission, no hashBefore/hashAfter, no dispatch/restore ops.
+'   - BTStore_dispatch called from a Task thread does not reduce; it returns {}. Tasks must set
+'     m.global.btAction instead (reduced by the render-thread observer).
+'   - BTStore_replay ignores options.effects (reducers only); there is no m.global.btEffect.
 
 function BTStore_create(reducers as object, initial = {} as object) as object
     store = { reducers: reducers, state: {}, actions: [] }
@@ -25,7 +31,9 @@ sub BTStore_init(reducers as object, initial = {} as object)
     g = m.global
     m.btStore = BTStore_create(reducers, initial)
     for each key in m.btStore.state
-        g.addFields({ ("btState_" + key): m.btStore.state[key] })
+        f = {}
+        f["btState_" + key] = m.btStore.state[key]
+        g.addFields(f)
     end for
     g.addFields({ btAction: {} })
     g.observeField("btAction", "BTStore_onAction")
@@ -40,9 +48,7 @@ end sub
 function BTStore_dispatch(action as object) as object
     if m.btStore = invalid then return {}
     state = m.btStore.dispatch(action)
-    for each key in state
-        m.global.setFields({ ("btState_" + key): state[key] })
-    end for
+    BTStore_publish(state)
     return state
 end function
 
@@ -72,8 +78,14 @@ end function
 sub BTStore_restore(snap as object)
     if m.btStore = invalid then return
     m.btStore.state = ParseJson(FormatJson(snap))
-    for each key in m.btStore.state
-        m.global.setFields({ ("btState_" + key): m.btStore.state[key] })
+    BTStore_publish(m.btStore.state)
+end sub
+
+sub BTStore_publish(state as object)
+    for each key in state
+        f = {}
+        f["btState_" + key] = state[key]
+        m.global.setFields(f)
     end for
 end sub
 

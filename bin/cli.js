@@ -473,7 +473,9 @@ Usage:
                  adds .brighttest/ and *.bt-instrumented.zip to .gitignore, and does not add an example spec or an
                  npm test script. Existing brighttest.json settings are kept; --force replaces the instrument block.
   --greenfield   For an app built with brighttest in mind: also copies BTStore.brs and BTHttp.brs (version-headed) into
-                 components/brighttest/ and adds BT_AGENT=false to bs_const in the manifest (existing consts kept).
+                 source/brighttest/ and adds BT_AGENT=false to bs_const in the manifest (existing consts kept). Scene/Task components include them with
+                 <script type="text/brightscript" uri="pkg:/source/brighttest/BTStore.brs" />. With --greenfield, --force
+                 refreshes only the two templates. Cannot be combined with --brownfield.
 `;
 
 const SKILLS_HELP = `
