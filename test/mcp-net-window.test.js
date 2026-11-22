@@ -320,6 +320,30 @@ describe('net window hub', () => {
     expect(c.stderr()).toContain('[brighttest hub] session hub stopped\n')
   })
 
+  it('logs a refused (403) hub request with method, path, status, bytes; no query, no body', async () => {
+    const { c, hub } = await boot()
+    await c.tool('net_requests')
+    const { Readable, Writable } = require('stream')
+    const req = Object.assign(Readable.from([]), { method: 'POST', headers: {} })
+    const res = Object.assign(new Writable({ write(ch, e, cb) { cb() } }), { writeHead() { this.headersSent = true; return this } })
+    await hub.starts[0].netProxy.handle(req, res, 'http://127.0.0.1:9/private/x?token=QUERYSECRET')
+    const err = c.stderr()
+    const m = err.match(/\[brighttest hub\] request POST \/private\/x -> 403 \((\d+) response bytes, source refused\)\n/)
+    expect(m).not.toBeNull()
+    expect(Number(m[1])).toBeGreaterThan(0)
+    expect(err).not.toContain('QUERYSECRET')
+    expect(err).not.toMatch(/request POST \/private\/x failed/)
+  })
+
+  it('start and stop hub lines keep their exact format', async () => {
+    const { c } = await boot()
+    await c.tool('net_requests')
+    expect(c.stderr()).toMatch(/^\[brighttest hub\] session hub started on port 8790 for 127\.0\.0\.1\n/m)
+    c.server.session.win.release('idle expiry')
+    await new Promise((r) => setTimeout(r, 10))
+    expect(c.stderr()).toMatch(/^\[brighttest hub\] session hub stopped\n/m)
+  })
+
   it('session end stops the hub and releases the window lease', async () => {
     const { c, hub } = await boot()
     await c.tool('net_requests')
