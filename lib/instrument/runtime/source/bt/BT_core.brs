@@ -217,13 +217,14 @@ function BT_layers(globalNode as dynamic, scene as dynamic, cfg as dynamic, trun
     if type(cfg) = "roAssociativeArray" and type(cfg.redact) = "roAssociativeArray" then redact = cfg.redact.paths
     layers = {}
     layers["focus"] = BT_serialize(BT_focusChain(scene), caps, "focus", 0, trunc, redact)
-    gf = BT_nodeFields(globalNode)
-    gf.delete("__btEv")
+    gf = {}
     tk = {}
-    for each k in gf.keys()
+    fl = BT_nodeFields(globalNode)
+    for each k in fl
         if Left(k, 9) = "__btTask_" then
-            tk[Mid(k, 10)] = gf[k]
-            gf.delete(k)
+            tk[Mid(k, 10)] = fl[k]
+        else if k <> "__btEv" then
+            gf[k] = fl[k]
         end if
     end for
     layers["global"] = BT_serialize(gf, caps, "global", 0, trunc, redact)
