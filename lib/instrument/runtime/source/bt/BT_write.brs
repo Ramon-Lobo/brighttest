@@ -603,13 +603,21 @@ end function
 
 ' One bounded hello (at most 1.5 s). Returns the session id or "".
 function BT_wHello(cfg as object) as string
-    if BT_wOrigin(cfg) = "" then return ""
+    info = BT_wHelloInfo(cfg)
+    if info = invalid then return ""
+    return info.session
+end function
+
+' Same hello, returning { session, seq } or invalid. `seq` is the newest command the hub had queued when the agent
+' connected; the agent polls from it so it never replays earlier commands. A hub that sends no seq gives 0 (old behavior).
+function BT_wHelloInfo(cfg as object) as dynamic
+    if BT_wOrigin(cfg) = "" then return invalid
     mp = CreateObject("roMessagePort")
     x = CreateObject("roUrlTransfer")
     x.SetMessagePort(mp)
     x.SetUrl(BT_wUrl(cfg, "hello", ""))
     x.SetMinimumTransferRate(1, 1)
-    if not x.AsyncGetToString() then return ""
+    if not x.AsyncGetToString() then return invalid
     clock = CreateObject("roTimespan")
     while true
         left = 1500 - clock.TotalMilliseconds()
@@ -617,15 +625,17 @@ function BT_wHello(cfg as object) as string
         msg = Wait(left, mp)
         if msg = invalid then exit while
         if type(msg) = "roUrlEvent" and msg.GetInt() = 1 then
-            if msg.GetResponseCode() <> 200 then return ""
+            if msg.GetResponseCode() <> 200 then return invalid
             j = ParseJson(msg.GetString())
-            if type(j) <> "roAssociativeArray" then return ""
-            if j.active <> true or not BT_wIsStr(j.session) then return ""
-            return j.session
+            if type(j) <> "roAssociativeArray" then return invalid
+            if j.active <> true or not BT_wIsStr(j.session) then return invalid
+            seq = 0
+            if BT_wKind(j.seq) = "number" and j.seq > 0 then seq = Int(j.seq)
+            return { session: j.session, seq: seq }
         end if
     end while
     x.AsyncCancel()
-    return ""
+    return invalid
 end function
 
 ' Start the one outstanding long-poll. Returns the transfer (keep it: its identity matches the roUrlEvent).
@@ -681,9 +691,10 @@ end function
 function BT_wPumpOnce(ctx as object, st as object, waitMs as integer) as integer
     cfg = ctx.cfg
     if st.session = "" then
-        st.session = BT_wHello(cfg)
-        st.after = 0
-        if st.session = "" then return 0
+        info = BT_wHelloInfo(cfg)
+        if info = invalid then return 0
+        st.session = info.session
+        st.after = info.seq
     end if
     port = CreateObject("roMessagePort")
     poll = BT_wPollStart(cfg, st.session, st.after, port)

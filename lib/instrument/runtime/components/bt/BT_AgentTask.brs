@@ -31,8 +31,13 @@ sub BT_agentTaskRun()
             nextTick = now + BT_wCadence(cfg, m.top.subscribed, session <> "")
         end if
         if session = "" and now >= retryAt and BT_wOrigin(cfg) <> "" then
-            session = BT_wHello(cfg)
+            info = BT_wHelloInfo(cfg)
+            session = ""
             after = 0
+            if info <> invalid then
+                session = info.session
+                after = info.seq
+            end if
             if session = "" then retryAt = now + 30000 else m.top.session = session
         end if
         if session <> "" and poll = invalid then
