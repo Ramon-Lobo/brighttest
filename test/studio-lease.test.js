@@ -345,6 +345,23 @@ describe('Studio server with a device pool', () => {
     o.release()
   })
 
+  it('a queued take-over does not survive server close: freeing a member afterwards leaves no lease', async () => {
+    const a = await other({ key: k(POOL[0]) })
+    const b = await other({ key: k(POOL[1]) })
+    const acq = { ...seams(), sleep: (ms) => new Promise((r) => setTimeout(r, 10)) }
+    const srv = await studio.start({ password: 'rokudev-test', port: 0, rootDir: dir, cfg: poolCfg, leaseOpts: { acquireOpts: acq, now: () => clock.t, log: (s) => logs.push(s), tickMs: 20 } })
+    const prev = port
+    port = srv.address().port
+    try {
+      const r = await req('POST', '/api/lease', { action: 'acquire' })
+      expect(r.json.queued).toBe(true)
+    } finally { port = prev }
+    await new Promise((r) => srv.close(r))
+    a.release(); b.release()
+    await new Promise((r) => setTimeout(r, 300)) // several 10 ms polls: a surviving waiter would have taken a member by now
+    expect(lease.status({ dir }).filter((x) => x.holder)).toEqual([])
+  })
+
   it('every member busy: BUSY is reported (Studio queues), no member is taken', async () => {
     const a = await other({ key: k(POOL[0]) })
     const b = await other({ key: k(POOL[1]) })
@@ -358,7 +375,12 @@ describe('Studio server with a device pool', () => {
 // LSE-T13 review fixes: pool yield, stale take-over, pool status text, member password.
 describe('StudioLease pool mode and cancellation', () => {
   const POOL = ['127.0.0.1', '127.0.0.2']
-  const mkPool = () => new StudioLease({ cfg, env: env(), now: () => clock.t, log: (s) => logs.push(s), acquireOpts: seams(), pool: POOL })
+  const mkPool = (acq = seams(), hosts = POOL) => new StudioLease({ cfg, env: env(), now: () => clock.t, log: (s) => logs.push(s), acquireOpts: acq, pool: hosts })
+  // The fake clock's sleep jumps time forward, so a waiter on it times out in ~40 ms of real time (CI is faster than a
+  // laptop). Tests that need a waiter to stay queued use this: a frozen clock and a real 10 ms pause per poll.
+  const patient = () => ({ ...seams(), sleep: (ms) => new Promise((r) => setTimeout(r, 10)) })
+  // bounded poll (<= 5 s) on a condition; throws a clear message on timeout
+  const waitFor = async (fn, what) => { for (let i = 0; i < 250 && !(await fn()); i++) await new Promise((r) => setTimeout(r, 20)); if (!(await fn())) throw new Error(`timed out waiting for ${what}`) }
   const gateKey = async () => lease.poolGateKey(await lease.poolKeys(POOL))
 
   it('yields within studioYield to a holder on the pool gate', async () => {
@@ -408,12 +430,12 @@ describe('StudioLease pool mode and cancellation', () => {
   it('pool info: all members busy says so; never "free" while Studio is queued on the gate', async () => {
     const a = await other({ key: '127.0.0.1', agent: 'a#1' })
     const b = await other({ key: '127.0.0.2', agent: 'b#1' })
-    const s = mkPool()
+    const s = mkPool(patient())
     let info = await s.info()
     expect(info.poolState).toMatchObject({ size: 2, busy: 2 })
     expect(StudioLease.describe(info)).toMatch(/all 2 .*busy/i)
     s.takeOver()
-    await new Promise((r) => setTimeout(r, 50))
+    await waitFor(async () => (await s.info()).queued, 'Studio to be queued')
     info = await s.info()
     expect(info.queued).toBe(true)
     expect(StudioLease.describe(info)).not.toMatch(/free/i)
@@ -422,8 +444,8 @@ describe('StudioLease pool mode and cancellation', () => {
 
   it('pool info: a free member with a waiter on the gate is not plain "free"', async () => {
     const g = await other({ key: await gateKey(), agent: 'g#1' })
-    const w = lease.acquire({ ...seams(), key: await gateKey(), agent: 'w#1', purpose: 'pool pick', pid: process.ppid, waitMs: 60000, exitOnLost: false }).catch(() => {})
-    await new Promise((r) => setTimeout(r, 50))
+    const w = lease.acquire({ ...patient(), key: await gateKey(), agent: 'w#1', purpose: 'pool pick', pid: process.ppid, waitMs: 60000, exitOnLost: false }).catch(() => {})
+    await waitFor(async () => (await mkPool().info()).queue.length > 0, 'the gate waiter to queue')
     const info = await mkPool().info()
     expect(info.queue.length).toBeGreaterThan(0)
     expect(StudioLease.describe(info)).toMatch(/waiter/)
@@ -436,6 +458,18 @@ describe('StudioLease pool mode and cancellation', () => {
     process.env.BRIGHTTEST_CACHE = path.join(dir, 'none.json')
     try { expect(studio.memberPassword('127.0.0.1', {})).toBe('env-only-pw') }
     finally { if (prev === undefined) delete process.env.ROKU_PASSWORD; else process.env.ROKU_PASSWORD = prev; delete process.env.BRIGHTTEST_CACHE }
+  })
+
+  it('poolInfo derives the gate key from the same lookup seam acquirePool uses', async () => {
+    const hosts = ['pool-a.test', 'pool-b.test']
+    const lookup = async (h) => ({ address: h === 'pool-a.test' ? '10.9.0.1' : '10.9.0.2' })
+    const s = mkPool({ ...seams(), lookup }, hosts)
+    const ids = await s.poolInfo()
+    expect(ids.keys).toEqual(['10.9.0.1', '10.9.0.2'])
+    expect(ids.gateKey).toBe(lease.poolGateKey(await lease.poolKeys(hosts, { lookup })))
+    // and a pick through acquirePool leases the member the lookup named
+    expect(await s.ensure({ user: true })).toBe(true)
+    expect(s.lease.key).toBe('10.9.0.1')
   })
 
   it('setHost(bound member) cancels a queued pool take-over and keeps a held lease', async () => {
