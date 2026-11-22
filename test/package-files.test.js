@@ -20,7 +20,7 @@ function walk(dir, out = []) {
 function resolveRelative(fromFile, spec) {
   const base = path.resolve(path.dirname(fromFile), spec)
   for (const c of [base, base + '.js', base + '.json', path.join(base, 'index.js')]) {
-    if (fs.existsSync(c) && fs.statSync(c).isFile()) return path.relative(root, c)
+    if (fs.existsSync(c) && fs.statSync(c).isFile()) return path.relative(root, c).split(path.sep).join('/')
   }
   return null
 }

@@ -49,6 +49,8 @@ async function build(rootDir, outDir, plugins, extra = {}, instances = []) {
   const errors = pb.program.getDiagnostics().filter((d) => d.severity === 1)
   return { pb, staging: path.join(outDir, 'staging'), errors, result: createPlugin.lastInstance && createPlugin.lastInstance.getResult() }
 }
+// bsc pkgPaths are backslashed on win32
+const fwd = (p) => String(p).replace(/\\/g, '/')
 const read = (b, rel) => fs.readFileSync(path.join(b.staging, rel), 'utf8')
 const lines = (s) => s.replace(/\n+$/, '').split('\n').length
 
@@ -373,7 +375,7 @@ describe('item 8: one plugin instance per program', () => {
     const before = fs.readFileSync(path.join(b.staging, 'components/ChainA.xml'), 'utf8')
     plugin.beforeProgramValidate(b.pb.program)
     const runtimeTags = Object.values(b.pb.program.files).find((f) => f.componentName && f.componentName.text === 'ChainA')
-      .scriptTagImports.filter((i) => i.pkgPath === RUNTIME_PKG)
+      .scriptTagImports.filter((i) => fwd(i.pkgPath) === RUNTIME_PKG)
     expect(runtimeTags).toHaveLength(1)
     expect((before.match(/BT_runtime\.brs/g) || []).length).toBe(1)
   })
@@ -641,7 +643,7 @@ describe('net receiver heuristic', () => {
     }
     expect(conf(d, S, 'only')).toBe('unknown') // a lone scalar assignment is no positive evidence either
     expect(sk(d, 'net-receiver-excluded', 'xs')).toEqual([])
-    expect(receiverMod.createClassifier({}).analyzeFile(Object.values(d.pb.program.files).find((x) => x.pkgPath === S)).every((x) => x.cls !== 'excluded')).toBe(true)
+    expect(receiverMod.createClassifier({}).analyzeFile(Object.values(d.pb.program.files).find((x) => fwd(x.pkgPath) === S)).every((x) => x.cls !== 'excluded')).toBe(true)
   })
   it('9: net.unknown "report" skips unknown sites and strict-style filtering sees them; default does not', async () => {
     const r = await run('recv-report', { net: { unknown: 'report' } })
@@ -726,8 +728,9 @@ describe('net receiver heuristic', () => {
       const counts = new Map()
       const spy = { name: 'walk-spy', afterFileParse: (f) => {
         if (!f.ast || !f.pkgPath) return
+        const key = fwd(f.pkgPath)
         const orig = f.ast.walk.bind(f.ast)
-        f.ast.walk = (...a) => { counts.set(f.pkgPath, (counts.get(f.pkgPath) || 0) + 1); return orig(...a) }
+        f.ast.walk = (...a) => { counts.set(key, (counts.get(key) || 0) + 1); return orig(...a) }
       } }
       const r = await build(recv, path.join(tmp, name), plugins, extra, [spy])
       expect(r.errors).toEqual([])
@@ -742,7 +745,7 @@ describe('net receiver heuristic', () => {
   it('13: classifier is deterministic and feature detection reports nothing on 0.73.8', () => {
     expect(receiverMod.missingApis()).toEqual([])
     expect(missingPrivateApis(undefined, undefined)).toEqual([])
-    const file = Object.values(d.pb.program.files).find((x) => x.pkgPath === 'source/classes.brs')
+    const file = Object.values(d.pb.program.files).find((x) => fwd(x.pkgPath) === 'source/classes.brs')
     const sites = receiverMod.createClassifier({}).analyzeFile(file).filter((s) => s.eligible)
     const again = receiverMod.createClassifier({}).analyzeFile(file).filter((s) => s.eligible)
     expect(again.length).toBe(sites.length)

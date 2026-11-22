@@ -11,6 +11,6 @@ class Broken extends Statement {
 module.exports = () => ({
   name: 'break-rewrite',
   beforeFileTranspile(e) {
-    if (e.file.pkgPath === 'source/net.brs') e.editor.addToArray(e.file.ast.statements, e.file.ast.statements.length, new Broken())
+    if (e.file.pkgPath.replace(/\\/g, '/') === 'source/net.brs') e.editor.addToArray(e.file.ast.statements, e.file.ast.statements.length, new Broken())
   },
 })
