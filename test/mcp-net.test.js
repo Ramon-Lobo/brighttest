@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import http from 'node:http'
 import fs from 'node:fs'
+import { spawnSync } from 'node:child_process'
 import path from 'node:path'
 import { createRequire } from 'node:module'
 import { bootStub, startMcp, payload, cleanupMcp, tmpdir } from './fixtures/mcp-harness.js'
@@ -110,12 +111,15 @@ describe('MCP net tools', () => {
     }
     const long = await c.tool('net_requests', { url: 'a'.repeat(300) })
     expect(long.error && long.error.code).toBe(-32602)
-    // the matcher itself is linear: k=10 stars against a long non-matching text finishes at once
-    const { compileUrlPattern } = require('../lib/instrument/net-rules.js')
-    const m = compileUrlPattern('http://x.test/' + '*a'.repeat(10) + 'b')
-    const t0 = Date.now()
-    expect(m('http://x.test/' + 'a'.repeat(5000))).toBe(false)
-    expect(Date.now() - t0).toBeLessThan(100)
+    const longMock = await c.tool('net_mock', { match: { url: 'a'.repeat(300) }, respond: { status: 200 } })
+    expect(longMock.error && longMock.error.code).toBe(-32602)
+    // the matcher itself is linear: run in a child with a hard timeout so a regression fails fast instead of hanging
+    const code = "const { compileUrlPattern } = require(process.argv[1]); const m = compileUrlPattern('http://x.test/' + '*a'.repeat(10) + 'b'); const t0 = Date.now(); const r = m('http://x.test/' + 'a'.repeat(5000)); console.log(JSON.stringify({ r, ms: Date.now() - t0 }))"
+    const child = spawnSync(process.execPath, ['-e', code, path.resolve(__dirname, '../lib/instrument/net-rules.js')], { timeout: 5000, encoding: 'utf8' })
+    expect(child.error, 'matcher timed out').toBeUndefined()
+    const out = JSON.parse(child.stdout)
+    expect(out.r).toBe(false)
+    expect(out.ms).toBeLessThan(100)
     await hit('/p')
   })
 
