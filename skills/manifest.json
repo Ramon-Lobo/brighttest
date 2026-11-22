@@ -14,6 +14,12 @@
       ]
     },
     {
+      "name": "using-brighttest-mcp",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
       "name": "writing-e2e-flows",
       "files": [
         "SKILL.md",
