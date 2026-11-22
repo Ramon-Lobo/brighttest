@@ -32,7 +32,9 @@ sub BT_agentTaskRun()
         if now >= nextTick then
             n = n + 1
             m.top.tick = n
-            nextTick = now + BT_wCadence(cfg, m.top.subscribed, session <> "")
+            nextTick = now + BT_wCadence(cfg, m.top.subscribed, session <> "", m.top.docBytes)
+            clamp = BT_wClampEvent(cfg, m.top.docBytes, session)
+            if clamp <> "" then queue = BT_wQueueAcks(queue, [clamp], session <> "", 200)
         end if
         if session = "" and now >= retryAt and BT_wOrigin(cfg) <> "" then
             info = BT_wHelloInfo(cfg)

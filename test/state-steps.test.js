@@ -55,12 +55,18 @@ describe('state steps: parse', () => {
     expect(f.steps[0].timeout).toBe(10)
     expect(f.steps[3].ops).toEqual([{ path: 'a', value: 1 }, { path: 'b', value: 2 }])
   })
+  it('accepts the m layer with a node selector (STA-S-T9)', () => {
+    const f = parseFlow(BASE + '  - setState: { layer: m, node: { id: panel }, path: rowIndex, value: 3 }\n')
+    expect(f.steps[0]).toMatchObject({ op: 'setState', layer: 'm', node: { id: 'panel' }, path: 'rowIndex', value: 3 })
+  })
   it.each([
     ['setState: { layer: global, path: a, value: 1, bogus: 2 }', /unknown key "bogus"/],
     ['setState: { layer: nope, path: a, value: 1 }', /layer must be one of/],
     ['setState: { layer: global, path: a }', /needs a value/],
     ['setState: { layer: global, path: a, value: 1, ops: [ { path: b, value: 1 } ] }', /cannot be combined/],
     ['setState: { layer: node, path: a, value: 1 }', /node must be \{ id/],
+    ['setState: { layer: m, path: a, value: 1 }', /node must be \{ id/],
+    ['setState: { layer: global, path: a, value: 1, node: { id: x } }', /node only applies to layer: node or m/],
     ['setState: { layer: global, ops: [] }', /non-empty list/],
     ['setState: { layer: global, path: a, value: 1, ack: soon }', /ack must be one of/],
     ['setState: { layer: registry, path: onlysection, value: 1 }', /<section>\.<key>/],

@@ -9,6 +9,7 @@
         <field id="icmd" type="string" value="" alwaysNotify="true" />
         <field id="acks" type="string" value="" alwaysNotify="true" />
         <field id="subscribed" type="boolean" value="false" />
+        <field id="docBytes" type="integer" value="0" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/bt/BT_AgentTask.brs" />
     <script type="text/brightscript" uri="pkg:/source/bt/BT_runtime.brs" />

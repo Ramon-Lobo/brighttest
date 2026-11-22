@@ -72,6 +72,13 @@ Exit **0** when the package is clean, **3** when any instrumentation marker is f
 printed to stderr), **2** on a missing or unreadable input. Run it in CI on the package you are about to publish.
 `BT_AGENT=false` and the greenfield libraries are not markers.
 
+## `BT_op` and the `m` layer
+
+The build adds a `BT_op` function to the root of every instrumented component chain, so the agent can read and write
+a component's own `m` (`layer: m` in `setState`; see [App state](../e2e/app-state.md)). Components that extend an
+instrumented one inherit it, so no duplicate-function diagnostic appears. `BT_op` is on by default and has no flag. A
+user function named `BT_op` fails the build (`BT9001`).
+
 ## Census: `instrument census`
 
 ```bash
