@@ -198,6 +198,14 @@ describe('laneFailures report-tree guard', () => {
     expect(laneFailures(out, 0).failed).toBe(1)
   })
 
+  it('catches a truncated long-name crash line and ignores a passing name containing CRASH', () => {
+    const name = 'skips markers, built-ins, invalid values and type mismatches'
+    const out = `|--Suite : ... PASS\n|  |--${name}.....CRASH\n|  |  Message: boom\n|  |--maps state: CRASH to error screen : ... PASS\n`
+    expect(treeFailures(out)).toEqual([name])
+    expect(failureMessages(out)[name]).toBe('boom')
+    expect(treeFailures('|--maps state: CRASH to error screen : ... PASS\r\n\x1b[31m|--x : FAIL\x1b[0m\r\n')).toEqual(['x'])
+  })
+
   it('does not trigger for empty or all-ignored groups', () => {
     expect(laneFailures(summary(0, 0, 0, 0), 0).failed).toBe(0)
     expect(laneFailures('|--Suite\n|  |--t : IGNORE\n' + summary(1, 0, 0, 0), 0).failed).toBe(0)

@@ -68,7 +68,8 @@ lowercases them when you read them back.
 ## Caveats
 
 - **Verify the fixture path.** A path typo makes `BTState_load` throw. In a `beforeEach` the throw shows as a `CRASH`
-  line in the Rooibos output and fails the run.
+  line in the Rooibos output and fails the run. Later tests in that group are still skipped, and the summary can read
+  `Total 0`, until the Rooibos fix ships.
 - **Simulated state, not a device run.** The spec shows your app reacts correctly to that state. It does not show the
   device reaches it.
 - Headless and device lanes both stage the helper; the fixtures only matter where the spec runs.
