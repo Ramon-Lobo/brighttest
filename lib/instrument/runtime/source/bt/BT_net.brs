@@ -85,13 +85,12 @@ function BT_netCrumb(u as string) as string
     crumbSch = Instr(1, crumbUrl, "://")
     if crumbSch > 0 then
         crumbRest = Mid(crumbUrl, crumbSch + 3)
-        crumbEnd = Instr(1, crumbRest, "/")
-        if crumbEnd = 0 then
-            crumbEnd = Instr(1, crumbRest, "?")
-            crumbFrag = Instr(1, crumbRest, "#")
-            if crumbEnd = 0 or (crumbFrag > 0 and crumbFrag < crumbEnd) then crumbEnd = crumbFrag
-        end if
-        if crumbEnd = 0 then crumbEnd = Len(crumbRest) + 1
+        ' the authority ends at the first of / ? #
+        crumbEnd = Len(crumbRest) + 1
+        for each crumbSep in ["/", "?", "#"]
+            crumbHit = Instr(1, crumbRest, crumbSep)
+            if crumbHit > 0 and crumbHit < crumbEnd then crumbEnd = crumbHit
+        end for
         crumbAt = 0
         for crumbIdx = 1 to crumbEnd - 1
             if Mid(crumbRest, crumbIdx, 1) = "@" then crumbAt = crumbIdx
