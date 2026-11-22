@@ -466,7 +466,8 @@ describe('TP-MCP-10 budgets and timeouts', () => {
 
 describe('TP-MCP-10b timeouts stop the work', () => {
   it('sends no ECP request after TOOL_TIMEOUT', async () => {
-    const { stub, c } = await ready('healthy', { limits: { toolTimeoutMs: 700, pressGapMs: 250 } })
+    const { stub, c } = await ready('healthy', { limits: { toolTimeoutMs: 3000, pressGapMs: 400 } })
+    // generous budget so a slow runner still lands at least one press before it; 20 presses need ~8s, so the timeout always cuts the run short
     const res = await c.tool('press', { key: 'Down', count: 20 })
     expect(payload(res).code).toBe('TOOL_TIMEOUT')
     expect(payload(res).message).toContain('no further device requests')
