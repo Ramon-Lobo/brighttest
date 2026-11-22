@@ -68,6 +68,13 @@ The values come from the `device-info` record the run already reads at the start
 
 **State flows** (any flow with `config.state` or a `waitForAgent`, `setState`, `snapshot`, `restore` or `callFunc` step) need a channel built with `instrument build` (the state agent) and the instrument hub, which `e2e run` starts inside the device lease. `BRIGHTTEST_HUB_TOKEN` must be the same at build and run time. A state step needs a hello from the agent that arrived since the flow started, so the flow must launch the app (`launch`) before its state steps; `waitForAgent` waits for that new hello, and a hello from an earlier flow does not count. A build that never says hello fails right after `launch` with `STATE_NOT_INSTRUMENTED` instead of waiting out step timeouts. A relaunched agent only receives commands queued after its hello, never earlier ones.
 
+**A flow may start without a Home step.** Nothing requires `home` or `press: Home` before `launch`. The runner
+presses Home twice (best effort) when it acquires the device lease, before the first flow, but not between flows, so a later flow
+starts from wherever the previous one left the device. `launch` with no params sends the launch request and waits
+for readiness; if the channel is already running, Roku keeps it and its current screen, and `launch` does not
+restart it. Only a `launch` with params presses Home first (800 ms wait), so the app starts fresh. If a flow needs
+a known first screen, begin it with `home` and then `launch` (or give `launch` params).
+
 | Step | Meaning |
 |---|---|
 | `waitForAgent: { timeout: 10 }` | Wait (seconds) until the agent has said hello since this flow started; takes only `timeout` (bare `waitForAgent` uses the step timeout) |
