@@ -5,7 +5,11 @@ sub init()
     m.current = ""
     m.pending = {}
     showScreen("HomeScreen", "")
-    request("hero", { mode: "getAsync", path: "/home" })
+end sub
+
+' Main() sets baseUrl, then flips ready; the first request must not run in init() (baseUrl is still the default there).
+sub onReady()
+    if m.top.ready then request("hero", { mode: "getAsync", path: "/home" })
 end sub
 
 sub onPeriodic()

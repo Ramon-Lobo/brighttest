@@ -5,6 +5,7 @@ sub Main(args as dynamic)
     scene = screen.CreateScene("MainScene")
     scene.baseUrl = Config_baseUrl(args)
     scene.periodic = Config_isPeriodic(args)
+    scene.ready = true
     screen.show()
     while true
         msg = wait(0, port)

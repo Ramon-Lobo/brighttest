@@ -2,6 +2,7 @@
 <component name="MainScene" extends="Scene">
   <interface>
     <field id="baseUrl" type="string" value="http://127.0.0.1:8787" />
+    <field id="ready" type="boolean" value="false" onChange="onReady" />
     <field id="periodic" type="boolean" value="false" onChange="onPeriodic" />
   </interface>
   <script type="text/brightscript" uri="MainScene.brs" />
