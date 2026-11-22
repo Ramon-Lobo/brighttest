@@ -220,3 +220,42 @@ tree read is not by itself a failed launch. A screenshot also needs the device d
 
 **Fix:** check the app launched and stayed up (a crash or back-out sends the device to Home), and that the dev
 password is set. `screenshot-error.json` holds the exact reason.
+
+## Long device runs stop after about 10 minutes
+
+**Symptom:** a long device run, with no key presses for a while, stalls at about 10 minutes. Timers in the app stop
+firing and the run then fails or times out, even though the lease is still valid and the app did not crash.
+
+**Cause (measured, on the device side):** this was measured on one lab device (firmware 16.0.4.853), not in the
+test run's code. A probe channel with no app code and no network stopped its scene timer at about 595 s after
+launch, with no input. Its task thread kept running, and the app left at about 1140 s with no Home press.
+
+The stall is measured from the last input, not from launch. One remote key pressed at about 306 s after launch
+moved the stall to about 905 s, about 599 s after that key. The device screensaver (shown as `screensaver` in
+`query/active-app`) appeared at about 601 s with no input, so it is the likely cause, not proven. Long runs of a
+sample channel that sent no keys hit the same window, and one agent loop stopped at about 600 s. Another lab device
+with a different firmware did not start the app in the probe test, so the window is not confirmed on a second
+device.
+
+**Confirmed on a long run:** on the same lab device (firmware 16.0.4.853), one host-side ECP keypress (`Fwd`) every
+240 s kept the app's scene timer, main tick and agent loop running for a full 45 minutes, on both arms of the test,
+with no stall at about 595 s and no screensaver. Without input, the scene timer stops about 595 to 600 s after the
+last input, the screensaver appears at about 601 s, and the app exits at about 1140 s. Only `Fwd` every 240 s was
+tested. The key has to come from the host over ECP. Other keys and other intervals are not tested, so do not assume
+they work.
+
+**Workaround (manual, not yet a built-in feature):**
+
+- Send one harmless ECP keypress from the host every 240 s for the whole run, for example `Fwd`. The run must hold
+  the lease the whole time, so send the key from a command wrapped in `brighttest device with`:
+
+  ```sh
+  brighttest device with --host <ip> -- sh -c 'curl -s -X POST "http://$ROKU_HOST:8060/keypress/Fwd"'
+  ```
+
+  The CLI has no standalone key-press command yet. A built-in option for this is planned. Check that the app does
+  nothing unwanted on the key you choose.
+- Or change the device's own screensaver or idle setting so it starts later than the run. This changes a device
+  setting, so the device owner should decide it. Do not change it silently on a shared device.
+
+Relaunching the app between flows is not a documented fix; it is not built.
