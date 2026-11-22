@@ -62,6 +62,9 @@ If `--lcov` is requested but no coverage comes back, the run fails on purpose (s
   **default** lane uses a lightweight SceneGraph-off driver for speed; the **`--coverage`** lane runs the
   full scene-based Rooibos runner on brs-node's SceneGraph engine, so `@SGNode` suites and coverage run
   headless.
+- The default lane mounts the staged build as the package root: your manifest is read (`bs_const` honoured,
+  `roAppInfo` title/version from the manifest, `pkg:/manifest` readable) with `splash_min_time` forced to `0` in
+  the staged copy only. See [store fixtures](./store-fixtures.md#pkg-in-the-headless-run).
 
 ## `@SGNode` node tests hang forever (device lane)
 

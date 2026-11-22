@@ -54,6 +54,13 @@ config: include `csfake/**/*` in `sourceGlobs` and the fixtures are found. The s
 (that path passes the root to the engine API too) and on the network-fixture lane. `instrument.net` is not needed
 for store fixtures. The `@SGNode` scene-runner path (coverage-headless) mounts its own root and is unchanged.
 
+Behaviour change on the default lane (and the `deviceInfo` lane), a consequence of mounting the root:
+
+- The staged `manifest` is now read. `bs_const` values are honoured, `roAppInfo` `GetTitle` / `GetVersion` return
+  your manifest values, and `pkg:/manifest` is readable.
+- `splash_min_time` is forced to `0` in the staged copy of the manifest only, so a manifest value never slows a
+  headless run. Your project's `manifest` is not modified.
+
 ## Example spec
 
 ```brightscript

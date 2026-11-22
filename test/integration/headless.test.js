@@ -169,3 +169,25 @@ describe('default headless lane mounts the package root (pkg:/ store fixtures, n
     expect(res.status).toBe(0)
   })
 })
+
+describe('deviceInfo run also mounts the package root and a zero-splash staged manifest', () => {
+  it('runs the store-fixtures example with deviceInfo uiResolution 1080p and no instrument', () => {
+    const src = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'examples', 'store-fixtures-app')
+    const dir = makeEmptyDir()
+    fs.cpSync(src, dir, { recursive: true })
+    const cfgPath = path.join(dir, 'brighttest.json')
+    const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'))
+    delete cfg.instrument
+    cfg.deviceInfo = { uiResolution: '1080p' }
+    fs.writeFileSync(cfgPath, JSON.stringify(cfg, null, 2))
+    const res = runCli(dir)
+    expect(res.output).toContain('3 passed, 0 failed')
+    expect(res.status).toBe(0)
+    const staged = []
+    const walk = (d) => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, e.name); if (e.isDirectory()) walk(p); else if (e.name === 'manifest') staged.push(p) } }
+    walk(path.join(dir, '.brighttest'))
+    expect(staged.length).toBeGreaterThan(0)
+    expect(fs.readFileSync(staged[0], 'utf8')).toMatch(/^splash_min_time=0$/m)
+    expect(fs.readFileSync(path.join(dir, 'manifest'), 'utf8')).not.toContain('splash_min_time')
+  })
+})
