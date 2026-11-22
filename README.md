@@ -246,6 +246,13 @@ Highlights: [Getting started](docs/guide/getting-started.md) ·
 A runnable [example project](examples/sample-app/) exercises every lane (unit, `@SGNode`, coverage,
 device, and E2E flows) end to end.
 
+## Agent surface (MCP)
+
+`npx brighttest mcp` starts a Model Context Protocol server on stdio so an AI agent can inspect the SceneGraph, press
+keys and run e2e flows on a device through brighttest's deterministic primitives. It takes the device from the usual
+resolution chain (never from a tool argument) and holds the device lease per call. See the
+[MCP guide](docs/guide/mcp.md).
+
 ## Contributing
 
 Contributions are welcome — bug reports, docs fixes, and pull requests. Start with

@@ -31,13 +31,13 @@ Set `ROKU_HOST` explicitly in the MCP server configuration, and use `list_device
 | `navigate_to` | Move focus onto the first node matching a `selector`; returns the keys pressed and the focused node. |
 | `screenshot` | Inline image of the sideloaded app (dev channel in front). |
 | `app_state` | The app's `__bt_state` snapshot from an instrumented build. |
-| `run_flow` | Run one `*.e2e.yaml` flow from the project; returns per-step results. |
+| `run_flow` | Run one `*.e2e.yaml` (or `*.e2e.yml`) flow from the project; returns per-step results. |
 
 Selectors use the same keys as flows: `id`, `subtype`, `text`, `textContains`, `uri`, `visible`, `focusable`,
 `focused`, `index`.
 
 Failures come back as a tool result with `isError: true` and a typed `code` (for example `DEVICE_BUSY`,
-`INVALID_KEY`, `PATH_REJECTED`, `PRESS_BUDGET_EXHAUSTED`, `TOOL_TIMEOUT`, `SCREENSHOT_NOT_FOREGROUND`,
+`INVALID_KEY`, `KEY_NOT_ALLOWED` (a valid key that the server blocks, see Blocked keys), `PATH_REJECTED`, `PRESS_BUDGET_EXHAUSTED`, `TOOL_TIMEOUT`, `SCREENSHOT_NOT_FOREGROUND`,
 `STATE_NOT_PUBLISHED`). Malformed requests use JSON-RPC errors (`-32602` for bad arguments or an unknown tool).
 
 ## Safety limits
@@ -57,9 +57,9 @@ Failures come back as a tool result with `isError: true` and a typed `code` (for
   in flight may still finish, so the lease is released only after it has ended (up to about 12 s), never while
   such a request could still reach the device.
 - **Paths.** `run_flow` takes a path relative to the project root: no absolute paths, no `..`, no symlink that leaves
-  the project, and only `*.e2e.yaml` files. Rejection happens before any file is read or any device call is made. The
+  the project, and only `*.e2e.yaml` or `*.e2e.yml` files. Rejection happens before any file is read or any device call is made. The
   same rules apply to every file a flow pulls in with a nested `runFlow:` step (so subflows must also be
-  `*.e2e.yaml` files inside the project), and a subflow that fails to parse never echoes its content.
+  `*.e2e.yaml` or `*.e2e.yml` files inside the project), and a subflow that fails to parse never echoes its content.
 - **Blocked keys.** `press` refuses `PowerOff`, `InputHDMI*`, `InputTuner` and `InputAV*` (a conservative default so
   an agent cannot switch the TV away from the app; `Volume*` and the rest are allowed). Presses made by steps inside
   a flow you run are the flow's own content and are not filtered.
