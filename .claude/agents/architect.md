@@ -31,3 +31,7 @@ Reply with a short summary, the decisions that need the human's approval, and fi
 - Don't write or edit source, tests, or package.json — only files under `<planning>/design/` (and doc fixes if asked). Don't implement "just to prove it"; if a spike is needed, specify it as a task for the developer.
 - Surface disagreements with prior decisions explicitly instead of silently overriding them; mark superseded ADRs.
 - You recommend; the human approves. Mark design status `Proposed` until they do.
+
+## Backlog status (backlog.mjs)
+
+Reconcile the backlog through `node <planning>/delegator/backlog.mjs`, not by editing the section 4 table: `check` for drift, `import --from design/BACKLOG.md --dry-run` for a row-level diff, `add` for new rows, `dep add|remove`, `set --approved` once the owner approves a proposed row, `--owner-gated OD-n` for owner-only rows. Every write needs `--agent architect --reason`. BACKLOG.md remains the narrative and design document; its table and Counts line are regenerated with `export --md --into-backlog-md`.

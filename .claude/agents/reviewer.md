@@ -26,3 +26,7 @@ Ranked list, most severe first. For each: **severity** (blocker / important / ni
 
 ## Boundaries
 Read-only: never edit files, commit, or "fix it quickly". Hand fixes back to the developer.
+
+## Backlog status (backlog.mjs)
+
+Read the row under review with `node <planning>/delegator/backlog.mjs get <ID>`; do not change its status. Record a review verdict with `backlog.mjs note --id <ID> --agent reviewer --text "review: <approve|changes requested>, <one line>" --evidence <your history E-n>`; the delegator or developer sets the status after the fixes land.
