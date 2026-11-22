@@ -17,7 +17,7 @@ Load it from a spec with `BTNet_useFixture("fixtures/net/catalog.json")`, from a
 or add the same rule on the fly with `BTNet_mock({ url: "**/catalog", json: ... })`. The first matching rule wins and a
 rule added later is tried first. `times: 1` stops a rule after one hit.
 
-An agent can add a rule without a file through the MCP tool `net_mock` (see the limitation below): it takes `match` (`url` glob, optional `method`) and
+An agent can add a rule without a file through the MCP tool `net_mock` (see the net window under Limits): it takes `match` (`url` glob, optional `method`) and
 `respond` (`status`, `json` or `body`, `headers`, `delayMs`). The mock lives until the MCP session ends.
 
 ## 2. Observe the requests
@@ -53,9 +53,12 @@ the session or flow) to go back to the real endpoint.
 
 ## Limits
 
-- **MCP net tools do not see live traffic yet.** The MCP session's proxy has no hub mounted, so `net_requests` and
-  `net_mock` only work on the proxy path (tests and stubs), not against a running app. Use the spec, flow or
-  observe-only routes above for real traffic.
+- **The MCP net tools see live traffic only through the session hub.** The first `net_requests` or `net_mock` call opens
+  a net window: one device lease for the session plus a hub of its own on `instrument.hub.port`. It is released after
+  10 minutes without a device call, at the lease cap, on lease loss or at session end, and the hub closes with it.
+  Mocks stay until the session ends. The MCP server needs `BRIGHTTEST_HUB_TOKEN` in its environment, set to the same value
+  as for `instrument build --net` ([the hub token](./instrument#the-hub-token---net-and-brighttest-hub-token)); otherwise the
+  app's requests are refused. See [MCP](./mcp) for details.
 - Observe-only breadcrumbs and the MCP net tools have been tested headless and against stubs only. A check on a real
   device is still open (TP-NET-31).
 - Mocks and faults need the hub; they do nothing in an observe-only build.
