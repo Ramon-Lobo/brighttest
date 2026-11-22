@@ -4,12 +4,13 @@ import net from 'node:net'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const require = createRequire(import.meta.url)
 process.env.BRIGHTTEST_CACHE = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'bt-studio-cache-')), 'devices.json')
 const studio = require('../lib/studio/server.js')
 
-const __dirname_ = path.dirname(new URL(import.meta.url).pathname)
+const __dirname_ = path.dirname(fileURLToPath(import.meta.url))
 const freePort = () => new Promise((r) => { const s = net.createServer().listen(0, '127.0.0.1', () => { const p = s.address().port; s.close(() => r(p)) }) })
 const canConnect = (port) => new Promise((r) => { const c = net.connect(port, '127.0.0.1'); c.on('connect', () => { c.destroy(); r(true) }); c.on('error', () => r(false)) })
 

@@ -3,6 +3,7 @@ import { createRequire } from 'module'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const require = createRequire(import.meta.url)
 const { createFakeRoku } = require('./fixtures/fake-roku/server.js')
@@ -111,7 +112,7 @@ describe('ecp deviceInfo reuses the parser', () => {
 })
 
 describe('e2e preflight', () => {
-  const flow = path.join(path.dirname(new URL(import.meta.url).pathname), 'fixtures/fake-roku/flows/fake-smoke.e2e.yaml')
+  const flow = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures/fake-roku/flows/fake-smoke.e2e.yaml')
   it('fails before the lease and any launch/keypress on a Limited device', async () => {
     const { stub, a } = await boot('limited')
     const get = capture()
@@ -148,7 +149,7 @@ describe('e2e preflight', () => {
 })
 
 describe('e2e preflight: unreachable host', () => {
-  const flow = path.join(path.dirname(new URL(import.meta.url).pathname), 'fixtures/fake-roku/flows/fake-smoke.e2e.yaml')
+  const flow = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures/fake-roku/flows/fake-smoke.e2e.yaml')
   it('fails only that host with the fix text, no stack trace, and the other host still runs', async () => {
     const { stub, a } = await boot('healthy')
     const get = capture()

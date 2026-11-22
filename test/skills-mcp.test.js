@@ -2,10 +2,11 @@ import { describe, test, expect } from 'vitest'
 import { createRequire } from 'module'
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const require = createRequire(import.meta.url)
 const { TOOLS } = require('../lib/mcp/tools')
-const __dirname = path.dirname(new URL(import.meta.url).pathname)
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const SKILL = fs.readFileSync(path.join(__dirname, '..', 'skills', 'using-brighttest-mcp', 'SKILL.md'), 'utf8');
 const rows = SKILL.split('\n').filter((l) => /^\| `[a-z_]+` \|/.test(l));
