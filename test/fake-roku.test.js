@@ -57,7 +57,7 @@ function tcp(port, { send, until, timeout = 1500 } = {}) {
 
 const SCENARIO_NAMES = ['healthy', 'latency-200ms', '5xx-once', '5xx-always', 'reset-once', 'stall', '401', '403', '404',
   'crash-mid-flow', 'limited', 'dev-disabled', 'unreachable', 'cold-stall', 'home-bounce', 'osd-facade', 'system-dialog-root',
-  'launch-404-after-sideload', 'sgnodes-fails', 'halted-app', 'installer-page', 'never-leaves-home', 'replay-then-live',
+  'launch-404-after-sideload', 'sgnodes-fails', 'sgnodes-hangs', 'halted-app', 'installer-page', 'never-leaves-home', 'replay-then-live',
   'debugger-crash', 'large-tree-3k', 'large-tree-6k', 'console-slow', 'keypress-home-500', 'keyup-fails', 'rooibos-pass',
   'rooibos-fail', 'focus-grid', 'installer-500', 'late-node']
 
