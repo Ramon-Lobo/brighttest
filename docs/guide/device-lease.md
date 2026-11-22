@@ -208,11 +208,15 @@ device. If all are busy it queues, **first come, first served across the pool**:
 device that frees up, whichever one it is. An explicit `--host` always wins: the pool is then not used.
 
 The pool is a list of IPv4 addresses or host names (no port, no password, no IPv6 address, no duplicates, not
-empty). A bad value stops the run with a message that names the entry number and the problem, never the value.
+empty). A bad value stops a `--device any` run with a message that names the entry number and the problem, never the value.
 For `--device` and `--cross-check` every pool device needs a dev password (`--password`, `ROKU_PASSWORD`, or the
 device cache), checked before any lease is taken (exit 2). `--wait`, `--as` and `--purpose` work as for a single
-device; `--wait 0` fails with exit 75 only when every device is busy. Brighttest does not check whether a pool
-device is reachable.
+device. `--wait 0` scans the pool at once and fails with exit 75 only when every device is busy, or when other
+runs are already queued for the pool (it does not barge past them); it never fails just because another run is
+choosing at the same moment. `--device any` belongs to the lanes and to `device with` only (`device lock` and the
+others reject it, exit 2), and `--device=any` works like `--device any`. A bad pool in `brighttest.json` is
+reported (exit 2) only when `--device any` is used; headless runs ignore it. Brighttest does not check whether a
+pool device is reachable.
 
 Internally the choice is serialized by a short-lived lease named `pool-<id>` that you may see in `device status`
 for a moment. It is held only while choosing, never while the device is in use. With `--cross-check` the pick

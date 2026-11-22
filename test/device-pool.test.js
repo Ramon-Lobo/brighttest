@@ -213,14 +213,15 @@ describe('deviceLease.pool config', () => {
     }
   })
 
-  it('loadConfig reads deviceLease.pool, keeps defaults, and fails on a bad pool', () => {
+  it('loadConfig reads deviceLease.pool and keeps defaults; a bad pool is not validated there', () => {
     const d = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-poolcfg-'))
     fs.writeFileSync(path.join(d, 'brighttest.json'), JSON.stringify({ deviceLease: { pool: [A, B] } }))
     const cfg = loadConfig(d, null)
     expect(cfg.deviceLease.pool).toEqual([A, B])
     expect(cfg.deviceLease.wait).toBe('30m')
+    // A bad pool never breaks loadConfig (headless runs); it is rejected where the pool is used.
     fs.writeFileSync(path.join(d, 'brighttest.json'), JSON.stringify({ deviceLease: { pool: [A, A] } }))
-    expect(() => loadConfig(d, null)).toThrow(/duplicates/)
+    expect(() => loadConfig(d, null)).not.toThrow()
     fs.rmSync(d, { recursive: true, force: true })
   })
 })
@@ -229,9 +230,69 @@ describe('--device any parsing', () => {
   it('parses --device any and -d any; plain --device is unchanged; host stays', () => {
     expect(cli.parseArgs(['--device', 'any'])).toMatchObject({ device: true, devicePool: true })
     expect(cli.parseArgs(['-d', 'any'])).toMatchObject({ device: true, devicePool: true })
+    expect(cli.parseArgs(['--device=any'])).toMatchObject({ device: true, devicePool: true })
+    expect(cli.parseDeviceArgs(['with', '--device=any', '--', 'x'])).toMatchObject({ devicePool: true, unknown: [] })
     expect(cli.parseArgs(['--device', '--host', '1.2.3.4']).devicePool).toBeUndefined()
     expect(cli.parseArgs(['--cross-check', '--device', 'any', '--host', '1.2.3.4'])).toMatchObject({ crossCheck: true, devicePool: true, host: '1.2.3.4' })
     expect(cli.parseDeviceArgs(['with', '--device', 'any', '--', 'x'])).toMatchObject({ devicePool: true, cmd: ['x'], unknown: [] })
     expect(cli.parseDeviceArgs(['with', '-d', 'any', '--', 'x']).devicePool).toBe(true)
+  })
+})
+
+describe('pool review fixes', () => {
+  it('gitIdentity (a git spawn) runs once per pick, not per acquire or poll under the gate', async () => {
+    const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-fakegit-'))
+    const counter = path.join(bin, 'count')
+    fs.writeFileSync(path.join(bin, 'git'), `#!/bin/sh\necho x >> "${counter}"\nexit 1\n`, { mode: 0o755 })
+    const savedPath = process.env.PATH
+    process.env.PATH = `${bin}${path.delimiter}${savedPath}`
+    try {
+      let polls = 0; let hook = null
+      const store = createStore(seams({ sleep: async (ms) => { clock.t += ms; polls++; if (hook) hook() } }))
+      const mk = (extra) => acquirePool({ hosts: [A, B], waitMs: 60000, ...seams(), identity: undefined, store, ...extra })
+      const l1 = await mk({ pid: 1001 }); const l2 = await mk({ pid: 1002 })
+      const before = fs.readFileSync(counter, 'utf8').split('\n').filter(Boolean).length
+      expect(before).toBe(4) // two git calls (toplevel, branch) per acquirePool call
+      polls = 0; hook = () => { if (polls === 5) l1.release() }
+      const l3 = await mk({ pid: 1003 })
+      expect(polls).toBeGreaterThanOrEqual(5)
+      expect(fs.readFileSync(counter, 'utf8').split('\n').filter(Boolean).length - before).toBe(2)
+      l2.release(); l3.release()
+    } finally { process.env.PATH = savedPath; fs.rmSync(bin, { recursive: true, force: true }) }
+  })
+
+  it('--wait 0 is BUSY (no barging) when other runs are queued on the pool', async () => {
+    const l1 = await pool({ agent: 'a' }); const l2 = await pool({ agent: 'b', pid: 1002 })
+    const real = (extra) => acquirePool({ hosts: [A, B], waitMs: 20000, dir, env: {}, timers: false, hostname: 'this-host', identity: { worktree: '/w', branch: 'b' }, isAlive: () => true, pidStart: () => 'start', pidStartValue: 'start', pollMs: 20, settleMs: 0, ...extra })
+    const w1 = real({ agent: 'w1', pid: 2001 }); await new Promise((r) => setTimeout(r, 150)) // w1 holds the gate and polls
+    const w2 = real({ agent: 'w2', pid: 2002 }); await new Promise((r) => setTimeout(r, 150)) // w2 is queued on the gate
+    await expect(real({ agent: 'z', pid: 2003, waitMs: 0 })).rejects.toMatchObject({ code: 'BUSY', snapshot: { pool: true } })
+    l1.release(); l2.release()
+    const g1 = await w1; g1.release()
+    const g2 = await w2; g2.release()
+  })
+
+  it('formats a pool gate wait without the internal pool key', () => {
+    const line = lease.formatWaitLine({ pool: true, key: 'pool-abc123', queue: [{}, {}], holder: { holder: { agent: 'x', purpose: 'pool pick (2 devices)' }, acquiredAt: new Date().toISOString(), deadline: new Date().toISOString() } })
+    expect(line).toContain('waiting for a free device in the pool, 2 queued ahead')
+    expect(line).not.toContain('pool-abc123')
+    expect(line).not.toContain('pool pick')
+  })
+
+  it('a bad pool gives a clean exit-2 message, not a stack', async () => {
+    const dc = (await import('../lib/device-command.js')).default
+    const say = vi.fn()
+    const r = dc.poolForLane({ deviceLease: { pool: [A, A] } }, { devicePool: true }, say)
+    expect(r).toEqual({ code: 2 })
+    expect(say.mock.calls[0][0]).toMatch(/^deviceLease\.pool entry 2 duplicates entry 1/)
+    expect(dc.poolForLane({ deviceLease: { pool: [A, A] } }, {}, say)).toEqual({ pool: null }) // not used: not validated
+  })
+
+  it('--device any outside "device with" is a usage error (exit 2)', async () => {
+    const dc = (await import('../lib/device-command.js')).default
+    vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+    expect(await dc.run({ deviceAction: 'lock', devicePool: true, unknown: [], cmd: [] }, { deviceLease: {} })).toBe(2)
+    expect(await dc.run({ deviceAction: 'status', devicePool: true, unknown: [], cmd: [] }, { deviceLease: {} })).toBe(2)
+    vi.restoreAllMocks()
   })
 })
