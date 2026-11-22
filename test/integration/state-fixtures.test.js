@@ -10,13 +10,13 @@ afterAll(cleanupTemp)
 describe('BTState_ snapshot fixtures on the scene lanes', () => {
   it('seeds m.global from fixtures/state/premium.json on the default lane (rooibos on brs-node)', () => {
     const res = runCli(makeProject('state-fixtures'))
-    expect(res.output).toContain('5 passed, 0 failed')
+    expect(res.output).toContain('6 passed, 0 failed')
     expect(res.status).toBe(0)
   }, 120000)
 
   it('passes with --coverage', () => {
     const res = runCli(makeProject('state-fixtures'), ['--coverage'])
-    expect(res.output).toContain('5 passed, 0 failed')
+    expect(res.output).toContain('6 passed, 0 failed')
     expect(res.status).toBe(0)
   }, 120000)
 

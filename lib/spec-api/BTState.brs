@@ -35,7 +35,10 @@ function BTState_seedGlobals(snapGlobal as object, target = invalid as dynamic) 
     for each b in builtins
       if b = lk then isBuiltin = true
     end for
-    if isBuiltin or v = invalid then
+    isInternal = (key = "__btEv" or Left(key, 9) = "__btTask_")
+    if isInternal then
+      out.skipped.push(key + ": brighttest internal")
+    else if isBuiltin or v = invalid then
       out.skipped.push(key + ": built-in or empty")
     else if BTState_isMarker_(v) then
       out.skipped.push(key + ": cut, redacted or a node reference")
