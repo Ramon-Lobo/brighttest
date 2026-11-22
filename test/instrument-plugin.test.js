@@ -245,7 +245,8 @@ describe('item 3: plugin order', () => {
     expect(b.errors.map((x) => x.message)).toEqual([])
   })
   it('with the real rooibos plugin: wrong order fails, right order keeps the coverage call sites identical', async () => {
-    const rooibos = { isRecordingCodeCoverage: true, coverageExcludedFiles: RUNTIME_COVERAGE_EXCLUDE, testsFilePattern: '**/*.spec.*' }
+    // a fresh, unfrozen config per build: the rooibos plugin pushes its default excludes into the array it is given
+    const rooibosCfg = () => ({ isRecordingCodeCoverage: true, coverageExcludedFiles: [...RUNTIME_COVERAGE_EXCLUDE], testsFilePattern: '**/*.spec.*' })
     const countCc = (b) => {
       const out = {}
       const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).forEach((en) => {
@@ -258,9 +259,9 @@ describe('item 3: plugin order', () => {
       walk(b.staging)
       return out
     }
-    const off = await build(fixture, path.join(tmp, 'rb-off'), [rooibosPlugin], { rooibos })
-    const ok = await build(fixture, path.join(tmp, 'rb-ok'), [rooibosPlugin, pluginPath], { rooibos })
-    const bad = await build(fixture, path.join(tmp, 'rb-bad'), [pluginPath, rooibosPlugin], { rooibos })
+    const off = await build(fixture, path.join(tmp, 'rb-off'), [rooibosPlugin], { rooibos: rooibosCfg() })
+    const ok = await build(fixture, path.join(tmp, 'rb-ok'), [rooibosPlugin, pluginPath], { rooibos: rooibosCfg() })
+    const bad = await build(fixture, path.join(tmp, 'rb-bad'), [pluginPath, rooibosPlugin], { rooibos: rooibosCfg() })
     expect(ok.errors.map((x) => x.message)).toEqual([])
     expect(countCc(ok)).toEqual(countCc(off))
     // the injected runtime does not count toward coverage
