@@ -13,7 +13,12 @@ The device comes only from the usual resolution chain: `ROKU_HOST`, `ROKU_PASSWO
 cache (`brighttest devices`). **No tool takes a host or a password.** The dev password and device serial are never
 returned and are scrubbed from error text. The device address does appear in tool output (`list_devices`,
 `device_doctor`, some error messages), so the model does see the host. Set the password out of band in the environment
-of the server process. Screenshots need the dev password; everything else does not.
+of the server process.
+
+**Check which device you will get.** If `ROKU_HOST` is unset *or empty*, the server falls back to the device cache
+(`~/.brighttest/devices.json`, the last device you connected to) and targets that device, which may be a real one.
+Set `ROKU_HOST` explicitly in the MCP server configuration, and use `list_devices` to see the target and its
+`source` (`env` or `cache`) before pressing anything. Screenshots need the dev password; everything else does not.
 
 ## Tools
 
@@ -48,7 +53,9 @@ Failures come back as a tool result with `isError: true` and a typed `code` (for
   never retried after a 5xx or a timeout, since the device may already have acted on them. `press` also keeps a
   250 ms gap between presses of the session.
 - **Timeouts stop the work.** The run budget starts when a call gets its turn: 30 s (120 s for `run_flow`). On
-  `TOOL_TIMEOUT` no further device request is sent for that call; one request already in flight may still finish.
+  `TOOL_TIMEOUT` (or when the client closes stdin) no further device request is sent for that call. A request already
+  in flight may still finish, so the lease is released only after it has ended (up to about 12 s), never while
+  such a request could still reach the device.
 - **Paths.** `run_flow` takes a path relative to the project root: no absolute paths, no `..`, no symlink that leaves
   the project, and only `*.e2e.yaml` files. Rejection happens before any file is read or any device call is made. The
   same rules apply to every file a flow pulls in with a nested `runFlow:` step (so subflows must also be

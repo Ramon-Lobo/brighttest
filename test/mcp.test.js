@@ -332,6 +332,13 @@ describe('protocol hygiene', () => {
     expect(fakeLog(stub, /^\/keypress\//)).toHaveLength(0)
     expect(isErr(await c.tool('press', { key: 'VolumeUp' }))).toBe(false)
   })
+  it('counts bytes, not characters, for an over-long line', async () => {
+    const c = startMcp({})
+    await c.initialize()
+    c.sendRaw('\u20ac'.repeat(400000)) // 400k characters, 1.2 MB
+    await expect.poll(() => c.lines.some((m) => m.error && m.error.code === -32700)).toBe(true)
+    expect((await c.request('ping')).result).toEqual({})
+  })
   it('says "an object" in argument errors', async () => {
     const { c } = await ready()
     expect((await c.tool('inspect_tree', { selector: 5 })).error.message).toContain('must be an object')
@@ -369,15 +376,49 @@ describe('TP-MCP-09 lease per tool call', () => {
     holder.release()
     expect(isErr(await B.tool('press', { key: 'Down' }))).toBe(false)
   })
-  it('releases the lease when a call errors and when it times out', async () => {
-    const { a } = await bootStub('stall')
+  it('releases the lease after a timeout only once the stuck request has ended', async () => {
+    const { stub, a } = await bootStub('healthy', { fault: { mode: 'slow', ms: 2500, path: '/keypress/*' } })
     const leaseDir = tmpdir('bt-mcp-lease-')
-    const A = startMcp({ a, leaseDir, limits: { toolTimeoutMs: 300 } })
+    const A = startMcp({ a, leaseDir, limits: { toolTimeoutMs: 500, pressGapMs: 0 } })
     await A.initialize()
-    expect(payload(await A.tool('inspect_tree')).code).toBe('TOOL_TIMEOUT')
-    const l = await tryLease(a, leaseDir) // released at the timeout, not when the stuck request finally ends
+    const t0 = Date.now()
+    expect(payload(await A.tool('press', { key: 'Down' })).code).toBe('TOOL_TIMEOUT')
+    expect(Date.now() - t0).toBeLessThan(2000)
+    await expect(tryLease(a, leaseDir)).rejects.toMatchObject({ code: expect.stringMatching(/BUSY|TIMEOUT/) }) // still held: request in flight
+    let l = null
+    for (let i = 0; i < 120 && !l; i++) { try { l = await tryLease(a, leaseDir) } catch { await new Promise((r) => setTimeout(r, 50)) } }
+    expect(l).toBeTruthy()
+    const acquiredAt = Date.now()
     l.release()
+    const presses = fakeLog(stub, /^\/keypress\//)
+    expect(presses).toHaveLength(1)
+    expect(presses[0].endMs).toBeLessThanOrEqual(acquiredAt) // no keypress reaches the device under another holder
+  }, 20000)
+  it('releases the lease when a call errors', async () => {
+    const { a } = await bootStub('healthy')
+    const leaseDir = tmpdir('bt-mcp-lease-')
+    const A = startMcp({ a, leaseDir })
+    await A.initialize()
+    expect(payload(await A.tool('inspect_tree', { selector: { index: 1 } })).code).toBe('INVALID_SELECTOR')
+    ;(await tryLease(a, leaseDir)).release()
   })
+  it('closing stdin mid-call stops the call and releases the lease', async () => {
+    const { stub, a } = await bootStub('healthy')
+    const leaseDir = tmpdir('bt-mcp-lease-')
+    const A = startMcp({ a, leaseDir, limits: { pressGapMs: 250 } })
+    await A.initialize()
+    const p = A.toolAsync('press', { key: 'Down', count: 20 })
+    for (let i = 0; i < 400 && fakeLog(stub, /^\/keypress\//).length < 3; i++) await new Promise((r) => setTimeout(r, 10))
+    await A.close()
+    const n = fakeLog(stub, /^\/keypress\//).length
+    expect(n).toBeGreaterThanOrEqual(3)
+    expect(n).toBeLessThan(20)
+    expect(payload(await p).code).toBe('SESSION_CLOSED')
+    await new Promise((r) => setTimeout(r, 600))
+    expect(fakeLog(stub, /^\/keypress\//).length).toBeLessThanOrEqual(n)
+    expect(A.server.session.lease).toBe(null)
+    ;(await tryLease(a, leaseDir)).release()
+  }, 20000)
   it('a lost lease is a LEASE_LOST tool error, never a process exit', async () => {
     const { a } = await bootStub('healthy')
     const exit = vi.spyOn(process, 'exit').mockImplementation(() => { throw new Error('process.exit called') })
