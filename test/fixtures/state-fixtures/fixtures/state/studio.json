@@ -1,0 +1,20 @@
+{
+  "v": 1,
+  "name": "studio",
+  "layers": {
+    "global": {
+      "plan": "gold",
+      "token": "<redacted:token>",
+      "playlist": "$truncated:items",
+      "screen": "$type:roSGNode",
+      "focusedNode": { "$node": "homeRow" },
+      "mixed": { "a": 1, "b": "<redacted:b>" },
+      "list": [1, { "x": "$type:roFunction" }],
+      "id": "should-not-land",
+      "focusable": true,
+      "change": { "x": 1 },
+      "count": 7,
+      "empty": null
+    }
+  }
+}

@@ -1,4 +1,18 @@
 {
-  "user": { "tier": "premium", "signedIn": true },
-  "nav": { "screen": "HomeScreen", "detailsId": "" }
+  "v": 1,
+  "name": "premium",
+  "layers": {
+    "global": {
+      "user": {
+        "tier": "premium",
+        "signedIn": true
+      }
+    },
+    "scene": {
+      "nav": {
+        "screen": "HomeScreen",
+        "detailsId": ""
+      }
+    }
+  }
 }
