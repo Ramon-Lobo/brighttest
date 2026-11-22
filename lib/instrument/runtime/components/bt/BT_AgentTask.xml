@@ -1,9 +1,15 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<!-- brighttest instrument runtime (STA-S-T1): sampling Task. v0 only ticks; the hub hello and long-poll arrive with STA-S-T5. -->
+<!-- brighttest instrument runtime (STA-S-T1 sampler, STA-S-T6 write path): hub hello, one long-poll, ack posts. -->
 <component name="BT_AgentTask" extends="Task">
     <interface>
         <field id="interval" type="integer" value="500" />
         <field id="tick" type="integer" value="0" />
+        <field id="session" type="string" value="" />
+        <field id="cmds" type="string" value="" />
+        <field id="acks" type="string" value="" />
+        <field id="subscribed" type="boolean" value="false" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/bt/BT_AgentTask.brs" />
+    <script type="text/brightscript" uri="pkg:/source/bt/BT_runtime.brs" />
+    <script type="text/brightscript" uri="pkg:/source/bt/BT_config.brs" />
 </component>

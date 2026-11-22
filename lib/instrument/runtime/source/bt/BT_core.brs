@@ -219,18 +219,24 @@ function BT_registryRaw(cfg as dynamic) as dynamic
     return out
 end function
 
-' The published document: {v, seq, instrumented, thread, renderMs, snapshot: {layers: {global, scene, focus, registry?}}, truncated}.
-function BT_labelJson(seq as integer, globalNode as dynamic, scene as dynamic, cfg as dynamic, renderMs as integer) as string
+' The layers published and snapshotted: {global, scene, focus, registry?}. `trunc` collects every cut.
+function BT_layers(globalNode as dynamic, scene as dynamic, cfg as dynamic, trunc as object) as object
     caps = BT_capsFrom(cfg)
     redact = invalid
     if type(cfg) = "roAssociativeArray" and type(cfg.redact) = "roAssociativeArray" then redact = cfg.redact.paths
-    trunc = []
     layers = {}
     layers["focus"] = BT_serialize(BT_focusChain(scene), caps, "focus", 0, trunc, redact)
     layers["global"] = BT_serialize(BT_nodeFields(globalNode), caps, "global", 0, trunc, redact)
     layers["scene"] = BT_serialize(BT_nodeFields(scene), caps, "scene", 0, trunc, redact)
     reg = BT_registryRaw(cfg)
     if reg <> invalid then layers["registry"] = BT_serialize(reg, caps, "registry", 0, trunc, redact)
+    return layers
+end function
+
+' The published document: {v, seq, instrumented, thread, renderMs, snapshot: {layers: {global, scene, focus, registry?}}, truncated}.
+function BT_labelJson(seq as integer, globalNode as dynamic, scene as dynamic, cfg as dynamic, renderMs as integer) as string
+    trunc = []
+    layers = BT_layers(globalNode, scene, cfg, trunc)
     doc = { v: 1, seq: seq, instrumented: true, thread: "render", renderMs: renderMs, snapshot: { layers: layers }, truncated: trunc }
     return BT_fit(doc, BT_pubMaxBytes(cfg))
 end function

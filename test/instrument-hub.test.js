@@ -385,3 +385,105 @@ describe('hub state routes (STA-S-T5)', () => {
     expect(text).toContain('"tier":"free"');
   });
 });
+
+describe('hub write path relay (STA-S-T6)', () => {
+  const post = (hub, body) => req(hub, 'POST', `/bt/${TOKEN}/state`, JSON.stringify(body));
+  const ack = (hub, c, phase, more = {}) => JSON.stringify({ kind: 'cmd.ack', session: hub.sessionId, data: { id: c.id, seq: c.seq, phase, ok: true, ...more } }) + '\n';
+  const queue = async (hub, body) => JSON.parse((await post(hub, body)).body);
+
+  it('relays the requested ack phase to the agent on the command', async () => {
+    const hub = await start();
+    await queue(hub, { op: 'set', args: { path: 'a', value: 1 }, ack: 'reflected' });
+    await queue(hub, { op: 'ping' });
+    const polled = JSON.parse((await req(hub, 'GET', `/bt/${TOKEN}/cmd?after=0`)).body);
+    expect(polled.map((c) => [c.seq, c.ack])).toEqual([[1, 'reflected'], [2, 'applied']]);
+    expect(JSON.parse((await req(hub, 'GET', `/bt/${TOKEN}/cmd?after=1`)).body).map((c) => c.seq)).toEqual([2]);
+  });
+
+  it('reflected completes a reflected command; a duplicate ack changes nothing and is counted', async () => {
+    const hub = await start();
+    const q = await queue(hub, { op: 'set', args: { path: 'a', value: 1 }, ack: 'reflected' });
+    await req(hub, 'POST', `/bt/${TOKEN}/events`, ack(hub, q, 'received') + ack(hub, q, 'applied') + ack(hub, q, 'applied'));
+    expect(hub.stateOps.get(q.id)).toMatchObject({ phase: 'applied', status: 'pending' });
+    expect(hub.stateOps.counters.duplicates).toBe(1);
+    await req(hub, 'POST', `/bt/${TOKEN}/events`, ack(hub, q, 'reflected'));
+    expect(hub.stateOps.get(q.id)).toMatchObject({ phase: 'reflected', status: 'done' });
+  });
+
+  it('an applied ack with ok:false fails the command with its error', async () => {
+    const hub = await start();
+    const q = await queue(hub, { op: 'set', args: { path: 'a', value: 'x' } });
+    await req(hub, 'POST', `/bt/${TOKEN}/events`, ack(hub, q, 'received') + ack(hub, q, 'applied', { ok: false, error: 'TYPE_MISMATCH: no' }));
+    expect(hub.stateOps.get(q.id)).toMatchObject({ status: 'failed', ok: false, error: 'TYPE_MISMATCH: no' });
+  });
+
+  it('records out-of-order applied acks as gaps', async () => {
+    const hub = await start();
+    const a = await queue(hub, { op: 'ping' });
+    const b = await queue(hub, { op: 'ping' });
+    await req(hub, 'POST', `/bt/${TOKEN}/events`, ack(hub, b, 'applied') + ack(hub, a, 'applied'));
+    const g = JSON.parse((await req(hub, 'GET', `/bt/${TOKEN}/state`)).body);
+    expect(g.gaps).toEqual([1]);
+  });
+
+  it('times out an open command on the hub timer and logs cmd.timeout', async () => {
+    const hub = await start({ tickMs: 10, stateTimeouts: { received: 30 } });
+    const q = await queue(hub, { op: 'ping' });
+    const t0 = Date.now();
+    while (hub.log.since(0).every((e) => e.kind !== 'cmd.timeout') && Date.now() - t0 < 2000) await new Promise((r) => setTimeout(r, 10));
+    const ev = hub.log.since(0).find((e) => e.kind === 'cmd.timeout');
+    expect(ev.data).toMatchObject({ id: q.id, seq: q.seq, op: 'ping' });
+    expect(hub.stateOps.get(q.id).status).toBe('timeout');
+    await req(hub, 'POST', `/bt/${TOKEN}/events`, ack(hub, q, 'received') + ack(hub, q, 'applied'));
+    expect(hub.stateOps.get(q.id)).toMatchObject({ status: 'done', ok: true }); // a late ack revives it
+  });
+
+  it('an ack for another session is stale: 409 resync and the command stays open', async () => {
+    const hub = await start();
+    const q = await queue(hub, { op: 'ping' });
+    const line = JSON.stringify({ kind: 'cmd.ack', session: 'othersession', data: { id: q.id, seq: q.seq, phase: 'applied', ok: true } }) + '\n';
+    const r = await req(hub, 'POST', `/bt/${TOKEN}/events`, line);
+    expect(r.status).toBe(409);
+    expect(JSON.parse(r.body)).toMatchObject({ resync: true, session: hub.sessionId });
+    expect(hub.stateOps.get(q.id).status).toBe('pending');
+    expect((await req(hub, 'GET', `/bt/${TOKEN}/cmd?after=0&session=othersession`)).status).toBe(409);
+  });
+
+  it('an ack result over 64 KB becomes a typed STATE_TOO_LARGE failure, never truncated', async () => {
+    const hub = await start();
+    const q = await queue(hub, { op: 'get', args: { path: 'big' } });
+    await req(hub, 'POST', `/bt/${TOKEN}/events`, ack(hub, q, 'received') + ack(hub, q, 'applied', { result: { value: 'x'.repeat(70000) } }));
+    const c = hub.stateOps.get(q.id);
+    expect(c).toMatchObject({ status: 'failed', ok: false });
+    expect(c.error).toMatch(/^STATE_TOO_LARGE/);
+    expect(c.result).toBeUndefined();
+  });
+
+  it('stores an applied snapshot ack under its name and expands restore {name} to its layers', async () => {
+    const hub = await start();
+    const s = await queue(hub, { op: 'snapshot', args: { name: 'S1' } });
+    const layers = { global: { user: { tier: 'free' } } };
+    await req(hub, 'POST', `/bt/${TOKEN}/events`, ack(hub, s, 'received') + ack(hub, s, 'applied', { result: { layers, truncated: [] } }));
+    expect(hub.stateOps.getSnapshot('S1')).toEqual(layers);
+    const r = await queue(hub, { op: 'restore', args: { name: 'S1' } });
+    const polled = JSON.parse((await req(hub, 'GET', `/bt/${TOKEN}/cmd?after=${s.seq}`)).body);
+    expect(polled[0]).toMatchObject({ id: r.id, op: 'restore', args: { name: 'S1', layers } });
+    const miss = await post(hub, { op: 'restore', args: { name: 'nope' } });
+    expect(miss.status).toBe(404);
+    expect(JSON.parse(miss.body).error).toBe('NOT_FOUND');
+  });
+
+  it('a failed snapshot ack stores nothing', async () => {
+    const hub = await start();
+    const s = await queue(hub, { op: 'snapshot', args: { name: 'S2' } });
+    await req(hub, 'POST', `/bt/${TOKEN}/events`, ack(hub, s, 'applied', { ok: false, error: 'STATE_TOO_LARGE: x' }));
+    expect(hub.stateOps.getSnapshot('S2')).toBeNull();
+  });
+
+  it('counts long-polls and event posts, and peaks at one waiter with one polling agent', async () => {
+    const hub = await start({ longPollMs: 30 });
+    for (let i = 0; i < 3; i++) await req(hub, 'GET', `/bt/${TOKEN}/cmd?after=0`);
+    await req(hub, 'POST', `/bt/${TOKEN}/events`, '');
+    expect(hub.stats).toMatchObject({ cmdPolls: 3, eventPosts: 1, peakWaiters: 1, waiters: 0 });
+  });
+});

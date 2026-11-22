@@ -1,17 +1,96 @@
 #if BT_AGENT
-' brighttest instrument runtime: sampling Task (STA-S-T1). v0 emits a tick every `interval` ms; the render-thread agent
-' does the reading. The hub hello and long-poll (app-state-devtools.md 4.6) are not part of v0.
+' brighttest instrument runtime: agent Task (STA-S-T1 sampler, STA-S-T6 write path).
+' One thread, one port. It ticks the sampler (`tick`), says hello to the hub, keeps exactly one long-poll outstanding,
+' hands each batch of commands to the render-thread agent through `cmds` (a JSON array) and posts the ack lines the agent
+' returns through `acks` (NDJSON, one line per ack, in order). The agent applies commands in seq order on the render thread;
+' this Task never touches app state. `session` tells the agent which hub session to stamp acks with.
+' Cadence: BT_wCadence (500 ms with no hub or a subscriber, 5 s with a live hub session and no subscriber).
 sub init()
     m.top.functionName = "BT_agentTaskRun"
 end sub
 
 sub BT_agentTaskRun()
+    cfg = BT_config()
     port = CreateObject("roMessagePort")
+    m.top.observeField("acks", port)
+    m.top.observeField("subscribed", port)
+    clock = CreateObject("roTimespan")
     n = 0
+    nextTick = 0
+    retryAt = 0
+    session = ""
+    after = 0
+    poll = invalid
+    post = invalid
+    queue = []
     while true
-        wait(m.top.interval, port)
-        n = n + 1
-        m.top.tick = n
+        now = clock.TotalMilliseconds()
+        if now >= nextTick then
+            n = n + 1
+            m.top.tick = n
+            nextTick = now + BT_wCadence(cfg, m.top.subscribed, session <> "")
+        end if
+        if session = "" and now >= retryAt and BT_wOrigin(cfg) <> "" then
+            session = BT_wHello(cfg)
+            after = 0
+            if session = "" then retryAt = now + 30000 else m.top.session = session
+        end if
+        if session <> "" and poll = invalid then
+            poll = BT_wPollStart(cfg, session, after, port)
+            if poll = invalid then
+                session = ""
+                m.top.session = ""
+                retryAt = now + 5000
+            end if
+        end if
+        if queue.count() > 0 and post = invalid and session <> "" then
+            post = BT_wPostEvents(cfg, session, queue, port)
+            queue = []
+        end if
+        left = nextTick - clock.TotalMilliseconds()
+        if left < 1 then left = 1
+        msg = wait(left, port)
+        if type(msg) = "roSGNodeEvent" then
+            if msg.getField() = "acks" then
+                for each line in m.top.acks.split(Chr(10))
+                    if line <> "" then queue.push(line)
+                end for
+            end if
+        else if type(msg) = "roUrlEvent" and msg.GetInt() = 1 then
+            id = msg.GetSourceIdentity()
+            if poll <> invalid and id = poll.GetIdentity() then
+                poll = invalid
+                r = BT_wParsePoll(msg)
+                if r.kind = "cmds" then
+                    for each c in r.cmds
+                        if type(c) = "roAssociativeArray" and c.seq <> invalid then
+                            if c.seq > after then after = c.seq
+                        end if
+                    end for
+                    m.top.cmds = FormatJson(r.cmds)
+                else if r.kind = "resync" then
+                    session = r.session
+                    after = 0
+                    queue = []
+                    m.top.session = session
+                else if r.kind = "stop" then
+                    session = ""
+                    m.top.session = ""
+                    retryAt = clock.TotalMilliseconds() + 30000
+                else if r.kind = "error" then
+                    session = ""
+                    m.top.session = ""
+                    retryAt = clock.TotalMilliseconds() + 5000
+                end if
+            else if post <> invalid and id = post.GetIdentity() then
+                post = invalid
+                if msg.GetResponseCode() = 409 then
+                    session = ""
+                    m.top.session = ""
+                    retryAt = clock.TotalMilliseconds()
+                end if
+            end if
+        end if
     end while
 end sub
 #end if
