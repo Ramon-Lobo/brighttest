@@ -173,13 +173,24 @@
   // Device lease: while another holder has the device, device polling pauses and a banner says who has it.
   // "Take over when free" queues Studio like any other waiter; it never preempts.
   async function leaseCheck() {
-    if (!studio.lease) return;
     try {
       const l = await api.lease();
+      studio.leaseInfo = l;
+      if (l.holding && !studio.device?.connected) refreshDevice(); // a pool member was just bound
+      if (!studio.lease) return;
       if (l.holding) { studio.lease = null; studio.status = ''; return; }
       studio.lease = { ...studio.lease, lease: l };
     } catch {}
   }
+  // The badge: who holds the device (or free), the queue length, and Studio's own state.
+  const badge = (l) => {
+    if (!l) return { cls: 'unknown', text: 'lease …', own: '' };
+    const h = l.holder;
+    const n = l.queue?.length || 0;
+    const own = l.holding ? 'Studio holding' : l.queued ? 'Studio queued' : 'Studio released';
+    const who = h ? (h.mine ? 'held by Studio' : `held by ${h.agent}`) : 'free';
+    return { cls: l.holding ? 'mine' : h ? 'other' : 'free', text: `${who}${n ? ` · ${n} queued` : ''}`, own };
+  };
   async function takeOver() {
     try { const l = await api.leaseAction('acquire'); studio.lease = l.holding ? null : { ...studio.lease, lease: l }; } catch {}
   }
@@ -208,6 +219,17 @@
     <div class="brand"><span class="dot"></span><b>brighttest</b><span class="sub">studio</span></div>
     <span class="device">{studio.device?.connected ? `${studio.device.model} · fw ${studio.device.firmware}` : studio.device ? 'no device' : 'connecting…'}</span>
     <div class="spacer"></div>
+    {#if studio.leaseInfo?.host || studio.leaseInfo?.pool}
+      {@const b = badge(studio.leaseInfo)}
+      <details class="leasebadge {b.cls}">
+        <summary title="device lease: {b.text}; {b.own}"><span class="ldot"></span>{b.text} · {b.own}</summary>
+        {#if studio.leaseInfo.queue?.length}
+          <ol class="lqueue" aria-label="lease queue">
+            {#each studio.leaseInfo.queue as q}<li><b>{q.agent}</b> {q.purpose ? `— ${q.purpose}` : ''}</li>{/each}
+          </ol>
+        {/if}
+      </details>
+    {/if}
     {#if studio.page === 'inspect'}
       <label class="tog" title="also outline structural containers with no id, text or focus"><input type="checkbox" bind:checked={studio.showAll} /> all nodes</label>
       <label class="tog" title="also outline nodes the device isn't drawing — hidden, transparent, or scrolled out of view"><input type="checkbox" bind:checked={studio.showOffscreen} /> offscreen</label>
@@ -350,6 +372,12 @@
   .tog { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--color-haze); cursor: pointer; }
   .leasebar { display: flex; gap: 12px; align-items: center; padding: 6px 14px; font-size: 12px; background: var(--color-panel); border-bottom: 1px solid var(--color-haze); }
   .leasebar button { font-size: 12px; }
+  .leasebadge { position: relative; font-size: 12px; }
+  .leasebadge summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 6px; }
+  .leasebadge .ldot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-haze); }
+  .leasebadge.mine .ldot { background: #3fb950; }
+  .leasebadge.other .ldot { background: #d29922; }
+  .leasebadge .lqueue { position: absolute; right: 0; z-index: 5; margin: 4px 0 0; padding: 6px 10px 6px 26px; background: var(--color-panel); border: 1px solid var(--color-haze); white-space: nowrap; }
   .leasebar .queued { color: var(--color-haze); }
   .status { font-family: var(--font-mono); font-size: 11px; color: var(--color-haze); min-width: 68px; text-align: right; }
 

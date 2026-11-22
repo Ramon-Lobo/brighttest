@@ -302,3 +302,55 @@ describe('Studio server and the lease', () => {
     expect(logs.join('\n')).toMatch(/stopped the profiling session/)
   })
 })
+
+// DEV2-02 follow-up: with deviceLease.pool and no --host, Studio binds exactly one free pool member.
+describe('Studio server with a device pool', () => {
+  let server, port, prevPort
+  const POOL = ['127.0.0.1', '127.0.0.2']
+  const poolCfg = { deviceLease: { ...cfg.deviceLease, pool: POOL } }
+  function req(method, p, body) {
+    return new Promise((resolve, reject) => {
+      const r = http.request({ host: '127.0.0.1', port, method, path: p, headers: body ? { 'Content-Type': 'application/json' } : {} }, (res) => {
+        let b = ''; res.on('data', (c) => (b += c)); res.on('end', () => resolve({ status: res.statusCode, json: (() => { try { return JSON.parse(b) } catch { return null } })() }))
+      })
+      r.on('error', reject)
+      if (body) r.write(JSON.stringify(body))
+      r.end()
+    })
+  }
+  beforeEach(async () => {
+    prevPort = process.env.ROKU_ECP_PORT
+    process.env.ROKU_ECP_PORT = '8060'
+    process.env.BRIGHTTEST_LEASE_DIR = dir
+    process.env.BRIGHTTEST_CACHE = path.join(dir, 'devices.json')
+    server = await studio.start({ password: 'rokudev-test', port: 0, rootDir: dir, cfg: poolCfg, leaseOpts: { acquireOpts: seams(), now: () => clock.t, log: (s) => logs.push(s), tickMs: 20 } })
+    port = server.address().port
+  })
+  afterEach(() => {
+    server.close()
+    if (prevPort === undefined) delete process.env.ROKU_ECP_PORT; else process.env.ROKU_ECP_PORT = prevPort
+    delete process.env.BRIGHTTEST_LEASE_DIR; delete process.env.BRIGHTTEST_CACHE
+  })
+  const k = (h) => h // the default ECP port adds no suffix to the key
+  const held = () => POOL.filter((h) => lease.status({ dir, key: k(h) })[0].holder)
+
+  it('binds the first free member, /api/lease names exactly that one key, and holds only it', async () => {
+    const o = await other({ key: k(POOL[0]) })
+    const r = await req('POST', '/api/lease', { action: 'acquire' })
+    expect(r.status).toBe(200)
+    expect(r.json).toMatchObject({ holding: true, host: POOL[1], key: k(POOL[1]), pool: true })
+    expect(r.json.holder.mine).toBe(true)
+    expect(held()).toEqual(POOL) // the other run holds member 0, Studio holds member 1: no gate or third key left behind
+    expect(lease.status({ dir }).filter((s) => s.holder).map((s) => s.key).sort()).toEqual([k(POOL[0]), k(POOL[1])])
+    o.release()
+  })
+
+  it('every member busy: BUSY is reported (Studio queues), no member is taken', async () => {
+    const a = await other({ key: k(POOL[0]) })
+    const b = await other({ key: k(POOL[1]) })
+    const r = await req('POST', '/api/lease', { action: 'acquire' })
+    expect(r.json.holding).toBe(false)
+    expect(r.json.queued).toBe(true)
+    a.release(); b.release()
+  })
+})
