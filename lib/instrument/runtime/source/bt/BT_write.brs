@@ -146,14 +146,14 @@ function BT_wMCall(n as object, req as object) as object
     return r
 end function
 
-' The first segment of root.segs that is a secret key, or whose dotted or [i] prefix matches a redact pattern; else invalid.
+' The masked get reply for the first segment of root.segs that is a secret key or matches a redact pattern (dotted or [i]); else invalid.
 function BT_wRedSeg(root as string, segs as object, rd as dynamic) as dynamic
     d = root
     b = root
     for each seg in segs
         d = d + "." + seg
         if seg = StrI(Val(seg, 10)).Trim() then b = b + "[" + seg + "]" else b = b + "." + seg
-        if BT_isSecretKey(seg) or BT_redactMatch(d, rd) or BT_redactMatch(b, rd) then return seg
+        if BT_isSecretKey(seg) or BT_redactMatch(d, rd) or BT_redactMatch(b, rd) then return { ok: true, result: { found: true, value: "<redacted:" + seg + ">" } }
     end for
     return invalid
 end function
@@ -166,7 +166,7 @@ function BT_wMGet(n as object, segs as object, args as object, caps as object, r
     if segs.count() > 0 then
         root = "m." + args.path
         hit = BT_wRedSeg("m", segs, redact)
-        if hit <> invalid then return { ok: true, result: { found: true, value: "<redacted:" + hit + ">" } }
+        if hit <> invalid then return hit
     end if
     return BT_wGetDone(BT_serialize(r.value, caps, root, 0, trunc, redact), trunc)
 end function
@@ -181,7 +181,7 @@ function BT_wRegRead(ctx as object, section as dynamic, key as dynamic) as objec
     rd = invalid
     if type(ctx.cfg) = "roAssociativeArray" and type(ctx.cfg.redact) = "roAssociativeArray" then rd = ctx.cfg.redact.paths
     hit = BT_wRedSeg("registry", [section, key], rd)
-    if hit <> invalid then return { ok: true, result: { found: true, value: "<redacted:" + hit + ">" } }
+    if hit <> invalid then return hit
     return { ok: true, result: { found: true, value: sec.Read(key) } }
 end function
 
@@ -218,6 +218,8 @@ function BT_wGet(args as object, ctx as object) as object
         if segs.count() = 1 then
             r = BT_wChild(regs, segs[0])
             if not r.found then return { ok: true, result: { found: false } }
+            hit = BT_wRedSeg(rp, segs, redact)
+            if hit <> invalid then return hit
             v = r.value
             rp = rp + "." + segs[0]
         end if
@@ -229,7 +231,7 @@ function BT_wGet(args as object, ctx as object) as object
     if segs.count() = 0 then return BT_wGetDone(BT_serialize(BT_nodeFields(root.node), caps, root.layer, 0, trunc, redact), trunc)
     if not root.node.hasField(segs[0]) then return { ok: true, result: { found: false } }
     hit = BT_wRedSeg(root.layer, segs, redact)
-    if hit <> invalid then return { ok: true, result: { found: true, value: "<redacted:" + hit + ">" } }
+    if hit <> invalid then return hit
     cur = root.node.getField(segs[0])
     for i = 1 to segs.count() - 1
         if BT_wKind(cur) = "node" then return BT_wErr("PATH_UNDER_NODE", "paths do not cross a node reference; address the node with layer node")

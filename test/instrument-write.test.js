@@ -367,6 +367,9 @@ describe('registry reads honour redact.paths (INS-REDACT-REGISTRY, headless, for
         ]),
         `    print "S_${n}:" + rn(ctx, "get", { layer: "registry", path: "${SECTION}" })`,
       ]),
+      '    ctx.cfg = BT_config() : ctx.cfg.registrySections = ["bt_tokens"]',
+      '    BT_wApply({ op: "registry.write", args: { section: "bt_tokens", key: "k", value: "v" } }, ctx)',
+      '    print "T_sec:" + rn(ctx, "get", { layer: "registry", path: "bt_tokens" })',
     ].join('\n')
     out = await runBrs('redact-registry', { main }).done
   }, 90000)
@@ -399,7 +402,7 @@ describe('registry reads honour redact.paths (INS-REDACT-REGISTRY, headless, for
     }
   })
   it('a pattern on another key or below the read leaves the value readable', () => {
-    for (const n of ['other', 'deeper']) expect(val(`G_${n}_theme`)).toBe('dark')
+    expect(val('G_other_theme')).toBe('dark')
     expect(masked(val('G_other_other'), 'other')).toBe(true)
   })
   it('a section read masks the keys the patterns name, by their full registry.<section>.<key> path', () => {
@@ -408,6 +411,13 @@ describe('registry reads honour redact.paths (INS-REDACT-REGISTRY, headless, for
     expect(v('exact')).toMatchObject({ theme: '<redacted:theme>', other: 'o' })
     expect(v('star').theme).toBe('<redacted:theme>')
     expect(v('star').other).toBe('<redacted:other>')
-    expect(v('deeper').theme).toBe('dark')
+    expect(v('section')).toBe(`<redacted:${SECTION}>`)
+    expect(JSON.stringify(tagged(out, 'S_section:')[0])).not.toContain('dark')
+    expect(tagged(out, 'T_sec:')[0].result.value).toBe('<redacted:bt_tokens>')
+  })
+  it('KNOWN GAP (follow-up task): a pattern deeper than the exact key is not applied, the raw stored string is returned', () => {
+    expect(val('G_deeper_theme')).toBe('dark')
+    expect(val('O_deeper_theme')).toBe('dark')
+    expect(tagged(out, 'S_deeper:')[0].result.value.theme).toBe('dark')
   })
 })
