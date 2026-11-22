@@ -240,7 +240,7 @@ function BT_labelJson(seq as integer, globalNode as dynamic, scene as dynamic, c
     trunc = []
     layers = BT_layers(globalNode, scene, cfg, trunc)
     doc = { v: 1, seq: seq, instrumented: true, thread: "render", renderMs: renderMs, snapshot: { layers: layers }, truncated: trunc }
-    if type(lastInput) = "roAssociativeArray" then doc.input = lastInput ' STA-S-T13: last ECP /input mailbox result { id, phase, ok }
+    if type(lastInput) = "roAssociativeArray" then doc.input = lastInput
     return BT_fit(doc, BT_pubMaxBytes(cfg))
 end function
 #end if

@@ -146,6 +146,18 @@ function BT_wMCall(n as object, req as object) as object
     return r
 end function
 
+' The first segment of root.segs that is a secret key, or whose dotted or [i] prefix matches a redact pattern; else invalid.
+function BT_wRedSeg(root as string, segs as object, rd as dynamic) as dynamic
+    d = root
+    b = root
+    for each seg in segs
+        d = d + "." + seg
+        if seg = StrI(Val(seg, 10)).Trim() then b = b + "[" + seg + "]" else b = b + "." + seg
+        if BT_isSecretKey(seg) or BT_redactMatch(d, rd) or BT_redactMatch(b, rd) then return seg
+    end for
+    return invalid
+end function
+
 function BT_wMGet(n as object, segs as object, args as object, caps as object, redact as dynamic, trunc as object) as object
     r = BT_wMCall(n, { op: "get", path: segs })
     if not r.ok then return r
@@ -153,13 +165,8 @@ function BT_wMGet(n as object, segs as object, args as object, caps as object, r
     root = "m"
     if segs.count() > 0 then
         root = "m." + args.path
-        d = "m"
-        b = "m"
-        for each seg in segs
-            d = d + "." + seg
-            if seg = StrI(Val(seg, 10)).Trim() then b = b + "[" + seg + "]" else b = b + "." + seg
-            if BT_isSecretKey(seg) or BT_redactMatch(d, redact) or BT_redactMatch(b, redact) then return { ok: true, result: { found: true, value: "<redacted:" + seg + ">" } }
-        end for
+        hit = BT_wRedSeg("m", segs, redact)
+        if hit <> invalid then return { ok: true, result: { found: true, value: "<redacted:" + hit + ">" } }
     end if
     return BT_wGetDone(BT_serialize(r.value, caps, root, 0, trunc, redact), trunc)
 end function
@@ -171,7 +178,10 @@ function BT_wRegRead(ctx as object, section as dynamic, key as dynamic) as objec
     if not BT_wInList(BT_wCfgList(ctx, "registrySections"), section) then return BT_wErr("REGISTRY_SECTION_NOT_ALLOWED", "section is not in instrument.state.registrySections")
     sec = CreateObject("roRegistrySection", section)
     if sec = invalid or not sec.Exists(key) then return { ok: true, result: { found: false } }
-    if BT_isSecretKey(key) then return { ok: true, result: { found: true, value: "<redacted:" + key + ">" } }
+    rd = invalid
+    if type(ctx.cfg) = "roAssociativeArray" and type(ctx.cfg.redact) = "roAssociativeArray" then rd = ctx.cfg.redact.paths
+    hit = BT_wRedSeg("registry", [section, key], rd)
+    if hit <> invalid then return { ok: true, result: { found: true, value: "<redacted:" + hit + ">" } }
     return { ok: true, result: { found: true, value: sec.Read(key) } }
 end function
 
@@ -204,25 +214,22 @@ function BT_wGet(args as object, ctx as object) as object
         regs = BT_registryRaw(ctx.cfg)
         if regs = invalid then return { ok: true, result: { found: false } }
         v = regs
+        rp = "registry"
         if segs.count() = 1 then
             r = BT_wChild(regs, segs[0])
             if not r.found then return { ok: true, result: { found: false } }
             v = r.value
+            rp = rp + "." + segs[0]
         end if
-        return BT_wGetDone(BT_serialize(v, caps, "registry", 0, trunc, redact), trunc)
+        return BT_wGetDone(BT_serialize(v, caps, rp, 0, trunc, redact), trunc)
     end if
     root = BT_wRoot(args, ctx)
     if not root.ok then return root
     if root.layer = "m" then return BT_wMGet(root.node, segs, args, caps, redact, trunc)
     if segs.count() = 0 then return BT_wGetDone(BT_serialize(BT_nodeFields(root.node), caps, root.layer, 0, trunc, redact), trunc)
     if not root.node.hasField(segs[0]) then return { ok: true, result: { found: false } }
-    d = root.layer
-    b = d
-    for each seg in segs
-        d = d + "." + seg
-        if seg = StrI(Val(seg, 10)).Trim() then b = b + "[" + seg + "]" else b = b + "." + seg
-        if BT_isSecretKey(seg) or BT_redactMatch(d, redact) or BT_redactMatch(b, redact) then return { ok: true, result: { found: true, value: "<redacted:" + seg + ">" } }
-    end for
+    hit = BT_wRedSeg(root.layer, segs, redact)
+    if hit <> invalid then return { ok: true, result: { found: true, value: "<redacted:" + hit + ">" } }
     cur = root.node.getField(segs[0])
     for i = 1 to segs.count() - 1
         if BT_wKind(cur) = "node" then return BT_wErr("PATH_UNDER_NODE", "paths do not cross a node reference; address the node with layer node")
@@ -786,7 +793,7 @@ end function
 ' no subscriber.
 function BT_wCadence(cfg as dynamic, subscribed as boolean, hubLive as boolean, docBytes = 0 as integer) as integer
     base = BT_pubIntervalMs(cfg)
-    if docBytes > 16384 and base < 1000 then base = 1000 ' rate cap: a large published doc is sent at most once a second
+    if docBytes > 16384 and base < 1000 then base = 1000
     if hubLive and not subscribed then return base * 10
     return base
 end function

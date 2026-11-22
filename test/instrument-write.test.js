@@ -346,3 +346,68 @@ describe('write path over a loopback hub (headless pump, fork engine)', () => {
     expect(tagged(out, 'FINAL:')[0].result.value).toBe('free')
   }, 60000)
 })
+
+describe('registry reads honour redact.paths (INS-REDACT-REGISTRY, headless, fork engine)', () => {
+  let out
+  const P = 'registry.' + SECTION
+  const pats = {
+    none: [], exact: [`${P}.theme`], section: [P], star: [`${P}.*`], upper: [`REGISTRY.${SECTION.toUpperCase()}.THEME`],
+    idx: [`${P}[0]`], dot: [`${P}.0`], other: [`${P}.other`], deeper: [`${P}.theme.x`],
+  }
+  beforeAll(async () => {
+    const main = [
+      `    for each kv in [["theme", "dark"], ["0", "zero"], ["other", "o"], ["authtoken", "tk"]]`,
+      `        BT_wApply({ op: "registry.write", args: { section: "${SECTION}", key: kv[0], value: kv[1] } }, ctx)`,
+      '    end for',
+      ...Object.keys(pats).flatMap((n) => [
+        `    ctx.cfg = BT_config() : ctx.cfg.redact = { paths: ${JSON.stringify(pats[n])} }`,
+        ...['theme', '0', 'other', 'authtoken'].flatMap((k) => [
+          `    print "G_${n}_${k}:" + rn(ctx, "get", { layer: "registry", path: "${SECTION}.${k}" })`,
+          `    print "O_${n}_${k}:" + rn(ctx, "registry.read", { section: "${SECTION}", key: "${k}" })`,
+        ]),
+        `    print "S_${n}:" + rn(ctx, "get", { layer: "registry", path: "${SECTION}" })`,
+      ]),
+    ].join('\n')
+    out = await runBrs('redact-registry', { main }).done
+  }, 90000)
+  const val = (tag) => { const r = tagged(out, tag + ':')[0]; return r.result.value }
+  const masked = (v, k) => v === `<redacted:${k}>`
+
+  it('no patterns: a read returns the value; a secret key is still masked', () => {
+    expect(val('G_none_theme')).toBe('dark')
+    expect(val('O_none_theme')).toBe('dark')
+    expect(masked(val('G_none_authtoken'), 'authtoken')).toBe(true)
+    expect(masked(val('O_none_authtoken'), 'authtoken')).toBe(true)
+  })
+  it('exact path: section.key read is masked on both the get and registry.read ops, case-insensitively', () => {
+    for (const n of ['exact', 'upper']) for (const p of ['G', 'O']) {
+      expect(masked(val(`${p}_${n}_theme`), 'theme'), `${p} ${n}`).toBe(true)
+      expect(val(`${p}_${n}_other`)).toBe('o')
+    }
+    expect(JSON.stringify(tagged(out, 'G_exact_theme:')[0])).not.toContain('dark')
+  })
+  it('intermediate key: a pattern on the section or section.* masks every key under it', () => {
+    for (const n of ['section', 'star']) for (const p of ['G', 'O']) {
+      expect(masked(val(`${p}_${n}_theme`), n === 'section' ? SECTION : 'theme'), `${p} ${n}`).toBe(true)
+      expect(JSON.stringify(tagged(out, `${p}_${n}_other:`)[0])).toMatch(/redacted/)
+    }
+  })
+  it('[i] form: a numeric key matches the bracket and the dotted pattern, other keys are untouched', () => {
+    for (const n of ['idx', 'dot']) for (const p of ['G', 'O']) {
+      expect(masked(val(`${p}_${n}_0`), '0'), `${p} ${n}`).toBe(true)
+      expect(val(`${p}_${n}_theme`)).toBe('dark')
+    }
+  })
+  it('a pattern on another key or below the read leaves the value readable', () => {
+    for (const n of ['other', 'deeper']) expect(val(`G_${n}_theme`)).toBe('dark')
+    expect(masked(val('G_other_other'), 'other')).toBe(true)
+  })
+  it('a section read masks the keys the patterns name, by their full registry.<section>.<key> path', () => {
+    const v = (n) => tagged(out, `S_${n}:`)[0].result.value
+    expect(v('none').theme).toBe('dark')
+    expect(v('exact')).toMatchObject({ theme: '<redacted:theme>', other: 'o' })
+    expect(v('star').theme).toBe('<redacted:theme>')
+    expect(v('star').other).toBe('<redacted:other>')
+    expect(v('deeper').theme).toBe('dark')
+  })
+})
