@@ -167,19 +167,21 @@ to see who holds it (agent, purpose, worktree, since when) and who is queued.
   started is still running (`device status` shows the PID). If the holder is yours and stuck:
   `npx brighttest device unlock --force --host <ip> --reason "…" [--kill]`.
 
-## Console command says the target is "listed but not running" (or returns nothing)
+## Console command answers "Command not recognized" (or returns nothing)
 
 **Symptom:** a Studio console command (`sgperf`, `textures`, `chanperf`) returns an empty result, or fails with
-`target "<name>" is listed but not running (stub command set); bring the channel to the foreground and retry`,
+`target "<name>" answered "Command not recognized" (stub command set; seen with the channel in the background, and on some devices with it in front)`,
 or `console target not found for channel "<name>" (targets: ...)`.
 
 **Cause:** these commands act on the console's *execution target*, which defaults to `main` (the system UI),
 where they return nothing useful. The channel's own target has to be selected first with `target <n>`; Studio
-does this for you (`target list`, then `target <n>`). A channel that is listed but not in the foreground answers
-with a stub command set, where every targeted command is "Command not recognized", and Studio reports that as the
-error above instead of an empty result. Global commands (`free`, `plugins`, `fps_display`) need no target.
+does this for you (`target list`, then `target <n>`). A listed target can answer
+with a stub command set, where every targeted command is "Command not recognized". This was seen with the channel in
+the background, and on some devices with it in the foreground, so the cause is not settled. Studio reports it as the
+error above instead of an empty result. Other replies are named by a `status` (for example `needs-dev-channel`,
+`needs-scene-graph`, `not-implemented`, `unavailable`, `empty`, `unknown`) with a `reason` quoting what was observed. Global commands (`free`, `plugins`, `fps_display`) need no target.
 
-**Fix:** bring the channel to the foreground (launch it) and retry. If the target is not found, check the channel
+**Fix:** launch the channel and bring it to the foreground, then retry; if the stub reply persists with the channel in front, it is the device's reply, not a Studio fault. If the target is not found, check the channel
 name against the listed targets in the message.
 
 ## `sgperf` report is empty
