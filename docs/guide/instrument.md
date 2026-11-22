@@ -94,6 +94,36 @@ For an existing app you do not want to edit. It runs the census, writes the `ins
 `.brighttest/` and `*.bt-instrumented.zip` to `.gitignore`. It adds no example spec and no npm test script. An existing
 `instrument` block is kept unless you pass `--force`.
 
+## Greenfield setup: `init --greenfield`
+
+```bash
+npx brighttest init --greenfield [--force]
+```
+
+For an app you build with brighttest in mind. On top of the normal `init` scaffold it:
+
+- copies `BTStore.brs` and `BTHttp.brs` into `source/brighttest/`. Each file starts with a version header line
+  (`' brighttest-template: BTStore v1`). Specs under `source/` can call `BTStore_create` directly in the fast lane.
+- adds `BT_AGENT=false` to `bs_const` in `manifest` (existing consts are kept; the name is matched case-insensitively,
+  an existing `BT_AGENT` const is never duplicated or flipped, and CRLF line endings are preserved).
+
+Scene and Task components include the files with a script tag:
+
+```xml
+<script type="text/brightscript" uri="pkg:/source/brighttest/BTStore.brs" />
+<script type="text/brightscript" uri="pkg:/source/brighttest/BTHttp.brs" />
+```
+
+Re-running is safe: existing files are kept. `--force` refreshes only the two templates; it never overwrites
+`brighttest.json` or `source/tests/Example.spec.bs`. It cannot be combined with `--brownfield`.
+
+Current limitations (the full design is not implemented yet):
+
+- The templates have no `#if BT_AGENT` branches, so they emit no `state.action` events and serve no `dispatch` or
+  `restore` ops, and `BTHttp_url` is the identity function.
+- `BTStore_dispatch` called from a Task thread does not reduce and returns `{}`; Tasks set `m.global.btAction` instead.
+- `BTStore_replay` ignores `options.effects` (reducers only), and there is no `m.global.btEffect`.
+
 ## Configuration
 
 `brighttest.json`, all optional:

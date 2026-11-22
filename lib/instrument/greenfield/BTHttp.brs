@@ -1,6 +1,9 @@
 ' brighttest-template: BTHttp v1
 ' Greenfield HTTP helpers for brighttest. Copied into your app by `brighttest init --greenfield`.
 ' Thin and production-safe: identity behavior unless the agent build (bs_const BT_AGENT=true) rewrites URLs.
+'
+' Current limitations (recorded scope cut, not yet implemented from the design):
+'   - No `#if BT_AGENT` branch: BTHttp_url is the identity function, so nothing is routed through the hub yet.
 
 function BTHttp_url(url as string) as string
     return url
