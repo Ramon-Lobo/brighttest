@@ -302,6 +302,24 @@ describe('net window hub', () => {
     expect((await c.tool('inspect_tree')).result.isError).not.toBe(true)
   })
 
+  it('writes the hub log through the hub sink: start, each request (no bodies, no query), stop', async () => {
+    const { c, hub } = await boot()
+    await c.tool('net_mock', { match: { url: '**/x' }, respond: { status: 200, body: 'SECRET-BODY-TEXT' } })
+    expect(hub.starts[0].log).toEqual(expect.any(Function))
+    expect(c.stderr()).toMatch(/\[brighttest hub\] session hub started on port 8790 for 127\.0\.0\.1\n/)
+    const { Readable, Writable } = require('stream')
+    const req = Object.assign(Readable.from([]), { method: 'GET', headers: {} })
+    const res = Object.assign(new Writable({ write(ch, e, cb) { cb() } }), { writeHead() { this.headersSent = true; return this } })
+    await hub.starts[0].netProxy.handle(req, res, 'http://example.test/x?token=QUERYSECRET')
+    const err = c.stderr()
+    expect(err).toMatch(/\[brighttest hub\] request GET \/x -> 200 \(16 response bytes, source mock\)\n/)
+    expect(err).not.toContain('SECRET-BODY-TEXT')
+    expect(err).not.toContain('QUERYSECRET')
+    c.server.session.win.release('idle expiry')
+    await new Promise((r) => setTimeout(r, 10))
+    expect(c.stderr()).toContain('[brighttest hub] session hub stopped\n')
+  })
+
   it('session end stops the hub and releases the window lease', async () => {
     const { c, hub } = await boot()
     await c.tool('net_requests')
