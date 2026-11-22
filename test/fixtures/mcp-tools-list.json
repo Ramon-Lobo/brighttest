@@ -1,0 +1,202 @@
+{
+  "tools": [
+    {
+      "description": "Read the app self-published state snapshot (the hidden __bt_state node of an instrumented build). Errors with STATE_NOT_PUBLISHED when the build is not instrumented.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "name": "app_state"
+    },
+    {
+      "description": "Read-only capability check of the target device (developer mode, ECP mode, firmware, video mode) with the exact fix text for anything wrong. Does not take the device lease.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "name": "device_doctor"
+    },
+    {
+      "description": "Read the live SceneGraph tree. Without a selector returns a bounded depth-first node list; with a selector returns only the matching nodes. An empty match is a normal result (matches: []). Output is capped; truncated is true when the cap cut nodes.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "maxNodes": {
+            "description": "Nodes to return, at most 500",
+            "maximum": 500,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "selector": {
+            "additionalProperties": false,
+            "description": "Match nodes in the live SceneGraph tree. All given keys must hold. Prefer id.",
+            "minProperties": 1,
+            "properties": {
+              "focusable": {
+                "type": "boolean"
+              },
+              "focused": {
+                "description": "Only the deepest focused node",
+                "type": "boolean"
+              },
+              "id": {
+                "description": "SceneGraph node id",
+                "type": "string"
+              },
+              "index": {
+                "description": "Pick the Nth match (0-based)",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "subtype": {
+                "description": "Node type, e.g. Label, RowList",
+                "type": "string"
+              },
+              "text": {
+                "description": "Exact visible text",
+                "type": "string"
+              },
+              "textContains": {
+                "description": "Substring of visible text",
+                "type": "string"
+              },
+              "uri": {
+                "description": "Exact uri (posters, images)",
+                "type": "string"
+              },
+              "visible": {
+                "type": "boolean"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "name": "inspect_tree"
+    },
+    {
+      "description": "List the Roku devices brighttest knows (cached) and the one this session targets, with model, firmware and reachability. Devices come only from the brighttest resolution chain (ROKU_HOST, project .env, cache); no serial numbers or passwords are returned.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "name": "list_devices"
+    },
+    {
+      "description": "Move D-pad focus onto the first node matching the selector (the \"click X\" of a D-pad world). Returns the keys pressed and the final focused node. Fails with the last focused node when the target cannot be reached. Counts against the press cap.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "maxPresses": {
+            "description": "Press budget for this move, default 30",
+            "maximum": 30,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "selector": {
+            "additionalProperties": false,
+            "description": "Match nodes in the live SceneGraph tree. All given keys must hold. Prefer id.",
+            "minProperties": 1,
+            "properties": {
+              "focusable": {
+                "type": "boolean"
+              },
+              "focused": {
+                "description": "Only the deepest focused node",
+                "type": "boolean"
+              },
+              "id": {
+                "description": "SceneGraph node id",
+                "type": "string"
+              },
+              "index": {
+                "description": "Pick the Nth match (0-based)",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "subtype": {
+                "description": "Node type, e.g. Label, RowList",
+                "type": "string"
+              },
+              "text": {
+                "description": "Exact visible text",
+                "type": "string"
+              },
+              "textContains": {
+                "description": "Substring of visible text",
+                "type": "string"
+              },
+              "uri": {
+                "description": "Exact uri (posters, images)",
+                "type": "string"
+              },
+              "visible": {
+                "type": "boolean"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "selector"
+        ],
+        "type": "object"
+      },
+      "name": "navigate_to"
+    },
+    {
+      "description": "Press a remote key on the device, one or more times, spaced by the ECP queue gap. Keys are the Roku remote key names (Up, Down, Left, Right, Select, Back, Home, ...) or Lit_<char> for one literal character. The session has a press cap.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "description": "Presses, default 1, at most 20 per call",
+            "maximum": 20,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "key": {
+            "description": "Remote key name or Lit_<char>",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "type": "object"
+      },
+      "name": "press"
+    },
+    {
+      "description": "Run one *.e2e.yaml flow from the project (path relative to the project root, no \"..\" and no absolute path) and return the per-step results. A failing flow returns isError with the failing step. The session has a flow-run cap and the call has a duration cap.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "description": "Flow file relative to the project root, ending in .e2e.yaml",
+            "maxLength": 512,
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      },
+      "name": "run_flow"
+    },
+    {
+      "description": "Capture a screenshot of the sideloaded app as an inline image. Needs the dev password configured out of band (ROKU_PASSWORD or the device cache); it is never a tool parameter. Only works while the dev channel is in front.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "name": "screenshot"
+    }
+  ]
+}

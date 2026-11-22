@@ -82,6 +82,21 @@ function parseDoctorArgs(rest) {
   return o;
 }
 
+// `brighttest mcp`: stdio MCP server (brighttest-mcp/v1) exposing the e2e primitives to agents.
+const MCP_HELP = `
+brighttest mcp — serve brighttest's deterministic e2e primitives to an AI agent over MCP (stdio)
+
+Usage: brighttest mcp
+
+  Speaks newline-delimited JSON-RPC 2.0 on stdin/stdout (logs go to stderr). Tools (contract brighttest-mcp/v1):
+  list_devices, device_doctor, inspect_tree, press, navigate_to, screenshot, app_state, run_flow.
+
+  The device comes only from the usual resolution chain (ROKU_HOST, ROKU_PASSWORD, project .env, device cache);
+  no tool takes a host, a password or an absolute path. The first device tool call takes the device lease for the
+  session; it is released when stdin closes. Per-session caps apply to presses and flow runs.
+  Exit codes: 0 on a clean end of input, 1 on an internal error, 2 on a usage error.
+`;
+
 // `brighttest net convert <file.har> [-o <rules.json>]` — HAR to hand-editable rules (NET-N-T7).
 const NET_HELP = `brighttest net convert <file.har> [-o <rules.json>]
   Turn a recorded HAR into a rules file (one rule per entry, ids har-1..n). Prints to stdout without -o.
@@ -503,6 +518,7 @@ Usage:
   brighttest studio --host <ip>                      Visual studio to author/debug flows on a device (see: studio --help)
   brighttest net convert <file.har> [-o <rules.json>]  Turn a recorded HAR into hand-editable net rules
   brighttest doctor --host <ip> [--json]             Check a device's capabilities and print exact fixes
+  brighttest mcp                                     Serve e2e primitives to an AI agent over MCP stdio (see: mcp --help)
   brighttest devices                                 Discover Rokus on the network and cache one's credentials
   brighttest device status|with|unlock|log           Share a device safely: the device lease (see: device --help)
 
@@ -658,6 +674,11 @@ async function main() {
       } catch { /* ignore */ }
     }
     return; // keep the process alive — the server is listening
+  }
+  if (argv[0] === 'mcp') {
+    if (argv.length > 1 && argv[1] !== '--help' && argv[1] !== '-h') { console.error('[brighttest mcp] takes no arguments (see: brighttest mcp --help)'); process.exit(2); }
+    if (argv[1]) { console.log(MCP_HELP); process.exit(0); }
+    process.exit(await require('../lib/mcp/server').run({ cwd: process.cwd() }));
   }
   if (argv[0] === 'net') {
     const n = parseNetArgs(argv.slice(1));
