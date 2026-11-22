@@ -49,6 +49,7 @@ const APP = {
 async function build(name, state, files = APP) {
   const dir = path.join(tmp, 'src-' + name)
   for (const [rel, text] of Object.entries(files)) {
+    if (text === undefined) continue
     fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true })
     fs.writeFileSync(path.join(dir, rel), text)
   }
@@ -144,6 +145,52 @@ end sub
     const b = await build('v2', { dispatch: ['dispatchAction'] }, files('    x = dispatchAction({ type: "x" })\n    print dispatchAction(x)'))
     expect(b.result.skipped.filter((s) => s.kind === 'wrap-target-unknown')).toEqual([])
     expect(b.read('components/store.brs')).toMatch(/__bt_orig_dispatchAction/)
+  })
+})
+
+describe('defaults that are hard to copy (round 3)', () => {
+  const sceneFiles = (name, text) => ({ ...APP, 'components/store.brs': undefined, [name]: text, 'components/Scene.xml': comp('Home', 'Scene', ['components/' + name.split('/')[1]]) })
+  it('a multi-line AA default is copied with its newlines, wraps, and runs with the default', async () => {
+    const src = 'sub init()\n    m.n = 0\nend sub\n\nfunction dispatchAction(action as object, o = {\n    x: 1\n    y: 2\n}) as object\n    return { o: o }\nend function\n'
+    const b = await build('m1', { dispatch: ['dispatchAction'] }, sceneFiles('components/store.brs', src))
+    expect(b.errors.map((e) => e.message)).toEqual([])
+    expect(b.result.skipped.filter((s) => s.kind === 'wrap-target-unknown')).toEqual([])
+    const out = b.read('components/store.brs')
+    expect(out).toMatch(/__bt_orig_dispatchAction/)
+    expect(out).toMatch(/BT_bootstrap/)
+    const run = await runBrs('m1', out, 'sub main()\n    print "R:" + FormatJson(dispatchAction({ type: "x" }))\nend sub')
+    expect(JSON.parse(run.match(/R:(.*)/)[1])).toEqual({ o: { x: 1, y: 2 } })
+  })
+  it('a .bs template-string default is refused with a report entry; the agent is still injected', async () => {
+    const src = 'sub init()\n    m.n = 0\nend sub\n\nfunction dispatchAction(action as object, label = `a${1}b`) as object\n    return { label: label }\nend function\n'
+    const b = await build('m2', { dispatch: ['dispatchAction'] }, sceneFiles('components/store.bs', src))
+    const sk = b.result.skipped.filter((s) => s.kind === 'wrap-target-unknown')
+    expect(sk).toHaveLength(1)
+    expect(sk[0].reason).toMatch(/not a plain literal/)
+    expect(b.read('components/store.brs')).not.toMatch(/__bt_orig_/)
+    expect(b.read('components/store.brs')).toMatch(/BT_bootstrap/)
+  })
+  it('a .bs enum default is refused, and the unwrapped function still runs with the argument omitted', async () => {
+    const src = 'enum Lvl\n    info = 1\n    warn = 2\nend enum\n\nsub init()\n    m.n = 0\nend sub\n\nfunction dispatchAction(action as object, lvl = Lvl.info) as object\n    return { lvl: lvl }\nend function\n'
+    const b = await build('m3', { dispatch: ['dispatchAction'] }, sceneFiles('components/store.bs', src))
+    expect(b.result.skipped.filter((s) => s.kind === 'wrap-target-unknown')).toHaveLength(1)
+    const out = b.read('components/store.brs')
+    expect(out).not.toMatch(/__bt_orig_/)
+    const run = await runBrs('m3', out, 'sub main()\n    print "R:" + FormatJson(dispatchAction({ type: "x" }))\nend sub')
+    expect(JSON.parse(run.match(/R:(.*)/)[1])).toEqual({ lvl: 1 })
+  })
+  it('a wrapper that cannot be applied is reported (strict), the function stays unwrapped and the Scene init is still bootstrapped', async () => {
+    const wrapMod = require(path.resolve(__dirname, '../lib/instrument/wrap.js'))
+    const real = wrapMod.applyWrap
+    wrapMod.applyWrap = () => { throw new Error('boom') }
+    try {
+      const b = await build('m4', { dispatch: ['dispatchAction'] })
+      const sk = b.result.skipped.filter((s) => s.kind === 'wrap-target-unknown')
+      expect(sk).toHaveLength(1)
+      expect(sk[0].reason).toMatch(/could not be wrapped \(boom\)/)
+      expect(b.read('components/store.brs')).not.toMatch(/__bt_orig_/)
+      expect(b.read('components/store.brs')).toMatch(/BT_bootstrap/)
+    } finally { wrapMod.applyWrap = real }
   })
 })
 
