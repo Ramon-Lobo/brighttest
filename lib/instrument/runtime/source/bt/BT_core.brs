@@ -217,7 +217,17 @@ function BT_layers(globalNode as dynamic, scene as dynamic, cfg as dynamic, trun
     if type(cfg) = "roAssociativeArray" and type(cfg.redact) = "roAssociativeArray" then redact = cfg.redact.paths
     layers = {}
     layers["focus"] = BT_serialize(BT_focusChain(scene), caps, "focus", 0, trunc, redact)
-    layers["global"] = BT_serialize(BT_nodeFields(globalNode), caps, "global", 0, trunc, redact)
+    gf = BT_nodeFields(globalNode)
+    gf.delete("__btEv")
+    tk = {}
+    for each k in gf.keys()
+        if Left(k, 9) = "__btTask_" then
+            tk[Mid(k, 10)] = gf[k]
+            gf.delete(k)
+        end if
+    end for
+    layers["global"] = BT_serialize(gf, caps, "global", 0, trunc, redact)
+    if tk.count() > 0 then layers["task"] = BT_serialize(tk, caps, "task", 0, trunc, redact)
     layers["scene"] = BT_serialize(BT_nodeFields(scene), caps, "scene", 0, trunc, redact)
     reg = BT_registryRaw(cfg)
     if reg <> invalid then layers["registry"] = BT_serialize(reg, caps, "registry", 0, trunc, redact)

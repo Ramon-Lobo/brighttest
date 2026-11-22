@@ -19,7 +19,13 @@ sub init()
     m.task.observeField("tick", "BT_agentOnTick")
     m.task.observeField("cmds", "BT_agentOnCmds")
     m.task.observeField("icmd", "BT_agentOnInput")
+    m.global.addField("__btEv", "string", true)
+    m.global.observeField("__btEv", "BT_agentOnEv")
     m.task.control = "RUN"
+end sub
+
+sub BT_agentOnEv(ev as object)
+    m.task.acks = FormatJson({ v: 1, kind: "state.action", session: m.task.session, data: ParseJson(ev.getData()) }) + Chr(10)
 end sub
 
 sub BT_agentOnTick()

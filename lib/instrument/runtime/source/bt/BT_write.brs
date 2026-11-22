@@ -531,6 +531,33 @@ function BT_wCallFunc(args as object, ctx as object) as object
     return { ok: true, result: { value: BT_serialize(out, BT_capsFrom(ctx.cfg), "callFunc", 0, trunc, invalid) } }
 end function
 
+' ---- wrap and task hooks (STA-S-T10; README "Wrap and task hooks")
+
+function BT_dwHash(g as object) as string
+    f = BT_nodeFields(g)
+    f.delete("__btEv")
+    b = CreateObject("roByteArray")
+    b.FromAsciiString(FormatJson(f))
+    return StrI(b.GetCRC32(), 16)
+end function
+
+sub BT_dwEmit(g as object, fn as string, a as dynamic, hb as string)
+    d = { source: "wrap:" + fn, hashBefore: hb, hashAfter: BT_dwHash(g) }
+    if BT_wKind(a) = "object" then
+        d.type = a.type
+        d.payload = BT_serialize(a.payload, BT_capsFrom(BT_config()), "payload", 0, [], invalid)
+    end if
+    g.setField("__btEv", FormatJson(d))
+end sub
+
+sub BT_taskSnap(g as object, name as string, ev as string, mm as object)
+    k = "__btTask_" + name
+    s = { event: ev, m: BT_serialize(BT_mOp(mm, { op: "get" }).value, BT_capsFrom(BT_config()), "task." + name, 0, [], invalid) }
+    a = {}
+    a[k] = s
+    if g.hasField(k) then g.setField(k, s) else g.addFields(a)
+end sub
+
 ' ---- dispatch
 
 ' Apply one command. Returns { ok, result?, error? }. Never raises: a failure inside an op becomes an error ack.
@@ -568,6 +595,14 @@ function BT_wApply(cmd as dynamic, ctx as object) as object
             if BT_wIs(args.on, false) then on = false
             ctx.state.subscribed = on
             res = { ok: true, result: { subscribed: on } }
+        else if op = "focus" then
+            n = BT_wNodeById(ctx, args.node)
+            if type(n) <> "roSGNode" then
+                res = BT_wErr("NODE_NOT_FOUND", "no node with that id")
+            else
+                n.setFocus(true)
+                res = { ok: true, result: { focus: n.id } }
+            end if
         else
             res = BT_wErr("NOT_SUPPORTED", op + " is not supported by this build yet")
         end if
