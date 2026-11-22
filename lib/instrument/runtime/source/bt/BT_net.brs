@@ -77,27 +77,48 @@ function BT_netBase() as string
     return st.base
 end function
 
-' Observe-only breadcrumb (NET-N-T14), the one place the line format lives: "[bt:net] url=<url without query or fragment>".
-' The query and fragment are dropped (they may carry tokens); a "?" marks that a query was present.
+' Observe-only breadcrumb (NET-N-T14), the one place the line format lives: "[bt:net] url=<url>". One line per URL set
+' on a transfer. The query, the fragment and any user[:password]@ in the authority are dropped (they may carry
+' secrets); a trailing "?" marks that a query was present. Path segments are printed as they are.
 function BT_netCrumb(u as string) as string
-    s = u
-    i = Instr(1, s, "#")
-    if i > 0 then s = Left(s, i - 1)
-    q = ""
-    i = Instr(1, s, "?")
-    if i > 0 then
-        s = Left(s, i - 1)
-        q = "?"
+    crumbUrl = u
+    crumbSch = Instr(1, crumbUrl, "://")
+    if crumbSch > 0 then
+        crumbRest = Mid(crumbUrl, crumbSch + 3)
+        crumbEnd = Instr(1, crumbRest, "/")
+        if crumbEnd = 0 then
+            crumbEnd = Instr(1, crumbRest, "?")
+            crumbFrag = Instr(1, crumbRest, "#")
+            if crumbEnd = 0 or (crumbFrag > 0 and crumbFrag < crumbEnd) then crumbEnd = crumbFrag
+        end if
+        if crumbEnd = 0 then crumbEnd = Len(crumbRest) + 1
+        crumbAt = 0
+        for crumbIdx = 1 to crumbEnd - 1
+            if Mid(crumbRest, crumbIdx, 1) = "@" then crumbAt = crumbIdx
+        end for
+        if crumbAt > 0 then crumbUrl = Left(crumbUrl, crumbSch + 2) + Mid(crumbRest, crumbAt + 1)
     end if
-    return "[bt:net] url=" + s + q
+    crumbPos = Instr(1, crumbUrl, "#")
+    if crumbPos > 0 then crumbUrl = Left(crumbUrl, crumbPos - 1)
+    crumbQ = ""
+    crumbPos = Instr(1, crumbUrl, "?")
+    if crumbPos > 0 then
+        crumbUrl = Left(crumbUrl, crumbPos - 1)
+        crumbQ = "?"
+    end if
+    return "[bt:net] url=" + crumbUrl + crumbQ
 end function
 
 ' True when the build was made with instrument.net.observe: BT_url then only prints one breadcrumb per call to 8085 and
-' never contacts the hub or rewrites.
+' never contacts the hub or rewrites. Cached per thread in BT_netState.
 function BT_netObserve() as boolean
-    cfg = BT_config()
-    if type(cfg) <> "roAssociativeArray" then return false
-    return cfg.netObserve = true
+    st = BT_netState()
+    if st.observe = invalid then
+        st.observe = false
+        cfg = BT_config()
+        if type(cfg) = "roAssociativeArray" then st.observe = (cfg.netObserve = true)
+    end if
+    return st.observe
 end function
 
 function BT_url(u as dynamic) as dynamic

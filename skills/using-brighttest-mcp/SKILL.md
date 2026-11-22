@@ -42,12 +42,12 @@ Read-only, no lease: `list_devices`, `device_doctor`. Device tools, one lease pe
 ### Net tools
 
 `net_requests` and `net_mock` take the device lease like the other device tools and refuse with `DEVICE_BUSY` when
-it is held. A mock lives until the MCP session ends; it cannot be made permanent. Secrets are redacted in the output.
+it is held. URL globs: at most 256 characters and 8 `*`. A session takes at most 100 mocks. A mock lives until the MCP session ends; it cannot be made permanent. Secrets are redacted in the output.
 **Limitation:** the MCP session's net proxy has no hub mounted, so live app traffic does not reach these tools yet;
 today they work on the proxy path only. Do not expect `net_requests` to show what a running app fetched, and do not
 expect `net_mock` to change it. To see requests without a proxy, build with `instrument.net.observe: true` (set in
 the brighttest config by the human): the app then prints one `[bt:net] url=...` line per request to the 8085
-console, with no rewrite.
+console, with no rewrite. The query, fragment and `user:password@` are dropped; path segments are printed as they are.
 
 ### The `selector` object
 

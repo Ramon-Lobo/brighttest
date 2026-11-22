@@ -149,7 +149,7 @@
       "name": "navigate_to"
     },
     {
-      "description": "Add a mock for matching requests: answer them with the given status and JSON or text body instead of the origin. First match wins, newest rule first. The mock lives until the MCP session ends; there is no way to make it permanent.",
+      "description": "Add a mock for matching requests: answer them with the given status and JSON or text body instead of the origin. First match wins, newest rule first. The mock lives until the MCP session ends; there is no way to make it permanent. Not yet connected to the app's live traffic (no hub mounted); only sees proxy-path traffic.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
@@ -163,7 +163,7 @@
               },
               "url": {
                 "description": "URL glob, e.g. **/catalog",
-                "maxLength": 512,
+                "maxLength": 256,
                 "type": "string"
               }
             },
@@ -188,7 +188,11 @@
                 "type": "integer"
               },
               "headers": {
-                "description": "Response headers",
+                "additionalProperties": {
+                  "maxLength": 1024,
+                  "type": "string"
+                },
+                "description": "Response headers (string values)",
                 "type": "object"
               },
               "json": {
@@ -219,7 +223,7 @@
       "name": "net_mock"
     },
     {
-      "description": "List the HTTP requests this session's net proxy has seen (newest last): method, url, status, duration, source and whether a mock answered it (mocked). Auth headers, tokens and sensitive query values are redacted. Optional filters: method, url glob, status. Output is capped by limit.",
+      "description": "List the HTTP requests this session's net proxy has seen (newest last): method, url, status, duration, source and whether a mock answered it (mocked). Auth headers, tokens and sensitive query values are redacted. Optional filters: method, url glob, status. Output is capped by limit. Not yet connected to the app's live traffic (no hub mounted); only sees proxy-path traffic.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
@@ -241,7 +245,7 @@
           },
           "url": {
             "description": "URL glob filter, e.g. **/catalog",
-            "maxLength": 512,
+            "maxLength": 256,
             "type": "string"
           }
         },
