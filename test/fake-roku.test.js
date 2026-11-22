@@ -209,6 +209,10 @@ describe('fake-roku scenarios (one smoke test each)', () => {
   it('sgnodes-fails', async () => {
     const { a } = await boot('sgnodes-fails')
     expect(await (await ecp(a, '/query/sgnodes/all')).text()).toContain('<status>FAILED</status>')
+    expect(await (await ecp(a, '/query/sgnodes/nodes?node-id=title')).text()).toContain('<status>FAILED</status>')
+    const ui = await (await ecp(a, '/query/app-ui')).text()
+    expect(ui).toContain('<status>OK</status>')
+    expect(ui).toContain('name="title"')
   })
 
   it('halted-app: tree queries hang and 8085 shows the debugger prompt', async () => {

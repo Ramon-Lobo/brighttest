@@ -46,6 +46,8 @@ Active app is `dev`; `keypress/Home` switches to Roku, `launch/dev` switches bac
 Run `--list`. Added by FIX-06: `console-slow` (700 ms per console write), `keypress-home-500` (only
 `keypress/Home` -> 500), `keyup-fails` (`keyup/*` -> 503), `rooibos-pass` / `rooibos-fail` (Rooibos transcript on
 8085 after a successful install, replayed to later connections), `focus-grid`, `installer-500`, `late-node`.
+`sgnodes-fails`: every `/query/sgnodes/*` answers a `FAILED` body; `/query/app-ui` still serves the scenario tree
+(no parent links), so the ROB-10 fallback source can be exercised.
 
 ## Flows (`flows/`)
 
