@@ -1,12 +1,5 @@
 #if BT_AGENT
 ' brighttest instrument runtime: the `m` layer, component side (STA-S-T9, app-state-devtools.md 4.6).
-' BT_op is the callFunc entry point injected on every instrumented component; it runs in the component's own scope, so `m`
-' is that component's `m`. The agent reaches it with node.callFunc("BT_op", { op, path, value }) on the render thread.
-' Rules (every one is a refusal, never a crash):
-'  - get and set only; a missing or unknown op answers { ok:true, btop:true } (the marker the host looks for).
-'  - `top`, `global` and any `__bt*` key are not reachable; set never creates a key (existing fields only);
-'  - a path never crosses a node reference (PATH_UNDER_NODE); every write is type-checked with BT_wCompat.
-' Redaction, caps and the 64 KB limit are applied by the host (BT_wMGet) on the value this returns.
 
 function BT_mBad(seg as string, first as boolean) as boolean
     k = LCase(seg)
