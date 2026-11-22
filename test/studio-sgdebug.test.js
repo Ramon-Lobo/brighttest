@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { createRequire } from 'node:module';
 import net from 'node:net';
+import fs from 'node:fs';
 
 const require = createRequire(import.meta.url);
 const sgdebug = require('../lib/studio/sgdebug.js');
@@ -250,5 +251,76 @@ describe('tolerant console parsers (formats vary per firmware — pin these agai
   it('parsers never throw on arbitrary text', () => {
     expect(sgdebug.parseFree('').ok).toBe(false);
     expect(sgdebug.parseSgperf('no numbers here').ok).toBe(false);
+  });
+});
+
+// Reply status (BUG-B1b): replies are copied from a recorded session; `@@SEND <cmd>` starts each block.
+const RECORDED = (() => {
+  const text = fs.readFileSync(new URL('./fixtures/console-8080-replies.txt', import.meta.url), 'utf8');
+  const out = {};
+  for (const blk of text.split(/^@@SEND /m).slice(1)) {
+    const nl = blk.indexOf('\n');
+    out[blk.slice(0, nl).trim()] = blk.slice(nl + 1).replace(/\r?\n>\s*$/, '').replace(/^\n+/, '');
+  }
+  return out;
+})();
+const statusOf = async (name, reply) => {
+  const port = await fakeConsole(reply);
+  return sgdebug.query('127.0.0.1', name, { port, quietMs: 150 });
+};
+
+describe('console reply status (BUG-B1b)', () => {
+  it('ok: sgperf report with thread stats keeps ok/parsed/raw', async () => {
+    const r = await statusOf('sgperf_report', RECORDED['sgperf report']);
+    expect(r).toMatchObject({ status: 'ok', reason: sgdebug.STATUS.ok.reason });
+    expect(r.parsed.ok).toBe(true);
+    expect(r.raw).toContain('thread node calls');
+  });
+
+  it('empty: sgperf report with no output', async () => {
+    const r = await statusOf('sgperf_report', '');
+    expect(r.status).toBe('empty');
+    expect(r.reason).toBe(sgdebug.STATUS.empty.reason);
+    expect(r.parsed.ok).toBe(false);
+  });
+
+  it('empty is the normal reply for sgperf start', async () => {
+    expect((await statusOf('sgperf_start', '')).status).toBe('ok');
+  });
+
+  it('not-implemented: loaded_textures reply with a glyph table fills fonts', async () => {
+    const r = await statusOf('loaded_textures', RECORDED['loaded_textures']);
+    expect(r.status).toBe('not-implemented');
+    expect(r.fonts.length).toBeGreaterThanOrEqual(1);
+    expect(r.fonts[0]).toMatchObject({ family: 'Roku UI Regular', size: 34, file: '<SYSTEM FONT>' });
+    expect(r.fonts[0].line).toContain('Roku UI Regular-34--');
+  });
+
+  it('needs-scene-graph: loaded_textures on target main', async () => {
+    const r = await statusOf('loaded_textures', 'loaded_textures only works when a Scene Graph screen is displayed.'.replace('loaded_textures ', 'Command '));
+    expect(r.status).toBe('needs-scene-graph');
+    expect(r.reason).toBe(sgdebug.STATUS.needsSceneGraph.reason);
+  });
+
+  it('unavailable: chanperf reply, parsed fields unchanged', async () => {
+    const r = await statusOf('chanperf', RECORDED['chanperf']);
+    expect(r.status).toBe('unavailable');
+    expect(r.parsed).toEqual({ ok: false, error: 'mem and cpu data not available' });
+  });
+
+  it('ok: chanperf with a mem line', async () => {
+    const r = await statusOf('chanperf', 'channel: mem=28460KiB{anon=7288,file=20992,shared=180,swap=0},%cpu=0{user=0,sys=0}');
+    expect(r.status).toBe('ok');
+  });
+
+  it('matching is case-insensitive', () => {
+    expect(sgdebug.classify('loaded_textures', 'NOT IMPLEMENTED').status).toBe('not-implemented');
+  });
+
+  it('stub-target: the error carries the status', async () => {
+    const port = await transcriptConsole([], { stub: true });
+    const err = await sgdebug.run('127.0.0.1', 'sgperf_report', { port, quietMs: 120, channel: 'Sample Channel' }).catch((e) => e);
+    expect(err.status).toBe('stub-target');
+    expect(err.reason).toBe(sgdebug.STATUS.stubTarget.reason);
   });
 });

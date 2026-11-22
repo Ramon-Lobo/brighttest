@@ -1,0 +1,62 @@
+>
+@@SEND target list
+* [0] main
+  [1] Native UI
+  [2] Live TV Guide
+  [3] The Roku Channel
+  [4] Backdrops
+  [5] BT Probe3
+>
+@@SEND target BT Probe3
+  [0] main
+  [1] Native UI
+  [2] Live TV Guide
+  [3] The Roku Channel
+  [4] Backdrops
+* [5] BT Probe3
+>
+@@SEND target list
+  [0] main
+  [1] Native UI
+  [2] Live TV Guide
+  [3] The Roku Channel
+  [4] Backdrops
+* [5] BT Probe3
+>
+@@SEND sgperf clear
+
+>
+@@SEND sgperf start
+
+>
+@@SEND sgperf report
+thread node calls: create     0 + op     1  @ 100.0% rendezvous
+thread node calls: create     0 + op     1  @ 100.0% rendezvous
+thread node calls: create  1201 + op   902  @   0.0% rendezvous
+>
+@@SEND sgperf stop
+
+>
+@@SEND loaded_textures
+Not implemented
+
+*************************
+*  Font Glyph Textures  *
+*************************
+Family-Size-<bold>-<italic>           File
+Roku UI Regular-34--                  <SYSTEM FONT>
+>
+@@SEND chanperf
+channel: mem and cpu data not available
+>
+@@SEND logrendezvous on
+logrendezvous: rendezvous logging is on
+>
+@@SEND logrendezvous off
+logrendezvous: rendezvous logging is off
+>
+@@SEND free
+              total        used        free      shared  buff/cache   available
+Mem:        1493996      380544      795404       15716      318048     1063708
+Swap:        367352           0      367352
+>
