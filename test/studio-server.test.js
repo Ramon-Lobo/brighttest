@@ -244,3 +244,56 @@ describe('/api/tree agent layers (read-only)', () => {
     expect(r.body).not.toMatch(/layers/);
   });
 });
+
+// PRF-04: /api/perf/session carries fps from /query/graphics-frame-rate, or null when the device does not answer.
+describe('/api/perf/session fps', () => {
+  const { createFakeRoku } = require('./fixtures/fake-roku/server.js');
+  let stub, proxy, srv, p5, answer;
+  const call = (method, path) => new Promise((resolve, reject) => {
+    const r = http.request({ host: '127.0.0.1', port: p5, method, path, headers: { 'Content-Type': 'application/json' } }, (res) => {
+      let b = ''; res.on('data', (c) => (b += c)); res.on('end', () => resolve({ status: res.statusCode, json: JSON.parse(b) }));
+    });
+    r.on('error', reject); r.end(method === 'POST' ? '{}' : undefined);
+  });
+  beforeAll(async () => {
+    stub = createFakeRoku({ scenario: 'healthy' });
+    const a = await stub.start();
+    // Front the fake device: answer the frame-rate query here, forward everything else.
+    proxy = http.createServer((rq, rs) => {
+      if (rq.url === '/query/graphics-frame-rate') {
+        if (answer === null) { rs.statusCode = 404; return rs.end('not found'); }
+        rs.setHeader('Content-Type', 'text/xml');
+        return rs.end(`<graphics-frame-rate><frame-rate>${answer}</frame-rate></graphics-frame-rate>`);
+      }
+      const up = http.request({ host: '127.0.0.1', port: a.ecpPort, method: rq.method, path: rq.url, headers: rq.headers }, (ur) => { rs.writeHead(ur.statusCode, ur.headers); ur.pipe(rs); });
+      up.on('error', () => { rs.statusCode = 502; rs.end(); });
+      rq.pipe(up);
+    });
+    await new Promise((r) => proxy.listen(0, '127.0.0.1', r));
+    process.env.ROKU_ECP_PORT = String(proxy.address().port);
+    srv = await studio.start({ port: 0, rootDir: root, host: '127.0.0.1' });
+    delete process.env.ROKU_ECP_PORT;
+    p5 = srv.address().port;
+  });
+  afterAll(async () => { await call('POST', '/api/perf/stop'); srv.close(); proxy.close(); await stub.stop(); });
+  const sample = async () => {
+    expect((await call('POST', '/api/perf/start')).status).toBe(200);
+    const deadline = Date.now() + 8000;
+    for (;;) {
+      const r = await call('GET', '/api/perf/session');
+      if (r.json.samples && r.json.samples.length) { await call('POST', '/api/perf/stop'); return r.json.samples[0]; }
+      if (Date.now() > deadline) throw new Error('no sample');
+      await new Promise((r2) => setTimeout(r2, 100));
+    }
+  };
+  it('reports fps when the device answers', async () => {
+    answer = 60;
+    expect((await sample()).fps).toBe(60);
+  });
+  it('reports fps null with a reason, not an error, when it does not', async () => {
+    answer = null;
+    const s = await sample();
+    expect(s.fps).toBeNull();
+    expect(typeof s.fpsReason).toBe('string');
+  });
+});

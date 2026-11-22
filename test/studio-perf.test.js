@@ -202,3 +202,23 @@ describe('PerfSession cadence', () => {
     expect(new perf.PerfSession(slowDevice(1)).effectiveIntervalMs).toBeNull();
   });
 });
+
+describe('graphics frame rate', () => {
+  const FR = '<graphics-frame-rate><timestamp>1</timestamp><frame-rate>59.5</frame-rate></graphics-frame-rate>';
+  it('parses fps and fails soft', () => {
+    expect(perf.parseFrameRate(FR)).toEqual({ ok: true, fps: 59.5 });
+    expect(perf.parseFrameRate('').ok).toBe(false);
+    expect(perf.parseFrameRate('<x><status>FAILED</status><error>nope</error></x>')).toEqual({ ok: false, error: 'nope' });
+  });
+  it('puts fps in the sample, or null with a reason when the query fails', async () => {
+    const ok = new perf.PerfSession({ ecpGet: async (p) => ({ text: p.includes('frame-rate') ? FR : p.includes('chanperf') ? CHANPERF : R2D2 }) });
+    await ok.sampleOnce();
+    expect(ok.samples[0].fps).toBe(59.5);
+    expect(ok.samples[0].fpsReason).toBeUndefined();
+    const bad = new perf.PerfSession({ ecpGet: async (p) => { if (p.includes('frame-rate')) throw new Error('404'); return { text: p.includes('chanperf') ? CHANPERF : R2D2 }; } });
+    await bad.sampleOnce();
+    expect(bad.samples[0].fps).toBeNull();
+    expect(bad.samples[0].fpsReason).toBe('404');
+    expect(bad.samples[0].cpuUser).toBe(8.9);
+  });
+});
