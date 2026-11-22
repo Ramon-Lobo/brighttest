@@ -17,6 +17,7 @@ sub init()
     m.task.interval = BT_pubIntervalMs(BT_config())
     m.task.observeField("tick", "BT_agentOnTick")
     m.task.observeField("cmds", "BT_agentOnCmds")
+    m.task.observeField("icmd", "BT_agentOnInput")
     m.task.control = "RUN"
 end sub
 
@@ -57,6 +58,27 @@ sub BT_agentOnCmds()
         end for
         m.task.acks = out
     end if
+end sub
+
+' STA-S-T13: one complete command from the ECP /input mailbox. No hub seq, so no seq dedupe (the receiver already
+' ignores repeated chunks and finished command ids). Acks go out the same way as hub commands.
+sub BT_agentOnInput()
+    cmd = BT_inputCmd(m.task.icmd)
+    if cmd = invalid then return
+    session = m.task.session
+    h = BT_wHandle(cmd, m.ctx, session)
+    m.task.subscribed = m.ctx.state.subscribed
+    lines = h.acks
+    if h.ok and BT_wIs(cmd.ack, "reflected") then
+        BT_agentPublish()
+        lines.push(BT_wAck(cmd, session, "reflected", invalid))
+    end if
+    BT_agentPublish()
+    out = ""
+    for each l in lines
+        out = out + l + Chr(10)
+    end for
+    m.task.acks = out
 end sub
 
 sub BT_agentPublish()

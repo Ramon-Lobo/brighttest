@@ -4,6 +4,7 @@
 ' hands each batch of commands to the render-thread agent through `cmds` (a JSON array) and posts the ack lines the agent
 ' returns through `acks` (NDJSON, one line per ack, in order). The agent applies commands in seq order on the render thread;
 ' this Task never touches app state. `session` tells the agent which hub session to stamp acks with.
+' STA-S-T13: an roInput receiver reassembles chunked /input commands and hands each complete one over in `icmd`.
 ' Cadence: BT_wCadence (500 ms with no hub or a subscriber, 5 s with a live hub session and no subscriber).
 sub init()
     m.top.functionName = "BT_agentTaskRun"
@@ -15,6 +16,9 @@ sub BT_agentTaskRun()
     m.top.observeField("acks", port)
     m.top.observeField("subscribed", port)
     clock = CreateObject("roTimespan")
+    inp = CreateObject("roInput")
+    inp.SetMessagePort(port)
+    inbox = BT_inputNew()
     n = 0
     nextTick = 0
     retryAt = 0
@@ -52,6 +56,7 @@ sub BT_agentTaskRun()
             post = BT_wPostEvents(cfg, session, queue, port)
             queue = []
         end if
+        BT_inputSweep(inbox, clock.TotalMilliseconds(), BT_inputTtlMs())
         left = nextTick - clock.TotalMilliseconds()
         if left < 1 then left = 1
         msg = wait(left, port)
@@ -61,6 +66,10 @@ sub BT_agentTaskRun()
                     if line <> "" then queue.push(line)
                 end for
             end if
+        else if type(msg) = "roInputEvent" then
+            ' STA-S-T13: ECP /input mailbox. Only a complete command reaches the render thread; the rest is dropped.
+            text = BT_inputFeed(inbox, msg.GetInfo(), clock.TotalMilliseconds())
+            if text <> invalid then m.top.icmd = text
         else if type(msg) = "roUrlEvent" and msg.GetInt() = 1 then
             id = msg.GetSourceIdentity()
             if poll <> invalid and id = poll.GetIdentity() then
