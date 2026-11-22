@@ -242,10 +242,6 @@ end function
 
 ' Set `value` at segs (non-empty) under the node field segs[0]. Returns { ok } or an error. A missing leaf is created
 ' inside an object; a missing top-level field is created on the global node only.
-function BT_wSetPath(root as object, segs as object, value as dynamic) as object
-    return BT_wSetPathX(root, segs, value, false)
-end function
-
 ' dry = true runs every check of a real write but changes nothing (used to validate a whole `ops` batch first). A path that
 ' runs into a missing object in dry mode is accepted: the real write would create it.
 function BT_wSetPathX(root as object, segs as object, value as dynamic, dry as boolean) as object
@@ -335,7 +331,7 @@ function BT_wSetBatch(args as object, ctx as object) as object
         all.push(segs)
     end for
     for i = 0 to ops.count() - 1
-        r = BT_wSetPath(root, all[i], ops[i].value)
+        r = BT_wSetPathX(root, all[i], ops[i].value, false)
         if not r.ok then
             r.error = r.error + " (ops[" + i.toStr() + "]; " + i.toStr() + " op(s) applied before it)"
             return r
@@ -352,7 +348,7 @@ function BT_wSet(args as object, ctx as object) as object
     if not args.doesExist("value") then return BT_wErr("BAD_COMMAND", "set needs a value")
     root = BT_wRoot(args, ctx)
     if not root.ok then return root
-    r = BT_wSetPath(root, segs, args.value)
+    r = BT_wSetPathX(root, segs, args.value, false)
     if not r.ok then return r
     return { ok: true, result: { path: args.path } }
 end function
@@ -370,7 +366,7 @@ function BT_wMerge(args as object, ctx as object) as object
             segs.push(p)
         end for
         segs.push(k)
-        r = BT_wSetPath(root, segs, args.value[k])
+        r = BT_wSetPathX(root, segs, args.value[k], false)
         if not r.ok then
             r.error = r.error + " (at key " + k + ", " + n.toStr() + " keys applied before it)"
             return r
@@ -442,7 +438,7 @@ function BT_wRestore(args as object, ctx as object) as object
             else if BT_wIsMarker(v) then
                 skipped.push("global." + k + ": cut, redacted or a node reference")
             else
-                r = BT_wSetPath(root, [k], v)
+                r = BT_wSetPathX(root, [k], v, false)
                 if r.ok then
                     restored = restored + 1
                 else
@@ -468,7 +464,7 @@ function BT_wRestore(args as object, ctx as object) as object
                     else if BT_wIsMarker(v) then
                         skipped.push("node." + id + "." + k + ": cut, redacted or a node reference")
                     else
-                        r = BT_wSetPath(root, [k], v)
+                        r = BT_wSetPathX(root, [k], v, false)
                         if r.ok then
                             restored = restored + 1
                         else
@@ -537,7 +533,7 @@ function BT_dwHash(g as object) as string
     fd = BT_nodeFields(g)
     fd.delete("__btEv")
     ba = CreateObject("roByteArray")
-    ba.FromAsciiString(FormatJson(fd))
+    ba.FromAsciiString(FormatJson(BT_serialize(fd, BT_capsFrom(BT_config()), "g", 0, [], invalid)))
     return StrI(ba.GetCRC32(), 16)
 end function
 
@@ -796,8 +792,8 @@ function BT_wCadence(cfg as dynamic, subscribed as boolean, hubLive as boolean, 
 end function
 
 ' The event posted once when BT_wCadence starts clamping the interval ("" when it did not).
-function BT_wClampStep(clamp as string, clamped as boolean, live as boolean) as object
-    if clamp = "" then return { clamped: false, send: false }
+function BT_wClampStep(cl as string, clamped as boolean, live as boolean) as object
+    if cl = "" then return { clamped: false, send: false }
     if clamped then return { clamped: true, send: false }
     return { clamped: live, send: live }
 end function

@@ -163,6 +163,7 @@ Current limitations (the full design is not implemented yet):
 | `empty-init`, `inline-cdata-scene`, `unknown-scene-subtype`, `init-in-excluded-file`, `init-shared-with-excluded-scene` (via import or via `extends`) | yes |
 | `indexed-seturl`, `indexed-geturl`, `bare-geturl`, `xml-parse-failed` | yes |
 | `net-receiver-unknown` (only emitted with `net.unknown: "report"`) | yes |
+| `wrap-target-unknown` (a `state.dispatch` or `state.tasks` name that matches nothing, or a dispatch function used as a value) | yes |
 | `rewritten-shared-with-excluded`, `net-receiver-excluded`, `callfunc-seturl` | no, informational |
 | anything not listed | yes (fail closed) |
 
@@ -351,8 +352,22 @@ events on `POST /bt/<token>/events`: `received`, then `applied` (with `ok`, `res
 republished (only when the command asked for `ack: reflected`). A session mismatch is `409` and nothing is replayed.
 
 - Ops: `ping`, `get`, `set`, `merge`, `snapshot`, `restore`, `registry.read`, `registry.write`, `callFunc`, `subscribe`.
-  `dispatch` and `focus` answer `NOT_SUPPORTED` for now. Any other op answers `op not allowed`. There is no file system
-  op and no registry delete.
+  `focus` focuses the node `args.node.id` (`NODE_NOT_FOUND` when no node has that id). `dispatch` is allowed hub-side;
+  the BTStore dispatch op is the greenfield store task (STA-S-T11), the wrap below is the app-side route. Any other op
+  answers `op not allowed`. There is no file system op and no registry delete.
+- Dispatch events and Task snapshots (config `instrument.state.dispatch` and `instrument.state.tasks`, see below).
+- `instrument.state.dispatch: ["fn"]` wraps each non-excluded function with that name: the build renames the original to
+  `__bt_orig_<fn>` and appends a wrapper with the original name and parameters (defaulted parameters keep their default
+  expression, so omitting an argument behaves as before). Around each call the wrapper hashes the global fields and
+  publishes a `state.action` event with `type` and `payload` (first argument, when it is an object), `hashBefore` and
+  `hashAfter`. Limitation: the wrapper is a plain function, so a target used as a value (`store = { dispatch: fn }`,
+  then `store.dispatch(a)`) would lose its `m` binding. Such a target is not wrapped and is reported as
+  `wrap-target-unknown` (it trips `strict`); wrap a function that is called by name. The payload is masked by key name
+  on the device; `redact.paths` is applied host-side only.
+- `instrument.state.tasks: ["TaskComponent"]` wraps the Task's entry function (the name assigned with
+  `m.top.functionName = "..."` in `init`) and publishes the Task's `m` at entry and exit under the `task` layer
+  (`get --layer global` does not show these fields). There is no automatic timer snapshot, because a Task blocked in
+  `wait` cannot be interrupted; an app that wants mid-run snapshots calls `BT_taskSnap(m.global, "<name>", "timer", m)`.
 - Layers: `global`, `scene`, `node` (`node: {id}`), and `registry` for `get`. `set` is type-checked against the
   current value, never writes below a node reference (`PATH_UNDER_NODE`), and a field a node does not have is
   `FIELD_NOT_FOUND` (only `global` creates fields). A refused write leaves the app running.
