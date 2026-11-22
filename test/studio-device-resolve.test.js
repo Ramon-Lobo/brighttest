@@ -51,6 +51,15 @@ describe('studio device resolution', () => {
     seed({ '192.0.2.1': {} }, '192.0.2.1'); process.env.ROKU_PASSWORD = 'shared'
     expect(studio.resolveStudioTarget({})).toEqual({ host: '192.0.2.1', password: 'shared' })
   })
+  it('explicit host with only ROKU_PASSWORD in the env carries that password', () => {
+    process.env.ROKU_PASSWORD = 'env-fake-pw'
+    expect(studio.resolveStudioTarget({ host: '192.0.2.9' })).toEqual({ host: '192.0.2.9', password: 'env-fake-pw' })
+  })
+  it('explicit host with no password anywhere: fails as missing, message carries no value', () => {
+    const err = (() => { try { studio.resolveStudioTarget({ host: '192.0.2.9' }) } catch (e) { return e } })()
+    expect(err).toBeInstanceOf(Error)
+    expect(err.message).toMatch(/no password for device 192\.0\.2\.9/)
+  })
   it('nothing cached, no host: device-less', () => {
     expect(studio.resolveStudioTarget({})).toEqual({ host: null, password: null })
   })
