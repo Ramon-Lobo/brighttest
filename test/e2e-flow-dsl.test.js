@@ -146,13 +146,13 @@ describe('e2e run with the DSL against the fake Roku', () => {
   })
   afterEach(() => { vi.restoreAllMocks(); fs.rmSync(dir, { recursive: true, force: true }) })
   const acquire = async () => ({ lease: { release() {} } })
-  async function run(scenario, name, body) {
+  async function run(scenario, name, body, extra = {}) {
     const stub = createFakeRoku({ scenario })
     const a = await stub.start()
     const file = path.join(dir, `${name}.e2e.yaml`)
     fs.writeFileSync(file, body)
     try {
-      const code = await e2e.run(cfg, { e2eAction: 'run', flows: [file], host: a.host, ecpPort: a.ecpPort, logPort: a.debugPort, screenshots: path.join(dir, 's'), screenshotsMode: 'off' }, { acquireForLane: acquire })
+      const code = await e2e.run(cfg, { e2eAction: 'run', flows: [file], host: a.host, ecpPort: a.ecpPort, logPort: a.debugPort, screenshots: path.join(dir, 's'), screenshotsMode: 'off', ...extra }, { acquireForLane: acquire })
       return { code, stub, endpoints: stub.log.map((l) => l.endpoint).filter(Boolean) }
     } finally { await stub.stop() }
   }
@@ -184,6 +184,22 @@ describe('e2e run with the DSL against the fake Roku', () => {
     expect(code).toBe(0) // launch ran, so the flow counts as run
     expect(out).toMatch(/○ requires.*skipped: requires firmware >=99, device has 16\.0\.4/)
     expect(endpoints.filter((e) => e.startsWith('/keypress/Right'))).toEqual([])
+  }, 15000)
+
+  it('--fail-on-skip: a step-level skip after a passing step exits 1 naming the item; without the flag exits 0', async () => {
+    const body = 'appId: dev\nsteps:\n  - launch\n  - requires: { firmware: ">=99" }\n  - press: Right\n'
+    expect((await run('healthy', 'fos-off', body)).code).toBe(0)
+    expect(out).not.toMatch(/--fail-on-skip/)
+    out = ''
+    expect((await run('healthy', 'fos-on', body, { failOnSkip: true })).code).toBe(1)
+    expect(out).toMatch(/--fail-on-skip: 1 skipped by requires: .*fos-on.*requires firmware >=99/)
+  }, 15000)
+
+  it('--fail-on-skip: a flow-level skip is named, and a run with no skip still exits 0', async () => {
+    expect((await run('healthy', 'fos-flow', 'appId: dev\nrequires: { firmware: ">=99" }\nsteps:\n  - launch\n', { failOnSkip: true })).code).toBe(1)
+    expect(out).toMatch(/--fail-on-skip: 1 skipped by requires:/)
+    out = ''
+    expect((await run('healthy', 'fos-ok', 'appId: dev\nsteps:\n  - launch\n', { failOnSkip: true })).code).toBe(0)
   }, 15000)
 
   it('hold on healthy: keydown then keyup', async () => {
@@ -225,6 +241,17 @@ describe('e2e run with the DSL against the fake Roku', () => {
       expect(err.code).toBe('SYSTEM_DIALOG')
       expect(err.message).toMatch(/refusing to press Select/)
       expect(stub.keypresses).toEqual([])
+      for (const step of [
+        { op: 'pressUntil', key: 'Down', max: 3, selector: { id: 'nope' } },
+        { op: 'focus', selector: { id: 'nope' } },
+        { op: 'launch' },
+      ]) {
+        const e2 = await e2e.execStep(step, ctx).catch((e) => e)
+        expect(e2.code, step.op).toBe('SYSTEM_DIALOG')
+        expect(e2.message, step.op).toMatch(/^noSystemDialog: a system dialog is in front; refusing to /)
+      }
+      expect(stub.keypresses).toEqual([])
+      expect(stub.log.map((l) => l.endpoint)).not.toContain('/launch/dev')
       // off by default: the same press goes through
       await e2e.execStep({ op: 'press', key: 'Select', count: 1 }, { device, stepTimeoutMs: 1000 })
       expect(stub.keypresses.length).toBe(1)

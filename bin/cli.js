@@ -276,6 +276,7 @@ function parseE2eArgs(rest) {
     else if (a.startsWith('--purpose=')) opts.purpose = a.slice(10);
     else if (a === '--no-lease') opts.noLease = true;
     else if (a === '--no-hygiene') opts.noHygiene = true;
+    else if (a === '--fail-on-skip') opts.failOnSkip = true;
     else if (a === '--help' || a === '-h') opts.help = true;
     else if (a.startsWith('-')) { /* ignore unknown flags */ }
     else opts.flows.push(a);
@@ -325,6 +326,7 @@ Options:
   --as <agent>           Device lease: holder label (or BRIGHTTEST_AGENT)
   --purpose <text>       Device lease: what this run is for (shown in \`brighttest device status\`)
   --no-hygiene           (run) Skip the Home ×2 press after taking the lease
+  --fail-on-skip         (run) Exit 1 if any flow or step was skipped by requires: (default: skips do not fail the run)
   --no-lease             Run without the device lease (warns and is audited; not for agents)
   -h, --help             Show this help
 `;
