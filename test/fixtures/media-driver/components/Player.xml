@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="Player" extends="Group">
+  <interface>
+    <field id="spinnerVisible" type="boolean" value="false" />
+    <field id="errorText" type="string" value="" />
+    <field id="finishedCount" type="integer" value="0" />
+    <field id="resumeAt" type="float" value="0" />
+    <function name="startPlayback" />
+  </interface>
+  <children>
+    <Video id="vid" />
+    <Rectangle id="spinner" visible="false" />
+  </children>
+</component>
