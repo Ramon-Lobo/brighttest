@@ -4,6 +4,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import zlib from 'node:zlib'
+import { spawnSync } from 'node:child_process'
 
 const require = createRequire(import.meta.url)
 const { makeTrace, SYNTH_A, SYNTH_B, varint, ld, vf } = require('./fixtures/perfetto/make-trace.js')
@@ -273,6 +274,71 @@ describe('perfetto summary: retained-memory guards (REV-PRF03-C76)', () => {
   it('counts track_event_defaults.fieldN and ignores field 11', () => {
     const raw = ld(1, ld(59, ld(11, Buffer.concat([vf(5, 1), vf(5, 2), vf(6, 1), vf(11, 7)]))))
     expect(sum(raw).undecoded).toEqual({ 'track_event_defaults.field5': 2, 'track_event_defaults.field6': 1 })
+  })
+})
+
+describe('perfetto summary: output size and name memory (REV-PRF03-C78)', () => {
+  const instantPkt = (name) => ld(1, Buffer.concat([vf(8, 1), ld(11, Buffer.concat([vf(9, 3), ld(23, name)]))]))
+  it('99,999 distinct 2.6 KB instant names: ok, capped, JSON.stringify bounded', () => {
+    const NAME = 2600, N = 99999
+    const sample = instantPkt(Buffer.alloc(NAME, 'x'))
+    const big = Buffer.alloc(sample.length * N)
+    const name = Buffer.alloc(NAME, 'x')
+    for (let i = 0; i < N; i++) { name.write(String(i).padStart(6, '0')); instantPkt(name).copy(big, i * sample.length) }
+    const z = zlib.deflateSync(big, { level: 1 })
+    const r = summarizeTrace(ld(1, ld(50, z)))
+    expect(r.ok).toBe(true)
+    const j = JSON.stringify(r.summary)
+    expect(j.length).toBeLessThan(2 * 1024 * 1024)
+    expect(r.summary.instants.length).toBe(1000)
+    expect(r.summary.instants[0].name.length).toBe(256)
+    expect(r.summary.undecoded).toEqual({ 'instants.dropped': N - 1000, 'name.truncated': N })
+  }, 180000)
+  it('slices and counters lists are capped with dropped counts, in deterministic order', () => {
+    const packets = [{ seq: 1, flags: 1, ts: 0, event: { type: 3, name: 'i' } }]
+    for (let i = 0; i < 1100; i++) {
+      const n = 'n' + String(i).padStart(4, '0')
+      packets.push({ seq: 1, ts: 1, event: { type: 1, name: n } }, { seq: 1, ts: 2, event: { type: 2, name: n } })
+      packets.push({ seq: 1, track: { uuid: 100 + i, name: n } }, { seq: 1, event: { type: 4, track: 100 + i, counter: i } })
+    }
+    const s = sum(makeTrace({ packets }))
+    expect(s.slices.length).toBe(1000)
+    expect(s.slices[0].name).toBe('n0000')
+    expect(s.counters.length).toBe(1000)
+    expect(s.overBudgetTotal).toBe(0)
+    expect(s.undecoded).toEqual({ 'slices.dropped': 100, 'counters.dropped': 100 })
+  })
+  it('long names are cut to 256 characters and counted once per decode', () => {
+    const s = sum(makeTrace({ packets: [
+      { seq: 1, flags: 1, ts: 0, event: { type: 3, name: 'a'.repeat(300) } },
+      { seq: 1, ts: 1, event: { type: 3, name: 'b'.repeat(256) } }
+    ] }))
+    expect(s.instants.map(x => x.name.length)).toEqual([256, 256])
+    expect(s.undecoded).toEqual({ 'name.truncated': 1 })
+  })
+  it('keeps open-slice names as views: 200k unclosed BEGINs with 230-byte names fit a 96 MiB heap', () => {
+    const script = `
+      const [root, n] = process.argv.slice(1)
+      const { ld, vf } = require(root + '/test/fixtures/perfetto/make-trace.js')
+      const { summarizeTrace } = require(root + '/lib/studio/perfetto-summary.js')
+      const piece = ld(1, Buffer.concat([vf(8, 1), ld(11, Buffer.concat([vf(9, 1), ld(23, Buffer.alloc(230, 0xff))]))]))
+      const buf = Buffer.alloc(piece.length * n).fill(piece)
+      const r = summarizeTrace(buf, { limits: { maxBytes: buf.length + 1, maxPackets: +n + 1 } })
+      console.log(JSON.stringify({ ok: r.ok, ub: r.ok && r.summary.unmatchedBegin }))`
+    const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..')
+    const c = spawnSync(process.execPath, ['--max-old-space-size=96', '-e', script, root, '200000'], { encoding: 'utf8', timeout: 120000 })
+    expect(c.status).toBe(0)
+    expect(JSON.parse(c.stdout)).toEqual({ ok: true, ub: 200000 })
+  }, 150000)
+  it('MAX_BLOCKS is a global cap: blocks nested at depth 2 count too', () => {
+    const junk = ld(50, Buffer.from('x'))
+    const many = (n) => rep(junk, n)
+    const rep = (c, n) => Buffer.alloc(c.length * n).fill(c)
+    const inner = zlib.deflateSync(ld(1, many(99999)))                       // depth 2: 99,999 blocks in one packet
+    const a = Buffer.concat([ld(50, inner), many(99998)])                    // depth 1: 99,999 blocks, the first holds the above
+    const r = summarizeTrace(ld(1, ld(50, zlib.deflateSync(ld(1, a)))))
+    expect(code(r)).toBe('E_TRACE_TOO_LARGE')
+    expect(r.error.message).toMatch(/compressed blocks/)
   })
 })
 
