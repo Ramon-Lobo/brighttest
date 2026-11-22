@@ -161,6 +161,23 @@ npx brighttest device unlock --lease "$TOKEN"
 Each prints a loud warning and records a `bypass` event. It is meant for a single user who knows nobody else
 uses the device; agents must never use it.
 
+## Foreground advisory
+
+Right after a lease is acquired with no wait in the queue, brighttest asks the device in the background
+(`GET /query/active-app`, 1 s timeout, response capped at 64 KB) what is in front. If the dev channel is up,
+one warning line goes to stderr: a manual run or another tool may be using the device. It warns only when all of
+these hold:
+
+- the acquire did not queue behind another holder;
+- nothing on that device was released, reclaimed, force-unlocked or lost in the last 10 minutes (normal leased use, such as a sideload, leaves the
+  dev channel running on purpose);
+- the foreground app has the id `dev` or the ui-location `dev`.
+
+The check never delays or fails the acquire, and nothing is written to the lease record. An unreachable
+device, an HTTP error or any other foreground app prints nothing. The pool gate does not run it; the chosen member does (one request and one warning per member pick). MCP tool
+calls skip it. It is best effort: a fast-exiting command such as `device lock --no-hygiene` can exit before the
+request is sent or answered, and releasing the lease cancels it. Set `BRIGHTTEST_LEASE_NO_FOREGROUND_CHECK=1` to turn it off.
+
 ## Configuration
 
 All optional, in `brighttest.json`:
