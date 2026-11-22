@@ -438,6 +438,50 @@ describe('StudioLease pool mode and cancellation', () => {
     finally { if (prev === undefined) delete process.env.ROKU_PASSWORD; else process.env.ROKU_PASSWORD = prev; delete process.env.BRIGHTTEST_CACHE }
   })
 
+  it('setHost(bound member) cancels a queued pool take-over and keeps a held lease', async () => {
+    const s = mkPool()
+    await s.ensure({ user: true })
+    const bound = s.host
+    s.release('test'); s.yielded = false
+    const a = await other({ key: '127.0.0.1', agent: 'a#1' })
+    const b = await other({ key: '127.0.0.2', agent: 'b#1' })
+    s.host = bound
+    s.takeOver()
+    const p = s.pending
+    expect(p).toBeTruthy()
+    s.setHost(bound)
+    expect(s.pool).toBeNull()
+    expect(s.pending).toBeNull()
+    a.release(); b.release()
+    await p
+    expect(s.holding).toBe(false)
+    expect(lease.status({ dir }).filter((x) => x.holder)).toEqual([])
+    // already holding the bound member: leaving pool mode keeps the lease
+    const s2 = mkPool()
+    await s2.ensure({ user: true })
+    s2.setHost(s2.host)
+    expect(s2.holding).toBe(true)
+  })
+
+  it('an acquire that resolves after cancel() is released with "cancelled" (fake lib)', async () => {
+    let resolve
+    const fakeLease = { key: '127.0.0.1', leaseId: 'x', release: vi.fn(), lost: false, expired: false }
+    const lib = { ...lease, acquire: () => new Promise((r) => { resolve = r }) }
+    const s = new StudioLease({ host: '127.0.0.1', cfg, env: env(), now: () => clock.t, log: (m) => logs.push(m), acquireOpts: seams(), lib })
+    s.takeOver()
+    const p = s.pending
+    s.cancel()
+    resolve(fakeLease)
+    await p
+    expect(fakeLease.release).toHaveBeenCalledWith('cancelled')
+    expect(s.holding).toBe(false)
+  })
+
+  it('an unbound pool with nothing held reads "N of M free"', async () => {
+    const info = await mkPool().info()
+    expect(StudioLease.describe(info)).toBe('Device pool: 2 of 2 free')
+  })
+
   it('setHost to the bound member leaves pool mode', async () => {
     const s = mkPool()
     await s.ensure({ user: true })
