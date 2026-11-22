@@ -420,7 +420,8 @@
   .remotewrap { display: flex; justify-content: center; }
   /* Below this the two columns get too cramped to use, so fall back to stacking them. */
   @media (max-width: 1500px) {
-    .simrow { grid-template-columns: minmax(0, 1fr); }
+    /* Stacked, the panel row must keep a usable height (the Network table clipped to nothing here); the view scrolls instead. */
+    .simrow { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(260px, 1fr) auto; }
     .card.remotecard { align-self: stretch; }
   }
   .editorcol { display: grid; gap: 14px; min-height: 0; }
