@@ -12,7 +12,7 @@ import { createRequire } from 'node:module'
 const require = createRequire(import.meta.url)
 const { createDevice, buildInputChunks, INPUT_CHUNK_MAX } = require('../lib/e2e/ecp.js')
 const { endpointKind, DEFAULT_GAPS } = require('../lib/e2e/ecpq.js')
-const brsCli = path.resolve(__dirname, '../node_modules/.bin/brs-cli')
+const brsCli = path.resolve(__dirname, '../node_modules/@ramonlobo/brs-node/bin/brs.cli.js')
 const SRC = path.resolve(__dirname, '../lib/instrument/runtime/source/bt')
 const strip = (f) => fs.readFileSync(path.join(SRC, f), 'utf8').split('\n').filter((l) => !l.startsWith('#')).join('\n')
 const RUNTIME = `${strip('BT_core.brs')}\n${strip('BT_write.brs')}`
