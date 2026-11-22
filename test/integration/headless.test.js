@@ -116,3 +116,40 @@ describe('--junit writes a report', () => {
     expect(xml).toContain('failures="0"')
   })
 })
+
+describe('deviceInfo block (COV-02) on the SceneGraph-off lane', () => {
+  function project(deviceInfo) {
+    const dir = makeProject()
+    if (deviceInfo) fs.writeFileSync(path.join(dir, 'brighttest.json'), JSON.stringify({ ...JSON.parse(fs.readFileSync(path.join(dir, 'brighttest.json'), 'utf8')), deviceInfo }))
+    fs.writeFileSync(path.join(dir, 'source', 'tests', 'Ident.spec.bs'), [
+      'namespace tests',
+      '  @suite("ident")',
+      '  class IdentTests extends rooibos.BaseTestSuite',
+      '    @describe("identity")',
+      '    @it("reports the ui resolution")',
+      '    function _()',
+      '      p = CreateObject("roMessagePort")',
+      '      m.assertInvalid(wait(10, p))',
+      '      m.assertEqual(CreateObject("roDeviceInfo").GetUIResolution().name, "FHD")',
+      '    end function',
+      '  end class',
+      'end namespace',
+      '',
+    ].join('\n'))
+    return dir
+  }
+  it('a configured block drives roDeviceInfo (FHD) and message-port waits work', () => {
+    const res = runCli(project({ uiResolution: '1080p' }), ['--no-sgnode'])
+    expect(res.output).toContain('✓ identity > reports the ui resolution')
+    expect(res.status).toBe(0)
+  })
+  it('a different uiResolution flips the branch (spec fails)', () => {
+    const res = runCli(project({ uiResolution: '720p' }), ['--no-sgnode'])
+    expect(res.output).toContain('✗ identity > reports the ui resolution')
+    expect(res.status).toBe(1)
+  })
+  it('no block: unchanged engine identity (HD) on the CLI path', () => {
+    const res = runCli(project(null), ['--no-sgnode'])
+    expect(res.output).toContain('✗ identity > reports the ui resolution')
+  })
+})
