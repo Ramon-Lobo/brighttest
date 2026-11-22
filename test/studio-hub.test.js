@@ -26,7 +26,7 @@ function get(p) {
   })
 }
 
-async function boot(env) {
+async function boot(env, instrumentExtra = {}) {
   started = []; logs = []
   const log = createEventLog({ sessionId: 'fake' })
   const c = { n: 0 }
@@ -34,7 +34,7 @@ async function boot(env) {
   stopsOf.set(fakeHub, c)
   const startLanHub = async (o) => { started.push(o); return fakeHub }
   server = await studio.start({
-    host: '127.0.0.1', password: 'rokudev-test', port: 0, rootDir: dir, cfg: { instrument: { hub: { host: '10.0.0.5', port: 8791 } }, rootDir: dir },
+    host: '127.0.0.1', password: 'rokudev-test', port: 0, rootDir: dir, cfg: { instrument: { hub: { host: '10.0.0.5', port: 8791 }, ...instrumentExtra }, rootDir: dir },
     hubOpts: { startLanHub, env },
     leaseOpts: { acquireOpts: { dir, timers: false, identity: {} }, tickMs: 20, log: (s) => logs.push(s) },
   })
@@ -63,6 +63,12 @@ describe('studio hub lifecycle', () => {
     r = await get('/api/net/requests')
     expect(r.json).toMatchObject({ total: 0, hellos: 2, lastHelloAt: 1700000000000 })
     expect(r.text).not.toContain(TOKEN)
+  })
+
+  it('passes instrument.state.redact.paths to the hub so cmd.sent events and the stream are masked', async () => {
+    await boot({ BRIGHTTEST_HUB_TOKEN: TOKEN }, { state: { redact: { paths: ['global.user.nickname'] } } })
+    await get('/api/net/rules')
+    expect(started[0].redactPaths).toEqual(['global.user.nickname'])
   })
 
   it('writes proxy traffic into the hub log', async () => {

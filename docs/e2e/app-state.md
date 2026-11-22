@@ -67,7 +67,7 @@ App state (__bt_state)
   }
 ```
 
-**Studio** shows it two ways: a live **State** tab next to Node/Tree/Selector, and — because every run
+**Studio** shows it two ways: a live **State** tab (the inspector, read only for this snapshot) next to Node/Tree/Selector, and — because every run
 frame captures the snapshot — an *App state at this step* panel in the run trace, so you can scrub the
 timeline and watch state change step by step.
 
@@ -90,8 +90,21 @@ fields) and `focus` (the focus chain). brighttest reads it with `nodes?node-id=_
 request, not a full tree walk) and falls back to the full tree if that misses. Apps without the agent
 keep working through the `__bt_state` snapshot above.
 
-In Studio, the State tab lists each layer read-only (Studio never writes state). A layer the agent had to cut
-shows a **truncated** marker, and "+" on a leaf adds an `assertState` step with `layer:` set.
+In Studio, the State tab is an inspector over those layers. A layer the agent had to cut shows a **truncated**
+marker, and "+" on a leaf adds an `assertState` step with `layer:` set. With an instrumented build connected to the
+hub (it starts while Studio holds the device lease), you can also:
+
+- **Edit in place** in the `global`, `scene` and `registry` layers. The edit is checked like a `setState` flow step and
+  an ack chip shows received, applied, reflected, or the error. "+ setState step" adds the edit to the open flow.
+- **Save, restore, delete, diff, export and import snapshots.** A snapshot is capped at 64 KB and the store keeps 20.
+- See the **history** of edits and restores made in the session, each with its ack phase.
+
+Every state route needs the device lease: while another session holds the device they answer `423` and nothing is
+written. Values are **redacted by default**: the agent already masks secret-looking keys with `<redacted:key>`, and Studio
+adds the built-in key names plus `instrument.state.redact.paths` from `brighttest.json`. The **show raw** toggle reveals
+only what Studio masks on top of the agent's own masking, behind a banner, and makes exports unredacted. A
+`<redacted:...>` marker is never a real value, so Studio always refuses to write one; restoring a snapshot skips masked
+values and tells you how many. Registry values are edited as a whole `<section>.<key>` value, never a part of one.
 
 `layer` selects one layer; `path` is then relative to it. Without `layer`, the first segment of `path`
 is the layer name.

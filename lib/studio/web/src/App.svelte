@@ -9,7 +9,7 @@
   import FileTree from './lib/FileTree.svelte';
   import HierarchyTree from './lib/HierarchyTree.svelte';
   import SelectorPlayground from './lib/SelectorPlayground.svelte';
-  import AppState from './lib/AppState.svelte';
+  import StateInspector from './lib/StateInspector.svelte';
   import Network from './lib/Network.svelte';
   import ContextMenu from './lib/ContextMenu.svelte';
   import Runs from './lib/pages/Runs.svelte';
@@ -296,7 +296,7 @@
                   {:else if tab === 'net'}
                     <Network onadd={addStep} />
                   {:else}
-                    <AppState onadd={addStep} />
+                    <StateInspector onadd={addStep} />
                   {/if}
                 </div>
               </div>

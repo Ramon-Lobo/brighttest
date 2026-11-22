@@ -1,26 +1,10 @@
 <script>
   import { studio } from './store.svelte.js';
+  import { rowsOf } from './rows.js';
 
   // `data` defaults to the live snapshot but can be passed a trace step's captured appState (time machine).
   let { data = null, onadd = null } = $props();
   const snap = $derived(data ?? studio.appState);
-
-  // Flatten the state object into indented rows. Leaves carry a dotted `path` for assertState.
-  function rowsOf(obj, prefix = '', depth = 0, out = []) {
-    const entries = Array.isArray(obj)
-      ? obj.map((v, i) => [String(i), v])
-      : Object.entries(obj || {});
-    for (const [k, v] of entries) {
-      const path = prefix ? `${prefix}.${k}` : k;
-      if (v !== null && typeof v === 'object') {
-        out.push({ depth, key: k, branch: true, badge: Array.isArray(v) ? `[${v.length}]` : '{…}' });
-        rowsOf(v, path, depth + 1, out);
-      } else {
-        out.push({ depth, key: k, branch: false, path, value: v, type: v === null ? 'null' : typeof v });
-      }
-    }
-    return out;
-  }
 
   const rows = $derived(snap && snap.present && snap.state ? rowsOf(snap.state) : []);
 
