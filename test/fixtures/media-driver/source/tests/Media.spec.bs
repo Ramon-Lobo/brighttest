@@ -1,0 +1,62 @@
+import "pkg:/source/bt/BTMedia.brs"
+
+namespace tests
+  @suite("player media state")
+  @SGNode("Player")
+  class PlayerMedia extends rooibos.BaseTestSuite
+    @describe("reaction to simulated playback")
+    @it("shows the spinner while buffering and hides it on playing")
+    function _()
+      m.top.callFunc("startPlayback")
+      v = m.top.findNode("vid")
+      m.assertEqual(v.control, "play")
+      BTMedia_load(v)
+      m.assertTrue(m.top.spinnerVisible)
+      BTMedia_play(v, { duration: 4 })
+      m.assertFalse(m.top.spinnerVisible)
+    end function
+
+    @it("saves the resume position on pause")
+    function _()
+      v = m.top.findNode("vid")
+      BTMedia_play(v, { duration: 10 })
+      BTMedia_tick(v, 3)
+      m.assertTrue(abs(v.position - 3) < 0.001)
+      BTMedia_pause(v)
+      m.assertTrue(abs(m.top.resumeAt - 3) < 0.001)
+    end function
+
+    @it("counts a finished item when the position reaches the duration")
+    function _()
+      v = m.top.findNode("vid")
+      BTMedia_play(v, { duration: 2 })
+      BTMedia_tick(v, 5)
+      m.assertEqual(v.state, "finished")
+      m.assertEqual(m.top.finishedCount, 1)
+    end function
+
+    @it("shows the error text for the chosen error code")
+    function _()
+      v = m.top.findNode("vid")
+      BTMedia_fail(v, -3, "boom")
+      m.assertEqual(m.top.errorText, "Playback failed (-3)")
+      m.assertEqual(v.errorMsg, "boom")
+    end function
+
+    @it("answers the app's control command with sync")
+    function _()
+      v = m.top.findNode("vid")
+      m.top.callFunc("startPlayback")
+      r = BTMedia_sync(v)
+      m.assertEqual(r.state, "playing")
+      m.assertEqual(v.state, "playing")
+    end function
+
+    @it("stops the node")
+    function _()
+      v = m.top.findNode("vid")
+      m.assertEqual(v.subtype(), "Video")
+      m.assertEqual(BTMedia_stop(v).state, "stopped")
+    end function
+  end class
+end namespace

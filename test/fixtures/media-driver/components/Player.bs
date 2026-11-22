@@ -1,0 +1,23 @@
+sub init()
+  m.vid = m.top.findNode("vid")
+  m.spinner = m.top.findNode("spinner")
+  m.vid.observeField("state", "onState")
+end sub
+
+function startPlayback() as boolean
+  m.vid.control = "play"
+  return true
+end function
+
+sub onState()
+  s = m.vid.state
+  m.spinner.visible = (s = "buffering")
+  m.top.spinnerVisible = m.spinner.visible
+  if s = "error" then
+    m.top.errorText = "Playback failed (" + stri(m.vid.errorCode).trim() + ")"
+  else if s = "paused" or s = "stopped" then
+    m.top.resumeAt = m.vid.position
+  else if s = "finished" then
+    m.top.finishedCount = m.top.finishedCount + 1
+  end if
+end sub

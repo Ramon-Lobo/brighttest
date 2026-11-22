@@ -78,6 +78,28 @@ test on a device. When you find yourself writing many `@SGNode` tests, extract t
 `@SGNode` node suites **run headless by default** (the tool boots a SceneGraph scene) — a device is only
 needed for behavior tied to real wall-clock timing. See [limitations.md](limitations.md).
 
+## Simulating Video / Audio state (headless only)
+
+To test how the app reacts to buffering, playing, paused, finished or error, drive the node from the spec with the
+`BTMedia_*` helper. It writes ordinary fields step by step (no timers) and works on the scene lanes (default with
+`@SGNode` specs, or `--coverage`). It is simulated, not device evidence; `--device` skips these specs and
+`--cross-check` reports them as headless-only. Full guide: `docs/writing-tests/media-state.md`.
+
+```brightscript
+import "pkg:/source/bt/BTMedia.brs"
+' in an @SGNode("Player") suite:
+v = m.top.findNode("vid")
+BTMedia_load(v)                          ' state = buffering, bufferingStatus steps
+BTMedia_play(v, { duration: 10 })        ' state = playing
+BTMedia_tick(v, 3)                       ' position advances; reaching duration = finished
+BTMedia_fail(v, -3, "boom")              ' errorCode/errorMsg, then state = error
+BTMedia_sync(v)                          ' answer the app's last `control` value
+```
+
+Also: `BTMedia_pause/resume/stop/finish/next`. Compare `position` with a tolerance (`abs(v.position - 3) < 0.001`), not
+`assertEqual`. Plain suites cannot use a function-name `observeField` on a `createObject` Video node; use an
+`@SGNode` suite for the observer. `--no-sgnode` has no `roSGNode`, so these specs cannot run there.
+
 ## Reference files — read the one you need
 
 - **[references/pitfalls.md](references/pitfalls.md)** — every common mistake as Symptom → Cause → Fix.

@@ -85,6 +85,10 @@ coverage. The one exception is a test you *know* only makes sense on hardware: m
 [`@deviceOnly`](#device-only-tests-deviceonly) so the headless lanes skip it instead of failing on a
 simulator-vs-firmware difference.
 
+**Playback state.** A spec that needs a `Video` or `Audio` node to move through buffering, playing or error uses the
+headless-only [`BTMedia_*` helper](/writing-tests/media-state). It is skipped on `--device` and listed as headless-only
+by `--cross-check`.
+
 ## Device-only tests (`@deviceOnly`) {#device-only-tests-deviceonly}
 
 Some behaviour is real only on hardware — a value that depends on actual render/animation timing, a

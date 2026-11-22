@@ -80,6 +80,7 @@ export default withMermaid({
           { text: '10. Global context (seeding)', link: '/writing-tests/global-context' },
           { text: '11. Cookbook', link: '/writing-tests/cookbook' },
           { text: '12. Common mistakes', link: '/writing-tests/mistakes' },
+          { text: 'Media state (headless)', link: '/writing-tests/media-state' },
         ],
       },
       {

@@ -1,0 +1,47 @@
+import "pkg:/source/bt/BTMedia.brs"
+
+namespace tests
+  @suite("plain media driver")
+  class PlainMedia extends rooibos.BaseTestSuite
+    @describe("driver on a bare Video node")
+    @it("walks load, play, tick and finish")
+    function _()
+      v = createObject("roSGNode", "Video")
+      r = BTMedia_load(v)
+      m.assertEqual(v.state, "buffering")
+      m.assertEqual(r.bufferingStatus.percentage, 100)
+      m.assertTrue(r.bufferingStatus.prebufferDone)
+      BTMedia_play(v, { duration: 3 })
+      m.assertEqual(v.duration, 3)
+      BTMedia_tick(v, 1)
+      m.assertTrue(abs(v.position - 1) < 0.001)
+      BTMedia_finish(v)
+      m.assertEqual(v.state, "finished")
+      m.assertTrue(abs(v.position - 3) < 0.001)
+    end function
+
+    @it("sets the error fields before the error state")
+    function _()
+      v = createObject("roSGNode", "Video")
+      BTMedia_fail(v, -7, "bad stream", { detail: "x" })
+      m.assertEqual(v.state, "error")
+      m.assertEqual(v.errorCode, -7)
+      m.assertEqual(v.errorStr, "bad stream")
+    end function
+
+    @it("drives an Audio node")
+    function _()
+      a = createObject("roSGNode", "Audio")
+      BTMedia_play(a, { duration: 9 })
+      m.assertEqual(a.state, "playing")
+      BTMedia_fail(a, 4, "no")
+      m.assertEqual(a.errorCode, 4)
+    end function
+
+    @it("stops a bare node")
+    function _()
+      v = createObject("roSGNode", "Video")
+      m.assertEqual(BTMedia_stop(v).state, "stopped")
+    end function
+  end class
+end namespace
