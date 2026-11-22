@@ -242,6 +242,24 @@ describe('agent /input receiver (headless, fork engine)', () => {
       '    cmd2 = BT_inputCmd("{" + Chr(34) + "op" + Chr(34) + ":" + Chr(34) + "ping" + Chr(34) + "," + Chr(34) + "id" + Chr(34) + ":" + Chr(34) + "own" + Chr(34) + "}", "cid9")',
       '    print "O2:" + cmd2.id',
       '    print "P:" + BTT(BT_inputCmd("{not json", "a") = invalid) + BTT(BT_inputCmd("[1]", "a") = invalid) + BTT(BT_inputCmd("{}", "a") = invalid) + BTT(BT_inputCmd("{" + Chr(34) + "op" + Chr(34) + ":5}", "a") = invalid)',
+      // R: n mismatch at a position inside the sequence: different data per chunk, the odd chunk must not count
+      '    st = BT_inputNew()',
+      '    BT_inputFeed(st, EV("w", 0, 3, "a"), 0, tk)',
+      '    BT_inputFeed(st, EV("w", 1, 3, "b"), 0, tk)',
+      '    odd = BT_inputFeed(st, EV("w", 2, 4, "X"), 0, tk)',
+      '    print "R:" + BTT(odd = invalid) + ":" + GOT(BT_inputFeed(st, EV("w", 2, 3, "c"), 0, tk))',
+      // S: s and n must be canonical decimal strings
+      '    st = BT_inputNew()',
+      '    mk = function(s, n)',
+      '        return { bt: "cn", tk: "' + TOKEN + '", s: s, n: n, d: "{}" }',
+      '    end function',
+      '    print "S:" + BTT(BT_inputFeed(st, mk("00", "1"), 0, tk) = invalid) + BTT(BT_inputFeed(st, mk("0", "01"), 0, tk) = invalid) + BTT(BT_inputFeed(st, mk(" 0", "1"), 0, tk) = invalid) + BTT(BT_inputFeed(st, mk("0", "1.0"), 0, tk) = invalid) + GOT(BT_inputFeed(st, mk("0", "1"), 0, tk))',
+      // T: an empty configured token never matches, not even an empty incoming one
+      '    st = BT_inputNew()',
+      '    print "T:" + BTT(BT_inputFeed(st, EV("e", 0, 1, "{}", ""), 0, "") = invalid) + BTT(BT_inputTokenOk("", "") = false) + BTT(BT_inputTokenOk(tk, tk))',
+      // U: chunk id limit is 32 characters
+      '    st = BT_inputNew() : id32 = String(32, "a") : id33 = String(33, "a")',
+      '    print "U:" + GOT(BT_inputFeed(st, EV(id32, 0, 1, "{}"), 0, tk)) + ":" + BTT(BT_inputFeed(st, EV(id33, 0, 1, "{}"), 0, tk) = invalid) + BTT(BT_inputFeed(st, EV("", 0, 1, "{}"), 0, tk) = invalid)',
       // Q: UTF-8 multibyte survives the hand-over string
       '    pk = BT_inputPack("mb", "caf" + Chr(233) + Chr(9731))',
       '    print "Q:" + pk.len().toStr().trim() + ":" + Mid(pk, 1, 3)',
@@ -285,6 +303,14 @@ describe('agent /input receiver (headless, fork engine)', () => {
     expect(val(out, 'O2')).toBe('own')
     expect(val(out, 'P')).toBe('truetruetruetrue')
   })
+  it('rejects an n that changes at a later position, and non-canonical s and n', () => {
+    expect(val(out, 'R')).toBe('true:w=abc')
+    expect(val(out, 'S')).toBe('truetruetruetruecn={}')
+  })
+  it('an empty configured token never matches; chunk ids are limited to 32 characters', () => {
+    expect(val(out, 'T')).toBe('truetruetrue')
+    expect(val(out, 'U')).toBe(`${'a'.repeat(32)}={}:truetrue`)
+  })
   it('keeps multibyte text in the packed hand-over', () => {
     expect(val(out, 'Q')).toBe('8:mb' + String.fromCharCode(10).slice(0, 0))
   })
@@ -306,6 +332,11 @@ describe('agent apply half and ack queue (headless, fork engine)', () => {
       '    r2 = BT_inputRun(BT_inputPack("cid2", bad), ctx, "")',
       '    print "B:" + BTT(r2.ok) + ":" + g.count.toStr().trim()',
       '    print "C:" + BTT(BT_inputRun("nolinefeed", ctx, "") = invalid) + BTT(BT_inputRun(BT_inputPack("c", "{}"), ctx, "") = invalid)',
+      // the reflected phase: asked for and the op worked; a failing op stays applied
+      '    rf = "{" + q + "op" + q + ":" + q + "set" + q + "," + q + "ack" + q + ":" + q + "reflected" + q + "," + q + "args" + q + ":{" + q + "layer" + q + ":" + q + "global" + q + "," + q + "path" + q + ":" + q + "count" + q + "," + q + "value" + q + ":5}}"',
+      '    r3 = BT_inputRun(BT_inputPack("cid3", rf), ctx, "")',
+      '    r4 = BT_inputRun(BT_inputPack("cid4", Left(rf, Len(rf) - 3) + q + "x" + q + "}}"), ctx, "")',
+      '    print "H:" + r3.last.phase + ":" + BTT(r3.last.ok) + ":" + r4.last.phase + ":" + BTT(r4.last.ok)',
       // ack queue: dropped without a live hub, bounded with one
       '    qq = []',
       '    BT_wQueueAcks(qq, ["a", "b"], false, 3)',
@@ -325,6 +356,9 @@ describe('agent apply half and ack queue (headless, fork engine)', () => {
     expect(val(out, 'A')).toBe('true:cid1:0:applied:4:2')
     expect(val(out, 'B')).toBe('false:4')
     expect(val(out, 'C')).toBe('truetrue')
+  })
+  it('reports the reflected phase only when asked for and the op worked', () => {
+    expect(val(out, 'H')).toBe('reflected:true:applied:false')
   })
   it('queues no acks without a live hub and bounds the queue with one', () => {
     expect(val(out, 'D')).toBe('0')
