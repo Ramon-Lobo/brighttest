@@ -190,6 +190,27 @@ code. This turns "the simulator might differ" from an unknown risk into a monito
 - **Before merge / nightly:** `npx brighttest --device …` for on-device coverage + real render timing, and
   `npx brighttest --cross-check …` to confirm headless still matches the device.
 
+## Device identity (`deviceInfo`)
+
+Headless runs report a device identity to `roDeviceInfo`. The defaults are Ultra-like, taken from a Roku Ultra
+(model `4850X`, 1080p UI, Wi-Fi), so a branch on `GetUIResolution()` or `GetConnectionType()` takes the same path
+as on that device. Change them in `brighttest.json`; every key is optional and unknown keys are an error:
+
+```json
+{ "deviceInfo": { "model": "4850X", "uiResolution": "720p", "connectionType": "WiredConnection" } }
+```
+
+| Key | Values | Default |
+| --- | --- | --- |
+| `model` | model string, e.g. `4850X` | `4850X` |
+| `uiResolution` | `480p`, `720p`, `1080p` | `1080p` |
+| `connectionType` | `WiredConnection`, `WiFiConnection` | `WiFiConnection` |
+| `locale` | `en_US`, `en_GB`, `en_CA`, `en_AU`, `fr_CA`, `es_ES`, `es_MX`, `de_DE`, `it_IT`, `pt_BR` | engine default |
+| `osVersion` | the engine's encoded firmware string | engine default |
+
+The block applies to the default (SceneGraph-off) headless lane. The scene lanes (`@SGNode` specs, `--coverage`)
+still use the engine's own identity. Do not put secrets in this block.
+
 ## Common questions
 
 **"Can I get coverage headless?"** Yes — `brighttest --coverage` produces coverage + LCOV with no device.
