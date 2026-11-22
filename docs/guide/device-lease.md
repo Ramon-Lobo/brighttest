@@ -132,6 +132,11 @@ npx brighttest device unlock --lease "$TOKEN"
   absent. A token for a command lease is refused (exit 2): those end with their command.
 - `device lock` on a device you already hold through `BRIGHTTEST_LEASE` exits 2 instead of queueing behind
   yourself. Unlock first.
+- A command under the token does not press Home itself (only `device lock` did, once). `e2e run` is the exception
+  when it starts the instrument hub (state or net steps): it presses Home twice once at the start of the run, so an
+  app left running by an earlier run restarts and says hello to the new hub. Without that, a plain launch is
+  ignored by a running channel and state steps fail with `STATE_NOT_INSTRUMENTED`. `--no-hygiene` skips it. Under
+  a per-command lease, the lease does the Home presses and `e2e run` adds none.
 - Treat the token like a password: it lets anything that has it use the device. Do not write it to files or logs.
 
 ## Exit codes

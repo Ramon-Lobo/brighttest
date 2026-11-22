@@ -87,3 +87,29 @@ describe('e2e run under the lease', () => {
     expect(startLanHub).not.toHaveBeenCalled()
   })
 })
+
+describe('e2e run: Home hygiene under a session (re-entrant) lease', () => {
+  const stateFlow = () => {
+    const f = path.join(dir, 'st.e2e.yaml')
+    fs.writeFileSync(f, 'name: st\nsteps:\n  - waitForAgent: {}\n')
+    return f
+  }
+  const lane = (reentrant) => async () => ({ lease: { reentrant, release: () => {} } })
+  const hubStub = async () => ({ stop: async () => {}, hellos: 0 })
+  const run = (reentrant, extra = {}, flows) => e2e.run(cfg, { e2eAction: 'run', flows: flows || [stateFlow()], host: '10.0.0.1', lanHub: true, logs: false, ...extra },
+    { createDevice, acquireForLane: lane(reentrant), startLanHub: hubStub, homeHygiene: async () => { log.push('home'); return null } })
+
+  it('presses Home once when the lease is re-entrant and a hub is started', async () => {
+    await run(true)
+    expect(log.filter((l) => l === 'home')).toHaveLength(1)
+  })
+  it('adds nothing under a per-command lease (acquireForLane already did it) or with --no-hygiene', async () => {
+    await run(false)
+    await run(true, { noHygiene: true })
+    expect(log).not.toContain('home')
+  })
+  it('adds nothing when no hub is started', async () => {
+    await run(true, { lanHub: false }, [flow])
+    expect(log).not.toContain('home')
+  })
+})
