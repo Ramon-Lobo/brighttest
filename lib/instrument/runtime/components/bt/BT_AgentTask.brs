@@ -21,6 +21,7 @@ sub BT_agentTaskRun()
     inbox = BT_inputNew()
     n = 0
     nextTick = 0
+    clamped = false
     retryAt = 0
     session = ""
     after = 0
@@ -32,9 +33,13 @@ sub BT_agentTaskRun()
         if now >= nextTick then
             n = n + 1
             m.top.tick = n
-            nextTick = now + BT_wCadence(cfg, m.top.subscribed, session <> "", m.top.docBytes)
-            clamp = BT_wClampEvent(cfg, m.top.docBytes, session)
-            if clamp <> "" then queue = BT_wQueueAcks(queue, [clamp], session <> "", 200)
+            period = BT_wCadence(cfg, m.top.subscribed, session <> "", m.top.docBytes)
+            nextTick = now + period
+            clamp = BT_wClampEvent(cfg, m.top.docBytes, session, period)
+            if (clamp <> "") <> clamped then
+                clamped = (clamp <> "")
+                if clamped then queue = BT_wQueueAcks(queue, [clamp], session <> "", 200)
+            end if
         end if
         if session = "" and now >= retryAt and BT_wOrigin(cfg) <> "" then
             info = BT_wHelloInfo(cfg)
