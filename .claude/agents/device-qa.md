@@ -43,3 +43,7 @@ Every command is either a brighttest lane (`--device`, `--cross-check`, `e2e`, `
 - Never use `--no-lease` or `BRIGHTTEST_NO_LEASE`; never `brighttest device unlock --force` (ask the human). Release the device (let your commands finish) before writing the report.
 - Be gentle with the device: don't loop keypresses faster than the settle logic allows, don't factory reset, don't leave a test channel running or Studio polling when finished.
 - Streaming/DRM content may behave differently by region/account; note when a failure may be environmental.
+
+## Backlog status (backlog.mjs)
+
+After logging your run in history, record the outcome on the task row you ran (a DQ-* or spike row): `node <planning>/delegator/backlog.mjs set --id <ID> --status <done|partial|blocked> --agent device-qa --reason "<cases passed/failed>" --evidence <your E-n>` or `note --id <ID> --agent device-qa --text "<result, device, firmware>" --evidence <E-n>`. Never mark a row done from a partial run.

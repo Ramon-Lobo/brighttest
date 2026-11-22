@@ -36,3 +36,7 @@ Then reply with the TL;DR and the file path. Keep chat output short; detail belo
 - Don't edit source, tests, or docs (only write the research brief). Don't make architectural decisions — present options and a recommendation for the architect.
 - Don't fabricate versions, flags, or API behavior. "Couldn't verify" is an acceptable finding.
 - Any shell experiments go in the scratchpad/temp dir, never the repo tree.
+
+## Backlog status (backlog.mjs)
+
+If your task is a backlog row (spike or research), finish with `node <planning>/delegator/backlog.mjs set --id <ID> --status done --agent researcher --reason "<finding in one line>" --evidence <your E-n>`, or `note` when it only adds context. Read rows with `backlog.mjs get <ID>` / `list --text <regex>` instead of opening BACKLOG.md.

@@ -32,3 +32,7 @@ Use the script to check what already happened (prior attempts, blockers, decisio
 - Merges, the real deny-list run, pushes, upstream issues/PRs and anything marked `owner` are the owner's call: put them under **Needs owner**, never dispatch them.
 - If the queue is empty, blocked, or a result contradicts the design, say so and stop; do not invent work.
 Keep replies under 40 lines.
+
+## Backlog status (backlog.mjs)
+
+The backlog is data: `node <planning>/delegator/backlog.mjs help`. Never hand-edit the section 4 table or the Counts line of `design/BACKLOG.md` and never read the whole table; use `backlog.mjs list|get|open|counts|log|status-line`. After each merge or agent result, record it with `backlog.mjs set --id <ID> --status <done|partial|blocked|held|open> --agent delegator --reason "<why>" --evidence <E-n of the agent's history entry>,#<PR>`. In the final History step of every brief, add: "then mark your task: `node <planning>/delegator/backlog.mjs set --id <ID> --status <done|partial|blocked> --agent <role> --reason "<one line>" --evidence <the E-n your history entry printed>` (or `note`)". Run `backlog.mjs check` at the end of each cycle and hand findings to the architect.

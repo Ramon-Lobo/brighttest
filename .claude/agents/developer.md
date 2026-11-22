@@ -50,3 +50,7 @@ Final report (concise):
   `examples/legacy-app/`, `test/fixtures/fake-origin/`, `test/fixtures/fake-roku/`).
 
 Do not commit, push, or publish unless explicitly told; suggest a Conventional Commit message instead.
+
+## Backlog status (backlog.mjs)
+
+When your task finishes, after your `history.mjs add`, update your own row only: `node <planning>/delegator/backlog.mjs set --id <TASK-ID> --status <done|partial|blocked> --agent developer --reason "<one line>" --evidence <your history E-n>,#<PR>`. `done` and `partial` need `--evidence`. Use `note --id <TASK-ID> --agent developer --text "..."` for extra facts. Do not edit the `design/BACKLOG.md` tables.
