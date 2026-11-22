@@ -91,7 +91,7 @@ describe('e2e run under the lease', () => {
 describe('e2e run: Home hygiene under a session (re-entrant) lease', () => {
   const stateFlow = () => {
     const f = path.join(dir, 'st.e2e.yaml')
-    fs.writeFileSync(f, 'name: st\nsteps:\n  - waitForAgent: {}\n')
+    fs.writeFileSync(f, 'name: st\nsteps:\n  - waitForAgent: { timeout: 0.1 }\n')
     return f
   }
   const lane = (reentrant) => async () => ({ lease: { reentrant, release: () => {} } })
@@ -107,6 +107,20 @@ describe('e2e run: Home hygiene under a session (re-entrant) lease', () => {
     await run(false)
     await run(true, { noHygiene: true })
     expect(log).not.toContain('home')
+  })
+  it('adds nothing with deviceLease hygiene none and no flag', async () => {
+    cfg.deviceLease = { ...(cfg.deviceLease || {}), hygiene: 'none' }
+    await run(true)
+    expect(log).not.toContain('home')
+  })
+  it('warns and continues when the Home press fails', async () => {
+    let out = ''
+    process.stdout.write.mockImplementation((x) => { out += x; return true })
+    const code = await e2e.run(cfg, { e2eAction: 'run', flows: [stateFlow()], host: '10.0.0.1', lanHub: true, logs: false },
+      { createDevice, acquireForLane: lane(true), startLanHub: hubStub, homeHygiene: async () => new Error('ecp down') })
+    expect(out).toContain('Home hygiene failed (ecp down); continuing')
+    expect(out).toContain('device: Stub') // the run went on to the units
+    expect(code).toBe(1)
   })
   it('adds nothing when no hub is started', async () => {
     await run(true, { lanHub: false }, [flow])
