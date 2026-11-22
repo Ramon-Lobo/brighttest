@@ -47,6 +47,17 @@ namespace tests
       m.assertTrue(r.skipped.count() >= 9)
     end function
 
+    @it("skips brighttest-internal keys (__btEv, __btTask_*)")
+    function _()
+      r = BTState_seedGlobals({ __btEv: { n: 1 }, __btTask_x: "t", keepMe: "yes" })
+      m.assertEqual(m.global.keepMe, "yes")
+      m.assertFalse(m.global.hasField("__btEv"))
+      m.assertFalse(m.global.hasField("__btTask_x"))
+      m.assertEqual(r.written.count(), 1)
+      m.assertEqual(r.written[0], "keepMe")
+      m.assertEqual(r.skipped.count(), 2)
+    end function
+
     @it("updates an existing field when seeded again")
     function _()
       BTState_seedGlobals({ region: "ca" })
