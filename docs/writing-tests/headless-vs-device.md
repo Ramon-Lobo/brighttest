@@ -192,24 +192,35 @@ code. This turns "the simulator might differ" from an unknown risk into a monito
 
 ## Device identity (`deviceInfo`)
 
-Headless runs report a device identity to `roDeviceInfo`. The defaults are Ultra-like, taken from a Roku Ultra
-(model `4850X`, 1080p UI, Wi-Fi), so a branch on `GetUIResolution()` or `GetConnectionType()` takes the same path
-as on that device. Change them in `brighttest.json`; every key is optional and unknown keys are an error:
+With no `deviceInfo` block nothing changes: headless runs use the engine's own identity (model `8000X`, 720p UI,
+wired connection). Add a block to `brighttest.json` and the headless run reports that identity to `roDeviceInfo`, so a
+branch on `GetUIResolution()` or `GetConnectionType()` takes the path it would on that device. Every key is
+optional, unknown keys are an error, and **setting any key switches the defaults of the other keys** to Ultra-like
+values from a Roku Ultra (model `4850X`, 1080p UI, Wi-Fi):
 
 ```json
-{ "deviceInfo": { "model": "4850X", "uiResolution": "720p", "connectionType": "WiredConnection" } }
+{ "deviceInfo": { "uiResolution": "720p", "connectionType": "WiredConnection" } }
 ```
 
-| Key | Values | Default |
+| Key | Values | Default once a block is set |
 | --- | --- | --- |
 | `model` | model string, e.g. `4850X` | `4850X` |
 | `uiResolution` | `480p`, `720p`, `1080p` | `1080p` |
 | `connectionType` | `WiredConnection`, `WiFiConnection` | `WiFiConnection` |
-| `locale` | `en_US`, `en_GB`, `en_CA`, `en_AU`, `fr_CA`, `es_ES`, `es_MX`, `de_DE`, `it_IT`, `pt_BR` | engine default |
-| `osVersion` | the engine's encoded firmware string | engine default |
+| `locale` | any `xx_YY` string, e.g. `fr_CA` | engine default (`en_US`) |
+| `osVersion` | the engine's encoded firmware string, e.g. `48G.04E05531A` (15.0.4 build 5531) | engine default |
 
-The block applies to the default (SceneGraph-off) headless lane. The scene lanes (`@SGNode` specs, `--coverage`)
-still use the engine's own identity. Do not put secrets in this block.
+Limits to know:
+
+- **Scene lanes ignore the block.** The block applies to the SceneGraph-off lane only. `@SGNode` specs and
+  `--coverage` run on the scene lanes, which keep the engine identity (`8000X`, 720p, wired). Adding one `@SGNode`
+  spec moves the whole project to the scene lane, so the identity changes with it. Applying the block to the scene
+  lanes is an open follow-up.
+- **`model` cannot simulate a TV.** The engine's models table is not available on this path, so `GetModelType` is
+  always `STB` and `GetModelDisplayName` is `Roku (<model>)`.
+- **`locale`:** the engine ships translations only for `de_DE`, `es_ES`, `es_MX`, `fr_CA`, `it_IT` and `pt_BR`, plus
+  built-in `en_US`; other values are accepted but have no terms.
+- Do not put secrets in this block.
 
 ## Common questions
 
