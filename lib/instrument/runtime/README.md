@@ -1,6 +1,6 @@
 # Injected runtime notes
 
-The files under `source/` are concatenated into the staged `source/bt/BT_runtime.brs` and ship to the device, so
+The files under `source/` are concatenated into the staged `source/bt/BT_runtime.brs` and ship to the device (the staged copy has full-line comments and blank lines stripped), so
 long explanations live here instead of in the BrightScript (ADR 0020, STA-S-T9). This file is never staged: the plugin
 copies named runtime files only.
 
