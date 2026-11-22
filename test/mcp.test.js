@@ -1,4 +1,6 @@
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, afterEach, vi } from 'vitest'
+import { createRequire } from 'node:module'
+const require = createRequire(import.meta.url)
 import fs from 'node:fs'
 import path from 'node:path'
 import { bootStub, startMcp, payload, cleanupMcp, tmpdir, PASSWORD } from './fixtures/mcp-harness.js'
@@ -259,25 +261,137 @@ describe('TP-MCP-08 run_flow and path confinement', () => {
   })
 })
 
-describe('TP-MCP-09 lease per session', () => {
-  it('takes the lease on the first device call, refuses a second session, and releases on end', async () => {
-    const { stub, a } = await bootStub('healthy')
+describe('run_flow nested runFlow confinement', () => {
+  it('confines every nested file like the top-level path and echoes no file content', async () => {
+    const cwd = tmpdir('bt-mcp-proj-')
+    const outside = tmpdir('bt-mcp-out-')
+    fs.mkdirSync(path.join(cwd, 'flows'))
+    fs.writeFileSync(path.join(outside, 'secret.e2e.yaml'), 'TOP-SECRET-CONTENT: [\n')
+    fs.copyFileSync(path.join(FLOWS, 'fake-smoke.e2e.yaml'), path.join(outside, 'ok.e2e.yaml'))
+    fs.symlinkSync(path.join(outside, 'ok.e2e.yaml'), path.join(cwd, 'flows', 'link.e2e.yaml'))
+    fs.copyFileSync(path.join(FLOWS, 'fake-smoke.e2e.yaml'), path.join(cwd, 'flows', 'inside.e2e.yaml'))
+    fs.writeFileSync(path.join(cwd, 'flows', 'bad.e2e.yaml'), 'LOCAL-FILE-CONTENT: [\n')
+    const mk = (name, file) => fs.writeFileSync(path.join(cwd, 'flows', name), `appId: dev\nsteps:\n  - runFlow: { file: ${JSON.stringify(file)} }\n`)
+    const rows = {
+      'outside.e2e.yaml': path.join('..', '..', path.basename(outside), 'secret.e2e.yaml'),
+      'dots.e2e.yaml': '../../x.e2e.yaml',
+      'abs.e2e.yaml': path.join(outside, 'secret.e2e.yaml'),
+      'sym.e2e.yaml': 'link.e2e.yaml',
+    }
+    for (const [name, file] of Object.entries(rows)) mk(name, file)
+    mk('badparse.e2e.yaml', 'bad.e2e.yaml')
+    mk('good.e2e.yaml', 'inside.e2e.yaml')
+    const { stub, c } = await ready('healthy', { cwd, limits: { pressGapMs: 0, maxFlowRunsPerSession: 20 } })
+    for (const name of Object.keys(rows)) {
+      const before = fakeLog(stub, /^\/keypress\//).length
+      const res = await c.tool('run_flow', { path: `flows/${name}` })
+      const d = payload(res)
+      expect(isErr(res), name).toBe(true)
+      expect(d.message, name).toMatch(/PATH_REJECTED|path rejected/)
+      expect(JSON.stringify(res), name).not.toContain('TOP-SECRET-CONTENT')
+      expect(fakeLog(stub, /^\/keypress\//).length, name).toBe(before)
+    }
+    const bad = await c.tool('run_flow', { path: 'flows/badparse.e2e.yaml' })
+    expect(isErr(bad)).toBe(true)
+    expect(JSON.stringify(bad)).not.toContain('LOCAL-FILE-CONTENT')
+    expect(isErr(await c.tool('run_flow', { path: 'flows/good.e2e.yaml' }))).toBe(false)
+  }, 60000)
+})
+
+describe('protocol hygiene', () => {
+  it('never answers a notification, ignores client responses, rejects object ids', async () => {
+    const c = startMcp({})
+    c.send({ method: 'initialize', params: { protocolVersion: '2025-06-18' } }) // initialize as a notification
+    c.send({ method: 'foo/bar' })
+    c.send({ method: 'tools/call', params: { name: 'nope' } })
+    c.send({ id: 5, result: {} })
+    c.send({ id: 6, error: { code: 1, message: 'x' } })
+    c.sendRaw(JSON.stringify({ jsonrpc: '2.0', method: 7 }))
+    c.send({ id: { a: 1 }, method: 'ping' })
+    expect((await c.request('ping')).result).toEqual({})
+    await new Promise((r) => setTimeout(r, 100))
+    const answered = c.lines.filter((m) => !(m.id >= 1000 || m.id === 1))
+    expect(answered.filter((m) => m.error && m.id === null).map((m) => m.error.code)).toEqual([-32600, -32600])
+    expect(c.lines.some((m) => m.id === 5 || m.id === 6)).toBe(false)
+    expect(c.lines).toHaveLength(3) // two -32600 plus the ping answer
+  })
+  it('drops 2025-03-26 and answers with a supported version', async () => {
+    const c = startMcp({})
+    expect((await c.request('initialize', { protocolVersion: '2025-03-26' })).result.protocolVersion).toBe('2025-06-18')
+  })
+  it('rejects an over-long line without crashing', async () => {
+    const c = startMcp({})
+    await c.initialize()
+    c.sendRaw('x'.repeat(1024 * 1024 + 10))
+    await expect.poll(() => c.lines.some((m) => m.error && m.error.code === -32700)).toBe(true)
+    expect((await c.request('ping')).result).toEqual({})
+  })
+  it('blocks power and input-switch keys but allows volume keys', async () => {
+    const { stub, c } = await ready('healthy', { limits: { pressGapMs: 0 } })
+    for (const k of ['PowerOff', 'InputHDMI1', 'InputTuner', 'InputAV1']) expect(payload(await c.tool('press', { key: k })).code, k).toBe('KEY_NOT_ALLOWED')
+    expect(fakeLog(stub, /^\/keypress\//)).toHaveLength(0)
+    expect(isErr(await c.tool('press', { key: 'VolumeUp' }))).toBe(false)
+  })
+  it('says "an object" in argument errors', async () => {
+    const { c } = await ready()
+    expect((await c.tool('inspect_tree', { selector: 5 })).error.message).toContain('must be an object')
+  })
+})
+
+describe('TP-MCP-09 lease per tool call', () => {
+  const leaseLib = require('../lib/device-lease.js')
+  const tryLease = (a, dir) => leaseLib.acquire({ host: '127.0.0.1', port: a.ecpPort, waitMs: 0, mode: 'command', env: { ...process.env, BRIGHTTEST_LEASE_DIR: dir, BRIGHTTEST_LEASE: '' }, onWait: () => {}, purpose: 'test holder' })
+
+  it('holds the lease only while a device call runs, and read-only tools take none', async () => {
+    const { a } = await bootStub('healthy')
     const leaseDir = tmpdir('bt-mcp-lease-')
     const A = startMcp({ a, leaseDir, limits: { pressGapMs: 0 } })
-    const B = startMcp({ a, leaseDir, limits: { pressGapMs: 0 } })
-    await A.initialize(); await B.initialize()
-    expect(A.server.session.lease).toBe(null)
+    await A.initialize()
     expect(isErr(await A.tool('device_doctor'))).toBe(false)
-    expect(A.server.session.lease).toBe(null) // read-only tools take no lease
+    expect(isErr(await A.tool('list_devices'))).toBe(false)
     expect(isErr(await A.tool('press', { key: 'Down' }))).toBe(false)
-    expect(A.server.session.lease).toBeTruthy()
-    const before = stub.log.length
-    const busy = await B.tool('press', { key: 'Down' })
-    expect(payload(busy).code).toBe('DEVICE_BUSY')
-    expect(stub.log.length).toBe(before)
-    await A.close()
     expect(A.server.session.lease).toBe(null)
+    const l = await tryLease(a, leaseDir) // free between calls: another party can take it
+    l.release()
+    expect(isErr(await A.tool('inspect_tree'))).toBe(false)
+  })
+  it('fails fast with DEVICE_BUSY and sends no ECP request while another party holds the device', async () => {
+    const { stub, a } = await bootStub('healthy')
+    const leaseDir = tmpdir('bt-mcp-lease-')
+    const B = startMcp({ a, leaseDir, limits: { pressGapMs: 0 } })
+    await B.initialize()
+    const holder = await tryLease(a, leaseDir)
+    const before = stub.log.length
+    for (const [n, args] of [['press', { key: 'Down' }], ['inspect_tree'], ['screenshot'], ['app_state'], ['navigate_to', { selector: { id: 'x' } }]]) {
+      expect(payload(await B.tool(n, args)).code, n).toBe('DEVICE_BUSY')
+    }
+    expect(stub.log.length).toBe(before)
+    holder.release()
     expect(isErr(await B.tool('press', { key: 'Down' }))).toBe(false)
+  })
+  it('releases the lease when a call errors and when it times out', async () => {
+    const { a } = await bootStub('stall')
+    const leaseDir = tmpdir('bt-mcp-lease-')
+    const A = startMcp({ a, leaseDir, limits: { toolTimeoutMs: 300 } })
+    await A.initialize()
+    expect(payload(await A.tool('inspect_tree')).code).toBe('TOOL_TIMEOUT')
+    const l = await tryLease(a, leaseDir) // released at the timeout, not when the stuck request finally ends
+    l.release()
+  })
+  it('a lost lease is a LEASE_LOST tool error, never a process exit', async () => {
+    const { a } = await bootStub('healthy')
+    const exit = vi.spyOn(process, 'exit').mockImplementation(() => { throw new Error('process.exit called') })
+    let lost
+    const fakeLib = { acquire: async (o) => { lost = o.onLost; return { release() {} } } }
+    const c = startMcp({ a, leaseLib: fakeLib, limits: { pressGapMs: 0 } })
+    await c.initialize()
+    const p = c.toolAsync('press', { key: 'Down', count: 20 })
+    for (let i = 0; i < 100 && !lost; i++) await new Promise((r) => setTimeout(r, 10))
+    lost('heartbeat failed')
+    const res = await p
+    expect(payload(res).code).toBe('LEASE_LOST')
+    expect(exit).not.toHaveBeenCalled()
+    exit.mockRestore()
   })
 })
 
@@ -305,6 +419,31 @@ describe('TP-MCP-10 budgets and timeouts', () => {
     const res = await pending
     expect(payload(res)).toMatchObject({ code: 'TOOL_TIMEOUT', budgetMs: 400 })
     expect((await c.request('ping')).result).toEqual({})
+  })
+})
+
+describe('TP-MCP-10b timeouts stop the work', () => {
+  it('sends no ECP request after TOOL_TIMEOUT', async () => {
+    const { stub, c } = await ready('healthy', { limits: { toolTimeoutMs: 700, pressGapMs: 250 } })
+    const res = await c.tool('press', { key: 'Down', count: 20 })
+    expect(payload(res).code).toBe('TOOL_TIMEOUT')
+    expect(payload(res).message).toContain('no further device requests')
+    const atTimeout = fakeLog(stub, /^\/keypress\//).length
+    expect(atTimeout).toBeGreaterThan(0)
+    expect(atTimeout).toBeLessThan(20)
+    await new Promise((r) => setTimeout(r, 1000))
+    expect(fakeLog(stub, /^\/keypress\//).length).toBeLessThanOrEqual(atTimeout + 1) // one request may have been in flight
+  })
+  it('a call that times out while queued never runs', async () => {
+    const { stub, c } = await ready('healthy', { limits: { toolTimeoutMs: 5000, queueWaitMs: 150, pressGapMs: 250 } })
+    const first = c.toolAsync('press', { key: 'Down', count: 4 })
+    const second = c.toolAsync('press', { key: 'Left' })
+    const res = await second
+    expect(payload(res).code).toBe('QUEUE_TIMEOUT')
+    expect(payload(res).message).toContain('before it ran')
+    expect(payload(await first).pressed).toBe(4)
+    await new Promise((r) => setTimeout(r, 400))
+    expect(fakeLog(stub, /^\/keypress\/Left/)).toHaveLength(0)
   })
 })
 

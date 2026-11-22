@@ -10,8 +10,10 @@ project directory.
 ## Device and secrets
 
 The device comes only from the usual resolution chain: `ROKU_HOST`, `ROKU_PASSWORD`, a project `.env`, then the device
-cache (`brighttest devices`). **No tool takes a host or a password**, so neither ends up in the model's context. Set
-them out of band in the environment of the server process. Screenshots need the dev password; everything else does not.
+cache (`brighttest devices`). **No tool takes a host or a password.** The dev password and device serial are never
+returned and are scrubbed from error text. The device address does appear in tool output (`list_devices`,
+`device_doctor`, some error messages), so the model does see the host. Set the password out of band in the environment
+of the server process. Screenshots need the dev password; everything else does not.
 
 ## Tools
 
@@ -35,15 +37,29 @@ Failures come back as a tool result with `isError: true` and a typed `code` (for
 
 ## Safety limits
 
-- **Lease.** The first device-touching call takes the [device lease](./device-lease) for the whole session; it is
-  released when stdin closes. If another session holds it, the call fails at once with `DEVICE_BUSY` and sends no
-  request. `list_devices` and `device_doctor` are read-only and take no lease.
-- **Queue.** Every call goes through the per-device ECP queue, one request at a time. Keypresses are never retried
-  after a 5xx or a timeout, since the device may already have acted on them.
+- **Lease, per call.** Each device-touching call (`press`, `navigate_to`, `inspect_tree`, `screenshot`, `app_state`,
+  `run_flow`) takes the [device lease](./device-lease) when it starts and releases it when it ends, also on error and
+  on timeout. Nothing is held between calls, so a human or another agent can use the device in between. If another
+  party holds it, the call fails at once with `DEVICE_BUSY` and sends no request. A lost lease becomes a `LEASE_LOST`
+  tool error; the server never exits because of the lease. `list_devices` and `device_doctor` are read-only and take
+  no lease.
+- **Queue.** Device calls of a session run one at a time, and every request goes through the per-device ECP queue.
+  A call that waits more than 30 s behind earlier ones is dropped with `QUEUE_TIMEOUT` and never runs. Keypresses are
+  never retried after a 5xx or a timeout, since the device may already have acted on them. `press` also keeps a
+  250 ms gap between presses of the session.
+- **Timeouts stop the work.** The run budget starts when a call gets its turn: 30 s (120 s for `run_flow`). On
+  `TOOL_TIMEOUT` no further device request is sent for that call; one request already in flight may still finish.
 - **Paths.** `run_flow` takes a path relative to the project root: no absolute paths, no `..`, no symlink that leaves
-  the project, and only `*.e2e.yaml` files. Rejection happens before any file is read or any device call is made.
-- **Budgets, per session.** 500 presses, 10 flow runs. Per call: 30 s (120 s for `run_flow`), 500 tree nodes and
-  64 KB of tree JSON, 2 MB of screenshot, 128 KB of app state. Over a cap you get a typed error or a `truncated`
-  flag, never a silent cut. The session caps reset only with a new session.
+  the project, and only `*.e2e.yaml` files. Rejection happens before any file is read or any device call is made. The
+  same rules apply to every file a flow pulls in with a nested `runFlow:` step (so subflows must also be
+  `*.e2e.yaml` files inside the project), and a subflow that fails to parse never echoes its content.
+- **Blocked keys.** `press` refuses `PowerOff`, `InputHDMI*`, `InputTuner` and `InputAV*` (a conservative default so
+  an agent cannot switch the TV away from the app; `Volume*` and the rest are allowed). Presses made by steps inside
+  a flow you run are the flow's own content and are not filtered.
+- **Budgets, per session.** 500 presses and 10 flow runs. Keypresses made inside `run_flow` count against the flow-run
+  cap and the 120 s budget, not the press cap, and follow the flow runner's own spacing. Per call: 500 tree nodes and
+  64 KB of tree JSON, 2 MB of screenshot, 128 KB of app state, 1 MB per request line, 300 characters per flow step
+  message. Over a cap you get a typed error or a `truncated` flag, never a silent cut. The session caps reset only
+  with a new session.
 
 Writing source, sideloading and profiling are not part of v1.
