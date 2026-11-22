@@ -534,28 +534,28 @@ end function
 ' ---- wrap and task hooks (STA-S-T10; README "Wrap and task hooks")
 
 function BT_dwHash(g as object) as string
-    f = BT_nodeFields(g)
-    f.delete("__btEv")
-    b = CreateObject("roByteArray")
-    b.FromAsciiString(FormatJson(f))
-    return StrI(b.GetCRC32(), 16)
+    fd = BT_nodeFields(g)
+    fd.delete("__btEv")
+    ba = CreateObject("roByteArray")
+    ba.FromAsciiString(FormatJson(fd))
+    return StrI(ba.GetCRC32(), 16)
 end function
 
 sub BT_dwEmit(g as object, fn as string, a as dynamic, hb as string)
-    d = { source: "wrap:" + fn, hashBefore: hb, hashAfter: BT_dwHash(g) }
+    dat = { source: "wrap:" + fn, hashBefore: hb, hashAfter: BT_dwHash(g) }
     if BT_wKind(a) = "object" then
-        d.type = a.type
-        d.payload = BT_serialize(a.payload, BT_capsFrom(BT_config()), "payload", 0, [], invalid)
+        dat.type = a.type
+        dat.payload = BT_serialize(a.payload, BT_capsFrom(BT_config()), "payload", 0, [], invalid)
     end if
-    g.setField("__btEv", FormatJson(d))
+    g.setField("__btEv", FormatJson(dat))
 end sub
 
 sub BT_taskSnap(g as object, name as string, ev as string, mm as object)
     k = "__btTask_" + name
-    s = { event: ev, m: BT_serialize(BT_mOp(mm, { op: "get" }).value, BT_capsFrom(BT_config()), "task." + name, 0, [], invalid) }
-    a = {}
-    a[k] = s
-    if g.hasField(k) then g.setField(k, s) else g.addFields(a)
+    snap = { event: ev, m: BT_serialize(BT_mOp(mm, { op: "get" }).value, BT_capsFrom(BT_config()), name, 0, [], invalid) }
+    aa = {}
+    aa[k] = snap
+    if g.hasField(k) then g.setField(k, snap) else g.addFields(aa)
 end sub
 
 ' ---- dispatch

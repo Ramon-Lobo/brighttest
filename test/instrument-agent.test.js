@@ -212,6 +212,7 @@ describe('agent is read-only in v0', () => {
     expect(src.replace(/roRegistrySection/g, '')).not.toMatch(/roRegistry/i)
     expect(src).not.toMatch(/\.Flush\(|\.setField\(|\.update\(|\.callFunc\(|\.write\(|\.delete\(|roUrlTransfer/i)
     expect(src).not.toMatch(/m\.global\.[A-Za-z_]+\s*=/)
-    expect(src).not.toMatch(/m\.global\.(add|set)Field/i)
+    // STA-S-T10: the agent adds the one `__btEv` field its wrap observer needs; nothing else
+    expect(src.replace('m.global.addField("__btEv", "string", true)', '')).not.toMatch(/m\.global\.(add|set)Field/i)
   })
 })
