@@ -254,7 +254,7 @@ describe('tolerant console parsers (formats vary per firmware — pin these agai
   });
 });
 
-// Reply status (BUG-B1b): replies are copied from a recorded session; `@@SEND <cmd>` starts each block.
+// Reply status (BUG-B1b): replies are copied from a recorded session, except blocks labelled synthetic; `@@SEND <cmd>` starts each block.
 const RECORDED = (() => {
   const text = fs.readFileSync(new URL('./fixtures/console-8080-replies.txt', import.meta.url), 'utf8');
   const out = {};
@@ -331,7 +331,7 @@ describe('console reply status (BUG-B1b)', () => {
   });
 
   it('not-recognized: Command not recognized without a target selection', async () => {
-    const r = await statusOf('sgperf_report', RECORDED['sgperf report (untargeted stub)']);
+    const r = await statusOf('sgperf_report', RECORDED['(synthetic, not recorded) sgperf report untargeted stub']);
     expect(r.status).toBe('not-recognized');
   });
 
@@ -361,5 +361,61 @@ describe('console reply status (BUG-B1b)', () => {
     const many = 'Family-Size-\n' + 'Roku UI Regular-34--   <SYSTEM FONT>\n'.repeat(5000);
     expect(sgdebug.parseFonts(many).length).toBeLessThanOrEqual(500);
     expect(Date.now() - t0).toBeLessThan(500);
+  });
+
+  it('logrendezvous on/off recorded replies are ok', async () => {
+    for (const k of ['logrendezvous on', 'logrendezvous off']) {
+      const r = await statusOf(k.replace(' ', '_'), RECORDED[k]);
+      expect(r.status).toBe('ok');
+    }
+  });
+
+  it('fps_display toggles (no recorded reply): a non-empty reply is ok without a parser, not unknown', async () => {
+    expect((await statusOf('fps_display_on', 'fps display on')).status).toBe('ok');
+  });
+
+  it('pins literal reasons and wording', () => {
+    expect(sgdebug.STATUS.stubTarget.reason).toBe('target answered "Command not recognized" (stub command set; seen with the channel in the background, and on some devices with it in front)');
+    expect(sgdebug.STATUS.notRecognized.reason).toBe('reply observed: "Command not recognized" (no target selected, or not a stub-target path)');
+    for (const k of ['stubTarget', 'notRecognized']) {
+      expect(sgdebug.STATUS[k].reason).not.toMatch(/foreground|not running/);
+    }
+    expect(sgdebug.classify('sgperf_start', '', null).reason).toBe('empty reply is the normal reply for this command');
+  });
+
+  it('loaded_textures with a font table and no marker line is ok with fonts', () => {
+    const r = sgdebug.classify('loaded_textures', 'Family-Size-<bold>-<italic>           File\nRoku UI Regular-34--                  <SYSTEM FONT', null);
+    expect(r.status).toBe('ok');
+    expect(r.fonts).toHaveLength(1);
+  });
+
+  it('not-recognized with a leading > or a multi-line body', () => {
+    expect(sgdebug.classify('sgperf_report', '>Command not recognized', null).status).toBe('not-recognized');
+    expect(sgdebug.classify('sgperf_report', 'x\nCommand not recognized\ny', null).status).toBe('not-recognized');
+  });
+
+  it('parseFonts skips a 600-char line', () => {
+    const row = `${'F'.repeat(300)}-34--${' '.repeat(300)}<SYSTEM FONT>`;
+    expect(row.length).toBeGreaterThan(512);
+    expect(sgdebug.parseFonts(`Family-Size-\n${row}\n`)).toEqual([]);
+  });
+
+  it('every parser stays fast on 400 KB hostile lines and still parses normal replies', () => {
+    const big = 400 * 1024;
+    const shapes = [' '.repeat(big), '1'.repeat(big), 'a-1-'.repeat(big / 4), 'x'.repeat(big), `[1] ${' '.repeat(big)}`, 'mem='.repeat(big / 4), `a: 1${' '.repeat(big)}`];
+    const parsers = { parseFree: sgdebug.parseFree, parseSgperf: sgdebug.parseSgperf, parseTargets: sgdebug.parseTargets, parseChanperf: sgdebug.parseChanperf };
+    for (const [pn, fn] of Object.entries(parsers)) {
+      for (const [i, shape] of shapes.entries()) {
+        const t0 = Date.now();
+        fn(shape);
+        const ms = Date.now() - t0;
+        console.log(`hostile ${pn} shape${i}: ${ms}ms`);
+        expect(ms).toBeLessThan(300);
+      }
+    }
+    expect(sgdebug.parseFree('Available: 316,244 KiB').ok).toBe(true);
+    expect(sgdebug.parseSgperf(RECORDED['sgperf report']).threads).toHaveLength(3);
+    expect(sgdebug.parseTargets(RECORDED['target list'])).toHaveLength(6);
+    expect(sgdebug.parseChanperf('channel: mem=1KiB{anon=1},%cpu=0{user=0,sys=0}').ok).toBe(true);
   });
 });
