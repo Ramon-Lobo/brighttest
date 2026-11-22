@@ -41,6 +41,12 @@ describe('skill snippets (AGT-06)', () => {
     expect(bad('bash', 'brighttest device with --as "$X" -- npm run --silent foo')).toEqual([])
   })
 
+  test('shell: win32 skips only the bash -n syntax check, the flag check still runs', () => {
+    const win = (code) => validateSnippet({ lang: 'sh', code, line: 1 }, { flags, platform: 'win32' })
+    expect(win('if then fi')).toEqual([])
+    expect(win('brighttest --no-such-flag')[0]).toMatch(/unknown CLI flag --no-such-flag/)
+  })
+
   test('brightscript: unbalanced blocks are caught; anonymous functions and one-liners pass', () => {
     expect(bad('brightscript', 'function f()\n  return 1')[0]).toMatch(/unclosed block/)
     expect(bad('brightscript', 'function f()\n  x = foo(1\nend function')[0]).toMatch(/unbalanced brackets/)
