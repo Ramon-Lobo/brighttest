@@ -11,7 +11,7 @@ copies named runtime files only.
     a context { global, scene, cfg, state } so the same code runs headless (brs-cli) and on a device.
     
     Allow-list (design D8): ping, get, set, merge, snapshot, restore, registry.read, registry.write, callFunc, subscribe.
-    dispatch and focus are allowed hub-side but answer "not supported" until STA-S-T10. Anything else answers
+    focus focuses the node `args.node.id` (NODE_NOT_FOUND otherwise). dispatch is allowed hub-side but answers "not supported" until the greenfield store (STA-S-T11). Anything else answers
     "op not allowed". Writes are type-checked (a string into an integer field is refused, the app keeps running), never go
     below a node reference, and registry writes are limited to the configured registrySections and flushed. There is no op
     for the file system and none that deletes registry data. callFunc runs only names listed in the config's callFuncAllow.
@@ -84,3 +84,25 @@ copies named runtime files only.
 
 - The `get` on the m, scene, global and node layers redacts when any segment of the path is a secret key, or any prefix matches a redact pattern in dotted form (`m.list.0`) or `[i]` form (`m.list[0]`, numeric segments). The registry layer is unchanged.
 - `BT_wClampStep` decides the `agent.rate` event: it fires once when clamping starts and only after a hub session is live (a clamp that starts before hello is held and reported after), then re-arms when the clamp ends.
+
+## Wrap and task hooks (BT_write.brs, STA-S-T10)
+
+    Both hooks are emitted by the plugin (lib/instrument/wrap.js) around functions the config names; the runtime only holds
+    the three helpers. The original function is renamed `__bt_orig_<name>` on its own line and a wrapper with the original
+    name is appended to the file, so every caller (including observeField callback names) reaches the wrapper.
+    A parameter with a default value is passed on as `invalid` when the caller omits it.
+
+    `instrument.state.dispatch: ["fn"]` wraps each non-excluded, non-namespaced function with that name. The wrapper takes
+    BT_dwHash(m.global) before and after the call (CRC32 of the global fields as JSON, hex) and calls BT_dwEmit, which sets
+    the global string field `__btEv` to { source:"wrap:<fn>", type, payload, hashBefore, hashAfter }. type and payload
+    come from the first argument when it is an associative array; the payload is serialized with the configured caps
+    (secret-looking keys are masked). The render-thread agent observes `__btEv` and forwards it to the hub as a
+    `state.action` event. Any thread may emit: setting a global field is thread-safe.
+
+    `instrument.state.tasks: ["TaskComponent"]` wraps the Task's entry function, found as the string assigned in a
+    top-level `m.top.functionName = "<fn>"` of the component's `init`. BT_taskSnap(m.global, name, event, m) stores
+    { event, m } (m without top, global and `__bt*`, serialized with the caps) in the global field `__btTask_<name>` at
+    "entry" and "exit". BT_layers moves those fields out of the `global` layer into a `task` layer, and drops `__btEv`.
+    A timer snapshot is not automatic: a Task blocked in `wait` cannot be interrupted, so an app that wants mid-run
+    snapshots calls BT_taskSnap(m.global, "<name>", "timer", m) itself. A name that matches nothing is reported as
+    `wrap-target-unknown` (it trips `instrument.strict`).
