@@ -106,5 +106,9 @@ copies named runtime files only.
     { event, m } (m without top, global and `__bt*`, serialized with the caps) in the global field `__btTask_<name>` at
     "entry" and "exit". BT_layers moves those fields out of the `global` layer into a `task` layer, and drops `__btEv`.
     A timer snapshot is not automatic: a Task blocked in `wait` cannot be interrupted, so an app that wants mid-run
-    snapshots calls BT_taskSnap(m.global, "<name>", "timer", m) itself. A name that matches nothing is reported as
-    `wrap-target-unknown` (it trips `instrument.strict`).
+    snapshots calls BT_taskSnap(m.global, "<name>", "timer", m) itself. That call must sit inside `#if BT_AGENT` ...
+    `#end if` with `BT_AGENT=false` in the manifest `bs_const`: BT_taskSnap is defined only in the instrumented build,
+    so an unguarded call does not compile in production. A Task that never returns gets the "entry" snapshot only;
+    "exit" is stored when the entry function returns. Each call serializes `m` with the caps and sets a global field
+    (a render-thread rendezvous), so call it at most about once per second, never per message in a hot loop.
+    A name that matches nothing is reported as `wrap-target-unknown` (it trips `instrument.strict`).
