@@ -135,6 +135,9 @@ body or a render-thread RPC timeout; `APP_UI_FALLBACK_AFTER` in `lib/e2e/sgnodes
 from `/query/app-ui` instead. Limited mode and "channel not running" never fall back. If `app-ui` fails too,
 you get the original sgnodes error.
 
+Launch readiness (`lib/e2e/ready.js`) counts the same way across its polls, and a transport timeout (a hung read
+that the short client timeout aborts) counts toward the same threshold as a `FAILED` body.
+
 The tree result says which source it used: `source` is `sgnodes` or `app-ui`, and `parentLinks` is `true` or
 `false`. An `app-ui` tree has **no parent links**: nodes carry no `parent` field, and anything that needs a
 parent fails with the error code `TREE_NO_PARENT_LINKS` rather than matching nothing. Id, subtype, text and
