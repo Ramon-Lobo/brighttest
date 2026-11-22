@@ -140,8 +140,28 @@ function BT_wRoot(args as object, ctx as object) as object
         n = BT_wNodeById(ctx, args.node)
         if type(n) <> "roSGNode" then return BT_wErr("NODE_NOT_FOUND", "no node with that id")
         return { ok: true, node: n, layer: layer }
+    else if layer = "m" then
+        n = BT_wNodeById(ctx, args.node)
+        if type(n) <> "roSGNode" then return BT_wErr("NODE_NOT_FOUND", "no node with that id")
+        return { ok: true, node: n, layer: layer }
     end if
-    return BT_wErr("BAD_LAYER", "layer must be global, scene, node or registry")
+    return BT_wErr("BAD_LAYER", "layer must be global, scene, node, m or registry")
+end function
+
+' ---- m layer (STA-S-T9): the node's BT_op runs in the component scope; no BT_op answers M_NOT_AVAILABLE ----------------
+
+function BT_wMCall(n as object, req as object) as object
+    r = n.callFunc("BT_op", req)
+    if BT_wKind(r) <> "object" then return BT_wErr("M_NOT_AVAILABLE", "that node has no BT_op (not instrumented or excluded)")
+    if not BT_wIs(r.btop, true) then return BT_wErr("M_NOT_AVAILABLE", "that node has no BT_op (not instrumented or excluded)")
+    return r
+end function
+
+function BT_wMGet(n as object, segs as object, args as object, caps as object, redact as dynamic, trunc as object) as object
+    r = BT_wMCall(n, { op: "get", path: segs })
+    if not r.ok then return r
+    if not r.found then return { ok: true, result: { found: false } }
+    return BT_wGetDone(BT_serialize(r.value, caps, "m." + args.path, 0, trunc, redact), trunc)
 end function
 
 ' ---- registry --------------------------------------------------------------------------------------------------------
@@ -193,6 +213,7 @@ function BT_wGet(args as object, ctx as object) as object
     end if
     root = BT_wRoot(args, ctx)
     if not root.ok then return root
+    if root.layer = "m" then return BT_wMGet(root.node, segs, args, caps, redact, trunc)
     if segs.count() = 0 then return BT_wGetDone(BT_serialize(BT_nodeFields(root.node), caps, root.layer, 0, trunc, redact), trunc)
     if not root.node.hasField(segs[0]) then return { ok: true, result: { found: false } }
     cur = root.node.getField(segs[0])
@@ -225,6 +246,11 @@ function BT_wSetPathX(root as object, segs as object, value as dynamic, dry as b
     name = segs[0]
     k = BT_wKind(value)
     if k = "node" or k = "other" or k = "invalid" then return BT_wErr("TYPE_MISMATCH", "value must be a string, number, boolean, array or object")
+    if root.layer = "m" then
+        r = BT_wMCall(node, { op: "set", path: segs, value: value, dry: dry })
+        if r.ok then return { ok: true }
+        return r
+    end if
     if segs.count() = 1 then
         if node.hasField(name) then
             if not BT_wCompat(node.getField(name), value) then return BT_wMismatch("field " + name, node.getField(name), value)
@@ -734,10 +760,17 @@ end function
 ' Sampler period: the configured interval (500 ms by default) while a hub session is live and a client subscribed, or
 ' whenever there is no hub session (ECP readers need the fresh Label); ten times that (5 s) while a live hub session has
 ' no subscriber.
-function BT_wCadence(cfg as dynamic, subscribed as boolean, hubLive as boolean) as integer
+function BT_wCadence(cfg as dynamic, subscribed as boolean, hubLive as boolean, docBytes = 0 as integer) as integer
     base = BT_pubIntervalMs(cfg)
+    if docBytes > 16384 and base < 1000 then base = 1000 ' rate cap: a large published doc is sent at most once a second
     if hubLive and not subscribed then return base * 10
     return base
+end function
+
+' The event posted each time BT_wCadence clamps the interval ("" when it did not).
+function BT_wClampEvent(cfg as dynamic, docBytes as integer, session as string) as string
+    if docBytes <= 16384 or BT_pubIntervalMs(cfg) >= 1000 then return ""
+    return FormatJson({ v: 1, kind: "agent.rate", session: session, data: { docBytes: docBytes, intervalMs: BT_pubIntervalMs(cfg), clampedMs: 1000 } })
 end function
 
 ' ---- transport (BT_AgentTask) ----------------------------------------------------------------------------------------

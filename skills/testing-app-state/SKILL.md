@@ -58,7 +58,7 @@ steps:
   - callFunc: { node: { id: homePanel }, fn: bt_resetHome, args: [] }
 ```
 
-- `setState` layers: `global` (default), `scene`, `node` (needs `node: { id }`), `registry` (path is
+- `setState` layers: `global` (default), `scene`, `node` and `m` (both need `node: { id }`; `m` is that component's own `m`, existing fields only, never in snapshots), `registry` (path is
   `<section>.<key>`, one key at a time, no `ops`). `ops:` is one atomic batch; if any path fails, none applies.
 - On `global`, missing keys are created. On other layers a missing top-level field fails with `FIELD_NOT_FOUND`.
   Arrays are never extended (`BAD_PATH`).

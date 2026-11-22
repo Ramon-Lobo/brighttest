@@ -77,5 +77,6 @@ sub BT_agentPublish()
     m.seq = m.seq + 1
     m.label.text = BT_labelJson(m.seq, m.global, m.top.getScene(), BT_config(), m.renderMs, m.lastInput)
     m.renderMs = clock.TotalMilliseconds()
+    if m.task <> invalid then m.task.docBytes = Len(m.label.text)
 end sub
 #end if

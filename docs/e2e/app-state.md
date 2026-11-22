@@ -130,6 +130,30 @@ Three matchers, one per step (`equals` and `contains` are unchanged):
 A failure says which part was wrong: no state published, layer not found (with the layers that exist),
 path not found, or the actual value.
 
+### The `m` layer (a component's own `m`)
+
+`layer: m` reads and writes the `m` of one component, found by `node: { id }`. The build adds a `BT_op` function to
+the root of every instrumented component chain (descendants inherit it; nothing is injected twice), and the agent
+calls it on the render thread. No new flag: `BT_op` is on by default.
+
+```yaml
+- setState: { layer: m, node: { id: homePanel }, path: rowIndex, value: 3 }
+```
+
+Rules, all enforced on the device:
+
+- Existing fields only. A missing field fails with `FIELD_NOT_FOUND`; the layer never adds a key to `m`.
+- `top`, `global` and any key starting with `__bt` are not reachable (`M_PATH_FORBIDDEN`).
+- Every write is type-checked like the other layers (`TYPE_MISMATCH`), and a path never crosses a node reference
+  (`PATH_UNDER_NODE`). Reads use the same caps, redaction and 64 KB limit as the other layers.
+- A node without `BT_op` (not instrumented, excluded by `instrument.exclude`, or a built-in node) answers
+  `M_NOT_AVAILABLE`.
+- `m` is read on demand only. It is never in the published `__bt_agent` document or in a `snapshot`, and `restore`
+  does not touch it.
+
+Publish rate cap: when the last published document is larger than 16384 bytes, the publish interval is at least
+1000 ms (`max(publish.intervalMs, 1000)`), and the agent logs an `agent.rate` event each time it clamps.
+
 ### The registry layer
 
 List the registry sections the agent should publish in `brighttest.json`. With no sections configured there
@@ -219,7 +243,7 @@ What happens when a segment is missing:
 
 - **Global layer, missing top-level field or missing object key:** it is created, including the intermediate
   objects (`a.b.c` creates `a` and `b` when absent).
-- **Other layers (`scene`, `node`):** a missing top-level field fails with `FIELD_NOT_FOUND`; fields are not added.
+- **Other layers (`scene`, `node`, `m`):** a missing top-level field fails with `FIELD_NOT_FOUND`; fields are not added.
 - **Array index past the end, or a segment under an array that is not an index:** fails with `BAD_PATH`
   (`no element <segment>`). Arrays are never extended.
 - **A segment that lands on a value that is not an object or array:** `PATH_NOT_CONTAINER`. A path that would

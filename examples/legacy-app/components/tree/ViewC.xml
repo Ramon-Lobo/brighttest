@@ -3,6 +3,10 @@
   <script type="text/brightscript"><![CDATA[
     sub init()
       print "BTFIX:viewc-init"
+      m.rowIndex = 0
     end sub
   ]]></script>
+  <children>
+    <Label id="rowLabel" text="row" />
+  </children>
 </component>
