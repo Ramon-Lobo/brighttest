@@ -90,6 +90,15 @@ describe('action log', () => {
     expect((await req('GET', '/api/state/actions?raw=1')).json.actions[0].payload.token).toBe('tok-secret')
   })
 
+  it('reads the lowercased keys a device sends (hashbefore/hashafter) and answers camelCase; payload is null under another key', async () => {
+    pushAction({ source: 'wrap:D', type: 'a', value: { x: 1 }, hashbefore: 'aa', hashafter: 'bb' })
+    pushAction({ source: 'wrap:D', type: 'b', hashbefore: 'bb', hashafter: 'bb' })
+    const a = (await req('GET', '/api/state/actions')).json.actions
+    expect(a[0]).toMatchObject({ hashBefore: 'aa', hashAfter: 'bb', changed: true, payload: null })
+    expect(a[1]).toMatchObject({ hashBefore: 'bb', hashAfter: 'bb', changed: false })
+    expect(a[0]).not.toHaveProperty('hashbefore')
+  })
+
   it('records a snapshot on the newest entry and time-travels to it (queues a restore of that snapshot)', async () => {
     pushAction({ source: 'wrap:D', type: 'a', hashBefore: '1', hashAfter: '2' })
     const rec = await req('POST', '/api/state/actions', { action: 'record' })

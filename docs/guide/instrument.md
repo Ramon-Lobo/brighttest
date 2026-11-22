@@ -369,16 +369,35 @@ republished (only when the command asked for `ack: reflected`). A session mismat
   A wrapper that cannot be built is reported the same way and the function stays unwrapped.
   Hash limits: the hash is a CRC32 of the serialized global fields, so a change to a masked secret-looking key, or to
   content beyond the serializer caps (depth, array items, string length), does not change `hashBefore`/`hashAfter`. Its
-  cost (two global serializations per dispatch) is not measured yet (DQ-5).
+  cost (two global serializations per dispatch) was measured on a device (DQ-STA21): about 10 ms per dispatch with a
+  normal global, about 118 ms with 516 global fields. The hash covers `m.global` fields only: an app whose store state
+  lives outside `m.global` (a scene or node `m`, module variables) shows equal `hashBefore` and `hashAfter` for every
+  action. On a device the event keys arrive lowercased (`hashbefore`, `hashafter`); Studio accepts both spellings and
+  shows camelCase. `payload` is read only under that key: an app that passes the data under another key (for example
+  `value`) shows a null payload.
 - `instrument.state.tasks: ["TaskComponent"]` wraps the Task's entry function (the name assigned with
   `m.top.functionName = "..."` in `init`) and publishes the Task's `m` at entry and exit under the `task` layer
-  (`get --layer global` does not show these fields). There is no automatic timer snapshot, because a Task blocked in
+  (the Studio layer view hides these fields, but `get --layer global` does return the raw `__btEv` and `__btTask_*`
+  fields). There is no automatic timer snapshot, because a Task blocked in
   `wait` cannot be interrupted; an app that wants mid-run snapshots calls `BT_taskSnap(m.global, "<name>", "timer", m)`.
   Rules for that manual call: put it inside `#if BT_AGENT` ... `#end if` and set `BT_AGENT=false` in the manifest
   `bs_const`, because `BT_taskSnap` exists only in the instrumented build and a production build would not compile
   without the guard. A long-lived Task whose entry function never returns gets the `entry` snapshot only; `exit` is
   published when the entry function returns. Each call serializes the Task's `m` with the caps and sets a global field
   (a render-thread rendezvous), so call it at most about once per second, never per message in a hot loop.
+- Studio action log, time travel and fixtures (routes under `/api/state/`, all behind the device lease: a write while
+  another agent holds it answers `423 LOCKED`).
+  - `GET /api/state/actions[?raw=1]` lists the `state.action` events, oldest first: `entry` (log seq), `ts`, `source`,
+    `type`, `payload` (masked unless `raw=1`), `hashBefore`, `hashAfter`, `changed` and `snapshot` (null until recorded).
+  - `POST /api/state/actions {"action":"record"}` snapshots the live state onto the newest entry (`act-<seq>`); an older
+    `entry` answers `409 STALE_ENTRY`, an empty log `404 NOT_FOUND`.
+  - `POST /api/state/actions {"action":"travel","entry":<n>}` restores the snapshot recorded on that entry (202). An
+    unknown entry answers `404 NOT_FOUND`, an entry with no snapshot `409 NO_SNAPSHOT`. Only state is restored; network
+    calls, registry writes and Task effects are not undone.
+  - `GET /api/state/fixtures` lists `fixtures/state/*.json` under the project root. `POST /api/state/fixtures
+    {"action":"save","name":"n","snapshot":"s","raw":false}` writes a stored snapshot (masked unless `raw` is true);
+    `{"action":"load","name":"n"}` reads one back into the snapshot store (`404` when missing, `400` for an unknown
+    layer or bad name). File format: `{"v":1,"name":"n","layers":{...}}`.
 - Layers: `global`, `scene`, `node` (`node: {id}`), and `registry` for `get`. `set` is type-checked against the
   current value, never writes below a node reference (`PATH_UNDER_NODE`), and a field a node does not have is
   `FIELD_NOT_FOUND` (only `global` creates fields). A refused write leaves the app running.
