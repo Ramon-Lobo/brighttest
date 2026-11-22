@@ -364,6 +364,12 @@ republished (only when the command asked for `ack: reflected`). A session mismat
   then `store.dispatch(a)`) would lose its `m` binding. Such a target is not wrapped and is reported as
   `wrap-target-unknown` (it trips `strict`); wrap a function that is called by name. The payload is masked by key name
   on the device; `redact.paths` is applied host-side only.
+  Defaults are copied as written, so in a `.bs` file only plain-literal defaults (and empty `{}` / `[]`) are wrapped; a
+  function whose default uses an enum, const, namespace, template string or call is reported as `wrap-target-unknown`.
+  A wrapper that cannot be built is reported the same way and the function stays unwrapped.
+  Hash limits: the hash is a CRC32 of the serialized global fields, so a change to a masked secret-looking key, or to
+  content beyond the serializer caps (depth, array items, string length), does not change `hashBefore`/`hashAfter`. Its
+  cost (two global serializations per dispatch) is not measured yet (DQ-5).
 - `instrument.state.tasks: ["TaskComponent"]` wraps the Task's entry function (the name assigned with
   `m.top.functionName = "..."` in `init`) and publishes the Task's `m` at entry and exit under the `task` layer
   (`get --layer global` does not show these fields). There is no automatic timer snapshot, because a Task blocked in

@@ -92,7 +92,7 @@ copies named runtime files only.
     name is appended to the file, so every caller (including observeField callback names) reaches the wrapper.
     A defaulted parameter keeps its name and default expression in the wrapper signature, so the original default applies
     when the caller omits the argument. A dispatch target used as a value (`{ dispatch: fn }`) is not wrapped (the wrapper
-    would lose the AA method `m`); it is reported as `wrap-target-unknown`. `function ... as void` is wrapped like a `sub`.
+    would lose the AA method `m`); it is reported as `wrap-target-unknown`, as is a `.bs` default that is not a plain literal. `function ... as void` is wrapped like a `sub`.
 
     `instrument.state.dispatch: ["fn"]` wraps each non-excluded, non-namespaced function with that name. The wrapper takes
     BT_dwHash(m.global) before and after the call (CRC32 of the serialized global fields as JSON, hex; nodes become markers) and calls BT_dwEmit, which sets
