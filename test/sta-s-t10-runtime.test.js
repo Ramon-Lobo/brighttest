@@ -20,6 +20,7 @@ sub main()
     g = CreateObject("roSGNode", "Node")
     g.addFields({ user: { tier: "free" }, count: 1 })
     g.addFields({ "__btEv": "" })
+    g.addFields({ holder: CreateObject("roSGNode", "Node") })
     sc = CreateObject("roSGNode", "Node")
     p = CreateObject("roSGNode", "Node") : p.id = "panel" : sc.appendChild(p)
     ctx = { global: g, scene: sc, cfg: BT_config(), state: { subscribed: false } }
@@ -27,7 +28,7 @@ sub main()
     print "F2:" + FormatJson(BT_wApply({ op: "focus", args: { node: { id: "nope" } } }, ctx))
     print "F3:" + FormatJson(BT_wApply({ op: "dispatch", args: {} }, ctx))
     h0 = BT_dwHash(g)
-    g.count = 2
+    g.count = 3 ' the fork engine saturates GetCRC32 at 2^31-1 (about half of all strings), so this value is picked to keep both hashes distinct
     h1 = BT_dwHash(g)
     BT_dwEmit(g, "dispatchAction", { type: "user/upgraded", payload: { tier: "premium", authToken: "dummy-secret" } }, h0)
     print "H:" + FormatJson({ same: h0 = h1, len: Len(h0) > 0 })
@@ -77,6 +78,16 @@ describe('dispatch wrap runtime', () => {
     expect(e.payload.authToken).toMatch(/^<redacted:/)
     expect(tag('E2:')).toMatchObject({ source: 'wrap:other' })
     expect(tag('E2:')).not.toHaveProperty('type')
+  })
+})
+
+describe('hash with a node in the global fields (H3)', () => {
+  it('the hash still follows the state and no FormatJSON error is logged', () => {
+    expect(out).not.toMatch(/FormatJSON/i)
+    expect(out).not.toMatch(/ERROR/)
+    const e = tag('E:')
+    expect(e.hashBefore).not.toBe(e.hashAfter)
+    expect(e.hashBefore.length).toBeGreaterThan(0)
   })
 })
 

@@ -56,6 +56,23 @@ const zipText = async (zipPath, entry) => {
 }
 const tmpLeft = (dir) => fs.existsSync(dir) ? fs.readdirSync(dir).filter((n) => /\.tmp\.zip$/.test(n)) : []
 
+describe('instrument build: app functions named like runtime locals', () => {
+  it('builds when the app defines clamp/min/max/filter/first/last/now/route/query (no BS1104 from source/bt)', async () => {
+    const names = ['clamp', 'min', 'max', 'filter', 'first', 'last', 'now', 'route', 'query', 'diff', 'info', 'data', 'text', 'keys', 'clock', 'snap']
+    const src = 'sub main()\n    print clamp(5)\nend sub\n' + names.map((n) => `function ${n}(a as dynamic) as dynamic\n    return a\nend function\n`).join('\n')
+    const dir = mkapp('shadow', { 'source/main.brs': src })
+    const r = await run(dir, 'shadow')
+    expect(r.log.filter((l) => /^1104 /.test(l))).toEqual([])
+    expect(r.exitCode).toBe(0)
+  })
+  it('still reports BS1104 for the app\'s own local named like an app function', async () => {
+    const dir = mkapp('shadow2', { 'source/main.brs': 'sub main()\n    clamp = 1\nend sub\nfunction clamp(a)\n    return a\nend function\n' })
+    const r = await run(dir, 'shadow2')
+    expect(r.log.some((l) => /^1104 source\/main\.brs/.test(l))).toBe(true)
+    expect(r.exitCode).not.toBe(0)
+  })
+})
+
 describe('instrument build: main kept, specs dropped', () => {
   it('keeps source/main.brs even when sourceGlobs negate it, and excludes source/tests/**', async () => {
     const dir = mkapp('mainkept', { 'source/tests/A.spec.brs': "sub spec()\nend sub\n" })

@@ -11,7 +11,7 @@ copies named runtime files only.
     a context { global, scene, cfg, state } so the same code runs headless (brs-cli) and on a device.
     
     Allow-list (design D8): ping, get, set, merge, snapshot, restore, registry.read, registry.write, callFunc, subscribe.
-    focus focuses the node `args.node.id` (NODE_NOT_FOUND otherwise). dispatch is allowed hub-side but answers "not supported" until the greenfield store (STA-S-T11). Anything else answers
+    focus focuses the node `args.node.id` (NODE_NOT_FOUND otherwise). dispatch is allowed hub-side; its BTStore op is STA-S-T11 (the app-side route is the dispatch wrap below, STA-S-T10). Anything else answers
     "op not allowed". Writes are type-checked (a string into an integer field is refused, the app keeps running), never go
     below a node reference, and registry writes are limited to the configured registrySections and flushed. There is no op
     for the file system and none that deletes registry data. callFunc runs only names listed in the config's callFuncAllow.
@@ -90,10 +90,12 @@ copies named runtime files only.
     Both hooks are emitted by the plugin (lib/instrument/wrap.js) around functions the config names; the runtime only holds
     the three helpers. The original function is renamed `__bt_orig_<name>` on its own line and a wrapper with the original
     name is appended to the file, so every caller (including observeField callback names) reaches the wrapper.
-    A parameter with a default value is passed on as `invalid` when the caller omits it.
+    A defaulted parameter keeps its name and default expression in the wrapper signature, so the original default applies
+    when the caller omits the argument. A dispatch target used as a value (`{ dispatch: fn }`) is not wrapped (the wrapper
+    would lose the AA method `m`); it is reported as `wrap-target-unknown`. `function ... as void` is wrapped like a `sub`.
 
     `instrument.state.dispatch: ["fn"]` wraps each non-excluded, non-namespaced function with that name. The wrapper takes
-    BT_dwHash(m.global) before and after the call (CRC32 of the global fields as JSON, hex) and calls BT_dwEmit, which sets
+    BT_dwHash(m.global) before and after the call (CRC32 of the serialized global fields as JSON, hex; nodes become markers) and calls BT_dwEmit, which sets
     the global string field `__btEv` to { source:"wrap:<fn>", type, payload, hashBefore, hashAfter }. type and payload
     come from the first argument when it is an associative array; the payload is serialized with the configured caps
     (secret-looking keys are masked). The render-thread agent observes `__btEv` and forwards it to the hub as a
