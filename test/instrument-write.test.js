@@ -426,7 +426,7 @@ describe('registry JSON values and section reads mask like the published doc (IN
   let out
   const P = 'registry.' + SECTION
   const JV = '{"user":{"accessToken":"AT1","name":"nm","deep":{"pin":"1234","ok":"fine"}},"list":[{"pin":"9"},"x"]}'
-  const pats = { none: [], below: [`${P}.cfg.user.deep.pin`, `${P}.cfg.list[0].pin`], star: [`${P}.cfg.user.deep.*`], exactsec: [P] }
+  const pats = { none: [], below: [`${P}.cfg.user.deep.pin`, `${P}.cfg.list[0].pin`], star: [`${P}.cfg.user.deep.*`], arr: [`${P}.cfg.list[1]`], arrstar: [`${P}.cfg.list.*`], exactsec: [P] }
   beforeAll(async () => {
     const q = (s) => s.replace(/"/g, '""')
     const main = [
@@ -463,6 +463,14 @@ describe('registry JSON values and section reads mask like the published doc (IN
       expect(parsed(`${p}_below`).list[0].pin).toBe('<redacted:pin>')
       expect(raw(`${p}_star`)).not.toMatch(/1234|fine/)
     }
+  })
+  it('an array element named by [i] or .* below a registry JSON value is masked on both reads and the section read', () => {
+    for (const p of ['G', 'O']) {
+      expect(parsed(`${p}_arr`).list).toEqual([{ pin: '9' }, '<redacted:1>'])
+      expect(parsed(`${p}_arrstar`).list).toEqual(['<redacted:0>', '<redacted:1>'])
+    }
+    expect(raw('S_arr')).not.toContain('"x"')
+    expect(raw('S_arrstar')).not.toMatch(/"x"|9/)
   })
   it('a non-JSON value is returned unchanged', () => {
     for (const n of Object.keys(pats).filter((k) => k !== 'exactsec')) expect(val(`P_${n}`)).toBe('not json {x')
