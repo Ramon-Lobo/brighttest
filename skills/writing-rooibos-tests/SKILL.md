@@ -1,6 +1,8 @@
 ---
 name: writing-rooibos-tests
 description: Use when writing or editing Rooibos test specs (*.spec.bs) for a Roku/BrightScript project that uses brighttest. Covers suite/test annotations, assertions, test doubles, parameterized tests, headless-vs-device rules, and the common pitfalls that make specs silently fail or not run.
+triggers: write a rooibos spec; *.spec.bs; test annotations; rooibos assertions; test doubles and mocks; parameterized tests; spec silently not running
+when-not-to-use: Do not use for UI flows against a running app (use writing-e2e-flows), project configuration (use setting-up-brighttest), or diagnosing a red run (use debugging-failing-tests).
 license: MIT
 metadata:
   source: brighttest
