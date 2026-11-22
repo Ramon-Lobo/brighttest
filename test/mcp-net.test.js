@@ -1,5 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import http from 'node:http'
+import fs from 'node:fs'
+import path from 'node:path'
 import { createRequire } from 'node:module'
 import { bootStub, startMcp, payload, cleanupMcp, tmpdir } from './fixtures/mcp-harness.js'
 
@@ -13,9 +15,9 @@ afterEach(async () => { await cleanupMcp(); for (const s of servers.splice(0)) s
 
 const isErr = (res) => res.result.isError === true
 
-async function ready() {
+async function ready(opts = {}) {
   const { stub, a } = await bootStub('healthy')
-  const c = startMcp({ a })
+  const c = startMcp({ a, ...opts })
   await c.initialize()
   const proxy = c.server.session.net().proxy
   const srv = http.createServer((req, res) => proxy.handle(req, res, 'http://api.example.test' + req.url))
@@ -92,5 +94,60 @@ describe('MCP net tools', () => {
     expect(s.net().proxy.ruleSet).toBeTruthy()
     await c.close()
     expect(s._net).toBeNull()
+  })
+
+  it('both tool descriptions say the tools are not connected to live traffic', async () => {
+    const { TOOLS } = require('../lib/mcp/tools.js')
+    for (const n of ['net_requests', 'net_mock']) expect(TOOLS.find((t) => t.name === n).description).toContain('no hub mounted')
+  })
+
+  it('a URL glob with many wildcards is refused at the boundary, and a hostile pattern is cheap to match', async () => {
+    const { c, hit } = await ready()
+    const bad = '*a'.repeat(10) + 'b'
+    for (const [n, args] of [['net_requests', { url: bad }], ['net_mock', { match: { url: bad }, respond: { status: 200 } }]]) {
+      const r = await c.tool(n, args)
+      expect(payload(r).code, n).toBe('NET_PATTERN_TOO_COMPLEX')
+    }
+    const long = await c.tool('net_requests', { url: 'a'.repeat(300) })
+    expect(long.error && long.error.code).toBe(-32602)
+    // the matcher itself is linear: k=10 stars against a long non-matching text finishes at once
+    const { compileUrlPattern } = require('../lib/instrument/net-rules.js')
+    const m = compileUrlPattern('http://x.test/' + '*a'.repeat(10) + 'b')
+    const t0 = Date.now()
+    expect(m('http://x.test/' + 'a'.repeat(5000))).toBe(false)
+    expect(Date.now() - t0).toBeLessThan(100)
+    await hit('/p')
+  })
+
+  it('uses the project instrument.net.redact config and strips userinfo from listed URLs', async () => {
+    const cwd = tmpdir('bt-mcp-proj-')
+    fs.writeFileSync(path.join(cwd, 'brighttest.json'), JSON.stringify({ instrument: { net: { redact: { query: ['sid'], headers: ['x-device-code'] } } } }))
+    const { stub, a } = await bootStub('healthy')
+    const c = startMcp({ a, cwd })
+    await c.initialize()
+    const proxy = c.server.session.net().proxy
+    const srv = http.createServer((req, res) => proxy.handle(req, res, 'http://bob:hunter2@api.example.test' + req.url))
+    await new Promise((r) => srv.listen(0, '127.0.0.1', r)); servers.push(srv)
+    await c.tool('net_mock', { match: { url: '**/x' }, respond: { status: 200 } })
+    await new Promise((resolve) => http.get({ host: '127.0.0.1', port: srv.address().port, path: '/x?sid=SID-VALUE&p=1', headers: { 'x-device-code': 'DEV-CODE' } }, (r) => { r.resume(); r.on('end', resolve) }))
+    const res = await c.tool('net_requests')
+    const all = JSON.stringify(res)
+    expect(payload(res).count).toBe(1)
+    expect(all).not.toContain('SID-VALUE')
+    expect(all).not.toContain('DEV-CODE')
+    expect(all).not.toContain('hunter2')
+    expect(all).not.toContain('bob')
+    expect(payload(res).requests[0].url).toContain('api.example.test/x')
+  })
+
+  it('caps net_requests output bytes and net_mock rules per session, and checks header values', async () => {
+    const { c, hit } = await ready({ limits: { maxNetBytes: 400, maxNetRules: 2 } })
+    expect(isErr(await c.tool('net_mock', { match: { url: '**/a' }, respond: { status: 200 } }))).toBe(false)
+    expect(isErr(await c.tool('net_mock', { match: { url: '**/b' }, respond: { status: 200 } }))).toBe(false)
+    expect(payload(await c.tool('net_mock', { match: { url: '**/c' }, respond: { status: 200 } })).code).toBe('NET_RULE_BUDGET_EXHAUSTED')
+    for (let i = 0; i < 6; i++) await hit('/a')
+    expect(payload(await c.tool('net_requests')).code).toBe('NET_OUTPUT_TOO_LARGE')
+    const bad = await c.tool('net_mock', { match: { url: '**/h' }, respond: { status: 200, headers: { 'x-a': 5 } } })
+    expect(bad.error && bad.error.code).toBe(-32602)
   })
 })

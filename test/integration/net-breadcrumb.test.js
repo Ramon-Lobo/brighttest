@@ -44,6 +44,13 @@ describe('observe-only breadcrumbs (headless)', () => {
     expect(crumbs.join('')).not.toContain('SECRET')
   }, 40000)
 
+  it('drops userinfo from the authority and keeps path segments as they are', async () => {
+    const lines = await run('userinfo', { net: { observe: true } }, ['"https://bob:hunter2@api.example.test/v1/a@b?x=1"', '"http://tok@api.example.test?k=v"', '"https://api.example.test:8443/p"'])
+    const crumbs = lines.filter((l) => l.startsWith('[bt:net]'))
+    expect(crumbs).toEqual(['[bt:net] url=https://api.example.test/v1/a@b?', '[bt:net] url=http://api.example.test?', '[bt:net] url=https://api.example.test:8443/p'])
+    expect(crumbs.join('')).not.toMatch(/bob|hunter2|tok@/)
+  }, 40000)
+
   it('prints nothing when observe is not configured', async () => {
     const lines = await run('off', {}, ['"https://api.example.test/v1/home"'])
     expect(lines.some((l) => l.startsWith('[bt:net]'))).toBe(false)

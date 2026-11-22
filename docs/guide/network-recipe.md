@@ -28,14 +28,15 @@ An agent can add a rule without a file through the MCP tool `net_mock` (see the 
   headers with credentials redacted. Filter by `method`, `url` glob or `status`.
 - No proxy path available (a backend that cannot go through the hub): build with observe-only mode. Set
   `instrument.net.observe: true` in your brighttest config. The build then never contacts the hub and never rewrites a
-  URL. It prints one line per HTTP(S) request to the 8085 debug console:
+  URL. It prints one line per HTTP(S) URL the app sets on a transfer (one line per URL set, not per completed
+  request) to the 8085 debug console:
 
   ```text
   [bt:net] url=https://api.example.test/v1/home?
   ```
 
-  The query string and fragment are dropped (a trailing `?` says a query was present), because they often carry
-  tokens. The line has no method or status; it only tells you that the request happened. Read it through
+  The query string, the fragment and any `user:password@` in the authority are dropped (a trailing `?` says a query
+  was present), because they often carry secrets. Path segments are printed as they are, so do not put secrets in a path. The line has no method or status; it only tells you that the request happened. Read it through
   brighttest's log capture or any client on port 8085.
 
 ## 3. Make it fail

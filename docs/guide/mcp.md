@@ -40,6 +40,11 @@ The MCP session's net proxy has no hub mounted, so live app traffic does not rea
 They are only exercised through the proxy path (tests and stubs), not against a running app on a device. Both take
 the device lease per call, like `press`. See the [network recipe](./network-recipe) for the manual alternatives,
 including the observe-only `[bt:net]` breadcrumbs (`instrument.net.observe: true`).
+
+Both tools mask headers and query values with the defaults plus your `instrument.net.redact` config, and drop
+`user:password@` from URLs. Limits: URL globs are at most 256 characters with at most 8 `*` (`NET_PATTERN_TOO_COMPLEX`),
+`net_requests` output is capped at 128 KB (`NET_OUTPUT_TOO_LARGE`, narrow the filters), and a session accepts at most 100
+`net_mock` rules (`NET_RULE_BUDGET_EXHAUSTED`). `respond.headers` values must be strings.
 :::
 
 Selectors use the same keys as flows: `id`, `subtype`, `text`, `textContains`, `uri`, `visible`, `focusable`,

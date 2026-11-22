@@ -200,6 +200,18 @@ usual way. At the end of the run the failing requests are printed, up to 20, and
 Both flags apply to the headless lanes only; with `--device` or `--cross-check` they exit 2
 (`--net-record / --net-unmatched apply to the headless lanes only ...`).
 
+### `instrument.net.observe`
+
+```json
+{ "instrument": { "net": { "observe": true } } }
+```
+
+Observe-only mode for builds whose traffic cannot go through the hub. The instrumented build never contacts the hub and
+never rewrites a URL; it prints one line per URL set on a transfer to the 8085 console:
+`[bt:net] url=https://api.example.test/v1/home?`. The query, fragment and `user:password@` are dropped (a trailing `?`
+marks a query); path segments are printed as they are. Mocks, faults and fixtures do nothing in such a build. Any value
+other than `true` leaves the mode off. See the [network recipe](./network-recipe).
+
 ### `instrument.net.fixtures`
 
 ```json
