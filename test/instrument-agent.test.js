@@ -11,7 +11,7 @@ const require = createRequire(import.meta.url)
 const { ProgramBuilder } = require('brighterscript')
 const pluginPath = path.resolve(__dirname, '../lib/instrument/plugin.js')
 const createPlugin = require(pluginPath)
-const brsCli = path.resolve(__dirname, '../node_modules/.bin/brs-cli')
+const brsCli = path.resolve(__dirname, '../node_modules/@ramonlobo/brs-node/bin/brs.cli.js')
 const RT = path.resolve(__dirname, '../lib/instrument/runtime')
 const CORE = fs.readFileSync(path.join(RT, 'source/bt/BT_core.brs'), 'utf8').split('\n').filter((l) => !l.startsWith('#')).join('\n')
 

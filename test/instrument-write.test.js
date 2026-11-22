@@ -11,7 +11,7 @@ import { createRequire } from 'node:module'
 // and a real Scene are not exercised here (scene lane / device: see the report).
 const require = createRequire(import.meta.url)
 const { startHub } = require('../lib/instrument/hub.js')
-const brsCli = path.resolve(__dirname, '../node_modules/.bin/brs-cli')
+const brsCli = path.resolve(__dirname, '../node_modules/@ramonlobo/brs-node/bin/brs.cli.js')
 const SRC = path.resolve(__dirname, '../lib/instrument/runtime/source/bt')
 const strip = (f) => fs.readFileSync(path.join(SRC, f), 'utf8').split('\n').filter((l) => !l.startsWith('#')).join('\n')
 const RUNTIME = `${strip('BT_core.brs')}\n${strip('BT_write.brs')}`

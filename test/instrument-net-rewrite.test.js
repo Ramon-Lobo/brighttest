@@ -16,7 +16,7 @@ const createPlugin = require(pluginPath)
 const rewriteNet = require('../lib/instrument/rewrite-net.js')
 const { startHub, localLease } = require('../lib/instrument/hub.js')
 const forceTranspile = path.resolve(__dirname, 'fixtures/instrument-plugin/force-transpile.js')
-const brsCli = path.resolve(__dirname, '../node_modules/.bin/brs-cli')
+const brsCli = path.resolve(__dirname, '../node_modules/@ramonlobo/brs-node/bin/brs.cli.js')
 const NET_BRS = path.resolve(__dirname, '../lib/instrument/runtime/source/bt/BT_net.brs')
 
 let tmp

@@ -162,7 +162,7 @@ describe('templates compile with brighterscript', () => {
 
 describe('BTStore pure mode (brs-cli)', () => {
   it('reduces actions without SceneGraph', () => {
-    const brsCli = path.join(root, 'node_modules', '.bin', 'brs-cli')
+    const brsCli = path.join(root, 'node_modules', '@ramonlobo', 'brs-node', 'bin', 'brs.cli.js')
     const d = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-gf-pure-'))
     try {
       const store = fs.readFileSync(path.join(root, 'lib', 'instrument', 'greenfield', 'BTStore.brs'), 'utf8')
