@@ -1,14 +1,5 @@
 #if BT_AGENT
 ' brighttest instrument runtime: state serializer (STA-S-T1, app-state-devtools.md 4.6).
-' Pure functions: they take the nodes and caps as arguments and never touch `m`, so the same code runs headless (brs-cli)
-' and on a device. Output is deterministic (keys sorted) and bounded:
-'   - containers deeper than caps.depth become "$truncated:depth"; arrays keep caps.arrayItems items;
-'     strings keep caps.stringBytes characters (the JSON output is ASCII, so characters = bytes after FormatJson);
-'   - nodes become {"$node": id, "subtype": type}; functions and other objects become "$type:<name>";
-'   - keys that look secret (token, password, ...) and configured redact paths become "<redacted:key>";
-'   - the whole document is cut to maxBytes by replacing the largest top-level entries with "$truncated:bytes".
-' Every cut is recorded in the truncated list as "<path>:<kind>" (kind depth, items, string, bytes), at most 200 entries.
-' Read-only: nothing here writes a field, the registry or a node.
 
 function BT_capsDefault() as object
     return { depth: 6, arrayItems: 50, stringBytes: 2048 }

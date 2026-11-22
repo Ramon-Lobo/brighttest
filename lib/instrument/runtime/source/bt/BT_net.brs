@@ -1,15 +1,5 @@
 #if BT_AGENT
 ' brighttest instrument runtime: network URL rewrite (NET-N-T2, ADR 0017 D5).
-' BT_url(u) wraps an http(s) URL as <hub netBase><original> once a hub session is live, and is the identity function in
-' every other case (non-string, pkg:/ tmp:/ file:/ and other schemes, no hub, URL already on the hub).
-' BT_unurl(u) strips the hub prefix again so app code that compares getUrl() keeps working.
-' This file lives under source/bt/ (never rewritten), so the SetUrl calls below talk to the real roUrlTransfer.
-'
-' The first call per thread does one bounded hello (at most 1.5 s). roUrlTransfer has no total timeout on a device
-' [DV], so the hello is asynchronous, sets SetMinimumTransferRate and runs its own timer that calls AsyncCancel.
-' A failed hello is cached as "no hub" for 30 s, then retried; a successful one is cached for the thread's lifetime.
-' The cache is per thread (GetGlobalAA()), so each Task does its own hello. The hub host comes from BT_config().hub.host;
-' "auto" means the build did not bake a host, so the build stays inactive (identity).
 
 function BT_netIsStr(v as dynamic) as boolean
     t = type(v)

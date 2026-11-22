@@ -1,17 +1,5 @@
 #if BT_AGENT
 ' brighttest instrument runtime: agent write path (STA-S-T6, app-state-devtools.md 4.4 and 4.6).
-' Two halves share this file. The apply half (BT_wApply, BT_wHandle) runs on the render thread; the transport half
-' (BT_wHello, BT_wPollStart, BT_wPostEvents, BT_wParsePoll) runs in BT_AgentTask. Neither half touches `m`: callers pass
-' a context { global, scene, cfg, state } so the same code runs headless (brs-cli) and on a device.
-'
-' Allow-list (design D8): ping, get, set, merge, snapshot, restore, registry.read, registry.write, callFunc, subscribe.
-' dispatch and focus are allowed hub-side but answer "not supported" until STA-S-T10. Anything else answers
-' "op not allowed". Writes are type-checked (a string into an integer field is refused, the app keeps running), never go
-' below a node reference, and registry writes are limited to the configured registrySections and flushed. There is no op
-' for the file system and none that deletes registry data. callFunc runs only names listed in the config's callFuncAllow.
-' Payloads over 64 KB (command args, results) answer a typed STATE_TOO_LARGE error and are never truncated.
-' Every ack is { v, kind:"cmd.ack", session, data: { id, seq, phase, ok, error?, result? } } with phase received, applied
-' or reflected; errors read "<CODE>: <message>".
 
 function BT_wMaxBytes() as integer
     return 65536
@@ -114,7 +102,7 @@ function BT_wInList(list as object, name as dynamic) as boolean
     return false
 end function
 
-' ---- layer roots -----------------------------------------------------------------------------------------------------
+' ---- layer roots
 
 function BT_wNodeById(ctx as object, sel as dynamic) as dynamic
     if BT_wKind(sel) <> "object" then return invalid
@@ -148,7 +136,7 @@ function BT_wRoot(args as object, ctx as object) as object
     return BT_wErr("BAD_LAYER", "layer must be global, scene, node, m or registry")
 end function
 
-' ---- m layer (STA-S-T9): the node's BT_op runs in the component scope; no BT_op answers M_NOT_AVAILABLE ----------------
+' ---- m layer (STA-S-T9): the node's BT_op runs in the component scope; no BT_op answers M_NOT_AVAILABLE
 
 function BT_wMCall(n as object, req as object) as object
     r = n.callFunc("BT_op", req)
@@ -164,7 +152,7 @@ function BT_wMGet(n as object, segs as object, args as object, caps as object, r
     return BT_wGetDone(BT_serialize(r.value, caps, "m." + args.path, 0, trunc, redact), trunc)
 end function
 
-' ---- registry --------------------------------------------------------------------------------------------------------
+' ---- registry
 
 function BT_wRegRead(ctx as object, section as dynamic, key as dynamic) as object
     if not BT_wIsStr(section) or not BT_wIsStr(key) or section = "" or key = "" then return BT_wErr("BAD_COMMAND", "section and key must be non-empty strings")
@@ -190,7 +178,7 @@ function BT_wRegWrite(ctx as object, section as dynamic, key as dynamic, value a
     return { ok: true, result: { section: section, key: key, bytes: Len(text) } }
 end function
 
-' ---- get -------------------------------------------------------------------------------------------------------------
+' ---- get
 
 function BT_wGet(args as object, ctx as object) as object
     caps = BT_capsFrom(ctx.cfg)
@@ -231,7 +219,7 @@ function BT_wGetDone(value as dynamic, trunc as object) as object
     return { ok: true, result: { found: true, value: value, truncated: trunc } }
 end function
 
-' ---- set and merge ---------------------------------------------------------------------------------------------------
+' ---- set and merge
 
 ' Set `value` at segs (non-empty) under the node field segs[0]. Returns { ok } or an error. A missing leaf is created
 ' inside an object; a missing top-level field is created on the global node only.
@@ -305,11 +293,7 @@ function BT_wSetPathX(root as object, segs as object, value as dynamic, dry as b
     return { ok: true }
 end function
 
-' `set` with `ops: [{ path, value }, ...]` is one command with one ack. All-or-nothing on validation (design D6: validated
-' as a whole): every op's path, value type and node reference is checked against the current state first, and if any op
-' fails nothing is applied and the error names the op as ops[N] (0-based). The checks cannot see changes an earlier op of
-' the same batch makes (for example op 0 sets `a` to a number and op 1 writes `a.b`); if such an op fails while applying,
-' the ops before it stay applied (no rollback, as in D6) and the error says how many were.
+' set with ops: all-or-nothing validation (README).
 function BT_wSetBatch(args as object, ctx as object) as object
     ops = args.ops
     if BT_wKind(ops) <> "array" or ops.count() = 0 then return BT_wErr("BAD_COMMAND", "ops must be a non-empty list of { path, value }")
@@ -377,7 +361,7 @@ function BT_wMerge(args as object, ctx as object) as object
     return { ok: true, result: { merged: n } }
 end function
 
-' ---- snapshot and restore --------------------------------------------------------------------------------------------
+' ---- snapshot and restore
 
 function BT_wSnapshot(args as object, ctx as object) as object
     trunc = []
@@ -507,7 +491,7 @@ function BT_wRestore(args as object, ctx as object) as object
     return { ok: true, result: { restored: restored, skipped: skipped, added: added, bestEffort: true } }
 end function
 
-' ---- callFunc --------------------------------------------------------------------------------------------------------
+' ---- callFunc
 
 function BT_wCallFunc(args as object, ctx as object) as object
     fn = args.fn
@@ -528,7 +512,7 @@ function BT_wCallFunc(args as object, ctx as object) as object
     return { ok: true, result: { value: BT_serialize(out, BT_capsFrom(ctx.cfg), "callFunc", 0, trunc, invalid) } }
 end function
 
-' ---- dispatch --------------------------------------------------------------------------------------------------------
+' ---- dispatch
 
 ' Apply one command. Returns { ok, result?, error? }. Never raises: a failure inside an op becomes an error ack.
 function BT_wApply(cmd as dynamic, ctx as object) as object
@@ -577,7 +561,7 @@ function BT_wApply(cmd as dynamic, ctx as object) as object
     return res
 end function
 
-' ---- acks ------------------------------------------------------------------------------------------------------------
+' ---- acks
 
 function BT_wAck(cmd as object, session as string, phase as string, res as dynamic) as string
     data = { id: cmd.id, seq: cmd.seq, phase: phase, ok: true }
@@ -599,17 +583,7 @@ function BT_wHandle(cmd as object, ctx as object, session as string) as object
     return { acks: acks, ok: res.ok }
 end function
 
-' ---- ECP /input mailbox receiver (STA-S-T13) ---------------------------------------------------------------------------
-' A command too long for one /input request arrives as chunks: query keys bt (command id), tk (the per-build hub token),
-' s (0-based seq), n (total chunks) and d (a slice of the command's JSON text). State `st` is { pending: {}, done: [] }
-' (see BT_inputNew). Rules:
-'  - A chunk whose tk differs from the build token (constant-time compare) is dropped silently: no state, no ack.
-'  - A command is returned only once every chunk 0..n-1 is present, joined in seq order; a partial one is never returned.
-'  - A single-chunk command (n=1) completes at once and takes no pending slot.
-'  - A repeated chunk is ignored (the first data wins); a command id that already completed (last 32 kept) is ignored;
-'    n changing mid-sequence, s >= n and n above BT_inputMaxChunks are ignored.
-'  - A sequence is dropped by BT_inputSweep once BT_inputTtlMs passed since its last accepted chunk (sliding window).
-'  - At most BT_inputMaxPending sequences are kept; a new one evicts the oldest.
+' ---- ECP /input mailbox receiver (STA-S-T13)
 
 function BT_inputTtlMs() as integer
     return 10000
@@ -755,7 +729,7 @@ function BT_wQueueAcks(queue as object, lines as object, live as boolean, cap as
     return queue
 end function
 
-' ---- cadence ---------------------------------------------------------------------------------------------------------
+' ---- cadence
 
 ' Sampler period: the configured interval (500 ms by default) while a hub session is live and a client subscribed, or
 ' whenever there is no hub session (ECP readers need the fresh Label); ten times that (5 s) while a live hub session has
@@ -773,7 +747,7 @@ function BT_wClampEvent(cfg as dynamic, docBytes as integer, session as string) 
     return FormatJson({ v: 1, kind: "agent.rate", session: session, data: { docBytes: docBytes, intervalMs: BT_pubIntervalMs(cfg), clampedMs: 1000 } })
 end function
 
-' ---- transport (BT_AgentTask) ----------------------------------------------------------------------------------------
+' ---- transport (BT_AgentTask)
 
 function BT_wOrigin(cfg as dynamic) as string
     if type(cfg) <> "roAssociativeArray" then return ""

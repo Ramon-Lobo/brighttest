@@ -97,7 +97,7 @@ describe('real agent snapshot ack (headless, fork engine)', () => {
     expect(got.stored).toEqual(layers)
   })
 
-  // SNAP-ACK-C54 (decided): BT_wSnapshot (BT_write.brs:359) does `layers.delete("focus")` on purpose. Focus is not
+  // SNAP-ACK-C54 (decided): BT_wSnapshot (BT_write.brs, BT_wSnapshot) does `layers.delete("focus")` on purpose. Focus is not
   // restorable and the ack layers must be restorable, so the ack carries global and scene (plus node/registry when
   // asked) and never focus, although the published Label (BT_layers) does include it.
   it('SNAP-ACK-C54: the ack layers have no focus layer (restorable layers only)', () => {
