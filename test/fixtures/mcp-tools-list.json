@@ -149,6 +149,107 @@
       "name": "navigate_to"
     },
     {
+      "description": "Add a mock for matching requests: answer them with the given status and JSON or text body instead of the origin. First match wins, newest rule first. The mock lives until the MCP session ends; there is no way to make it permanent.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "match": {
+            "additionalProperties": false,
+            "description": "Which requests to answer",
+            "properties": {
+              "method": {
+                "description": "HTTP method, e.g. GET (any when omitted)",
+                "type": "string"
+              },
+              "url": {
+                "description": "URL glob, e.g. **/catalog",
+                "maxLength": 512,
+                "type": "string"
+              }
+            },
+            "required": [
+              "url"
+            ],
+            "type": "object"
+          },
+          "respond": {
+            "additionalProperties": false,
+            "description": "The canned response",
+            "properties": {
+              "body": {
+                "description": "Text body, when json is not given",
+                "maxLength": 65536,
+                "type": "string"
+              },
+              "delayMs": {
+                "description": "Delay before answering",
+                "maximum": 10000,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "headers": {
+                "description": "Response headers",
+                "type": "object"
+              },
+              "json": {
+                "description": "JSON body (any JSON value)"
+              },
+              "status": {
+                "description": "Status code, default 200",
+                "maximum": 599,
+                "minimum": 100,
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          },
+          "times": {
+            "description": "Stop matching after this many hits",
+            "maximum": 1000,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "match",
+          "respond"
+        ],
+        "type": "object"
+      },
+      "name": "net_mock"
+    },
+    {
+      "description": "List the HTTP requests this session's net proxy has seen (newest last): method, url, status, duration, source and whether a mock answered it (mocked). Auth headers, tokens and sensitive query values are redacted. Optional filters: method, url glob, status. Output is capped by limit.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "limit": {
+            "description": "Entries to return (the newest), default 100, at most 500",
+            "maximum": 500,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "method": {
+            "description": "HTTP method filter, e.g. GET",
+            "type": "string"
+          },
+          "status": {
+            "description": "Response status filter",
+            "maximum": 599,
+            "minimum": 100,
+            "type": "integer"
+          },
+          "url": {
+            "description": "URL glob filter, e.g. **/catalog",
+            "maxLength": 512,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "net_requests"
+    },
+    {
       "description": "Press a remote key on the device, one or more times, spaced by the ECP queue gap. Keys are the Roku remote key names (Up, Down, Left, Right, Select, Back, Home, ...) or Lit_<char> for one literal character. The session has a press cap.",
       "inputSchema": {
         "additionalProperties": false,

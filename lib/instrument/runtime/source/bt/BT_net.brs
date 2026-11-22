@@ -77,8 +77,35 @@ function BT_netBase() as string
     return st.base
 end function
 
+' Observe-only breadcrumb (NET-N-T14), the one place the line format lives: "[bt:net] url=<url without query or fragment>".
+' The query and fragment are dropped (they may carry tokens); a "?" marks that a query was present.
+function BT_netCrumb(u as string) as string
+    s = u
+    i = Instr(1, s, "#")
+    if i > 0 then s = Left(s, i - 1)
+    q = ""
+    i = Instr(1, s, "?")
+    if i > 0 then
+        s = Left(s, i - 1)
+        q = "?"
+    end if
+    return "[bt:net] url=" + s + q
+end function
+
+' True when the build was made with instrument.net.observe: BT_url then only prints one breadcrumb per call to 8085 and
+' never contacts the hub or rewrites.
+function BT_netObserve() as boolean
+    cfg = BT_config()
+    if type(cfg) <> "roAssociativeArray" then return false
+    return cfg.netObserve = true
+end function
+
 function BT_url(u as dynamic) as dynamic
     if not BT_netIsHttp(u) then return u
+    if BT_netObserve() then
+        print BT_netCrumb(u)
+        return u
+    end if
     base = BT_netBase()
     if base = "" then return u
     if Left(u, Len(base)) = base then return u
