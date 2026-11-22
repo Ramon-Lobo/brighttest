@@ -147,7 +147,7 @@ describe('channel target selection (BUG-B1; device check pending DQ-1)', () => {
   it('stub error also covers loaded_textures and names the target title', async () => {
     const port = await transcriptConsole([], { stub: true });
     await expect(sgdebug.run('127.0.0.1', 'loaded_textures', { port, quietMs: 120, channel: 'Sample Channel' }))
-      .rejects.toThrow(/target "Sample Channel" is listed but not running/);
+      .rejects.toThrow(/target "Sample Channel" answered "Command not recognized"/);
   });
 
   it('index instability: swapped list order sends a different index and still works', async () => {
@@ -293,11 +293,11 @@ describe('console reply status (BUG-B1b)', () => {
     expect(r.status).toBe('not-implemented');
     expect(r.fonts.length).toBeGreaterThanOrEqual(1);
     expect(r.fonts[0]).toMatchObject({ family: 'Roku UI Regular', size: 34, file: '<SYSTEM FONT>' });
-    expect(r.fonts[0].line).toContain('Roku UI Regular-34--');
+    expect(r.fonts[0].line).toBe('Roku UI Regular-34--                  <SYSTEM FONT>');
   });
 
   it('needs-scene-graph: loaded_textures on target main', async () => {
-    const r = await statusOf('loaded_textures', 'loaded_textures only works when a Scene Graph screen is displayed.'.replace('loaded_textures ', 'Command '));
+    const r = await statusOf('loaded_textures', RECORDED['loaded_textures (target main)']);
     expect(r.status).toBe('needs-scene-graph');
     expect(r.reason).toBe(sgdebug.STATUS.needsSceneGraph.reason);
   });
@@ -322,5 +322,44 @@ describe('console reply status (BUG-B1b)', () => {
     const err = await sgdebug.run('127.0.0.1', 'sgperf_report', { port, quietMs: 120, channel: 'Sample Channel' }).catch((e) => e);
     expect(err.status).toBe('stub-target');
     expect(err.reason).toBe(sgdebug.STATUS.stubTarget.reason);
+  });
+
+  it('needs-dev-channel: the recorded untargeted loaded_textures reply is not ok', async () => {
+    const r = await statusOf('loaded_textures', RECORDED['loaded_textures (no developer channel)']);
+    expect(r.status).toBe('needs-dev-channel');
+    expect(r.reason).toContain('can only be used while a developer channel is running');
+  });
+
+  it('not-recognized: Command not recognized without a target selection', async () => {
+    const r = await statusOf('sgperf_report', RECORDED['sgperf report (untargeted stub)']);
+    expect(r.status).toBe('not-recognized');
+  });
+
+  it('a non-empty unrecognised reply to a normal-empty command is unknown', async () => {
+    expect((await statusOf('sgperf_start', 'something unexpected')).status).toBe('unknown');
+  });
+
+  it('a command with no parser never claims "reply parsed"', async () => {
+    const r = await statusOf('plugins', 'some plugin list');
+    expect(r.status).toBe('ok');
+    expect(r.reason).not.toBe(sgdebug.STATUS.ok.reason);
+  });
+
+  it('unknown fallback: unparsable chanperf text', () => {
+    const r = sgdebug.classify('chanperf', 'garbage', sgdebug.parseChanperf('garbage'));
+    expect(r.status).toBe('unknown');
+  });
+
+  it('empty reason does not claim the command was accepted', () => {
+    expect(sgdebug.STATUS.empty.reason).toBe('no output came back before the quiet wait ended');
+  });
+
+  it('parseFonts stays fast on a 400 KB hostile line and caps rows', () => {
+    const t0 = Date.now();
+    const hostile = 'Family-Size-\n' + 'a-1-'.repeat(100000) + '\n';
+    expect(sgdebug.parseFonts(hostile)).toEqual([]);
+    const many = 'Family-Size-\n' + 'Roku UI Regular-34--   <SYSTEM FONT>\n'.repeat(5000);
+    expect(sgdebug.parseFonts(many).length).toBeLessThanOrEqual(500);
+    expect(Date.now() - t0).toBeLessThan(500);
   });
 });

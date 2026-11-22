@@ -60,3 +60,12 @@ logrendezvous: rendezvous logging is off
 Mem:        1493996      380544      795404       15716      318048     1063708
 Swap:        367352           0      367352
 >
+@@SEND loaded_textures (no developer channel)
+loaded_textures can only be used while a developer channel is running
+>
+@@SEND loaded_textures (target main)
+loaded_textures only works when a Scene Graph screen is displayed
+>
+@@SEND sgperf report (untargeted stub)
+Command not recognized
+>
