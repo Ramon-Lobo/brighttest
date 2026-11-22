@@ -38,9 +38,9 @@ describe('TP-MCP-03 tools/list schema snapshot', () => {
     if (process.env.BT_UPDATE_MCP_SNAPSHOT) fs.writeFileSync(SNAPSHOT, JSON.stringify(result, null, 2) + '\n')
     expect(result).toEqual(JSON.parse(fs.readFileSync(SNAPSHOT, 'utf8')))
   })
-  it('has exactly the v1 tool set, each with a description and a closed object schema', async () => {
+  it('has exactly the v1 tool set plus the net tools, each with a description and a closed object schema', async () => {
     const { tools } = await toolsList()
-    expect(tools.map((t) => t.name).sort()).toEqual(['app_state', 'device_doctor', 'inspect_tree', 'list_devices', 'navigate_to', 'press', 'run_flow', 'screenshot'])
+    expect(tools.map((t) => t.name).sort()).toEqual(['app_state', 'device_doctor', 'inspect_tree', 'list_devices', 'navigate_to', 'net_mock', 'net_requests', 'press', 'run_flow', 'screenshot'])
     for (const t of tools) {
       expect(t.description.length, t.name).toBeGreaterThan(20)
       expect(t.inputSchema.type, t.name).toBe('object')
@@ -51,7 +51,8 @@ describe('TP-MCP-03 tools/list schema snapshot', () => {
     const { tools } = await toolsList()
     const names = new Set()
     const walk = (s) => { if (s && typeof s === 'object') { for (const [k, v] of Object.entries(s.properties || {})) { names.add(k.toLowerCase()); walk(v) } } }
-    for (const t of tools) walk(t.inputSchema)
+    // net_* take a URL glob (a request filter, not a device or credential parameter): the only tools allowed a `url` key
+    for (const t of tools.filter((x) => !/^net_/.test(x.name))) walk(t.inputSchema)
     for (const bad of ['password', 'pass', 'pwd', 'token', 'secret', 'auth', 'host', 'ip', 'address', 'url']) expect(names.has(bad), bad).toBe(false)
   })
   it('only the declared handlers exist', () => {

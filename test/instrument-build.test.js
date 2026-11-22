@@ -330,3 +330,11 @@ describe('strict table', () => {
     for (const k of createPlugin.INFORMATIONAL_KINDS) expect(tripsStrict({ kind: k }), k).toBe(false)
   })
 })
+
+describe('NET-N-T14 renderBtConfig netObserve', () => {
+  it('emits netObserve only for instrument.net.observe === true', () => {
+    expect(renderBtConfig('0'.repeat(32), { net: { observe: true } })).toContain('        netObserve: true\n')
+    expect(renderBtConfig('0'.repeat(32), { net: true })).not.toContain('netObserve')
+    expect(renderBtConfig('0'.repeat(32), {})).not.toContain('netObserve')
+  })
+})
