@@ -22,6 +22,7 @@ brighttest studio --host <ip> [--password <pw>] [--port 8700] [--app dev] [--flo
 - The device comes from `--host` or `ROKU_HOST`; `--password` or `ROKU_PASSWORD` enables screenshots.
 - Port 8700 by default; if busy, the first free of 8701-8709 (`bin/cli.js`, `studio --help`).
 - The device needs developer mode and ECP network access set to Permissive.
+- With `deviceLease.pool` set and no `--host`, Studio binds one free pool member when it takes the lease, but the instrument hub (Network and State panels) is not started in pool mode: pass `--host <ip>` to use them.
 - Studio takes the device lease like every other device lane (`lib/studio/lease.js`; see
   `docs/guide/device-lease.md`). When Studio releases the device it stops any running profiling session or Perfetto capture
   (`lib/studio/server.js`).
