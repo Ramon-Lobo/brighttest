@@ -174,7 +174,8 @@ describe('foreground advisory (LSE-T15)', () => {
 
   for (const [label, hangs] of [['hanging', true], ['fast', false]]) {
     for (const delay of [0, 20]) {
-      it(`leaves nothing behind when SIGINT arrives ${delay} ms after holder.json appears (${label} fake)`, async () => {
+      // Windows has no catchable SIGINT: child.kill() is TerminateProcess, no exit hook runs
+      it.skipIf(process.platform === 'win32')(`leaves nothing behind when SIGINT arrives ${delay} ms after holder.json appears (${label} fake)`, async () => {
         hang = hangs
         const lz = path.join(dir, 'lz')
         const script = path.join(dir, 'child.cjs')
