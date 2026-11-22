@@ -573,6 +573,90 @@ function BT_wHandle(cmd as object, ctx as object, session as string) as object
     return { acks: acks, ok: res.ok }
 end function
 
+' ---- ECP /input mailbox receiver (STA-S-T13) ---------------------------------------------------------------------------
+' A command too long for one /input request arrives as chunks: query keys bt (command id), s (0-based seq), n (total
+' chunks) and d (a slice of the command's JSON text). State `st` is { pending: {}, done: [] } (see BT_inputNew). A command
+' is returned only once every chunk 0..n-1 is present, joined in seq order; a partial one is never returned. A repeated
+' chunk is ignored and a command id that already completed is ignored. Incomplete sequences are dropped by BT_inputSweep
+' after BT_inputTtlMs; at most BT_inputMaxPending sequences and BT_inputMaxChunks chunks per command are kept.
+
+function BT_inputTtlMs() as integer
+    return 10000
+end function
+
+function BT_inputMaxPending() as integer
+    return 8
+end function
+
+function BT_inputMaxChunks() as integer
+    return 64
+end function
+
+function BT_inputNew() as object
+    return { pending: {}, done: [] }
+end function
+
+' Drop sequences first seen more than ttlMs ago. Returns how many were dropped.
+function BT_inputSweep(st as object, nowMs as integer, ttlMs as integer) as integer
+    dropped = 0
+    for each k in st.pending.keys()
+        if nowMs - st.pending[k].t0 >= ttlMs then
+            st.pending.delete(k)
+            dropped = dropped + 1
+        end if
+    end for
+    return dropped
+end function
+
+' Feed one roInput event's info (an associative array). Returns the complete command text, or invalid.
+function BT_inputFeed(st as object, info as dynamic, nowMs as integer) as dynamic
+    if type(info) <> "roAssociativeArray" then return invalid
+    cid = info.bt
+    if not BT_wIsStr(cid) then return invalid
+    if cid = "" or Len(cid) > 32 then return invalid
+    if not BT_wIsStr(info.s) or not BT_wIsStr(info.n) or not BT_wIsStr(info.d) then return invalid
+    s = Val(info.s, 10)
+    n = Val(info.n, 10)
+    if n < 1 or n > BT_inputMaxChunks() or s < 0 or s >= n then return invalid
+    if info.s <> s.toStr().trim() or info.n <> n.toStr().trim() then return invalid
+    for each dn in st.done
+        if dn = cid then return invalid
+    end for
+    BT_inputSweep(st, nowMs, BT_inputTtlMs())
+    p = st.pending[cid]
+    if p = invalid then
+        if st.pending.count() >= BT_inputMaxPending() then return invalid
+        p = { n: n, parts: {}, got: 0, t0: nowMs }
+        st.pending[cid] = p
+    end if
+    if p.n <> n then return invalid
+    key = s.toStr().trim()
+    if p.parts.doesExist(key) then return invalid
+    p.parts[key] = info.d
+    p.got = p.got + 1
+    if p.got < p.n then return invalid
+    text = ""
+    for i = 0 to n - 1
+        text = text + p.parts[i.toStr().trim()]
+    end for
+    st.pending.delete(cid)
+    st.done.push(cid)
+    if st.done.count() > 32 then st.done.shift()
+    return text
+end function
+
+' Turn complete command text into a command AA the apply half accepts, or invalid when it is not a JSON object with an
+' op. A mailbox command has no hub seq: seq is 0 and an id is made from the chunk id when the sender gave none.
+function BT_inputCmd(text as dynamic) as dynamic
+    if not BT_wIsStr(text) then return invalid
+    cmd = ParseJson(text)
+    if type(cmd) <> "roAssociativeArray" then return invalid
+    if not BT_wIsStr(cmd.op) then return invalid
+    if cmd.id = invalid then cmd.id = "input"
+    cmd.seq = 0
+    return cmd
+end function
+
 ' ---- cadence ---------------------------------------------------------------------------------------------------------
 
 ' Sampler period: the configured interval (500 ms by default) while a hub session is live and a client subscribed, or

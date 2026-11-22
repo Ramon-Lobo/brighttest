@@ -6,6 +6,7 @@
         <field id="tick" type="integer" value="0" />
         <field id="session" type="string" value="" />
         <field id="cmds" type="string" value="" />
+        <field id="icmd" type="string" value="" />
         <field id="acks" type="string" value="" />
         <field id="subscribed" type="boolean" value="false" />
     </interface>
