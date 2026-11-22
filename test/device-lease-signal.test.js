@@ -15,7 +15,8 @@ const holders = (d) => { try { return fs.readdirSync(d, { recursive: true }).fil
 
 describe('signal between createExclusive and registerHeld', () => {
   for (const sig of ['SIGINT', 'SIGTERM']) {
-    it(`${sig} in that window leaves no holder.json and the child dies by the signal`, async () => {
+    // Windows has no catchable SIGINT/SIGTERM: child.kill() is TerminateProcess, no handler or exit hook runs
+    it.skipIf(process.platform === 'win32')(`${sig} in that window leaves no holder.json and the child dies by the signal`, async () => {
       const lz = path.join(dir, 'lz')
       const ready = path.join(dir, 'ready')
       const script = path.join(dir, 'child.cjs')

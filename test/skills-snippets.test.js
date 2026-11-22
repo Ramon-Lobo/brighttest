@@ -35,7 +35,8 @@ describe('skill snippets (AGT-06)', () => {
   })
 
   test('shell: syntax errors and unknown brighttest flags are caught; placeholders pass', () => {
-    expect(bad('sh', 'if then fi')[0]).toMatch(/shell syntax/)
+    // checkShell skips the bash -n pass on win32 (bash may be the WSL launcher); the flag checks below still run
+    if (process.platform !== 'win32') expect(bad('sh', 'if then fi')[0]).toMatch(/shell syntax/)
     expect(bad('sh', 'brighttest --no-such-flag')[0]).toMatch(/unknown CLI flag --no-such-flag/)
     expect(bad('sh', 'brighttest e2e run flows/<name>.e2e.yaml --host <ip> --timeout 5')).toEqual([])
     expect(bad('bash', 'brighttest device with --as "$X" -- npm run --silent foo')).toEqual([])
