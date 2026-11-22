@@ -1,0 +1,5 @@
+{
+  "rootDir": ".",
+  "sourceGlobs": ["manifest", "source/**/*", "!source/tests/**", "components/**/*"],
+  "stagingDir": ".brighttest"
+}
