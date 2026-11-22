@@ -92,7 +92,7 @@ export function startMcp({ a, cwd, limits, leaseDir, password = PASSWORD, env = 
 export const payload = (res) => JSON.parse(res.result.content.find((c) => c.type === 'text').text)
 
 export async function cleanupMcp() {
-  await Promise.all(clients.splice(0).map((c) => c.close().catch(() => {})))
-  await Promise.all(stubs.splice(0).map((s) => s.stop()))
+  // Stub first (drops sockets, so a stuck in-flight request ends at once), while the sessions drain.
+  await Promise.all([...stubs.splice(0).map((s) => s.stop()), ...clients.splice(0).map((c) => c.close().catch(() => {}))])
   for (const d of dirs.splice(0)) fs.rmSync(d, { recursive: true, force: true })
 }
