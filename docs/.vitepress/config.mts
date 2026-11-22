@@ -52,6 +52,7 @@ export default withMermaid({
         items: [
           { text: 'Quick start', link: '/guide/getting-started' },
           { text: 'CI integration', link: '/guide/ci' },
+          { text: 'Device shelf (CI)', link: '/guide/ci-device-shelf' },
           { text: 'Sharing a device (lease)', link: '/guide/device-lease' },
           { text: 'Instrumented builds', link: '/guide/instrument' },
           { text: 'roChannelStore fixtures', link: '/guide/store-fixtures' },
