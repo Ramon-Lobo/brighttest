@@ -64,6 +64,8 @@ copies named runtime files only.
     A failed hello is cached as "no hub" for 30 s, then retried; a successful one is cached for the thread's lifetime.
     The cache is per thread (GetGlobalAA()), so each Task does its own hello. The hub host comes from BT_config().hub.host;
     "auto" means the build did not bake a host, so the build stays inactive (identity).
+    CreateObject("roUrlTransfer") returns invalid on the render thread on some firmware [DV fw 16.0.4], so a BT_url call
+    from a Scene init before any Task has run gets a failed hello (identity, retried after 30 s) instead of a crash.
 
 ## `m` layer (btop/BT_mOp.brs)
 

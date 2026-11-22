@@ -31,6 +31,7 @@ function BT_netHello() as string
     origin = "http://" + host + ":" + port.toStr()
     mp = CreateObject("roMessagePort")
     x = CreateObject("roUrlTransfer")
+    if x = invalid then return ""
     x.SetMessagePort(mp)
     x.SetUrl(origin + "/bt/" + token + "/hello")
     x.SetMinimumTransferRate(1, 1)

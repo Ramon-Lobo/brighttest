@@ -324,6 +324,18 @@ describe('BT_url / BT_unurl identity rules (TP-NET-02, fork engine)', () => {
     fs.writeFileSync(f, brsProgram('127.0.0.1', hub.port, body).replace('tok0123456789abcdef', 'wrongtoken')); expect(await runBrs(f)).toContain('r:http://h.example/x')
   }, 40000)
 
+  it('does not crash and stays the identity when CreateObject("roUrlTransfer") returns invalid (render thread, fw 16.0.4)', async () => {
+    const f = path.join(tmp, 'invalid-xfer.brs')
+    const src = brsProgram('127.0.0.1', hub.port, '    print "r:" + BT_url("http://h.example/x")\n    print "r2:" + BT_url("http://h.example/y")')
+      .replace('CreateObject("roUrlTransfer")', 'invalid')
+    expect(src).not.toContain('CreateObject("roUrlTransfer")')
+    fs.writeFileSync(f, src)
+    const out = await runBrs(f)
+    expect(out).toContain('r:http://h.example/x')
+    expect(out).toContain('r2:http://h.example/y')
+    expect(out).not.toMatch(/Dot|Operator|Runtime Error/i)
+  }, 30000)
+
   // The fork engine's Wait(timeout) does not return while an async roUrlTransfer is pending against a server that never
   // answers (found in NET-N-T2), so the bounded-hello behavior on a silent hub cannot run headless. It is a device case
   // (TP-NET-20..31 lane). This pins the protocol the device needs: min transfer rate, own timer, AsyncCancel.
