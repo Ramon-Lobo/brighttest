@@ -1,0 +1,7 @@
+function refresh() as boolean
+  tier = "free"
+  u = m.global.user
+  if u <> invalid and u.tier <> invalid then tier = u.tier
+  m.top.label = "Tier: " + tier
+  return true
+end function

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="Badge" extends="Group">
+  <interface>
+    <field id="label" type="string" value="" />
+    <function name="refresh" />
+  </interface>
+  <children>
+    <Label id="tier" />
+  </children>
+</component>

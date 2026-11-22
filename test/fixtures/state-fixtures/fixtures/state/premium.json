@@ -1,0 +1,8 @@
+{
+  "v": 1,
+  "name": "premium",
+  "layers": {
+    "global": { "user": { "tier": "premium", "signedIn": true }, "region": "us" },
+    "scene": { "nav": { "screen": "HomeScreen", "detailsId": "" } }
+  }
+}
