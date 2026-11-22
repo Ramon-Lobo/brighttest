@@ -151,6 +151,7 @@ function BT_focusChain(scene as dynamic) as object
 end function
 
 ' Replaces top-level entries of every layer, largest first, until the document fits maxBytes.
+' The size is tracked by delta (entry -> 18 B marker, plus the new mark and its comma): one full FormatJson per cut was O(cuts x doc).
 function BT_fit(doc as object, maxBytes as integer) as string
     json = FormatJson(doc)
     if Len(json) <= maxBytes then return json
@@ -164,12 +165,16 @@ function BT_fit(doc as object, maxBytes as integer) as string
         end if
     end for
     sizes.sortBy("size", "r")
+    n = Len(json)
     for each s in sizes
-        if Len(json) <= maxBytes then exit for
+        if n <= maxBytes then exit for
+        t = doc.truncated.count()
         doc.snapshot.layers[s.layer][s.key] = "$truncated:bytes"
         BT_mark(doc.truncated, s.layer + "." + s.key, "bytes")
-        json = FormatJson(doc)
+        n = n + 18 - s.size
+        if doc.truncated.count() > t then n = n + Len(FormatJson(doc.truncated.peek())) + Sgn(t)
     end for
+    json = FormatJson(doc)
     if Len(json) > maxBytes then
         doc.snapshot = { layers: {} }
         doc.truncated = ["*:bytes"]
