@@ -194,7 +194,8 @@ key out and the agent uses its built-in default.
 - **`redact.paths`** is an array of strings. A value at a listed path is published as `<redacted:key>`, on top
   of the secret-looking keys that are always redacted. A path starts with the layer name (`global`, `scene`,
   `focus`, `registry`). `a.b.c` matches that path exactly and `a.b.*` matches everything below `a.b`. Matching
-  ignores case.
+  ignores case. An array element is addressed as `a.list[0]` or `a.list.0`: `a.list[1]` masks that element (as
+  `<redacted:1>`), and `a.list.*` masks every element.
 - **`publish.maxBytes`** is an integer, the size at which the agent cuts the published document (default 65536).
   The build accepts 1024 to 1048576.
 - **`publish.intervalMs`** is an integer, how often the agent republishes, in milliseconds (default 500). The

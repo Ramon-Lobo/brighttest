@@ -49,13 +49,13 @@ function BT_isSecretKey(key as string) as boolean
     return false
 end function
 
-' Pattern forms: "a.b.c" (exact) and "a.b.*" (everything below a.b). Case-insensitive.
+' Pattern forms: "a.b.c" (exact) and "a.b.*" (everything below a.b). Case-insensitive. "[i]" reads as ".i" on both sides.
 function BT_redactMatch(path as string, patterns as dynamic) as boolean
     if type(patterns) <> "roArray" then return false
-    p = LCase(path)
+    p = LCase(path).Replace("[", ".").Replace("]", "")
     for each pat in patterns
         if type(pat) = "String" or type(pat) = "roString" then
-            q = LCase(pat)
+            q = LCase(pat).Replace("[", ".").Replace("]", "")
             if Right(q, 2) = ".*" then
                 if Left(p, Len(q) - 1) = Left(q, Len(q) - 1) then return true
             else if p = q then
@@ -101,7 +101,8 @@ function BT_serialize(v as dynamic, caps as object, path as string, depth as int
                 BT_mark(trunc, path, "items")
                 exit for
             end if
-            out.push(BT_serialize(item, caps, path + "[" + i.toStr() + "]", depth + 1, trunc, redact))
+            ep = path + "[" + i.toStr() + "]"
+            if BT_redactMatch(ep, redact) then out.push("<redacted:" + i.toStr() + ">") else out.push(BT_serialize(item, caps, ep, depth + 1, trunc, redact))
             i = i + 1
         end for
         return out
@@ -197,11 +198,8 @@ function BT_registryRaw(cfg as dynamic) as dynamic
                         parsed = invalid
                         ' only values shaped like JSON containers are parsed: ParseJson logs the offending text on failure
                         if (type(raw) = "String" or type(raw) = "roString") and (Left(raw, 1) = "{" or Left(raw, 1) = "[") then parsed = ParseJson(raw)
-                        if parsed <> invalid then
-                            out[name][k] = parsed
-                        else
-                            out[name][k] = raw
-                        end if
+                        if parsed = invalid then parsed = raw
+                        out[name][k] = parsed
                     end for
                 end if
             end if
