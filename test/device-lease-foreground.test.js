@@ -126,11 +126,16 @@ describe('foreground advisory (LSE-T15)', () => {
 
   it('makes no ECP call when the acquire waited in the queue', async () => {
     await go({ foregroundCheck: false })
-    setTimeout(() => { alive = false }, 200) // the holder dies: the waiter reclaims, with no released event
-    const { warns } = await go({ pid: 3002, waitMs: 5000, pollMs: 50, settleMs: 0 })
+    setTimeout(() => { alive = false }, 200) // the holder dies: the waiter reclaims
+    // Hide the event log from the advisory, so the queued flag is the only possible reason for the skip.
+    const store = lease.createStore({ dir, env: {}, ...seam, hostname: 'h' })
+    store.readEvents = () => []
+    const { l, warns } = await go({ pid: 3002, waitMs: 5000, pollMs: 50, settleMs: 0, store })
+    expect(fs.readFileSync(path.join(dir, '127.0.0.1_p' + port, 'events.log'), 'utf8')).toMatch(/"queued":true/)
     await settle(300)
     expect(reqs).toEqual([])
     expect(warns).toEqual([])
+    l.release()
   })
 
   it('makes no ECP call when opted out by env', async () => {
@@ -255,6 +260,20 @@ describe('foreground advisory (LSE-T15)', () => {
       expect(Date.now() - t).toBeLessThan(900)
     })
   }
+
+  it('the advisory sockets are unref\'d: a script that never releases still exits fast', async () => {
+    hang = true
+    const script = path.join(dir, 'noRelease.cjs')
+    fs.writeFileSync(script, `
+      const lease = require(${JSON.stringify(path.resolve('lib/device-lease.js'))});
+      lease.acquire({ host: '127.0.0.1', port: ${port}, dir: ${JSON.stringify(path.join(dir, 'ln'))}, env: {}, waitMs: 0, timers: false, onWarn: () => {} });
+    `)
+    const t = Date.now()
+    const child = spawn(process.execPath, [script], { stdio: 'ignore' })
+    await new Promise((r) => child.on('exit', r))
+    expect(reqs).toEqual(['/query/active-app']) // the request did go out
+    expect(Date.now() - t).toBeLessThan(900)
+  })
 
   it('suppresses for reclaimed, forced and lost events, and ignores a literal null line', async () => {
     for (const ev of ['reclaimed', 'forced', 'lost']) {
