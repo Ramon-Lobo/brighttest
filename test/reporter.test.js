@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest'
+import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { palette, relLoc, lineSplitter, parseSummary, failureMessages, makeReporter } from '../lib/reporter.js'
 
 describe('palette', () => {
@@ -15,19 +17,25 @@ describe('palette', () => {
   })
 })
 
+// file:// URLs and the project root are built per platform (win32 resolves '/proj' against a drive); the
+// expected paths are compared with separators folded to '/'.
+const PROJ = path.resolve('/proj')
+const fileUrl = (...p) => pathToFileURL(path.resolve('/', ...p)).href
+const fwd = (s) => s.replace(/\\/g, '/')
+
 describe('relLoc', () => {
-  const cfg = { rootDir: '/proj' }
+  const cfg = { rootDir: PROJ }
 
   it('strips file:// and makes the path project-relative with its line', () => {
-    expect(relLoc(cfg, 'file:///proj/source/a.spec.bs:12')).toBe('source/a.spec.bs:12')
+    expect(fwd(relLoc(cfg, fileUrl('proj/source/a.spec.bs') + ':12'))).toBe('source/a.spec.bs:12')
   })
 
   it('falls back to the absolute path when outside rootDir', () => {
-    expect(relLoc(cfg, 'file:///other/b.spec.bs:3')).toBe('/other/b.spec.bs:3')
+    expect(fwd(relLoc(cfg, fileUrl('other/b.spec.bs') + ':3'))).toBe(fwd(path.resolve('/other/b.spec.bs')) + ':3')
   })
 
   it('returns the path without a suffix when there is no line number', () => {
-    expect(relLoc(cfg, 'file:///proj/source/a.spec.bs')).toBe('source/a.spec.bs')
+    expect(fwd(relLoc(cfg, fileUrl('proj/source/a.spec.bs')))).toBe('source/a.spec.bs')
   })
 })
 
@@ -116,16 +124,17 @@ describe('parseSummary', () => {
 
 describe('makeReporter', () => {
   it('accumulates pass/fail counts and cases as lines stream in', () => {
-    const cfg = { rootDir: '/proj' }
+    const cfg = { rootDir: PROJ }
     const { onLine, state } = makeReporter(cfg, false)
+    const spec = fileUrl('proj/source/math.spec.bs')
     const lines = [
       '> SUITE: math >>>>',
-      'Location: file:///proj/source/math.spec.bs:1',
+      'Location: ' + spec + ':1',
       '>>>>>> It: adds',
-      'Location: file:///proj/source/math.spec.bs:10',
+      'Location: ' + spec + ':10',
       '<<<< END It: adds (PASS)',
       '>>>>>> It: subtracts',
-      'Location: file:///proj/source/math.spec.bs:20',
+      'Location: ' + spec + ':20',
       '<<<< END It: subtracts (FAIL)',
     ]
     for (const l of lines) onLine(l)
@@ -133,7 +142,8 @@ describe('makeReporter', () => {
     expect(state.failed).toBe(1)
     expect(state.cases).toHaveLength(2)
     expect(state.cases[0]).toMatchObject({ suite: 'math', name: 'adds', ok: true })
-    expect(state.cases[1]).toMatchObject({ name: 'subtracts', ok: false, loc: 'source/math.spec.bs:20' })
+    expect(state.cases[1]).toMatchObject({ name: 'subtracts', ok: false })
+    expect(fwd(state.cases[1].loc)).toBe('source/math.spec.bs:20')
   })
 })
 
