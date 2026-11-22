@@ -100,7 +100,7 @@ describe('parseSkillsArgs', () => {
 
 describe('parseInitArgs', () => {
   it('defaults force and help off', () => {
-    expect(parseInitArgs([])).toEqual({ force: false, brownfield: false, help: false })
+    expect(parseInitArgs([])).toEqual({ force: false, brownfield: false, greenfield: false, help: false })
   })
 
   it('parses --force and --help', () => {

@@ -447,10 +447,11 @@ Options:
 
 // `brighttest init [--force]`
 function parseInitArgs(rest) {
-  const opts = { force: false, brownfield: false, help: false };
+  const opts = { force: false, brownfield: false, greenfield: false, help: false };
   for (const a of rest) {
     if (a === '--force' || a === '-f') opts.force = true;
     else if (a === '--brownfield') opts.brownfield = true;
+    else if (a === '--greenfield') opts.greenfield = true;
     else if (a === '--help' || a === '-h') opts.help = true;
   }
   return opts;
@@ -465,11 +466,14 @@ brighttest init — scaffold a project for testing
 Usage:
   brighttest init [--force]
   brighttest init --brownfield [--force]
+  brighttest init --greenfield [--force]
 
   --brownfield   For an existing app you will not edit: runs the instrument census, writes the "instrument" block
                  into brighttest.json (state.registrySections proposed from the registry sections the census finds),
                  adds .brighttest/ and *.bt-instrumented.zip to .gitignore, and does not add an example spec or an
                  npm test script. Existing brighttest.json settings are kept; --force replaces the instrument block.
+  --greenfield   For an app built with brighttest in mind: also copies BTStore.brs and BTHttp.brs (version-headed) into
+                 components/brighttest/ and adds BT_AGENT=false to bs_const in the manifest (existing consts kept).
 `;
 
 const SKILLS_HELP = `
