@@ -152,3 +152,16 @@ describe('Perfetto per-ESN state and auto-restart (PRF-01)', () => {
     expect(FakeWS.instances.length).toBe(1)
   })
 })
+
+describe('describeState', () => {
+  const { describeState } = require('../lib/studio/perfetto-state.js')
+  it('no record: says so, never off/disabled', () => {
+    for (const r of [null, undefined, {}]) expect(describeState(r)).toBe('no brighttest record; device state not queryable')
+  })
+  it('record: local HH:MM, no ESN, no state claims', () => {
+    const at = new Date(2026, 10, 22, 9, 5).getTime()
+    expect(describeState({ channels: ['dev'], enabledAt: at }, { now: at + 1000 })).toBe('enabled by brighttest at 09:05, device state not queryable')
+    expect(describeState({ channels: ['dev'], enabledAt: at }, { now: at + 25 * 3600 * 1000 })).toBe('enabled by brighttest at 2026-11-22 09:05, device state not queryable')
+    expect(describeState({ channels: ['dev'], enabledAt: at, esn: 'TESTESN0001' })).not.toMatch(/TESTESN|\b(off|disabled|stopped|not running)\b/i)
+  })
+})

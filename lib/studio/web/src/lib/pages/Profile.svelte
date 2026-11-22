@@ -285,7 +285,8 @@
         <span class="meta">
           {pf.supported === false ? `firmware ${pf.firmware} < 15.2 — not supported` : ''}
           {pf.tracing ? `tracing → ${pf.file} (${(pf.bytes / MB).toFixed(1)} MB)` : ''}
-          {pf.enabledChannels ? ` enabled: ${pf.enabledChannels.join(', ') || 'none'}` : ''}
+          {pf.enabledChannels ? ` channels: ${pf.enabledChannels.join(', ') || 'none'}` : ''}
+          {pf.brighttestRecord ? ` ${pf.brighttestRecord}` : ''}
         </span>
       {/if}
     </div>
