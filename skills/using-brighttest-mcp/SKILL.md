@@ -23,8 +23,9 @@ project `.env`, the device cache). **No tool takes a host, password or absolute 
 
 ## Tools
 
-Read-only, no lease: `list_devices`, `device_doctor`. Device tools, one lease per call: `inspect_tree`, `press`,
-`navigate_to`, `screenshot`, `app_state`, `run_flow`, `net_requests`, `net_mock`.
+Read-only, no lease: `list_devices`, `device_doctor`. Device tools, leased: `inspect_tree`, `press`,
+`navigate_to`, `screenshot`, `app_state`, `run_flow`, `net_requests`, `net_mock`. Outside a net window each call takes
+its own lease; the first `net_*` call opens a session lease that is not one per call (see Lease and ordering).
 
 | Tool | Parameters | Use it to |
 |---|---|---|
@@ -43,9 +44,10 @@ Read-only, no lease: `list_devices`, `device_doctor`. Device tools, one lease pe
 
 `net_requests` and `net_mock` take the device lease like the other device tools and refuse with `DEVICE_BUSY` when
 it is held. URL globs: at most 256 characters and 8 `*`. A session takes at most 100 mocks. A mock lives until the MCP session ends; it cannot be made permanent. Secrets are redacted in the output.
-**Limitation:** the MCP session's net proxy has no hub mounted, so live app traffic does not reach these tools yet;
-today they work on the proxy path only. Do not expect `net_requests` to show what a running app fetched, and do not
-expect `net_mock` to change it. To see requests without a proxy, build with `instrument.net.observe: true` (set in
+**Net window:** the first `net_*` call opens a net window: one session lease plus a session hub on the configured hub
+port (`instrument.hub.port`). The app sees live traffic only through this hub, so the build must be an `instrument build --net`
+build that points at the same host and port, and `BRIGHTTEST_HUB_TOKEN` must match in the MCP server's environment. `net_requests`
+shows the `hub` record while the window is open (`null` otherwise). Mocks and the request list last until the MCP session ends. To see requests without a proxy, build with `instrument.net.observe: true` (set in
 the brighttest config by the human): the app then prints one `[bt:net] url=...` line per request to the 8085
 console, with no rewrite. The query, fragment and `user:password@` are dropped; path segments are printed as they are.
 
@@ -57,7 +59,10 @@ picks the Nth match). No other keys are accepted.
 
 ## Lease and ordering
 
-Every device tool call takes its own device lease and releases it when the call ends (one call per lease).
+Outside a net window, every device tool call takes its own device lease and releases it when the call ends. The
+first `net_*` call opens a net window instead: one session lease (idle TTL up to 10 minutes, renewed by each use) and
+the LAN hub. Device calls re-enter that lease. It is released at session end, idle expiry or lease loss; after that
+each call is back to its own lease.
 Calls in one session run one at a time. If another brighttest session holds the device the call fails fast with
 `DEVICE_BUSY` and sends nothing; wait and retry, do not loop. Never try to bypass the lease. Presses are spaced
 by a short gap, so `press` with a `count` is slower than one call.
