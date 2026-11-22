@@ -101,6 +101,23 @@ describe('BT_mOp and the m layer (headless, fork engine)', () => {
       '    print "R5:" + FormatJson(BT_wMGet(fm, ["list", "1"], { path: "list.1" }, cp, ["m.list[0]", "M.CREDS.*"], []))',
       '    print "R6:" + FormatJson(BT_wMGet(fm, ["creds", "user"], { path: "creds.user" }, cp, ["M.CREDS.*"], []))',
       '    print "R7:" + FormatJson(BT_wMGet(fm, ["list", "0", "a"], { path: "list.0.a" }, cp, ["m.list[0]"], []))',
+      '    sc.addFields({ creds: { user: "u" }, list: [{ a: 1 }, 2], secretStore: { value: "v" } })',
+      '    g.addFields({ creds: { user: "u" }, list: [{ a: 1 }, 2], secretStore: { value: "v" } })',
+      '    for each ly in ["scene", "global"]',
+      '        c0 = BT_config() : c0.redact.paths = []',
+      '        c1 = BT_config() : c1.redact.paths = [ly + ".creds"]',
+      '        c2 = BT_config() : c2.redact.paths = [ly + ".list[0]"]',
+      '        c3 = BT_config() : c3.redact.paths = [ly + ".list.0"]',
+      '        c4 = BT_config() : c4.redact.paths = [ly.toStr() + ".LIST[0].*", "X.CREDS.*"]',
+      '        k = ly.Left(1).toStr()',
+      '        print "L1" + k + ":" + FormatJson(BT_wApply({ op: "get", args: { layer: ly, path: "secretStore.value" } }, { global: g, scene: sc, cfg: c0, state: {} }))',
+      '        print "L2" + k + ":" + FormatJson(BT_wApply({ op: "get", args: { layer: ly, path: "creds.user" } }, { global: g, scene: sc, cfg: c1, state: {} }))',
+      '        print "L3" + k + ":" + FormatJson(BT_wApply({ op: "get", args: { layer: ly, path: "list.0.a" } }, { global: g, scene: sc, cfg: c2, state: {} }))',
+      '        print "L4" + k + ":" + FormatJson(BT_wApply({ op: "get", args: { layer: ly, path: "list.0" } }, { global: g, scene: sc, cfg: c3, state: {} }))',
+      '        print "L5" + k + ":" + FormatJson(BT_wApply({ op: "get", args: { layer: ly, path: "list.1" } }, { global: g, scene: sc, cfg: c2, state: {} }))',
+      '        print "L6" + k + ":" + FormatJson(BT_wApply({ op: "get", args: { layer: ly, path: "list.0.a" } }, { global: g, scene: sc, cfg: c4, state: {} }))',
+      '        print "L7" + k + ":" + FormatJson(BT_wApply({ op: "get", args: { layer: ly, path: "creds.user" } }, { global: g, scene: sc, cfg: c0, state: {} }))',
+      '    end for',
       '    print "K1:" + FormatJson([BT_wClampStep("e", false, false), BT_wClampStep("e", false, true), BT_wClampStep("e", true, true), BT_wClampStep("", true, true)])',
       '    nb = { callFunc: function(n as string, a as dynamic) as dynamic',
       '        return invalid',
@@ -167,6 +184,17 @@ describe('BT_mOp and the m layer (headless, fork engine)', () => {
     expect(JSON.stringify(t('R1'))).not.toContain('"v"')
     expect(JSON.stringify(t('R2'))).not.toContain('"u"')
     expect(t('R5').result.value).toBe(2)
+  })
+  it('host: scene and global get mask every read below a secret or redacted ancestor, dotted and [i] form', () => {
+    for (const k of ['s', 'g']) {
+      for (const n of ['L1', 'L2', 'L3', 'L4']) expect(JSON.stringify(t(n + k)), n + k).toMatch(/redacted/)
+      expect(JSON.stringify(t('L1' + k))).not.toContain('"v"')
+      expect(JSON.stringify(t('L2' + k))).not.toContain('"u"')
+      expect(JSON.stringify(t('L3' + k))).not.toContain(':1')
+      expect(t('L5' + k).result.value).toBe(2)
+      expect(JSON.stringify(t('L6' + k))).toMatch(/redacted/)
+      expect(t('L7' + k).result.value).toBe('u')
+    }
   })
   it('clamp event is armed once and held until a session is live', () => {
     expect(t('K1')).toEqual([{ clamped: false, send: false }, { clamped: true, send: true }, { clamped: true, send: false }, { clamped: false, send: false }].map((x) => x))

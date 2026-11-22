@@ -216,6 +216,13 @@ function BT_wGet(args as object, ctx as object) as object
     if root.layer = "m" then return BT_wMGet(root.node, segs, args, caps, redact, trunc)
     if segs.count() = 0 then return BT_wGetDone(BT_serialize(BT_nodeFields(root.node), caps, root.layer, 0, trunc, redact), trunc)
     if not root.node.hasField(segs[0]) then return { ok: true, result: { found: false } }
+    d = root.layer
+    b = d
+    for each seg in segs
+        d = d + "." + seg
+        if seg = StrI(Val(seg, 10)).Trim() then b = b + "[" + seg + "]" else b = b + "." + seg
+        if BT_isSecretKey(seg) or BT_redactMatch(d, redact) or BT_redactMatch(b, redact) then return { ok: true, result: { found: true, value: "<redacted:" + seg + ">" } }
+    end for
     cur = root.node.getField(segs[0])
     for i = 1 to segs.count() - 1
         if BT_wKind(cur) = "node" then return BT_wErr("PATH_UNDER_NODE", "paths do not cross a node reference; address the node with layer node")
