@@ -149,7 +149,7 @@
       "name": "navigate_to"
     },
     {
-      "description": "Add a mock for matching requests: answer them with the given status and JSON or text body instead of the origin. First match wins, newest rule first. The mock lives until the MCP session ends; there is no way to make it permanent. Not yet connected to the app's live traffic (no hub mounted); only sees proxy-path traffic.",
+      "description": "Add a mock for matching requests: answer them with the given status and JSON or text body instead of the origin. First match wins, newest rule first. The mock lives until the MCP session ends; there is no way to make it permanent. The first net call opens a net window (one device lease held for the session, plus a session hub for the app's live traffic), released after 10 minutes without a device call, at session end, or on lease loss. Needs BRIGHTTEST_HUB_TOKEN in the server environment (the value used for instrument build --net) for the app to reach the hub. Mocks stay until the session ends even after the window is released.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
@@ -223,7 +223,7 @@
       "name": "net_mock"
     },
     {
-      "description": "List the HTTP requests this session's net proxy has seen (newest last): method, url, status, duration, source and whether a mock answered it (mocked). Auth headers, tokens and sensitive query values are redacted. Optional filters: method, url glob, status. Output is capped by limit. Not yet connected to the app's live traffic (no hub mounted); only sees proxy-path traffic.",
+      "description": "List the HTTP requests this session's net proxy has seen (newest last): method, url, status, duration, source and whether a mock answered it (mocked). Auth headers, tokens and sensitive query values are redacted. Optional filters: method, url glob, status. Output is capped by limit. The first net call opens a net window: one device lease held for the session plus a session hub that carries the app's live traffic. The window is released after 10 minutes without a device call (or earlier at session end, the lease cap, or lease loss); the result shows the hub while it is open (hub, else null; leaseId shows its first 8 characters only). The app reaches the hub only if the build and the MCP server share the hub token: set BRIGHTTEST_HUB_TOKEN in the server environment to the value used for instrument build --net. Mocks and the request list stay until the session ends.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
