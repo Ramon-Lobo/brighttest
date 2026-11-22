@@ -66,6 +66,6 @@ loaded_textures can only be used while a developer channel is running
 @@SEND loaded_textures (target main)
 loaded_textures only works when a Scene Graph screen is displayed
 >
-@@SEND sgperf report (untargeted stub)
+@@SEND (synthetic, not recorded) sgperf report untargeted stub
 Command not recognized
 >
