@@ -5,6 +5,7 @@
 ' republished before the `reflected` ack is sent, so reflected means "a reader of the Label sees the change".
 sub init()
     m.seq = 0
+    m.lastInput = invalid
     m.renderMs = 0
     m.ctx = { global: m.global, scene: m.top.getScene(), cfg: BT_config(), state: { subscribed: false } }
     m.label = m.top.createChild("Label")
@@ -60,31 +61,21 @@ sub BT_agentOnCmds()
     end if
 end sub
 
-' STA-S-T13: one complete command from the ECP /input mailbox. No hub seq, so no seq dedupe (the receiver already
-' ignores repeated chunks and finished command ids). Acks go out the same way as hub commands.
-sub BT_agentOnInput()
-    cmd = BT_inputCmd(m.task.icmd)
-    if cmd = invalid then return
-    session = m.task.session
-    h = BT_wHandle(cmd, m.ctx, session)
+' STA-S-T13: one complete command from the ECP /input mailbox (the event's own value, so back-to-back commands are
+' never coalesced). No hub seq, so no seq dedupe: the receiver ignores repeated chunks and finished command ids. The
+' mailbox runs only without a hub session, so there is no ack channel; the result goes to the Label's `input` entry.
+sub BT_agentOnInput(ev as object)
+    r = BT_inputRun(ev.getData(), m.ctx, m.task.session)
+    if r = invalid then return
     m.task.subscribed = m.ctx.state.subscribed
-    lines = h.acks
-    if h.ok and BT_wIs(cmd.ack, "reflected") then
-        BT_agentPublish()
-        lines.push(BT_wAck(cmd, session, "reflected", invalid))
-    end if
+    m.lastInput = r.last
     BT_agentPublish()
-    out = ""
-    for each l in lines
-        out = out + l + Chr(10)
-    end for
-    m.task.acks = out
 end sub
 
 sub BT_agentPublish()
     clock = CreateObject("roTimespan")
     m.seq = m.seq + 1
-    m.label.text = BT_labelJson(m.seq, m.global, m.top.getScene(), BT_config(), m.renderMs)
+    m.label.text = BT_labelJson(m.seq, m.global, m.top.getScene(), BT_config(), m.renderMs, m.lastInput)
     m.renderMs = clock.TotalMilliseconds()
 end sub
 #end if

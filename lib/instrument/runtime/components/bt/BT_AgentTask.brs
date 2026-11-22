@@ -62,14 +62,19 @@ sub BT_agentTaskRun()
         msg = wait(left, port)
         if type(msg) = "roSGNodeEvent" then
             if msg.getField() = "acks" then
-                for each line in m.top.acks.split(Chr(10))
-                    if line <> "" then queue.push(line)
+                lines = []
+                for each line in msg.getData().split(Chr(10))
+                    if line <> "" then lines.push(line)
                 end for
+                queue = BT_wQueueAcks(queue, lines, session <> "", 200)
             end if
         else if type(msg) = "roInputEvent" then
-            ' STA-S-T13: ECP /input mailbox. Only a complete command reaches the render thread; the rest is dropped.
-            text = BT_inputFeed(inbox, msg.GetInfo(), clock.TotalMilliseconds())
-            if text <> invalid then m.top.icmd = text
+            ' STA-S-T13: ECP /input mailbox, only while no hub session is live (with a hub, commands use the hub path).
+            ' Only a complete command with the right token reaches the render thread; the rest is dropped silently.
+            if session = "" then
+                done = BT_inputFeed(inbox, msg.GetInfo(), clock.TotalMilliseconds(), cfg.token)
+                if done <> invalid then m.top.icmd = BT_inputPack(done.id, done.text)
+            end if
         else if type(msg) = "roUrlEvent" and msg.GetInt() = 1 then
             id = msg.GetSourceIdentity()
             if poll <> invalid and id = poll.GetIdentity() then
