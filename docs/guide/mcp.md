@@ -32,6 +32,15 @@ Set `ROKU_HOST` explicitly in the MCP server configuration, and use `list_device
 | `screenshot` | Inline image of the sideloaded app (dev channel in front). |
 | `app_state` | The app's `__bt_state` snapshot from an instrumented build. |
 | `run_flow` | Run one `*.e2e.yaml` (or `*.e2e.yml`) flow from the project; returns per-step results. |
+| `net_requests` | Requests seen by the session's net proxy (method, url, status, duration, `mocked`), with credentials redacted. Filters: `method`, `url` glob, `status`; `limit` caps the output. |
+| `net_mock` | Answer requests that match a `url` glob (and optional `method`) with a canned status and JSON or text body. The mock lasts until the session ends. |
+
+::: warning Net tools: current limitation
+The MCP session's net proxy has no hub mounted, so live app traffic does not reach `net_requests` or `net_mock` yet.
+They are only exercised through the proxy path (tests and stubs), not against a running app on a device. Both take
+the device lease per call, like `press`. See the [network recipe](./network-recipe) for the manual alternatives,
+including the observe-only `[bt:net]` breadcrumbs (`instrument.net.observe: true`).
+:::
 
 Selectors use the same keys as flows: `id`, `subtype`, `text`, `textContains`, `uri`, `visible`, `focusable`,
 `focused`, `index`.
@@ -43,7 +52,7 @@ Failures come back as a tool result with `isError: true` and a typed `code` (for
 ## Safety limits
 
 - **Lease, per call.** Each device-touching call (`press`, `navigate_to`, `inspect_tree`, `screenshot`, `app_state`,
-  `run_flow`) takes the [device lease](./device-lease) when it starts and releases it when it ends, also on error and
+  `run_flow`, `net_requests`, `net_mock`) takes the [device lease](./device-lease) when it starts and releases it when it ends, also on error and
   on timeout. Nothing is held between calls, so a human or another agent can use the device in between. If another
   party holds it, the call fails at once with `DEVICE_BUSY` and sends no request. A lost lease becomes a `LEASE_LOST`
   tool error; the server never exits because of the lease. `list_devices` and `device_doctor` are read-only and take

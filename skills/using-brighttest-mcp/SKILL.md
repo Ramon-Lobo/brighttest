@@ -24,7 +24,7 @@ project `.env`, the device cache). **No tool takes a host, password or absolute 
 ## Tools
 
 Read-only, no lease: `list_devices`, `device_doctor`. Device tools, one lease per call: `inspect_tree`, `press`,
-`navigate_to`, `screenshot`, `app_state`, `run_flow`.
+`navigate_to`, `screenshot`, `app_state`, `run_flow`, `net_requests`, `net_mock`.
 
 | Tool | Parameters | Use it to |
 |---|---|---|
@@ -36,6 +36,18 @@ Read-only, no lease: `list_devices`, `device_doctor`. Device tools, one lease pe
 | `screenshot` | none | Capture the sideloaded app as an inline image. Needs the dev password configured out of band. |
 | `app_state` | none | Read the app's self-published state snapshot (instrumented builds only). |
 | `run_flow` | `path` (required) | Run one `*.e2e.yaml` flow, path relative to the project root; returns per-step results. |
+| `net_requests` | `method` (optional), `url` (optional), `status` (optional, 100-599), `limit` (optional, 1-500) | List requests seen by the session's net proxy: method, url, status, duration, whether a mock answered it. Auth headers and tokens are redacted. |
+| `net_mock` | `match` (required), `respond` (required), `times` (optional, 1-1000) | Answer matching requests with a canned response. `match` takes a URL glob and an optional method; `respond` takes status, JSON or text body, headers, delay. |
+
+### Net tools
+
+`net_requests` and `net_mock` take the device lease like the other device tools and refuse with `DEVICE_BUSY` when
+it is held. A mock lives until the MCP session ends; it cannot be made permanent. Secrets are redacted in the output.
+**Limitation:** the MCP session's net proxy has no hub mounted, so live app traffic does not reach these tools yet;
+today they work on the proxy path only. Do not expect `net_requests` to show what a running app fetched, and do not
+expect `net_mock` to change it. To see requests without a proxy, build with `instrument.net.observe: true` (set in
+the brighttest config by the human): the app then prints one `[bt:net] url=...` line per request to the 8085
+console, with no rewrite.
 
 ### The `selector` object
 
