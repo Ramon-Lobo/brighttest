@@ -39,6 +39,16 @@ describe('StudioLease', () => {
     expect(await s.ensure({ user: true })).toBe(true)
   })
 
+  it('single host: while Studio holds the device with no queue the text says Studio holds it', async () => {
+    const s = mk()
+    expect(await s.ensure({ user: true })).toBe(true)
+    const info = await s.info()
+    expect(info).toMatchObject({ holding: true, holder: { mine: true } })
+    expect(info.queue).toEqual([])
+    expect(StudioLease.describe(info)).toBe('Studio holds 127.0.0.1')
+    s.release()
+  })
+
   it('refuses (no queue, no preemption) while someone else holds; acquires once free', async () => {
     const o = await other()
     const s = mk()
@@ -440,6 +450,18 @@ describe('StudioLease pool mode and cancellation', () => {
     expect(info.queued).toBe(true)
     expect(StudioLease.describe(info)).not.toMatch(/free/i)
     s.cancel(); a.release(); b.release()
+  })
+
+  it('pool info: while Studio holds a member the text says Studio holds it, not released', async () => {
+    const s = mkPool()
+    expect(await s.ensure({ user: true })).toBe(true)
+    const info = await s.info()
+    expect(info).toMatchObject({ holding: true, pool: true, holder: { mine: true } })
+    const text = StudioLease.describe(info)
+    expect(text).not.toMatch(/released the device/)
+    expect(text).toBe(`Studio holds ${info.host}`)
+    expect(info.text).toBe(text)
+    s.release()
   })
 
   it('pool info: a free member with a waiter on the gate is not plain "free"', async () => {
