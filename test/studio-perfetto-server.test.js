@@ -106,4 +106,16 @@ describe('Studio server Perfetto wiring (PRF-01b)', () => {
     const st = await call('status', 'GET')
     expect(st.json.error).toMatch(/restart failed/)
   })
+
+  it('status payload says what brighttest recorded, never the device state or the ESN', async () => {
+    await boot()
+    let st = await call('status', 'GET')
+    expect(st.json.brighttestRecord).toBe('no brighttest record; device state not queryable')
+    await call('enable')
+    st = await call('status', 'GET')
+    expect(st.json.brighttestRecord).toMatch(/^enabled by brighttest at \d\d:\d\d, device state not queryable$/)
+    const raw = JSON.stringify(st.json)
+    expect(raw).not.toContain(ESN)
+    expect(raw).not.toMatch(/\b(off|disabled|stopped|not running)\b/i)
+  })
 })

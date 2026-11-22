@@ -236,6 +236,15 @@ lease: when Studio releases the device the session is stopped, and its export en
 `GET /api/lease` returns the status; `POST /api/lease {"action":"acquire"|"release"}` queues or
 releases.
 
+### Perfetto tracing cannot be switched off
+
+The Profile page can enable Perfetto tracing on the device, but brighttest has no way to disable it: the device
+exposes an enable call and a trace stream, and no disable call or state query. Stopping a trace in Studio only
+closes the stream. Tracing stays on until the device restarts (to be confirmed on hardware), and brighttest
+cannot confirm the current state. Studio shows what it recorded instead: `enabled by brighttest at <time>,
+device state not queryable`, or `no brighttest record; device state not queryable` when it has no record (or
+the record is older than six hours, since the device may have restarted). It never shows the device as off.
+
 If port 8700 is taken (another worktree's Studio), `brighttest studio` uses the first free port of
 8701-8709 and prints it. An explicit `--port` that is taken fails at once and names the process using it.
 
