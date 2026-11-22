@@ -297,7 +297,7 @@ describe('ecp digest + multipart helpers', () => {
   })
   it('builds a qop=auth Authorization header with a response hash', () => {
     const h = buildDigestHeader({
-      user: 'rokudev', password: 'Test1234', method: 'GET', uri: '/pkgs/dev.jpg',
+      user: 'rokudev', password: 'changeme', method: 'GET', uri: '/pkgs/dev.jpg',
       challenge: { realm: 'rokudev', nonce: 'abc123', qop: 'auth' },
     })
     expect(h).toMatch(/^Digest /)

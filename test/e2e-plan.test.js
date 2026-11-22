@@ -8,7 +8,7 @@ describe('parseHosts', () => {
     expect(parseHosts({ host: '10.0.0.1, 10.0.0.2 ,10.0.0.1' })).toEqual(['10.0.0.1', '10.0.0.2'])
   })
   it('strips inline passwords from the host list', () => {
-    expect(parseHosts({ host: '10.0.0.1:Test1234,10.0.0.2:0000' })).toEqual(['10.0.0.1', '10.0.0.2'])
+    expect(parseHosts({ host: '10.0.0.1:changeme,10.0.0.2:0000' })).toEqual(['10.0.0.1', '10.0.0.2'])
   })
   it('falls back to ROKU_HOST', () => {
     process.env.ROKU_HOST = 'a,b'
@@ -21,9 +21,9 @@ describe('parseHosts', () => {
 
 describe('parseTargets — per-host passwords', () => {
   it('reads an inline password per host (ip:pw)', () => {
-    const { hosts, passwords } = parseTargets({ host: '10.0.0.1:Test1234,10.0.0.2:0000' })
+    const { hosts, passwords } = parseTargets({ host: '10.0.0.1:changeme,10.0.0.2:0000' })
     expect(hosts).toEqual(['10.0.0.1', '10.0.0.2'])
-    expect(passwords.get('10.0.0.1')).toBe('Test1234')
+    expect(passwords.get('10.0.0.1')).toBe('changeme')
     expect(passwords.get('10.0.0.2')).toBe('0000')
   })
   it('falls back to --password for a host without an inline one', () => {

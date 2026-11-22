@@ -36,7 +36,7 @@ describe('--ecp-port parsing', () => {
     expect(resolveTarget({}).ecpPort).toBe(18060)
     delete process.env.ROKU_ECP_PORT
     expect(resolveTarget({}).ecpPort).toBe(8060)
-    expect(parseTargets({ host: '10.0.0.5:Test1234' }).passwords.get('10.0.0.5')).toBe('Test1234')
+    expect(parseTargets({ host: '10.0.0.5:changeme' }).passwords.get('10.0.0.5')).toBe('changeme')
   })
 })
 

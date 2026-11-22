@@ -45,7 +45,7 @@ falls back to `--password` / `ROKU_PASSWORD`). This is what lets screenshots/vid
 — ECP navigation itself needs no auth, but the screenshot endpoint does:
 
 ```bash
-npx brighttest e2e run flows/ --host 10.0.0.5:Test1234,10.0.0.6:0000 --screenshots-mode all
+npx brighttest e2e run flows/ --host 10.0.0.5:changeme,10.0.0.6:0000 --screenshots-mode all
 ```
 
 Screenshots and videos are written under a per-device subfolder (`<dir>/<host>/…`) so parallel devices never
