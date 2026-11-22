@@ -26,6 +26,7 @@
     "lib/e2e",
     "lib/instrument",
     "lib/mcp",
+    "lib/spec-api",
     "lib/studio/*.js",
     "lib/studio/public",
     "README.md",
