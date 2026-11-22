@@ -214,6 +214,32 @@ describe('app_state', () => {
     const { c } = await ready()
     expect(payload(await c.tool('app_state')).code).toBe('STATE_NOT_PUBLISHED')
   })
+  // Drives Session.appState with a fake device so the published node can be __bt_agent only (what an
+  // instrumented build publishes) without a subprocess.
+  async function readWith(trees) {
+    const { Session } = require('../lib/mcp/server.js')
+    const device = { ecpGet: async (p) => ({ text: p.includes('node-id=__bt_agent') ? trees.agent : trees.all }) }
+    const self = { limits: { maxStateBytes: 128 * 1024 }, withDevice: (call, fn) => fn({ device }) }
+    try { return { ok: await Session.prototype.appState.call(self, {}) } } catch (e) { return { err: e } }
+  }
+  const nodes = (inner) => `<sgnodes><status>OK</status><All_Nodes><Default name="" /><Scene name="root">${inner}</Scene></All_Nodes></sgnodes>`
+  const agentDoc = JSON.stringify({ v: 1, seq: 3, snapshot: { layers: { global: { tier: 'free' } } }, truncated: [] }).replace(/"/g, '&quot;')
+  it('reads the instrumented __bt_agent node when no __bt_state is published', async () => {
+    const t = nodes(`<Label name="__bt_agent" text="${agentDoc}" />`)
+    const r = await readWith({ agent: t, all: t })
+    expect(r.err).toBeUndefined()
+    expect(r.ok.state).toEqual({ global: { tier: 'free' } })
+  })
+  it('falls back to __bt_state when there is no agent node', async () => {
+    const t = nodes('<Label name="__bt_state" text="{&quot;current&quot;:&quot;Home&quot;}" />')
+    const r = await readWith({ agent: t, all: t })
+    expect(r.ok.state).toEqual({ current: 'Home' })
+  })
+  it('is STATE_NOT_PUBLISHED when neither node exists', async () => {
+    const t = nodes('<Label name="x" />')
+    const r = await readWith({ agent: t, all: t })
+    expect(r.err.code).toBe('STATE_NOT_PUBLISHED')
+  })
 })
 
 describe('TP-MCP-08 run_flow and path confinement', () => {
