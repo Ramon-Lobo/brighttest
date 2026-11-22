@@ -192,6 +192,40 @@ Roku returns `m.global` field names in lowercase (`lastVerb` → `lastverb`). Us
 `path`, or check what `e2e inspect` prints.
 :::
 
+### Writing a dotted path with `setState`
+
+`setState` takes a dot-separated `path` in the chosen `layer` (`global` by default). The first segment is a field
+of that layer's node; later segments walk into an object (by key) or an array (by a non-negative integer index):
+
+```yaml
+- setState: { layer: global, path: user.tier, value: premium }
+- setState: { layer: global, path: cart.items.0.qty, value: 2 }
+```
+
+What happens when a segment is missing:
+
+- **Global layer, missing top-level field or missing object key:** it is created, including the intermediate
+  objects (`a.b.c` creates `a` and `b` when absent).
+- **Other layers (`scene`, `node`):** a missing top-level field fails with `FIELD_NOT_FOUND`; fields are not added.
+- **Array index past the end, or a segment under an array that is not an index:** fails with `BAD_PATH`
+  (`no element <segment>`). Arrays are never extended.
+- **A segment that lands on a value that is not an object or array:** `PATH_NOT_CONTAINER`. A path that would
+  cross a node reference: `PATH_UNDER_NODE` (address that node with `layer: node`).
+- An empty path: `BAD_PATH`. A value of the wrong type for an existing field: `TYPE_MISMATCH`.
+
+These are agent-side reasons. In the run they surface as a failed step with the typed code `STATE_CMD_FAILED`,
+and the agent's reason is in the message (`setState: BAD_PATH: no element 7 (ack phase reached: received, ...)`).
+A path with a missing segment is not a separate state code. In an `ops:` batch every path is checked first and
+nothing is applied if one fails; the message names it as `ops[N]`.
+
+### Where the code shows up
+
+A failed state step prints its code first on the failure line, for example
+`STATE_ACK_TIMEOUT: setState: no applied ack within 10s (ack phase reached: received)`. When the flow has log
+capture, the same code is written as a `code` field in the failure bundle's `error.json`
+(`<flow>-failure/error.json`). The field is only present for typed state failures (`STATE_*`); other failures
+keep the file as before.
+
 ## Headless
 
 The pure unit lane has no SceneGraph, so `__bt_state` doesn't apply there — but the **`@SGNode`** lane
