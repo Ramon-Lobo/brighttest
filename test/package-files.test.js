@@ -42,7 +42,7 @@ function requiredModules() {
 
 describe('npm pack contents', () => {
   const out = execFileSync('npm', ['pack', '--dry-run', '--json', '--ignore-scripts'], {
-    cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'],
+    cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], shell: process.platform === 'win32',
   })
   const packed = new Set(JSON.parse(out)[0].files.map((f) => f.path))
 
