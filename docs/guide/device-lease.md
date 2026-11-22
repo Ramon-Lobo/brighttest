@@ -174,7 +174,8 @@ All optional, in `brighttest.json`:
   "sessionMax": "45m",   // session lock: hard cap
   "hygiene": "home",     // "home" | "none": Home ×2 after acquiring, for e2e run and device with
   "studioIdle": "5m",    // Studio releases after this long without user activity
-  "studioYield": "60s"   // …or after this long when someone is queued
+  "studioYield": "60s",  // …or after this long when someone is queued
+  "pool": ["192.168.1.10", "192.168.1.11"]  // devices for `--device any` (see below)
 }
 ```
 
@@ -197,6 +198,22 @@ IP; and a lane run with a different `ROKU_ECP_PORT` than another lane gets a dif
 the key unless it is 8060). Always use the device IP and the default port for real devices. Both cases are also recorded as `note` events in
 `events.log`, as are Studio's profiling and Perfetto stops when it yields the device; `released` events carry the
 reason (idle, yielded to another agent, released from the UI).
+
+## A pool of devices: `--device any`
+
+With two interchangeable devices, list them in `deviceLease.pool` and run `brighttest --device any` (also with
+`--cross-check`). The run takes the **first free device** of the pool, in list order, and prints which one it
+chose. If all are busy it queues, **first come, first served across the pool**: the oldest waiter gets the next
+device that frees up, whichever one it is. An explicit `--host` always wins: the pool is then not used.
+
+The pool is a list of bare hosts (an IP or a name, no port, no password, no duplicates, not empty); a bad value
+stops the run with a message naming the problem. Passwords come from the usual chain (`ROKU_PASSWORD`, `.env`,
+the device cache), per chosen host. `--wait`, `--as` and `--purpose` work as for a single device, and `--wait 0`
+fails with exit 75 when every device is busy. Brighttest does not check whether a pool device is reachable.
+
+Internally the choice is serialized by a short-lived lease named `pool-<id>` that you may see in `device status`
+for a moment. It is held only while choosing, never while the device is in use. With `--cross-check` the device
+is held for the whole run, including the headless leg.
 
 ## Studio
 

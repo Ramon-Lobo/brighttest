@@ -11,12 +11,47 @@ function askLine(q, hidden = false) {
   });
 }
 
+// `--device any`: resolve the device from deviceLease.pool. An explicit --host (or inline ip:pw) always wins and the
+// pool is not used. Otherwise the pool lease (first free member, FIFO across the pool) is taken here and exported as
+// BRIGHTTEST_LEASE, so the lane's own acquire re-uses it on the chosen host. Returns { host, lease } or { code }.
+async function pickPoolDevice(cfg, opts, deps = {}) {
+  if (opts.host) return { host: null, lease: null };
+  const pool = (cfg.deviceLease && cfg.deviceLease.pool) || [];
+  if (!pool.length) {
+    console.error('[brighttest] --device any needs a device pool: set "deviceLease": { "pool": ["<ip>", "<ip>"] } in brighttest.json (or pass --host)');
+    return { code: 2 };
+  }
+  const dc = deps.deviceCommand || require('../lib/device-command');
+  const L = deps.lease || require('../lib/device-lease');
+  const env = deps.env || process.env;
+  let s;
+  try { s = L.resolveSettings({ cfg, env, flags: { wait: opts.wait } }); } catch (e) { return { code: dc.leaseErrorExit(e) }; }
+  if (opts.noLease || env.BRIGHTTEST_NO_LEASE === '1' || !s.enabled) {
+    console.error(`[brighttest lease] WARNING: running WITHOUT the device lease; --device any uses the first pool device (${pool[0]}) whether or not it is busy.`);
+    return { host: pool[0], lease: null };
+  }
+  let l;
+  try {
+    l = await L.acquirePool({
+      hosts: pool, agent: opts.as, purpose: opts.purpose || 'device run (pool)', env,
+      waitMs: s.waitMs, maxHoldMs: s.maxHoldMs, onWait: dc.printWait,
+    });
+  } catch (e) { return { code: dc.leaseErrorExit(e) }; }
+  env.BRIGHTTEST_LEASE = l.leaseId;
+  console.error(`[brighttest lease] --device any: using ${l.poolHost}`);
+  return { host: l.poolHost, lease: l };
+}
+
 function parseArgs(argv) {
   const opts = { device: false, coverage: false, junit: null, host: null, password: null, config: null, lcov: null };
   const DEFAULT_LCOV = 'coverage/lcov.info';
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
-    if (a === '--device' || a === '-d') opts.device = true;
+    if (a === '--device' || a === '-d') {
+      opts.device = true;
+      // `--device any`: take the first free device of deviceLease.pool (an explicit --host still wins).
+      if (a === '--device' && argv[i + 1] === 'any') { opts.devicePool = true; i++; }
+    }
     else if (a === '--host') opts.host = argv[++i];
     else if (a === '--password' || a === '--pass') opts.password = argv[++i];
     else if (a === '--junit') opts.junit = argv[++i];
@@ -535,6 +570,7 @@ Usage:
 
 Options:
   -d, --device          Run on a Roku device (deploys + runs Rooibos, reports coverage)
+      --device any      Run on the first free device of deviceLease.pool (FIFO across the pool; --host wins)
       --coverage        Headless coverage: runs the Rooibos runner on the brs-node simulator
                         (no device) and writes LCOV. Runs @SGNode node suites too.
       --no-sgnode       Skip @SGNode node suites and use the faster SceneGraph-off driver.
@@ -764,17 +800,24 @@ async function main() {
   else { lane = require('../lib/headless'); label = 'headless'; }
   console.log(`brighttest: ${label} lane\n`);
   let code;
+  let poolLease = null;
   try {
+    if (opts.devicePool && (opts.device || opts.crossCheck)) {
+      const picked = await pickPoolDevice(cfg, opts);
+      if (picked.code != null) process.exit(picked.code);
+      poolLease = picked.lease;
+      if (picked.host) opts.host = picked.host;
+    }
     if (!opts.device) require('../lib/engine-caps').warnNonDeviceUse(cfg); // BRS-02 is non-device: say so on stderr
     code = await lane.run(cfg, opts);
   } catch (e) {
     if (e && e.name === 'EngineError') { console.error(`[brighttest] ${e.message}`); process.exit(2); }
     throw e;
-  }
+  } finally { if (poolLease) poolLease.release(); }
   process.exit(code);
 }
 
 // Only run the CLI when executed directly (not when required by tests).
 if (require.main === module) main();
 
-module.exports = { parseNetArgs, studioStartOptions, parseArgs, parseInstrumentArgs, INSTRUMENT_ACTIONS, parseSkillsArgs, parseInitArgs, parseE2eArgs, parseStudioArgs, parseDeviceArgs, parseDoctorArgs, SKILLS_ACTIONS, E2E_ACTIONS, DEVICE_ACTIONS, SCREENSHOT_MODES };
+module.exports = { pickPoolDevice, parseNetArgs, studioStartOptions, parseArgs, parseInstrumentArgs, INSTRUMENT_ACTIONS, parseSkillsArgs, parseInitArgs, parseE2eArgs, parseStudioArgs, parseDeviceArgs, parseDoctorArgs, SKILLS_ACTIONS, E2E_ACTIONS, DEVICE_ACTIONS, SCREENSHOT_MODES };
