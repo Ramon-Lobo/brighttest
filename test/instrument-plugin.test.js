@@ -338,6 +338,17 @@ describe('items 4, 5, 7, 9: skipped[] and the result schema', () => {
 })
 
 describe('item 6: reserved runtime names', () => {
+  it('every function and sub defined in runtime/source/bt/*.brs is in RESERVED_NAMES', () => {
+    const dir = path.resolve(__dirname, '../lib/instrument/runtime/source/bt')
+    const reserved = new Set(require(pluginPath).RESERVED_NAMES.map((n) => n.toLowerCase()))
+    const missing = []
+    for (const f of fs.readdirSync(dir).filter((x) => x.endsWith('.brs'))) {
+      for (const m of fs.readFileSync(path.join(dir, f), 'utf8').matchAll(/^\s*(?:function|sub)\s+([A-Za-z_][A-Za-z_0-9]*)/gim)) {
+        if (!reserved.has(m[1].toLowerCase())) missing.push(`${f}: ${m[1]}`)
+      }
+    }
+    expect(missing).toEqual([])
+  })
   it.each(['BT_url', 'bt_UNURL', 'BT_bootstrap'])('fails the build when the user defines %s', async (name) => {
     const dir = path.join(tmp, 'clash-' + name)
     fs.cpSync(fixture, dir, { recursive: true })

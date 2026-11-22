@@ -370,7 +370,10 @@ it through the same op allow-list as the hub path.
 
 - **Token.** Every chunk carries `tk=<token>`, the per-build hub token baked at build time (see
   [the hub token](#the-hub-token---net-and-brighttest-hub-token)). The agent compares it in constant time and drops a
-  chunk with a wrong or missing token silently: no ack, no state. The caller must supply the token (`{ token }` or
+  chunk with a wrong or missing token silently: no ack, no state. `tk` is the secret hub token itself, sent in the clear in
+  the request line, so an app must never log or forward unknown `roInput` or deep-link keys (the debug console on port
+  8085 is readable on the LAN). The mailbox works only with a `--net` build and `BRIGHTTEST_HUB_TOKEN` set: a build
+  without `--net` bakes a random token that is never printed, so `device.input` cannot authenticate. The caller must supply the token (`{ token }` or
   `createDevice({ hubToken })`); `input()` refuses to send without one.
 - **No hub session.** The agent accepts mailbox commands only while no hub session is live; with a live hub, use the
   hub routes. A mailbox command has no hub `seq` and no ack channel, so the agent does not queue acks for it. The last
