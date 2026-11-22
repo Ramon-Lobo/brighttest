@@ -156,6 +156,23 @@ describe('/api/perf/console target selection', () => {
     expect(r.json.code).toBe('TARGET_NOT_FOUND');
     expect(r.json.error).toMatch(/target not found/);
   });
+  it('200 body carries status and reason from the console reply', async () => {
+    reset();
+    queryImpl = (name) => ({ name, raw: '', parsed: null, status: 'empty', reason: 'no output came back before the quiet wait ended' });
+    const r = await run('sgperf_report');
+    expect(r.status).toBe(200);
+    expect(r.json.status).toBe('empty');
+    expect(r.json.reason).toMatch(/quiet wait/);
+  });
+  it('502 for a stub-target error carries status and reason', async () => {
+    reset();
+    queryImpl = () => { const e = new Error('target answered "Command not recognized"'); e.status = 'stub-target'; e.reason = 'stub command set'; throw e; };
+    const r = await run('chanperf');
+    expect(r.status).toBe(502);
+    expect(r.json.status).toBe('stub-target');
+    expect(r.json.reason).toBe('stub command set');
+    expect(r.json.error).toMatch(/Command not recognized/);
+  });
   it('409 when Home is in front for a targeted command', async () => {
     reset();
     await fetch(`${ecpUrl}/keypress/Home`, { method: 'POST' });
