@@ -20,6 +20,12 @@ on:
         description: "all | failure | off"
         default: "failure"
 
+# One device run at a time. The host is a secret (not usable in `concurrency`), so the group is the runner
+# label; queued runs wait instead of being cancelled. The lease below also serializes against local agents.
+concurrency:
+  group: roku-device
+  cancel-in-progress: false
+
 jobs:
   e2e:
     runs-on: [self-hosted, roku]
@@ -38,6 +44,8 @@ jobs:
           ROKU_PASSWORD: ${{ secrets.ROKU_PASSWORD }}
           FLOWS: ${{ inputs.flows }}
           MODE: ${{ inputs['screenshots-mode'] }}
+          BRIGHTTEST_AGENT: ci-e2e-device
+          BRIGHTTEST_LEASE_WAIT: 30m
         run: |
           case "$MODE" in all|failure|off) ;; *) echo "invalid screenshots-mode: $MODE" >&2; exit 2 ;; esac
           npx brighttest e2e run "$FLOWS" \
