@@ -127,7 +127,7 @@ describe('/api/perf/console target selection', () => {
     const a = await stub.start();
     ecpUrl = a.ecpUrl;
     process.env.ROKU_ECP_PORT = String(a.ecpPort);
-    srv = await studio.start({ port: 0, rootDir: root, host: '127.0.0.1' });
+    srv = await studio.start({ port: 0, rootDir: root, host: '127.0.0.1', password: 'fake-pw' });
     delete process.env.ROKU_ECP_PORT;
     p2 = srv.address().port;
     origQuery = sgdebug.query;
@@ -192,7 +192,7 @@ describe('/api/tree large-tree rate limit', () => {
     stub = createFakeRoku({ scenario: 'large-tree-6k' });
     const a = await stub.start();
     process.env.ROKU_ECP_PORT = String(a.ecpPort);
-    srv = await studio.start({ port: 0, rootDir: root, host: '127.0.0.1' });
+    srv = await studio.start({ port: 0, rootDir: root, host: '127.0.0.1', password: 'fake-pw' });
     delete process.env.ROKU_ECP_PORT;
     p3 = srv.address().port;
   });
@@ -223,7 +223,7 @@ describe('/api/tree agent layers (read-only)', () => {
     stub = createFakeRoku({ scenario: 'healthy' });
     const a = await stub.start();
     process.env.ROKU_ECP_PORT = String(a.ecpPort);
-    srv = await studio.start({ port: 0, rootDir: root, host: '127.0.0.1' });
+    srv = await studio.start({ port: 0, rootDir: root, host: '127.0.0.1', password: 'fake-pw' });
     delete process.env.ROKU_ECP_PORT;
     p4 = srv.address().port;
   });
@@ -293,7 +293,7 @@ describe('/api/perf/session fps', () => {
     });
     await new Promise((r) => proxy.listen(0, '127.0.0.1', r));
     process.env.ROKU_ECP_PORT = String(proxy.address().port);
-    srv = await studio.start({ port: 0, rootDir: root, host: '127.0.0.1' });
+    srv = await studio.start({ port: 0, rootDir: root, host: '127.0.0.1', password: 'fake-pw' });
     delete process.env.ROKU_ECP_PORT;
     p5 = srv.address().port;
   });
