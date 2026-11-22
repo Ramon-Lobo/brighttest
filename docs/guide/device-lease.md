@@ -201,19 +201,22 @@ reason (idle, yielded to another agent, released from the UI).
 
 ## A pool of devices: `--device any`
 
-With two interchangeable devices, list them in `deviceLease.pool` and run `brighttest --device any` (also with
-`--cross-check`). The run takes the **first free device** of the pool, in list order, and prints which one it
-chose. If all are busy it queues, **first come, first served across the pool**: the oldest waiter gets the next
+With two interchangeable devices, list them in `deviceLease.pool` and run `brighttest --device any`, or
+`brighttest device with --device any -- <cmd>` (`-d any` works too). The run takes the **first free device** of
+the pool, in list order, and prints which one it chose; `device with` sets `ROKU_HOST` for the command to that
+device. If all are busy it queues, **first come, first served across the pool**: the oldest waiter gets the next
 device that frees up, whichever one it is. An explicit `--host` always wins: the pool is then not used.
 
-The pool is a list of bare hosts (an IP or a name, no port, no password, no duplicates, not empty); a bad value
-stops the run with a message naming the problem. Passwords come from the usual chain (`ROKU_PASSWORD`, `.env`,
-the device cache), per chosen host. `--wait`, `--as` and `--purpose` work as for a single device, and `--wait 0`
-fails with exit 75 when every device is busy. Brighttest does not check whether a pool device is reachable.
+The pool is a list of IPv4 addresses or host names (no port, no password, no IPv6 address, no duplicates, not
+empty). A bad value stops the run with a message that names the entry number and the problem, never the value.
+For `--device` and `--cross-check` every pool device needs a dev password (`--password`, `ROKU_PASSWORD`, or the
+device cache), checked before any lease is taken (exit 2). `--wait`, `--as` and `--purpose` work as for a single
+device; `--wait 0` fails with exit 75 only when every device is busy. Brighttest does not check whether a pool
+device is reachable.
 
 Internally the choice is serialized by a short-lived lease named `pool-<id>` that you may see in `device status`
-for a moment. It is held only while choosing, never while the device is in use. With `--cross-check` the device
-is held for the whole run, including the headless leg.
+for a moment. It is held only while choosing, never while the device is in use. With `--cross-check` the pick
+happens when the device phase starts, so no device is held during the headless leg.
 
 ## Studio
 

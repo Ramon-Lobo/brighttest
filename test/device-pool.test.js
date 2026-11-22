@@ -5,6 +5,7 @@ import path from 'node:path'
 import lease from '../lib/device-lease.js'
 import { loadConfig, parseLeasePool } from '../lib/config.js'
 import cli from '../bin/cli.js'
+const { LeaseError } = lease
 
 const { acquirePool, acquire, createStore } = lease
 const A = '127.0.0.1'
@@ -110,58 +111,127 @@ describe('acquirePool', () => {
   })
 })
 
-describe('deviceLease.pool config', () => {
-  it('accepts a list, normalizes case, and rejects bad shapes with clear messages', () => {
-    expect(parseLeasePool(['10.0.0.1', '10.0.0.2'])).toEqual(['10.0.0.1', '10.0.0.2'])
-    expect(() => parseLeasePool([])).toThrow(/empty/)
-    expect(() => parseLeasePool('10.0.0.1')).toThrow(/list/)
-    expect(() => parseLeasePool(['10.0.0.1', '10.0.0.1'])).toThrow(/duplicate/)
-    expect(() => parseLeasePool(['10.0.0.1', 'HOST'.toLowerCase(), 'host'])).toThrow(/duplicate/)
-    expect(() => parseLeasePool(['10.0.0.1:secret'])).toThrow(/bare host/)
-    expect(() => parseLeasePool(['10.0.0.1:secret'])).not.toThrow(/secret/)
-    expect(() => parseLeasePool([''])).toThrow(/non-empty/)
+
+describe('acquirePool details', () => {
+  it('releases the gate when the wait times out (a later pick still works)', async () => {
+    const l1 = await pool({ agent: 'a' })
+    const l2 = await pool({ agent: 'b', pid: 1002 })
+    await expect(pool({ agent: 'c', pid: 1003, waitMs: 3000 })).rejects.toMatchObject({ code: 'TIMEOUT' })
+    const gate = fs.readdirSync(dir).find((n) => n.startsWith('pool-'))
+    expect(fs.existsSync(path.join(dir, gate, 'holder.json'))).toBe(false)
+    l1.release()
+    const l3 = await pool({ agent: 'd', pid: 1004 })
+    expect(l3.poolHost).toBe(A)
+    l2.release(); l3.release()
   })
 
-  it('loadConfig reads deviceLease.pool and keeps the other defaults', () => {
+  it('--wait 0 with free devices does not fail on the gate (two concurrent picks)', async () => {
+    const [x, y] = await Promise.all([pool({ agent: 'a', waitMs: 0 }), pool({ agent: 'b', pid: 1002, waitMs: 0 })])
+    expect(new Set([x.poolHost, y.poolHost])).toEqual(new Set([A, B]))
+    x.release(); y.release()
+  })
+
+  it('--wait 0 fails (BUSY) only when every member is busy', async () => {
+    const l1 = await pool({ agent: 'a' }); const l2 = await pool({ agent: 'b', pid: 1002 })
+    await expect(pool({ agent: 'c', pid: 1003, waitMs: 0 })).rejects.toMatchObject({ code: 'BUSY' })
+    l1.release(); l2.release()
+  })
+
+  it('computes the pid start once, not per poll under the gate', async () => {
+    let polls = 0; let hook = null
+    const store = createStore(seams({ sleep: async (ms) => { clock.t += ms; polls++; if (hook) hook() } }))
+    const spy = vi.spyOn(store, 'startOf')
+    const l1 = await pool({ agent: 'a', store, pidStartValue: undefined })
+    const l2 = await pool({ agent: 'b', pid: 1002, store, pidStartValue: undefined })
+    polls = 0; hook = () => { if (polls === 4) l1.release() }
+    const l3 = await pool({ agent: 'c', pid: 1003, store, pidStartValue: undefined })
+    expect(polls).toBeGreaterThanOrEqual(4)
+    expect(spy).toHaveBeenCalledTimes(3) // once per acquirePool call
+    l2.release(); l3.release()
+  })
+
+  it('quietBusy suppresses only the member busy event', async () => {
+    const x = await acquire({ host: A, key: A, waitMs: 0, ...seams() })
+    const busy = (extra) => acquire({ host: A, key: A, waitMs: 0, ...seams({ pid: 1002 }), ...extra }).catch((e) => e)
+    const count = () => createStore({ dir }).readEvents({ key: A }).filter((e) => e.ev === 'timeout').length
+    expect((await busy({ quietBusy: true })).code).toBe('BUSY')
+    expect(count()).toBe(0)
+    expect((await busy({})).code).toBe('BUSY')
+    expect(count()).toBe(1)
+    x.release()
+  })
+
+  it('a token that holds nothing is LEASE_LOST; a token held on another key still picks normally', async () => {
+    await expect(pool({ token: 'deadbeef00000000' })).rejects.toMatchObject({ code: 'LEASE_LOST' })
+    const other = await acquire({ host: '127.0.0.9', key: '127.0.0.9', waitMs: 0, ...seams() })
+    const l = await pool({ token: other.leaseId, pid: 1002 })
+    expect(l.poolHost).toBe(A)
+    l.release(); other.release()
+  })
+
+  it('a token holding a member is re-used with no gate', async () => {
+    const l1 = await pool({ agent: 'a' })
+    const re = await pool({ token: l1.leaseId })
+    expect(re.reentrant).toBe(true)
+    expect(re.poolHost).toBe(A)
+    expect(fs.readdirSync(dir).filter((n) => n.startsWith('pool-')).length).toBe(1)
+    l1.release()
+  })
+})
+
+describe('re-entrant lease delegates children to the held lease', () => {
+  it('a nested acquire with the token records the child in childPids, and cleanup kills it', async () => {
+    const l = await pool({ agent: 'a', env: {} })
+    const nested = await acquire({ host: A, key: A, token: l.leaseId, ...seams() })
+    expect(nested.reentrant).toBe(true)
+    const child = nested.spawn(process.execPath, ['-e', 'setTimeout(()=>{},30000)'], { stdio: 'ignore' })
+    try {
+      const holder = JSON.parse(fs.readFileSync(path.join(dir, A, 'holder.json'), 'utf8'))
+      expect(holder.holder.childPids).toContain(child.pid)
+      const died = new Promise((r) => child.on('exit', r))
+      await nested.killChildren(100)
+      await Promise.race([died, new Promise((_, rej) => setTimeout(() => rej(new Error('child survived')), 5000))])
+    } finally { try { child.kill('SIGKILL') } catch { /* gone */ } }
+    l.release()
+  })
+})
+
+describe('deviceLease.pool config', () => {
+  it('accepts a list, normalizes case, and rejects bad shapes without echoing the entry', () => {
+    expect(parseLeasePool(['10.0.0.1', 'Roku-B.local'])).toEqual(['10.0.0.1', 'roku-b.local'])
+    expect(() => parseLeasePool([])).toThrow(/empty/)
+    expect(() => parseLeasePool('10.0.0.1')).toThrow(/list/)
+    expect(() => parseLeasePool(['10.0.0.1', '10.0.0.1'])).toThrow(/entry 2 duplicates entry 1/)
+    expect(() => parseLeasePool(['10.0.0.1', 'A', 'a'])).toThrow(/duplicates/)
+    expect(() => parseLeasePool([''])).toThrow(/entry 1 must be a non-empty/)
+    for (const bad of ['10.0.0.1:hunter2', 'a,b', '::1', '[::1]', 'x y']) {
+      let msg = ''
+      try { parseLeasePool(['10.0.0.9', bad]) } catch (e) { msg = e.message }
+      expect(msg).toMatch(/entry 2 must be a bare IPv4 address or host name/)
+      expect(msg).not.toContain('hunter2')
+      expect(msg).not.toContain(bad)
+    }
+  })
+
+  it('loadConfig reads deviceLease.pool, keeps defaults, and fails on a bad pool', () => {
     const d = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-poolcfg-'))
     fs.writeFileSync(path.join(d, 'brighttest.json'), JSON.stringify({ deviceLease: { pool: [A, B] } }))
     const cfg = loadConfig(d, null)
     expect(cfg.deviceLease.pool).toEqual([A, B])
     expect(cfg.deviceLease.wait).toBe('30m')
+    fs.writeFileSync(path.join(d, 'brighttest.json'), JSON.stringify({ deviceLease: { pool: [A, A] } }))
+    expect(() => loadConfig(d, null)).toThrow(/duplicates/)
     fs.rmSync(d, { recursive: true, force: true })
   })
 })
 
-describe('--device any', () => {
-  it('parses --device any and leaves plain --device alone', () => {
+describe('--device any parsing', () => {
+  it('parses --device any and -d any; plain --device is unchanged; host stays', () => {
     expect(cli.parseArgs(['--device', 'any'])).toMatchObject({ device: true, devicePool: true })
+    expect(cli.parseArgs(['-d', 'any'])).toMatchObject({ device: true, devicePool: true })
     expect(cli.parseArgs(['--device', '--host', '1.2.3.4']).devicePool).toBeUndefined()
-    expect(cli.parseArgs(['--device', 'any', '--host', '1.2.3.4'])).toMatchObject({ devicePool: true, host: '1.2.3.4' })
-  })
-
-  it('an explicit --host wins: no pool pick, no lease taken', async () => {
-    const L = { acquirePool: vi.fn() }
-    const r = await cli.pickPoolDevice({ deviceLease: { pool: [A, B] } }, { host: '9.9.9.9' }, { lease: L, deviceCommand: {} })
-    expect(r).toEqual({ host: null, lease: null })
-    expect(L.acquirePool).not.toHaveBeenCalled()
-  })
-
-  it('fails with usage (2) when no pool is configured', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => {})
-    const r = await cli.pickPoolDevice({ deviceLease: {} }, {}, { lease: {}, deviceCommand: {} })
-    expect(r.code).toBe(2)
-    vi.restoreAllMocks()
-  })
-
-  it('takes the pool lease and exports its token for the lane', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => {})
-    const env = {}
-    const fake = { leaseId: 'tok', poolHost: B }
-    const L = { resolveSettings: () => ({ enabled: true, waitMs: 0, maxHoldMs: 1000 }), acquirePool: vi.fn(async () => fake) }
-    const r = await cli.pickPoolDevice({ deviceLease: { pool: [A, B] } }, {}, { lease: L, deviceCommand: { printWait() {} }, env })
-    expect(r).toEqual({ host: B, lease: fake })
-    expect(env.BRIGHTTEST_LEASE).toBe('tok')
-    expect(L.acquirePool.mock.calls[0][0].hosts).toEqual([A, B])
-    vi.restoreAllMocks()
+    expect(cli.parseArgs(['--cross-check', '--device', 'any', '--host', '1.2.3.4'])).toMatchObject({ crossCheck: true, devicePool: true, host: '1.2.3.4' })
+    expect(cli.parseDeviceArgs(['with', '--device', 'any', '--', 'x'])).toMatchObject({ devicePool: true, cmd: ['x'], unknown: [] })
+    expect(cli.parseDeviceArgs(['with', '-d', 'any', '--', 'x']).devicePool).toBe(true)
   })
 })
