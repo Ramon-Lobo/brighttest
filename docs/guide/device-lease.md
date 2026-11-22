@@ -240,8 +240,9 @@ releases.
 
 The Profile page can enable Perfetto tracing on the device, but brighttest cannot disable it: there is no known
 (documented) disable call or state query. Stopping a trace in Studio only closes the stream. Tracing may stay
-on until the device restarts; device-qa has yet to check on hardware whether a channel relaunch or a device
-restart clears it. brighttest cannot confirm the current state. Studio shows what it recorded instead: `enabled by
+on. On one Roku Ultra (firmware 16.0.4) a channel relaunch, and Home then launch, did not clear it: the
+stream still delivered data with no new enable request. Whether a device restart clears it has not been
+tested. brighttest cannot confirm the current state. Studio shows what it recorded instead: `enabled by
 brighttest at <time>, device state not queryable` (with the date when the record is more than a day old), or
 `no brighttest record; device state not queryable` when it has no record. It never shows the device as off.
 Internally, enables older than six hours are re-sent, since the device may have restarted; that does not hide
