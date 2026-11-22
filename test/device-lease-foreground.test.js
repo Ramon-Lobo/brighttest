@@ -264,15 +264,19 @@ describe('foreground advisory (LSE-T15)', () => {
   it('the advisory sockets are unref\'d: a script that never releases still exits fast', async () => {
     hang = true
     const script = path.join(dir, 'noRelease.cjs')
+    const stamp = path.join(dir, 'noRelease.runtime')
+    // The child times itself (start to exit), so spawn latency on a slow runner cannot trip the limit. A ref'd
+    // socket would keep it alive for the full 1 s advisory timeout.
     fs.writeFileSync(script, `
+      const t0 = Date.now();
+      process.on('exit', () => require('fs').writeFileSync(${JSON.stringify(stamp)}, String(Date.now() - t0)));
       const lease = require(${JSON.stringify(path.resolve('lib/device-lease.js'))});
       lease.acquire({ host: '127.0.0.1', port: ${port}, dir: ${JSON.stringify(path.join(dir, 'ln'))}, env: {}, waitMs: 0, timers: false, onWarn: () => {} });
     `)
-    const t = Date.now()
     const child = spawn(process.execPath, [script], { stdio: 'ignore' })
     await new Promise((r) => child.on('exit', r))
     expect(reqs).toEqual(['/query/active-app']) // the request did go out
-    expect(Date.now() - t).toBeLessThan(900)
+    expect(Number(fs.readFileSync(stamp, 'utf8'))).toBeLessThan(800)
   })
 
   it('suppresses for reclaimed, forced and lost events, and ignores a literal null line', async () => {

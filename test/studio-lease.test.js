@@ -55,6 +55,17 @@ describe('StudioLease', () => {
     s.release()
   })
 
+  it('describe: a yield is not an idle release', () => {
+    const base = { host: '127.0.0.1', holding: false, holder: null, queue: [], queued: false }
+    for (const pool of [false, true]) {
+      const t = StudioLease.describe({ ...base, pool, poolState: null, yielded: true })
+      expect(t).toBe('Studio yielded the device (a run may be using it)')
+      expect(t).not.toMatch(/released the device/)
+    }
+    expect(StudioLease.describe({ ...base, pool: false, yielded: false })).toBe('Studio released the device (idle)')
+    expect(StudioLease.describe({ ...base, pool: true, poolState: null, yielded: false })).toBe('Studio released the device (idle)')
+  })
+
   it('refuses (no queue, no preemption) while someone else holds; acquires once free', async () => {
     const o = await other()
     const s = mk()
