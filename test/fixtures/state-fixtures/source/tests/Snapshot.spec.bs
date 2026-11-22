@@ -1,0 +1,40 @@
+import "pkg:/source/bt/BTState.brs"
+
+namespace tests
+  @suite("snapshot fixtures")
+  @SGNode("Badge")
+  class SnapshotFixture extends rooibos.BaseTestSuite
+    protected override function beforeEach()
+      m.snap = BTState_load("pkg:/fixtures/state/premium.json")
+      m.written = BTState_seedGlobals(m.snap.layers.global)
+    end function
+
+    @describe("seeding m.global from fixtures/state/premium.json")
+    @it("loads the layered snapshot")
+    function _()
+      m.assertEqual(m.snap.name, "premium")
+      m.assertTrue(m.snap.layers.scene <> invalid)
+    end function
+
+    @it("writes only the global layer onto m.global")
+    function _()
+      m.assertEqual(m.global.user.tier, "premium")
+      m.assertTrue(m.global.user.signedIn)
+      m.assertEqual(m.global.region, "us")
+      m.assertFalse(m.global.hasField("nav"))
+      m.assertEqual(m.written.count(), 2)
+    end function
+
+    @it("lets the app read the seeded values")
+    function _()
+      m.top.callFunc("refresh")
+      m.assertEqual(m.top.label, "Tier: premium")
+    end function
+
+    @it("updates an existing field when seeded again")
+    function _()
+      BTState_seedGlobals({ region: "ca" })
+      m.assertEqual(m.global.region, "ca")
+    end function
+  end class
+end namespace
