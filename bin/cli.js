@@ -117,7 +117,7 @@ function parseNetArgs(argv) {
 // `brighttest skills [install|update|export|list|uninstall] …` — a positional subcommand with its own parser.
 const SKILLS_ACTIONS = ['install', 'update', 'export', 'list', 'uninstall'];
 function parseSkillsArgs(rest) {
-  const opts = { skillsAction: 'install', agent: null, skill: null, out: null, ref: null, skillsDir: null, force: false, help: false };
+  const opts = { skillsAction: 'install', agent: null, skill: null, out: null, ref: null, skillsDir: null, force: false, check: false, help: false };
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
     if (SKILLS_ACTIONS.includes(a)) opts.skillsAction = a;
@@ -131,6 +131,7 @@ function parseSkillsArgs(rest) {
     else if (a.startsWith('--ref=')) opts.ref = a.slice(6);
     else if (a === '--skills-dir') opts.skillsDir = rest[++i];
     else if (a.startsWith('--skills-dir=')) opts.skillsDir = a.slice(13);
+    else if (a === '--check') opts.check = true;
     else if (a === '--force' || a === '-f') opts.force = true;
     else if (a === '--help' || a === '-h') opts.help = true;
   }
@@ -483,6 +484,7 @@ Usage:
   brighttest skills export    [--out <dir>] [--force]                     Dump the raw skill folders
   brighttest skills list                                                  List available skills + detected agents
   brighttest skills uninstall [--agent <a>] [--skill <name>] [--force]    Remove installed skills
+  brighttest skills --check                                               CI: exit 1 if skills/manifest.json drifted
 
 Options:
   --agent <a>       Target agent(s): claude, cursor, agents, copilot, windsurf, cline, zed, agentskills,
@@ -491,6 +493,7 @@ Options:
   --ref <ref>       (update) Git branch/tag to fetch from (default: main)
   --skills-dir <d>  (agentskills target) Skill folder root (default: .agents/skills)
   -o, --out <dir>   (export) Destination (default: ./brighttest-skills)
+  --check           Compare skills/manifest.json with the skills/ tree (no writes); exit 1 on drift
   -f, --force       Overwrite files not created by brighttest
   -h, --help        Show this help
 
