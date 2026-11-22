@@ -374,6 +374,11 @@ republished (only when the command asked for `ack: reflected`). A session mismat
   `m.top.functionName = "..."` in `init`) and publishes the Task's `m` at entry and exit under the `task` layer
   (`get --layer global` does not show these fields). There is no automatic timer snapshot, because a Task blocked in
   `wait` cannot be interrupted; an app that wants mid-run snapshots calls `BT_taskSnap(m.global, "<name>", "timer", m)`.
+  Rules for that manual call: put it inside `#if BT_AGENT` ... `#end if` and set `BT_AGENT=false` in the manifest
+  `bs_const`, because `BT_taskSnap` exists only in the instrumented build and a production build would not compile
+  without the guard. A long-lived Task whose entry function never returns gets the `entry` snapshot only; `exit` is
+  published when the entry function returns. Each call serializes the Task's `m` with the caps and sets a global field
+  (a render-thread rendezvous), so call it at most about once per second, never per message in a hot loop.
 - Layers: `global`, `scene`, `node` (`node: {id}`), and `registry` for `get`. `set` is type-checked against the
   current value, never writes below a node reference (`PATH_UNDER_NODE`), and a field a node does not have is
   `FIELD_NOT_FOUND` (only `global` creates fields). A refused write leaves the app running.
