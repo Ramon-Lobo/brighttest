@@ -105,6 +105,20 @@ describe('hub events file', () => {
     expect(out).toMatch(/request GET \/api\/items -> 200 \(123 response bytes, source mock\)/)
   }, 15000)
 
+  it('agent-sourced events keep only timing keys; app data and secret-named keys never reach the file', () => {
+    const events = new EventEmitter()
+    const he = createHubEvents({ dir: path.join(dir, 'agent-events') })
+    he.open({ events })
+    events.emit('event', { src: 'agent', kind: 'state.snapshot', data: { id: 'c-2', seq: 5, ok: true, user: { authToken: 'SECRET-VALUE' }, authToken: 'SECRET-TOP' } })
+    events.emit('event', { src: 'agent', kind: 'custom', data: { op: 'x', nested: { id: 1 } } })
+    he.close()
+    const raw = fs.readFileSync(he.file, 'utf8')
+    expect(raw).not.toMatch(/SECRET|authToken/)
+    const rows = raw.split('\n').filter(Boolean).map((l) => JSON.parse(l))
+    expect(rows[0]).toMatchObject({ kind: 'event', src: 'agent', name: 'state.snapshot', data: { id: 'c-2', seq: 5, ok: true } })
+    expect(rows[1].data).toEqual({ op: 'x' })
+  })
+
   it('a hub that fails to start leaves no events file', async () => {
     const startLanHub = async () => { throw new Error('boom') }
     await runFlow(['launch'], { startLanHub }, { lanHub: true })
