@@ -16,7 +16,7 @@ beforeEach(() => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-poollane-'))
   fs.writeFileSync(path.join(dir, 'brighttest.json'), JSON.stringify({ deviceLease: { pool: [A, B] } }))
   cfg = loadConfig(dir, null)
-  log = []
+  log = []; pids = []
   savedEnv = { ...process.env }
   process.env.BRIGHTTEST_CACHE = path.join(dir, 'cache.json')
   process.env.ROKU_PASSWORD = 'pw'
@@ -34,7 +34,8 @@ function fakeChild() {
   setTimeout(() => { c.stdout.emit('data', Buffer.from('[Rooibos Result]\n')); c.emit('close', 0) }, 5)
   return c
 }
-const stubLease = () => ({ leaseId: 'x', reentrant: false, addChild() {}, release: () => log.push('release') })
+let pids = []
+const stubLease = () => ({ leaseId: 'x', reentrant: false, addChild: (pid) => pids.push(pid), release: () => log.push('release') })
 const acquirePoolOk = (host = B) => async (a) => { log.push(`acquire pool=${(a.pool || []).join('+')} host=${a.host}`); return { lease: stubLease(), host } }
 const opts = { devicePool: true, device: true }
 
@@ -48,6 +49,7 @@ describe('device lane with --device any', () => {
     expect(code).toBe(0)
     expect(log).toEqual([`acquire pool=${A}+${B} host=undefined`, 'release'])
     expect(JSON.stringify(spawned[0])).toContain(`--host=${B}`)
+    expect(pids).toEqual([4242]) // the rooibos child is recorded in the pool lease (else SIGTERM would orphan it)
   })
 
   it('an explicit --host wins: no pool is passed to the lease', async () => {
@@ -67,6 +69,19 @@ describe('device lane with --device any', () => {
     expect(code).toBe(2)
     expect(log).toEqual([])
     expect(console.error.mock.calls.flat().join('')).toMatch(/no dev password for pool device 127\.0\.0\.1/)
+  })
+
+  it('a bad pool config is a clean exit 2', async () => {
+    const bad = { ...cfg, deviceLease: { pool: [A, A] } }
+    expect(await device.run(bad, opts, { acquireForLane: acquirePoolOk() })).toBe(2)
+    expect(console.error.mock.calls.flat().join('')).toMatch(/^\[brighttest\] deviceLease\.pool entry 2 duplicates entry 1/)
+    expect(log).toEqual([])
+  })
+
+  it('a throw while setting up the run releases the pool lease', async () => {
+    const broken = { ...cfg, engines: { rooibos: 'no-such-engine' } }
+    await expect(device.run(broken, opts, { homeBeforeDeploy: async () => null, acquireForLane: acquirePoolOk(B), spawn: () => fakeChild() })).rejects.toThrow()
+    expect(log).toEqual([`acquire pool=${A}+${B} host=undefined`, 'release'])
   })
 
   it('a busy pool returns the lease exit code', async () => {

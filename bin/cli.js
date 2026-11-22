@@ -16,7 +16,8 @@ function parseArgs(argv) {
   const DEFAULT_LCOV = 'coverage/lcov.info';
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
-    if (a === '--device' || a === '-d') {
+    if (a === '--device=any') { opts.device = true; opts.devicePool = true; }
+    else if (a === '--device' || a === '-d') {
       opts.device = true;
       // `--device any`: take the first free device of deviceLease.pool (an explicit --host still wins).
       if (argv[i + 1] === 'any') { opts.devicePool = true; i++; }
@@ -350,7 +351,7 @@ function parseDeviceArgs(rest) {
     let v;
     if (a === '--') { o.cmd = rest.slice(i + 1); break; }
     if (i === 0 && DEVICE_ACTIONS.includes(a)) { o.deviceAction = a; continue; }
-    if ((a === '--device' || a === '-d') && rest[i + 1] === 'any') { o.devicePool = true; i++; continue; } // pool: with
+    if (((a === '--device' || a === '-d') && rest[i + 1] === 'any') || a === '--device=any') { o.devicePool = true; if (a !== '--device=any') i++; continue; } // pool: with
     if ((v = val('--host')) !== undefined) o.host = v;
     else if ((v = val('--password')) !== undefined || (v = val('--pass')) !== undefined) o.password = v;
     else if ((v = val('--ecp-port')) !== undefined) o.ecpPort = v;

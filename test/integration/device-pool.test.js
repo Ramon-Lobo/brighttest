@@ -126,4 +126,55 @@ describe('TP-LSE-27 device pool of two (headless)', () => {
     expect(c.err).toMatch(/needs a device pool/)
     expect(fs.existsSync(path.join(dir, 'leases'))).toBe(false)
   }, 20000)
+
+  it('--wait 0 at high concurrency: 30 runs, free devices, none fails because of the pool gate', async () => {
+    const runs = []
+    for (let i = 0; i < 30; i++) runs.push(any(`c${i}`, 20, ['--wait', '0']))
+    const codes = await Promise.all(runs.map((r) => r.done))
+    const ok = codes.filter((c) => c === 0).length
+    expect(ok).toBeGreaterThanOrEqual(2)
+    runs.forEach((r, i) => {
+      if (codes[i] === 0) return
+      expect(codes[i]).toBe(75)
+      expect(r.err).toMatch(/is held by|is busy|queued/) // a real busy device, never the internal gate
+      expect(r.err).not.toMatch(/pool-[0-9a-f]{6}/)
+      expect(r.err).not.toMatch(/gave up waiting/)
+    })
+  }, 60000)
+
+  it('hides the internal pool key from the waiting line', async () => {
+    bt(['--host', A], 4000, 'h1'); bt(['--host', B], 4000, 'h2')
+    expect(await waitFor(() => rec('enter', 'h1') && rec('enter', 'h2'))).toBe(true)
+    const w1 = any('w1', 100, ['--wait', '30s']); await waitFor(() => gateAcquired() >= 1)
+    const w2 = any('w2', 100, ['--wait', '30s'])
+    await Promise.all([w1.done, w2.done])
+    expect(w2.err).toMatch(/waiting for a free device in the pool/)
+    expect(w1.err + w2.err).not.toMatch(/pool-[0-9a-f]{6}/)
+  }, 40000)
+
+  it('SIGTERM to `brighttest --device any` kills the rooibos child and releases the member lease', async () => {
+    // A fake rooibos engine that records its pid and sleeps; the lane must record it in the lease (childPids).
+    const eng = path.join(proj, 'node_modules', '@ramonlobo', 'rooibos-roku')
+    fs.mkdirSync(eng, { recursive: true })
+    fs.writeFileSync(path.join(eng, 'package.json'), JSON.stringify({ name: '@ramonlobo/rooibos-roku', version: '9.9.9', bin: { rooibos: 'cli.js' } }))
+    const pidFile = path.join(dir, 'rooibos.pid')
+    fs.writeFileSync(path.join(eng, 'cli.js'), `require('fs').writeFileSync(${JSON.stringify(pidFile)}, String(process.pid)); setInterval(() => {}, 1000)\n`)
+    fs.cpSync(path.join(here, '..', 'fixtures', 'sample-project'), proj, { recursive: true, force: true })
+    fs.writeFileSync(path.join(proj, 'brighttest.json'), JSON.stringify({ ...JSON.parse(fs.readFileSync(path.join(here, '..', 'fixtures', 'sample-project', 'brighttest.json'), 'utf8')), deviceLease: { pool: [A, B] } }))
+    const c = spawn(process.execPath, [CLI, '--device', 'any', '--as', 'sig'], {
+      cwd: proj, stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, BRIGHTTEST_LEASE_DIR: path.join(dir, 'leases'), BRIGHTTEST_CACHE: path.join(dir, 'cache.json'), BRIGHTTEST_LEASE: '', ROKU_HOST: '', ROKU_PASSWORD: 'pw' },
+    })
+    children.push(c)
+    const exited = new Promise((r) => c.on('close', (code, sig) => r({ code, sig })))
+    expect(await waitFor(() => fs.existsSync(pidFile), 30000)).toBe(true)
+    const childPid = Number(fs.readFileSync(pidFile, 'utf8'))
+    const holder = path.join(dir, 'leases', A, 'holder.json')
+    expect(JSON.parse(fs.readFileSync(holder, 'utf8')).holder.childPids).toContain(childPid)
+    c.kill('SIGTERM')
+    await exited
+    const alive = (pid) => { try { process.kill(pid, 0); return true } catch { return false } }
+    expect(await waitFor(() => !alive(childPid), 10000)).toBe(true)
+    expect(fs.existsSync(holder)).toBe(false)
+  }, 60000)
 })
