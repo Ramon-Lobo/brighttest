@@ -59,6 +59,11 @@ describe('studio Origin / Sec-Fetch-Site guard', () => {
     expect((await post(h())).status).toBe(403);
     expect(written()).toBe(false);
   });
+  it('rejects a cross-site GET /api/run too', async () => {
+    const r = await req('GET', '/api/run?file=source/tests/Any.spec.bs', { headers: { 'Sec-Fetch-Site': 'cross-site' } });
+    expect(r.status).toBe(403);
+    expect((await req('GET', '/api/run?file=source/tests/Any.spec.bs', { headers: { Origin: 'https://evil.example' } })).status).toBe(403);
+  });
   it('rejects a cross-site GET too', async () => {
     expect((await req('GET', '/api/device', { headers: { 'Sec-Fetch-Site': 'cross-site' } })).status).toBe(403);
   });

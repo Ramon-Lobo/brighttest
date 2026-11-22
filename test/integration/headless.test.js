@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
-import { makeProject, runCli, readFile, exists, cleanupTemp } from './helpers.js'
+import { fileURLToPath } from 'node:url'
+import { makeProject, makeEmptyDir, runCli, readFile, exists, cleanupTemp } from './helpers.js'
 
 afterAll(cleanupTemp)
 
@@ -151,5 +152,20 @@ describe('deviceInfo block (COV-02) on the SceneGraph-off lane', () => {
   it('no block: unchanged engine identity (HD) on the CLI path', () => {
     const res = runCli(project(null), ['--no-sgnode'])
     expect(res.output).toContain('✗ identity > reports the ui resolution')
+  })
+})
+
+describe('default headless lane mounts the package root (pkg:/ store fixtures, no instrument.net)', () => {
+  it('runs the store-fixtures example with instrument.net removed', () => {
+    const src = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'examples', 'store-fixtures-app')
+    const dir = makeEmptyDir()
+    fs.cpSync(src, dir, { recursive: true })
+    const cfgPath = path.join(dir, 'brighttest.json')
+    const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'))
+    delete cfg.instrument
+    fs.writeFileSync(cfgPath, JSON.stringify(cfg, null, 2))
+    const res = runCli(dir)
+    expect(res.output).toContain('3 passed, 0 failed')
+    expect(res.status).toBe(0)
   })
 })
