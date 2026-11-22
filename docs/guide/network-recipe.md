@@ -59,6 +59,8 @@ the session or flow) to go back to the real endpoint.
   Mocks stay until the session ends. The MCP server needs `BRIGHTTEST_HUB_TOKEN` in its environment, set to the same value
   as for `instrument build --net` ([the hub token](./instrument#the-hub-token---net-and-brighttest-hub-token)); otherwise the
   app's requests are refused. See [MCP](./mcp) for details.
+  The session hub writes `[brighttest hub] ...` lines to MCP stderr (start, each request with method, path without
+  query, status and bytes, and stop). No request bodies.
 - Observe-only breadcrumbs and the MCP net tools have been tested headless and against stubs only. A check on a real
   device is still open (TP-NET-31).
 - Mocks and faults need the hub; they do nothing in an observe-only build.
