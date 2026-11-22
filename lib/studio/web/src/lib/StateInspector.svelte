@@ -167,7 +167,7 @@
 </script>
 
 {#if st === 'none'}
-  <p class="empty">No instrument hub is running in Studio. It starts while Studio holds the device lease and <code>BRIGHTTEST_HUB_TOKEN</code> is set.</p>
+  <p class="empty">No instrument hub is running in Studio. It starts while Studio holds the device lease and <code>BRIGHTTEST_HUB_TOKEN</code> is set. It does not start when Studio uses a device pool (<code>deviceLease.pool</code>): start Studio with <code>--host &lt;ip&gt;</code>.</p>
   <AppState {onadd} />
 {:else if st === 'locked'}
   <p class="empty err">Device is held by another session, so the live state is unavailable. Take the device in the header to inspect and edit.</p>

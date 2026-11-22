@@ -354,3 +354,94 @@ describe('Studio server with a device pool', () => {
     a.release(); b.release()
   })
 })
+
+// LSE-T13 review fixes: pool yield, stale take-over, pool status text, member password.
+describe('StudioLease pool mode and cancellation', () => {
+  const POOL = ['127.0.0.1', '127.0.0.2']
+  const mkPool = () => new StudioLease({ cfg, env: env(), now: () => clock.t, log: (s) => logs.push(s), acquireOpts: seams(), pool: POOL })
+  const gateKey = async () => lease.poolGateKey(await lease.poolKeys(POOL))
+
+  it('yields within studioYield to a holder on the pool gate', async () => {
+    const s = mkPool()
+    expect(await s.ensure({ user: true })).toBe(true)
+    expect(s.holding).toBe(true)
+    const g = await other({ key: await gateKey(), purpose: 'pool pick (2 devices)' })
+    clock.t += 6000; s.tick()
+    expect(s.holding).toBe(false)
+    expect(logs.join('\n')).toMatch(/studio released .*yielded to/)
+    g.release()
+  })
+
+  it('does not yield to the pool gate when nobody waits', async () => {
+    const s = mkPool()
+    await s.ensure({ user: true })
+    clock.t += 6000; s.tick()
+    expect(s.holding).toBe(true)
+  })
+
+  it('a pending take-over does not survive setHost: a stale lease is released at once', async () => {
+    const o = await other({ key: '127.0.0.1' })
+    const s = mk()
+    s.takeOver()
+    const p = s.pending
+    expect(p).toBeTruthy()
+    s.setHost('127.0.0.9')
+    expect(s.pending).toBeNull()
+    o.release()
+    await p
+    expect(s.holding).toBe(false)
+    expect(lease.status({ dir, key: '127.0.0.1' })[0].holder).toBeNull()
+  })
+
+  it('cancel() drops a pending take-over', async () => {
+    const o = await other({ key: '127.0.0.1' })
+    const s = mk()
+    s.takeOver()
+    const p = s.pending
+    s.cancel()
+    o.release()
+    await p
+    expect(s.holding).toBe(false)
+    expect(lease.status({ dir, key: '127.0.0.1' })[0].holder).toBeNull()
+  })
+
+  it('pool info: all members busy says so; never "free" while Studio is queued on the gate', async () => {
+    const a = await other({ key: '127.0.0.1', agent: 'a#1' })
+    const b = await other({ key: '127.0.0.2', agent: 'b#1' })
+    const s = mkPool()
+    let info = await s.info()
+    expect(info.poolState).toMatchObject({ size: 2, busy: 2 })
+    expect(StudioLease.describe(info)).toMatch(/all 2 .*busy/i)
+    s.takeOver()
+    await new Promise((r) => setTimeout(r, 50))
+    info = await s.info()
+    expect(info.queued).toBe(true)
+    expect(StudioLease.describe(info)).not.toMatch(/free/i)
+    s.cancel(); a.release(); b.release()
+  })
+
+  it('pool info: a free member with a waiter on the gate is not plain "free"', async () => {
+    const g = await other({ key: await gateKey(), agent: 'g#1' })
+    const w = lease.acquire({ ...seams(), key: await gateKey(), agent: 'w#1', purpose: 'pool pick', pid: process.ppid, waitMs: 60000, exitOnLost: false }).catch(() => {})
+    await new Promise((r) => setTimeout(r, 50))
+    const info = await mkPool().info()
+    expect(info.queue.length).toBeGreaterThan(0)
+    expect(StudioLease.describe(info)).toMatch(/waiter/)
+    g.release(); (await w) && (await w).release()
+  })
+
+  it('a pool member password resolves like the preflight (env only)', () => {
+    const prev = process.env.ROKU_PASSWORD
+    process.env.ROKU_PASSWORD = 'env-only-pw'
+    process.env.BRIGHTTEST_CACHE = path.join(dir, 'none.json')
+    try { expect(studio.memberPassword('127.0.0.1', {})).toBe('env-only-pw') }
+    finally { if (prev === undefined) delete process.env.ROKU_PASSWORD; else process.env.ROKU_PASSWORD = prev; delete process.env.BRIGHTTEST_CACHE }
+  })
+
+  it('setHost to the bound member leaves pool mode', async () => {
+    const s = mkPool()
+    await s.ensure({ user: true })
+    s.setHost(s.host)
+    expect(s.pool).toBeNull()
+  })
+})

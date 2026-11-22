@@ -176,7 +176,7 @@
     try {
       const l = await api.lease();
       studio.leaseInfo = l;
-      if (l.holding && !studio.device?.connected) refreshDevice(); // a pool member was just bound
+      if (l.holding && (!studio.device?.connected || studio.device.host !== l.host)) refreshDevice(); // a pool member was just bound
       if (!studio.lease) return;
       if (l.holding) { studio.lease = null; studio.status = ''; return; }
       studio.lease = { ...studio.lease, lease: l };
@@ -187,14 +187,17 @@
     if (!l) return { cls: 'unknown', text: 'lease …', own: '' };
     const h = l.holder;
     const n = l.queue?.length || 0;
+    const ps = l.pool && !l.holding ? l.poolState : null;
     const own = l.holding ? 'Studio holding' : l.queued ? 'Studio queued' : 'Studio released';
-    const who = h ? (h.mine ? 'held by Studio' : `held by ${h.agent}`) : 'free';
-    return { cls: l.holding ? 'mine' : h ? 'other' : 'free', text: `${who}${n ? ` · ${n} queued` : ''}`, own };
+    const allBusy = ps && ps.busy >= ps.size;
+    const who = allBusy ? `pool: all ${ps.size} busy` : h ? (h.mine ? 'held by Studio' : `held by ${h.agent}`) : l.queued ? 'waiting' : 'free';
+    return { cls: l.holding ? 'mine' : h || allBusy ? 'other' : l.queued ? 'wait' : 'free', text: `${who}${n ? ` · ${n} queued` : ''}`, own };
   };
   async function takeOver() {
     try { const l = await api.leaseAction('acquire'); studio.lease = l.holding ? null : { ...studio.lease, lease: l }; } catch {}
   }
   const leaseText = (l) => {
+    if (l?.lease?.text && l.lease.pool) return l.lease.text;
     const h = l?.lease?.holder;
     if (h && !h.mine) return `Device in use by ${h.agent} — "${h.purpose}" (since ${new Date(h.since).toTimeString().slice(0, 5)})`;
     return l?.error || 'Studio released the device';
@@ -374,6 +377,9 @@
   .leasebar button { font-size: 12px; }
   .leasebadge { position: relative; font-size: 12px; }
   .leasebadge summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 6px; }
+  .leasebadge summary::-webkit-details-marker { display: none; }
+  .leasebadge.free .ldot { background: var(--color-line); outline: 1px solid var(--color-haze); }
+  .leasebadge.wait .ldot { background: #d29922; }
   .leasebadge .ldot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-haze); }
   .leasebadge.mine .ldot { background: #3fb950; }
   .leasebadge.other .ldot { background: #d29922; }
