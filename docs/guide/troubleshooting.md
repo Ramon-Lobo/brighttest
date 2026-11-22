@@ -244,17 +244,12 @@ last input, the screensaver appears at about 601 s, and the app exits at about 1
 tested. The key has to come from the host over ECP. Other keys and other intervals are not tested, so do not assume
 they work.
 
-**Workaround (manual, not yet a built-in feature):**
+**Workaround:**
 
-- Send one harmless ECP keypress from the host every 240 s for the whole run, for example `Fwd`. The run must hold
-  the lease the whole time, so send the key from a command wrapped in `brighttest device with`:
-
-  ```sh
-  brighttest device with --host <ip> -- sh -c 'curl -s -X POST "http://$ROKU_HOST:8060/keypress/Fwd"'
-  ```
-
-  The CLI has no standalone key-press command yet. A built-in option for this is planned. Check that the app does
-  nothing unwanted on the key you choose.
+- Use the built-in option: `brighttest device with --keepalive -- <long command>`. While the command runs, it sends
+  one ECP `Fwd` keypress from the host every 240 s (`--keepalive=<sec>` to change it; minimum 60, `0` = off), under
+  the lease `device with` already holds. See [`--keepalive`](/guide/device-lease#keeping-the-app-alive-on-long-runs-keepalive).
+  It applies to `device with` only; `e2e run` does not use it. Check that the app does nothing unwanted on `Fwd`.
 - Or change the device's own screensaver or idle setting so it starts later than the run. This changes a device
   setting, so the device owner should decide it. Do not change it silently on a shared device.
 

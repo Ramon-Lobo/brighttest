@@ -42,6 +42,10 @@ traffic only through this session hub, so the build must point at the same host 
 hub (`hub`: `host`, `port`, `leaseId`, `startedAt`) while the window is open, and `null` otherwise. `leaseId` is only the
 first 8 characters; the full lease id stays inside the server and is never put in tool output or logs.
 
+The session hub also writes `[brighttest hub] ...` lines to the MCP server's stderr: one when the hub starts, one for
+each request (method, path without the query, status and response bytes) and one when it stops. Request bodies are
+never logged.
+
 The app and the session hub must share the hub token. Set `BRIGHTTEST_HUB_TOKEN` in the MCP server's environment to the
 same value you used for `instrument build --net` (see [the hub token](./instrument#the-hub-token---net-and-brighttest-hub-token)).
 Without it the hub starts but the app's requests are refused.
