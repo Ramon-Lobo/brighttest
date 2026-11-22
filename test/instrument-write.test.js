@@ -421,3 +421,56 @@ describe('registry reads honour redact.paths (INS-REDACT-REGISTRY, headless, for
     expect(tagged(out, 'S_deeper:')[0].result.value.theme).toBe('dark')
   })
 })
+
+describe('registry JSON values and section reads mask like the published doc (INS-REDACT-REGISTRY-FU, headless)', () => {
+  let out
+  const P = 'registry.' + SECTION
+  const JV = '{"user":{"accessToken":"AT1","name":"nm","deep":{"pin":"1234","ok":"fine"}},"list":[{"pin":"9"},"x"]}'
+  const pats = { none: [], below: [`${P}.cfg.user.deep.pin`, `${P}.cfg.list[0].pin`], star: [`${P}.cfg.user.deep.*`], exactsec: [P] }
+  beforeAll(async () => {
+    const q = (s) => s.replace(/"/g, '""')
+    const main = [
+      `    BT_wApply({ op: "registry.write", args: { section: "${SECTION}", key: "cfg", value: "${q(JV)}" } }, ctx)`,
+      `    BT_wApply({ op: "registry.write", args: { section: "${SECTION}", key: "plain", value: "not json {x" } }, ctx)`,
+      ...Object.keys(pats).flatMap((n) => [
+        `    ctx.cfg = BT_config() : ctx.cfg.redact = { paths: ${JSON.stringify(pats[n])} }`,
+        `    print "G_${n}:" + rn(ctx, "get", { layer: "registry", path: "${SECTION}.cfg" })`,
+        `    print "O_${n}:" + rn(ctx, "registry.read", { section: "${SECTION}", key: "cfg" })`,
+        `    print "P_${n}:" + rn(ctx, "registry.read", { section: "${SECTION}", key: "plain" })`,
+        `    print "S_${n}:" + rn(ctx, "get", { layer: "registry", path: "${SECTION}" })`,
+      ]),
+      '    ctx.cfg = BT_config() : ctx.cfg.registrySections = ["bt_tokens"]',
+      '    BT_wApply({ op: "registry.write", args: { section: "bt_tokens", key: "k", value: "v" } }, ctx)',
+      '    print "T_sec:" + rn(ctx, "get", { layer: "registry", path: "bt_tokens" })',
+    ].join('\n')
+    out = await runBrs('redact-registry-fu', { main }).done
+  }, 90000)
+  const raw = (tag) => JSON.stringify(tagged(out, tag + ':')[0])
+  const val = (tag) => tagged(out, tag + ':')[0].result.value
+  const parsed = (tag) => { const v = val(tag); return typeof v === 'string' ? JSON.parse(v) : v }
+
+  it('a JSON value with a nested secret key and no patterns: the nested secret is masked on both reads', () => {
+    for (const p of ['G', 'O']) {
+      expect(raw(`${p}_none`)).not.toContain('AT1')
+      expect(parsed(`${p}_none`).user).toMatchObject({ accessToken: '<redacted:accessToken>', name: 'nm' })
+    }
+    expect(raw('S_none')).not.toContain('AT1')
+  })
+  it('a redact.paths pattern below the key reaches into the JSON value (dotted, [i] and .*)', () => {
+    for (const p of ['G', 'O']) {
+      expect(raw(`${p}_below`)).not.toMatch(/1234|"pin":"9"/)
+      expect(parsed(`${p}_below`).user.deep).toEqual({ ok: 'fine', pin: '<redacted:pin>' })
+      expect(parsed(`${p}_below`).list[0].pin).toBe('<redacted:pin>')
+      expect(raw(`${p}_star`)).not.toMatch(/1234|fine/)
+    }
+  })
+  it('a non-JSON value is returned unchanged', () => {
+    for (const n of Object.keys(pats).filter((k) => k !== 'exactsec')) expect(val(`P_${n}`)).toBe('not json {x')
+  })
+  it('a section named by an exact pattern or by a secret-like name masks the whole read', () => {
+    expect(val('S_exactsec')).toBe(`<redacted:${SECTION}>`)
+    expect(val('G_exactsec')).toBe('<redacted:' + SECTION + '>')
+    expect(raw('S_exactsec')).not.toContain('nm')
+    expect(val('T_sec')).toBe('<redacted:bt_tokens>')
+  })
+})
