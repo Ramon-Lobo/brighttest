@@ -178,11 +178,13 @@ function BT_wRegRead(ctx as object, section as dynamic, key as dynamic) as objec
     if not BT_wInList(BT_wCfgList(ctx, "registrySections"), section) then return BT_wErr("REGISTRY_SECTION_NOT_ALLOWED", "section is not in instrument.state.registrySections")
     sec = CreateObject("roRegistrySection", section)
     if sec = invalid or not sec.Exists(key) then return { ok: true, result: { found: false } }
-    rd = invalid
-    if type(ctx.cfg) = "roAssociativeArray" and type(ctx.cfg.redact) = "roAssociativeArray" then rd = ctx.cfg.redact.paths
-    hit = BT_wRedSeg("registry", [section, key], rd)
-    if hit <> invalid then return hit
-    return { ok: true, result: { found: true, value: sec.Read(key) } }
+    j = BT_wRedSeg("registry", [section, key], ctx.rd)
+    if j <> invalid then return j
+    v = sec.Read(key)
+    c = Left(v, 1)
+    if c = "{" or c = "[" then j = ParseJson(v)
+    if j <> invalid then v = FormatJson(BT_serialize(j, { depth: 99, arrayItems: 99999, stringBytes: 99999 }, "registry." + section + "." + key, 0, [], ctx.rd))
+    return { ok: true, result: { found: true, value: v } }
 end function
 
 function BT_wRegWrite(ctx as object, section as dynamic, key as dynamic, value as dynamic) as object
@@ -204,8 +206,7 @@ end function
 
 function BT_wGet(args as object, ctx as object) as object
     caps = BT_capsFrom(ctx.cfg)
-    redact = invalid
-    if type(ctx.cfg) = "roAssociativeArray" and type(ctx.cfg.redact) = "roAssociativeArray" then redact = ctx.cfg.redact.paths
+    redact = ctx.rd
     segs = BT_wSplit(args.path)
     trunc = []
     if BT_wIs(args.layer, "registry") then
@@ -393,8 +394,7 @@ function BT_wSnapshot(args as object, ctx as object) as object
     layers.delete("focus")
     if BT_wKind(args.nodes) = "array" then
         caps = BT_capsFrom(ctx.cfg)
-        redact = invalid
-        if type(ctx.cfg) = "roAssociativeArray" and type(ctx.cfg.redact) = "roAssociativeArray" then redact = ctx.cfg.redact.paths
+        redact = ctx.rd
         nodes = {}
         for each id in args.nodes
             n = BT_wNodeById(ctx, { id: id })
@@ -575,6 +575,8 @@ function BT_wApply(cmd as dynamic, ctx as object) as object
     known = ["ping", "get", "set", "merge", "snapshot", "restore", "registry.read", "registry.write", "callFunc", "subscribe", "dispatch", "focus"]
     if not BT_wInList(known, op) then return { ok: false, error: "op not allowed: " + op }
     if Len(FormatJson(args)) > BT_wMaxBytes() then return BT_wErr("STATE_TOO_LARGE", "command args are over the 64 KB limit; nothing was applied")
+    ctx.rd = invalid
+    if type(ctx.cfg) = "roAssociativeArray" and type(ctx.cfg.redact) = "roAssociativeArray" then ctx.rd = ctx.cfg.redact.paths
     res = invalid
     try
         if op = "ping" then
