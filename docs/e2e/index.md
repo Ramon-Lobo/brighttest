@@ -60,16 +60,20 @@ on failure. Exit code is `0` on success, `1` on a failed step, `2` on a usage/pr
 
 Each step line is followed by its wall-clock time (`step time: 12 ms`, from `Date.now()`, measured around the step
 itself, not its screenshot). Before the closing rule the run prints one summary line:
-`timing: 3 step(s) 41 ms · run 52 ms · runner overhead 11 ms`. *Run* is the wall time of the device run (preflight, lease,
-hub start, steps, screenshots, log reader); *runner overhead* is run minus the sum of step times. With several devices the
+`timing: 3 step(s) 41 ms · run 52 ms · runner overhead 11 ms`. *Run* is the wall time of the device run (preflight, device lease wait,
+hub start, steps, screenshots, log reader), so time spent waiting for a busy lease counts as runner overhead; *runner overhead* is run minus the sum of step times. With several devices the
 per-device values are summed. Times are for splitting runner overhead from device and hub time, not pass/fail: exit
 codes and results do not depend on them.
 
 When the run starts the instrument hub (network or state steps), it also writes `hub-events.ndjson` in the run's
 artifact directory (the `--screenshots` directory, with a per-device subdirectory when several devices run). One JSON
-object per line with an ISO `ts`. Request lines carry `method`, `path`, `status`, `bytes` and `source` (the same entry as
-the hub's `request METHOD PATH -> status (N response bytes, source …)` line); other hub log lines are `kind: "log"`, and
-hub events are `kind: "event"` with `src`, `name` and (small) `data`. No file is written when no hub runs.
+object per line with an ISO `ts`. Request lines carry `method`, `path`, `status`, `bytes` and `source`. They are built from the
+net proxy's events in the shape `request METHOD PATH -> status (N response bytes, source …)`; the e2e LAN hub itself never
+prints them. `path` is kept as-is (path segments are not redacted); only the query string is dropped. A proxy error without
+a response status is written with `status: null` and a `request METHOD PATH failed (kind)` line. Other hub log lines are
+`kind: "log"`, and hub events are `kind: "event"` with `src`, `name` and (small) `data`. For events with `src: "agent"`
+(state snapshots, acks, custom events) only the keys `id`, `seq`, `op`, `ok`, `error` and `phase` are written, and only
+when their values are not objects, so app data never reaches the file. No file is written when no hub runs.
 
 ## Studio
 
