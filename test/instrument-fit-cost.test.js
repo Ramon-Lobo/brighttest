@@ -80,3 +80,73 @@ describe('BT_fit over-cap output (STA-SP7)', () => {
     })
   }
 })
+
+// STA-SP7-FU: cap-edge pins for BT_fit, called directly with a hand-built document so the cap is exact.
+// Layer "global" holds one large entry and a small one; the cap is taken from Len(FormatJson(doc)) inside the program.
+function runEdges() {
+  const body = [
+    'function mk(k as string) as object',
+    '    l = {}',
+    '    l[k] = String(60, "x")',
+    '    l["z"] = "zz"',
+    '    return { v: 1, seq: 1, snapshot: { layers: { global: l } }, truncated: [] }',
+    'end function',
+    'sub main()',
+    '    for each k in ["big", Chr(1082) + Chr(1083) + Chr(1102) + Chr(1095)]',
+    '        n = Len(FormatJson(mk(k)))',
+    '        print "@@cap " + n.toStr()',
+    '        print "@@at"',
+    '        print BT_fit(mk(k), n)',
+    '        print "@@under"',
+    '        print BT_fit(mk(k), n - 1)',
+    '    end for',
+    'end sub',
+  ].join('\n')
+  const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'bt-fit-edge-')), 'edge.brs')
+  fs.writeFileSync(file, `${CORE}\n${body}\n`)
+  try {
+    const out = execFileSync(process.execPath, [brsCli, file], { encoding: 'utf8', timeout: 120000, maxBuffer: 8 * 1024 * 1024 })
+    const lines = out.split(/\r?\n/)
+    const res = []
+    lines.forEach((l, i) => {
+      const m = /^@@cap (\d+)$/.exec(l)
+      if (m) res.push({ cap: +m[1], at: lines[i + 2], under: lines[i + 4] })
+    })
+    return res
+  } finally { fs.rmSync(path.dirname(file), { recursive: true, force: true }) }
+}
+
+describe('BT_fit cap edges (STA-SP7-FU)', () => {
+  const [ascii, uni] = runEdges()
+  const X = 'x'.repeat(60)
+  const KEY = 'ключ'
+
+  it('output exactly at the cap is returned untouched', () => {
+    const doc = `{"seq":1,"snapshot":{"layers":{"global":{"big":"${X}","z":"zz"}}},"truncated":[],"v":1}`
+    expect(ascii.cap).toBe(143)
+    expect(ascii.at).toBe(doc)
+    expect(Buffer.byteLength(ascii.at)).toBe(ascii.cap)
+  })
+
+  it('cap minus 1 byte replaces the largest entry with the 18 B marker and records it', () => {
+    const doc = '{"seq":1,"snapshot":{"layers":{"global":{"big":"$truncated:bytes","z":"zz"}}},"truncated":["global.big:bytes"],"v":1}'
+    expect(ascii.under).toBe(doc)
+    expect(Buffer.byteLength(ascii.under)).toBeLessThanOrEqual(ascii.cap - 1)
+  })
+
+  // The engine emits object keys raw (UTF-8) while Len counts characters, so a non-ASCII key makes the byte size exceed
+  // the character count. These pin what the runtime does today: the exact-cap document is kept although it is KEY.length bytes
+  // over in UTF-8 (finding logged for the reviewer); cap minus 1 truncates and the marker path escapes the key as \uXXXX.
+  it('unicode key at the cap: kept by character count, bytes pinned', () => {
+    const doc = `{"seq":1,"snapshot":{"layers":{"global":{"z":"zz","${KEY}":"${X}"}}},"truncated":[],"v":1}`
+    expect(uni.cap).toBe(144)
+    expect(uni.at).toBe(doc)
+    expect(uni.at.length).toBe(uni.cap)
+    expect(Buffer.byteLength(uni.at)).toBe(uni.cap + KEY.length)
+  })
+
+  it('unicode key at cap minus 1: truncated, marker path is escaped', () => {
+    const doc = `{"seq":1,"snapshot":{"layers":{"global":{"z":"zz","${KEY}":"$truncated:bytes"}}},"truncated":["global.\\u043A\\u043B\\u044E\\u0447:bytes"],"v":1}`
+    expect(uni.under).toBe(doc)
+  })
+})
