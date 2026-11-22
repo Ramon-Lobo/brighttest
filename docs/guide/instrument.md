@@ -308,7 +308,8 @@ republished (only when the command asked for `ack: reflected`). A session mismat
   current value, never writes below a node reference (`PATH_UNDER_NODE`), and a field a node does not have is
   `FIELD_NOT_FOUND` (only `global` creates fields). A refused write leaves the app running.
 - Registry writes go to `instrument.state.registrySections` only, and are flushed. `callFunc` runs only the names in
-  the config's `callFuncAllow` list (empty by default); the build does not emit that list yet.
+  the config's `callFuncAllow` list, which the build writes from `instrument.state.callable` (empty by default; see
+  [app state](../e2e/app-state.md)).
 - `snapshot {name}` stores the layers host-side; `restore {name}` writes them back. Restore is best effort: values that
   were cut, redacted (`<redacted:...>`) or are node references are skipped and listed, fields added after the snapshot
   are listed in `added` and left in place, and an object field comes back whole.

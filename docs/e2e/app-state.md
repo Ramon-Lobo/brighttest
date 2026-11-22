@@ -169,6 +169,12 @@ names the full key, for example
 `instrument.state.redact.paths must be an array of strings`. Nothing is coerced. The device-side agent also ignores a non-integer or out-of-range value and uses the default
 (`lib/instrument/runtime/source/bt/BT_core.brs`, `BT_pubInt`), but only as a safety net: the build never emits one.
 
+### Callable names
+
+`instrument.state.callable` is an array of callFunc names the `callFunc` write op may run (default none). Each is a plain
+identifier of at most 64 characters (a namespaced `x.fn` is written `x_fn`), no duplicates ignoring case, at most 64
+names. The build writes them to the device config as `callFuncAllow`; anything else fails the build and names the key.
+
 ### The 256 KB limit
 
 The reader accepts at most **256 KB** (262,144 bytes) of published text, the largest size measured to
