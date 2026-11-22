@@ -140,9 +140,9 @@ end function
 
 function BT_wMCall(n as object, req as object) as object
     r = n.callFunc("BT_op", req)
-    if BT_wKind(r) <> "object" then return BT_wErr("M_NOT_AVAILABLE", "that node has no BT_op (not instrumented or excluded)")
-    if BT_wIs(r.ok, false) and BT_wIsStr(r.error) then return r
-    if not BT_wIs(r.btop, true) then return BT_wErr("M_NOT_AVAILABLE", "that node has no BT_op (not instrumented or excluded)")
+    k = BT_wKind(r)
+    if k = "object" and BT_wIs(r.ok, false) and BT_wIsStr(r.error) then return r
+    if k <> "object" or not BT_wIs(r.btop, true) then return BT_wErr("M_NOT_AVAILABLE", "that node has no BT_op (not instrumented or excluded)")
     return r
 end function
 
@@ -171,9 +171,15 @@ end function
 
 ' ---- registry
 
-function BT_wRegRead(ctx as object, section as dynamic, key as dynamic) as object
+function BT_wRegChk(ctx as object, section as dynamic, key as dynamic) as dynamic
     if not BT_wIsStr(section) or not BT_wIsStr(key) or section = "" or key = "" then return BT_wErr("BAD_COMMAND", "section and key must be non-empty strings")
     if not BT_wInList(BT_wCfgList(ctx, "registrySections"), section) then return BT_wErr("REGISTRY_SECTION_NOT_ALLOWED", "section is not in instrument.state.registrySections")
+    return invalid
+end function
+
+function BT_wRegRead(ctx as object, section as dynamic, key as dynamic) as object
+    e = BT_wRegChk(ctx, section, key)
+    if e <> invalid then return e
     sec = CreateObject("roRegistrySection", section)
     if sec = invalid or not sec.Exists(key) then return { ok: true, result: { found: false } }
     j = BT_wRedSeg("registry", [section, key], ctx.rd)
@@ -186,8 +192,8 @@ function BT_wRegRead(ctx as object, section as dynamic, key as dynamic) as objec
 end function
 
 function BT_wRegWrite(ctx as object, section as dynamic, key as dynamic, value as dynamic) as object
-    if not BT_wIsStr(section) or not BT_wIsStr(key) or section = "" or key = "" then return BT_wErr("BAD_COMMAND", "section and key must be non-empty strings")
-    if not BT_wInList(BT_wCfgList(ctx, "registrySections"), section) then return BT_wErr("REGISTRY_SECTION_NOT_ALLOWED", "section is not in instrument.state.registrySections")
+    e = BT_wRegChk(ctx, section, key)
+    if e <> invalid then return e
     k = BT_wKind(value)
     if k = "invalid" or k = "node" or k = "other" then return BT_wErr("TYPE_MISMATCH", "registry values are strings, numbers, booleans, arrays or objects")
     text = value
