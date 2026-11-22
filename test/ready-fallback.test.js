@@ -40,4 +40,43 @@ describe('waitForReady app-ui fallback (ROB-10)', () => {
     await expect(waitForReady(d, { constants: fast })).rejects.toMatchObject({ code: 'LIMITED_MODE' })
     expect(d.calls).toEqual(['/query/sgnodes/all'])
   })
+  // Scripted sgnodes bodies, one per poll; after the script every read is "channel not running", which never
+  // counts. An RPC-timeout read backs off 400 ms inside fetchTree, so the deadline must cover the script.
+  const NOT_RUNNING = FAILED('Channel not running')
+  const BAD = FAILED('Plugin RPC event timed out')
+  const OK_SG = '<sgnodes><status>OK</status><topscreen><Scene><Label name="t" text="x" focused="true" /></Scene></topscreen></sgnodes>'
+  const scripted = (bodies) => {
+    const calls = []
+    let n = 0
+    return {
+      calls,
+      activeApp: async () => ({ id: 'dev', home: false }),
+      ecpGet: async (p) => {
+        calls.push(p)
+        if (p === '/query/app-ui') return { text: APP_UI }
+        return { text: n < bodies.length ? bodies[n++] : NOT_RUNNING }
+      },
+    }
+  }
+  const slow = { intervalMs: 1, timeoutMs: 1500 }
+  it('CHANNEL_NOT_RUNNING resets the failure run (FAILED,FAILED,NOT_RUNNING,FAILED)', async () => {
+    const d = scripted([BAD, BAD, NOT_RUNNING, BAD])
+    await expect(waitForReady(d, { constants: slow })).rejects.toMatchObject({ code: 'READY_TIMEOUT' })
+    expect(d.calls).not.toContain('/query/app-ui')
+  })
+  it('a successful sgnodes read resets the failure run (FAILED,FAILED,OK,FAILED)', async () => {
+    const d = scripted([BAD, BAD, OK_SG, BAD])
+    await expect(waitForReady(d, { constants: slow })).rejects.toMatchObject({ code: 'READY_TIMEOUT' })
+    expect(d.calls).not.toContain('/query/app-ui')
+  })
+  it('names a TimeoutError by name, not its numeric DOMException code', async () => {
+    const d = {
+      activeApp: async () => ({ id: 'dev', home: false }),
+      ecpGet: async () => { throw new DOMException('aborted', 'TimeoutError') },
+    }
+    const err = await waitForReady(d, { constants: { ...fast, timeoutMs: 50 } }).catch((e) => e)
+    expect(err.code).toBe('READY_TIMEOUT')
+    expect(err.message).toContain('sgnodes not ready: TimeoutError')
+    expect(err.message).not.toMatch(/not ready: 23/)
+  })
 })
