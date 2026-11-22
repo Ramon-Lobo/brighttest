@@ -7,6 +7,8 @@ import { loadConfig } from '../lib/config.js'
 import { parseFlow } from '../lib/e2e/flow.js'
 import ss from '../lib/e2e/state-steps.js'
 import hubMod from '../lib/instrument/hub.js'
+import { createRequire } from 'node:module'
+const require = createRequire(import.meta.url)
 
 // TP-STA-14: state flow steps against a real loopback hub with a fake agent (acks fed through hub.stateOps; no device).
 const TOKEN = 'tok-state-steps'
@@ -27,7 +29,7 @@ function agent(script) {
       for (const phase of r.phases || ['received', 'applied']) {
         hub.stateOps.onAck({ id: cmd.id, seq: cmd.seq, phase, session: hub.sessionId, ...(phase !== 'received' && r.error ? { ok: false, error: r.error } : {}), ...(phase === 'applied' && r.result ? { result: r.result } : {}) })
       }
-    }, 5)
+    }, r.delay || 5)
   })
 }
 async function setup(flow, { hello = true, config = cfg } = {}) {
@@ -38,7 +40,7 @@ async function setup(flow, { hello = true, config = cfg } = {}) {
   if (hello) await fetch(`http://127.0.0.1:${hub.port}/bt/${TOKEN}/hello`)
   return ctx
 }
-beforeEach(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-state-steps-')); cfg = loadConfig(dir, null); sent = [] })
+beforeEach(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-state-steps-')); cfg = { ...loadConfig(dir, null), instrument: { state: { callable: ['bt_reset'] } } }; sent = [] })
 afterEach(async () => { if (hub) await hub.stop(); hub = null; vi.restoreAllMocks(); fs.rmSync(dir, { recursive: true, force: true }) })
 
 describe('state steps: parse', () => {
@@ -66,8 +68,17 @@ describe('state steps: parse', () => {
     ['callFunc: { node: { id: x }, fn: "bad name" }', /fn must be a function name/],
     ['callFunc: { node: { id: x }, fn: bt_a, args: 3 }', /args must be a list/],
     ['waitForAgent: { bogus: 1 }', /unknown key "bogus"/],
+    ['waitForAgent: { timeout: 0 }', /positive number/],
+    ['setState: { path: a, value: 1, timeout: 0 }', /positive number/],
+    ['callFunc: { node: { id: x }, fn: a, args: [1, 2] }', /at most one argument/],
   ])('rejects %s', (step, re) => {
     expect(() => parseFlow(BASE + '  - ' + step + '\n')).toThrow(re)
+  })
+  it('state-step parse errors carry the validation flag (the run stops before any device call)', () => {
+    for (const src of ['  - setState: { layer: nope, path: a, value: 1 }\n', '  - callFunc: { fn: x }\n']) {
+      try { parseFlow(BASE + src); throw new Error('no throw') } catch (e) { expect(e.validation).toBe(true) }
+    }
+    try { parseFlow('appId: dev\nconfig: { state: { ack: x } }\nsteps:\n  - launch\n'); throw new Error('no throw') } catch (e) { expect(e.validation).toBe(true) }
   })
   it('rejects a bad config.state', () => {
     expect(() => parseFlow('appId: dev\nconfig: { state: { ack: later } }\nsteps:\n  - launch\n')).toThrow(/config.state.ack/)
@@ -122,10 +133,17 @@ describe('state steps: run', () => {
     await setup(flow); agent(() => ({ error: 'TYPE_MISMATCH: a is an integer' }))
     await expect(ss.execStep(flow.steps[0], ctx)).rejects.toMatchObject({ code: 'STATE_CMD_FAILED', message: expect.stringMatching(/TYPE_MISMATCH.*ack phase reached: applied/) })
   })
-  it('a silent agent times out naming the phase reached', async () => {
-    const flow = flowOf(BASE + '  - setState: { path: a, value: 1, ack: reflected }\n')
+  it('a missing reflected ack times out as STATE_ACK_TIMEOUT at the step timeout, naming the phase reached', async () => {
+    const flow = flowOf(BASE + '  - setState: { path: a, value: 1, ack: reflected, timeout: 0.5 }\n')
     await setup(flow); agent(() => ({ phases: ['received', 'applied'] }))
-    await expect(ss.execStep(flow.steps[0], ctx)).rejects.toMatchObject({ code: 'STATE_CMD_FAILED', message: expect.stringMatching(/ack phase reached: applied/) })
+    const t0 = Date.now()
+    await expect(ss.execStep(flow.steps[0], ctx)).rejects.toMatchObject({ code: 'STATE_ACK_TIMEOUT', message: expect.stringMatching(/no reflected ack within 0\.5s.*ack phase reached: applied/) })
+    expect(Date.now() - t0).toBeGreaterThanOrEqual(450)
+  })
+  it('honours the step timeout over the hub limit: a late ack after the hub timed the command out still succeeds', async () => {
+    const flow = flowOf(BASE + '  - setState: { path: a, value: 1, timeout: 2 }\n')
+    await setup(flow); agent(() => ({ delay: 700 })) // hub applied limit in this test is 300 ms
+    await expect(ss.execStep(flow.steps[0], ctx)).resolves.toBeTruthy()
   })
   it('waitForAgent resolves on hello and times out typed without one', async () => {
     const flow = flowOf(BASE + '  - waitForAgent: { timeout: 0.1 }\n')
@@ -146,12 +164,13 @@ describe('state steps: fail fast', () => {
     await expect(ss.execStep(flow.steps[1], ctx)).rejects.toMatchObject({ code: 'STATE_NOT_INSTRUMENTED' })
     expect(hub.stateOps.list()).toHaveLength(0)
   })
-  it('callFunc outside instrument.state.callable (and not bt_) fails before the device is touched', () => {
+  it('callFunc outside instrument.state.callable fails before the first step, with no bt_ bypass; names match ignoring case', () => {
     const flow = flowOf(BASE + '  - callFunc: { node: { id: p }, fn: reset }\n')
     const hubStub = { hellos: 0 }
-    expect(ss.beginFlow(flow, hubStub, cfg).error).toMatch(/line 3: callFunc: "reset" is not allowed/)
-    const ok = ss.beginFlow(flow, hubStub, { ...cfg, instrument: { state: { callable: ['reset'] } } })
-    expect(ok.error).toBeUndefined()
+    const none = { ...cfg, instrument: {} }
+    expect(ss.beginFlow(flow, hubStub, none).error).toMatch(/line 3: callFunc: "reset" is not in instrument.state.callable/)
+    expect(ss.beginFlow(flowOf(BASE + '  - callFunc: { node: { id: p }, fn: bt_reset }\n'), hubStub, none).error).toMatch(/"bt_reset" is not in instrument.state.callable/)
+    expect(ss.beginFlow(flow, hubStub, { ...cfg, instrument: { state: { callable: ['RESET'] } } }).error).toBeUndefined()
   })
   it('state steps with no hub fail before the device is touched (e2e.run), and the hub starts for them', async () => {
     const calls = []
@@ -173,5 +192,82 @@ describe('state steps: fail fast', () => {
   })
   it('a state step with no ctx.state is typed', async () => {
     await expect(ss.execStep({ op: 'snapshot', name: 'x' }, {})).rejects.toMatchObject({ code: 'STATE_NO_HUB' })
+  })
+})
+
+// beginFlow stamps the hellos seen so far; in a real run `launch` brings the new hello after it.
+const begin = (f, label) => { const r = ss.beginFlow(f, hub, cfg, label); if (r.state) r.state.helloBase = 0; return r }
+
+describe('state steps: snapshot scope', () => {
+  it('21 flows each taking a snapshot all pass (a flow drops its snapshots at its end)', async () => {
+    const f0 = flowOf(BASE + '  - snapshot: s\n')
+    await setup(f0)
+    agent(() => ({ result: { layers: { global: { n: 1 } } } }))
+    ctx.state.snapshots.clear()
+    for (let i = 0; i < 21; i++) {
+      const f = { ...flowOf(BASE + '  - snapshot: s\n  - restore: s\n', `flow${i}`), file: path.join(dir, `flow${i}.e2e.yaml`) }
+      const { state, error } = begin(f)
+      expect(error).toBeUndefined()
+      const c = { state, stepTimeoutMs: 600 }
+      await ss.execStep(f.steps[0], c)
+      await ss.execStep(f.steps[1], c)
+      ss.endFlow(state)
+    }
+    expect(hub.stateOps.listSnapshots()).toEqual([])
+  })
+  it('same file with another unit label (or another path with the same name) never shares snapshots', async () => {
+    const f = { ...flowOf(BASE + '  - snapshot: s\n  - restore: s\n'), file: path.join(dir, 'a', 'x.e2e.yaml') }
+    await setup(f)
+    agent(() => ({ result: { layers: { global: { n: 1 } } } }))
+    const one = begin(f, 'user=a').state
+    await ss.execStep(f.steps[0], { state: one, stepTimeoutMs: 600 })
+    for (const [file, label] of [[f.file, 'user=b'], [path.join(dir, 'b', 'x.e2e.yaml'), 'user=a']]) {
+      const other = begin({ ...f, file }, label).state
+      await expect(ss.execStep(f.steps[1], { state: other, stepTimeoutMs: 600 })).rejects.toMatchObject({ code: 'STATE_SNAPSHOT_NOT_FOUND' })
+    }
+    await expect(ss.execStep(f.steps[1], { state: one, stepTimeoutMs: 600 })).resolves.toBeTruthy()
+  })
+  it('a full store gives an actionable error', async () => {
+    const flow = flowOf(BASE + '  - snapshot: s\n')
+    await setup(flow)
+    for (let i = 0; i < 20; i++) hub.stateOps.saveSnapshot(`x${i}`, { g: 1 }, 0)
+    agent(() => ({ result: { layers: { global: {} } } }))
+    await expect(ss.execStep(flow.steps[0], ctx)).rejects.toThrow(/at most 20 snapshots per run/)
+  })
+})
+
+describe('hello hand-off (no replay after a relaunch)', () => {
+  const get = async (p) => (await fetch(`http://127.0.0.1:${hub.port}/bt/${TOKEN}/${p}`))
+  it('hello returns the current command seq; a fresh agent polling from it gets nothing from earlier flows', async () => {
+    hub = await hubMod.startHub({ tokens: [TOKEN], lease: hubMod.localLease(), longPollMs: 100 })
+    const a = hub.push({ op: 'set', args: { layer: 'global', path: 'a', value: 1 } }, { ack: 'applied' })
+    const h1 = await (await get('hello')).json()
+    expect(h1.seq).toBe(a.seq)
+    expect((await get(`cmd?after=${h1.seq}&session=${h1.session}`)).status).toBe(204)
+    const b = hub.push({ op: 'set', args: { layer: 'global', path: 'b', value: 2 } }, { ack: 'applied' })
+    const got = await (await get(`cmd?after=${h1.seq}&session=${h1.session}`)).json()
+    expect(got.map((c) => c.id)).toEqual([b.id])
+    // a legacy agent that ignores seq and polls after=0 still sees everything (old behaviour, field is additive)
+    expect((await (await get(`cmd?after=0&session=${h1.session}`)).json()).length).toBe(2)
+  })
+  it('a new hello abandons open commands, so a late ack of an old command cannot land', async () => {
+    hub = await hubMod.startHub({ tokens: [TOKEN], lease: hubMod.localLease() })
+    const old = hub.push({ op: 'set', args: { layer: 'global', path: 'a', value: 1 } }, { ack: 'applied' })
+    await get('hello')
+    expect(hub.stateOps.get(old.id)).toMatchObject({ status: 'abandoned', ok: false })
+    hub.stateOps.onAck({ id: old.id, seq: old.seq, phase: 'applied', session: hub.sessionId })
+    expect(hub.stateOps.get(old.id)).toMatchObject({ status: 'abandoned', ok: false })
+  })
+})
+
+describe('loggable redaction', () => {
+  const { loggable } = require('../lib/instrument/state-ops.js')
+  it('redacts sensitive values inside an ops batch and callFunc args', () => {
+    const l = loggable({ id: 'c1', seq: 1, op: 'set', args: { layer: 'global', ops: [{ path: 'user.token', value: 'sekret' }, { path: 'user.tier', value: 'gold' }] } }, [])
+    expect(JSON.stringify(l)).not.toContain('sekret')
+    expect(JSON.stringify(l)).toContain('gold')
+    const c = loggable({ id: 'c2', seq: 2, op: 'callFunc', args: { fn: 'f', args: [{ password: 'hunter2', name: 'n' }] } }, [])
+    expect(JSON.stringify(c)).not.toContain('hunter2')
+    expect(JSON.stringify(c)).toContain('"n"')
   })
 })

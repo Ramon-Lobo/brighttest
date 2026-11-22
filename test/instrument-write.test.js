@@ -232,9 +232,10 @@ async function until(cond, ms) {
 
 describe('write path over a loopback hub (headless pump, fork engine)', () => {
   let hub, lost, proc
-  async function setup(extraMain = '') {
+  async function setup(extraMain = '', before = null) {
     lost = null
     hub = await startHub({ host: '127.0.0.1', port: 0, mode: 'headless', tokens: [TOKEN], longPollMs: 250, lease: { held: () => true, onLost(cb) { lost = cb }, leaseId: 'lease-t6' } })
+    if (before) before()
     proc = runBrs('pump-' + Math.random().toString(36).slice(2, 8), {
       port: hub.port,
       main: [
@@ -321,6 +322,20 @@ describe('write path over a loopback hub (headless pump, fork engine)', () => {
       expect(s.cmdPolls).toBeGreaterThanOrEqual(3)
       expect(s.eventPosts).toBe(0)
     } finally { await finish() }
+  }, 60000)
+
+  it('a relaunched agent does not replay commands queued before its hello; later ones apply', async () => {
+    let old
+    await setup('', () => { old = hub.push({ op: 'set', args: { layer: 'global', path: 'user.tier', value: 'old' } }, { ack: 'applied' }) })
+    try {
+      const fresh = await send({ op: 'set', args: { layer: 'global', path: 'user.tier', value: 'fresh' } })
+      expect(await until(() => hub.stateOps.get(fresh.id).status === 'done', 15000)).toBe(true)
+      expect(hub.stateOps.get(old.id).status).toBe('abandoned')
+      expect(hub.log.since(0).filter((e) => e.kind === 'cmd.ack' && e.data.id === old.id)).toEqual([])
+    } finally {
+      const out = await finish()
+      expect(tagged(out, 'FINAL:')[0].result.value).toBe('fresh')
+    }
   }, 60000)
 
   it('a command queued after the lease is lost is never applied: the pump stops on 423', async () => {
