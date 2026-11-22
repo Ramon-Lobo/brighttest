@@ -97,10 +97,21 @@ describe('real agent snapshot ack (headless, fork engine)', () => {
     expect(got.stored).toEqual(layers)
   })
 
-  // SNAP-ACK-C54: BT_wSnapshot (BT_write.brs:359) does `layers.delete("focus")`, so the ack has no focus layer
-  // although BT_layers (BT_core.brs:222) publishes it and the brief expects global, focus and scene. Kept as the
-  // expected shape; flip to a plain `it` when the owner of the agent (NET-N-T14) decides focus belongs in the ack.
-  it.fails('SNAP-ACK-C54: layers also include focus', () => {
-    expect(got.ack.result.layers).toHaveProperty('focus')
+  // SNAP-ACK-C54 (decided): BT_wSnapshot (BT_write.brs:359) does `layers.delete("focus")` on purpose. Focus is not
+  // restorable and the ack layers must be restorable, so the ack carries global and scene (plus node/registry when
+  // asked) and never focus, although the published Label (BT_layers) does include it.
+  it('SNAP-ACK-C54: the ack layers have no focus layer (restorable layers only)', () => {
+    expect(got.ack.result.layers).not.toHaveProperty('focus')
+    expect(Object.keys(got.ack.result.layers).sort()).toEqual(['global', 'scene'])
+  })
+
+  it('the keys the Studio save/restore routes depend on are present', () => {
+    expect(got.ack.phase).toBe('applied')
+    expect(got.ack.ok).toBe(true)
+    expect(got.ack.seq).toBeTypeOf('number')
+    expect(got.ack.id).toBeTypeOf('string')
+    expect(got.ack.result.layers).toHaveProperty('global')
+    expect(got.ack.result.layers).toHaveProperty('scene')
+    expect(Array.isArray(got.ack.result.truncated)).toBe(true)
   })
 })
