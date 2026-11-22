@@ -149,11 +149,9 @@ end function
 ' The masked get reply for the first segment of root.segs that is a secret key or matches a redact pattern (dotted or [i]); else invalid.
 function BT_wRedSeg(root as string, segs as object, rd as dynamic) as dynamic
     d = root
-    b = root
     for each seg in segs
         d = d + "." + seg
-        if seg = StrI(Val(seg, 10)).Trim() then b = b + "[" + seg + "]" else b = b + "." + seg
-        if BT_isSecretKey(seg) or BT_redactMatch(d, rd) or BT_redactMatch(b, rd) then return { ok: true, result: { found: true, value: "<redacted:" + seg + ">" } }
+        if BT_isSecretKey(seg) or BT_redactMatch(d, rd) then return { ok: true, result: { found: true, value: "<redacted:" + seg + ">" } }
     end for
     return invalid
 end function

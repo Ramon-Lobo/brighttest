@@ -474,3 +474,39 @@ describe('registry JSON values and section reads mask like the published doc (IN
     expect(val('T_sec')).toBe('<redacted:bt_tokens>')
   })
 })
+
+describe('BT_serialize masks array elements under redact.paths (ARR-MASK, headless, fork engine)', () => {
+  let out
+  const DOC = '{ items: [{ pin: "1", ok: "a" }, "s1", "s2"], other: ["o0", "o1"], user: { list: [{ authToken: "tk", n: 1 }] } }'
+  const pats = {
+    none: [], star: ['g.items.*'], idx: ['g.items[1]'], dotidx: ['G.ITEMS.2'], unmatched: ['g.items[7]', 'g.items.x', 'g.nope[0]'], deepidx: ['g.items[0].pin'],
+  }
+  beforeAll(async () => {
+    const main = [
+      `    doc = ${DOC}`,
+      ...Object.keys(pats).flatMap((n) => [
+        `    print "A_${n}:" + FormatJson(BT_serialize(doc, BT_capsDefault(), "g", 0, [], ${JSON.stringify(pats[n])}))`,
+      ]),
+    ].join('\n')
+    out = await runBrs('redact-array', { main }).done
+  }, 90000)
+  const v = (n) => tagged(out, `A_${n}:`)[0]
+
+  it('a .* pattern below an array masks every element', () => {
+    expect(v('star').items).toEqual(['<redacted:0>', '<redacted:1>', '<redacted:2>'])
+    expect(v('star').other).toEqual(['o0', 'o1'])
+  })
+  it('an [i] pattern (and the dotted .i form, any case) masks that element only', () => {
+    expect(v('idx').items).toEqual([{ ok: 'a', pin: '1' }, '<redacted:1>', 's2'])
+    expect(v('dotidx').items).toEqual([{ ok: 'a', pin: '1' }, 's1', '<redacted:2>'])
+  })
+  it('a nested object inside an array element masks a secret-like key with no pattern, and an object key below [i] by pattern', () => {
+    expect(v('none').user.list[0]).toEqual({ authToken: '<redacted:authToken>', n: 1 })
+    expect(v('none').items[0]).toEqual({ ok: 'a', pin: '1' })
+    expect(v('deepidx').items[0]).toEqual({ ok: 'a', pin: '<redacted:pin>' })
+  })
+  it('an unmatched array path leaves the values unchanged', () => {
+    expect(v('unmatched').items).toEqual(v('none').items)
+    expect(v('unmatched').other).toEqual(['o0', 'o1'])
+  })
+})
