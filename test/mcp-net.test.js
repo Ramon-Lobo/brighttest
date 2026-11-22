@@ -97,9 +97,9 @@ describe('MCP net tools', () => {
     expect(s._net).toBeNull()
   })
 
-  it('both tool descriptions say the tools are not connected to live traffic', async () => {
+  it('both tool descriptions name the net window and when it is released', async () => {
     const { TOOLS } = require('../lib/mcp/tools.js')
-    for (const n of ['net_requests', 'net_mock']) expect(TOOLS.find((t) => t.name === n).description).toContain('no hub mounted')
+    for (const n of ['net_requests', 'net_mock']) expect(TOOLS.find((t) => t.name === n).description).toMatch(/net window.*10 minutes/)
   })
 
   it('a URL glob with many wildcards is refused at the boundary, and a hostile pattern is cheap to match', async () => {
