@@ -64,7 +64,7 @@ Host, project, bsconfig, manifest, engines, census, CI, `.gitignore`, devices, r
   `source/` and `components/` in the manifest's folder. When there is no manifest at the root but `<rootDir>/manifest`
   exists, census reads there and there is no `rootDir` blocker. Otherwise a `rootDir` such as `src` is a blocker instead
   of a silent `0 scenes`. A `rootDir` that is absolute or contains `..` is named as outside the project root and never
-  read. A `files` list that only has the bsc defaults (`manifest`, `source/**`, `components/**`, `images/**`) is not a
+  read. A `files` list that only has entries from the roku-deploy defaults (`source/**/*.*`, `components/**/*.*`, `images/**/*.*`, `locale/**/*`, `manifest`; may vary by bsc version) is not a
   blocker; it adds an unknown, "confirm". A manifest app with 0 scenes and no `rootDir` gets a `census found 0 scenes`
   blocker. A `rootDir` set through bsconfig `extends`, or in a bsconfig that does not parse, is not detected.
 - `scan.treeHash` is a stable hash of the scanned file list (path, size and content hash), so you can check that a run
