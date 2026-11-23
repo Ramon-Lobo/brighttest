@@ -502,8 +502,8 @@ describe('ADOPT-26 (bsconfig rootDir and files are blockers)', () => {
     const r = await json(BSC)
     const b = r.recommendation.blockers.join('\n')
     expect(r.census.scenes).toBe(0)
-    expect(b).toMatch(/bsconfig rootDir is not honored.*: src/)
-    expect(b).toMatch(/bsconfig files list is not honored.*3 pattern/)
+    expect(b).toMatch(/bsconfig rootDir is not honored.*: "src"/)
+    expect(b).toMatch(/bsconfig files list is not honored.*3 entries/)
   })
   test('rootDir pointing elsewhere is named as outside the root and never read', async () => {
     for (const rd of ['..', '../x', '/etc', 'C:/Windows']) {
@@ -513,7 +513,7 @@ describe('ADOPT-26 (bsconfig rootDir and files are blockers)', () => {
       const r = await json(d)
       const b = r.recommendation.blockers.join('\n')
       expect(b).toMatch(/rootDir is not honored.*outside the project root, not read/)
-      expect(b).not.toContain(rd === '..' ? 'xx' : rd)
+      expect(b).not.toContain(rd)
     }
   })
   test('manifest app with 0 scenes and no rootDir gets a census blocker', async () => {
@@ -523,5 +523,48 @@ describe('ADOPT-26 (bsconfig rootDir and files are blockers)', () => {
     fs.writeFileSync(path.join(d, 'source', 'main.brs'), 'sub main()\nend sub\n')
     const r = await json(d)
     expect(r.recommendation.blockers.join('\n')).toMatch(/census found 0 scenes/)
+  })
+  test('a rootDir of .. never reads or lists a marker file outside the root', async () => {
+    const outer = fs.mkdtempSync(path.join(tmp, 'outer-'))
+    fs.writeFileSync(path.join(outer, 'manifest'), 'title=OUTSIDE_MARKER\n')
+    fs.writeFileSync(path.join(outer, 'OUTSIDE_MARKER.brs'), "password = \"outsidemarkersecret\"\n")
+    const d = path.join(outer, 'app')
+    fs.mkdirSync(d)
+    fs.writeFileSync(path.join(d, 'bsconfig.json'), JSON.stringify({ rootDir: '..' }))
+    const o = (await run([d, '--json'])).out
+    expect(o).not.toMatch(/OUTSIDE_MARKER|outsidemarkersecret/)
+    expect(JSON.parse(o).project.isRokuApp).toBe(false)
+  })
+  test('rootDir src with src/manifest is honored: no rootDir blocker', async () => {
+    const d = fs.mkdtempSync(path.join(tmp, 'rs-'))
+    fs.mkdirSync(path.join(d, 'src', 'source'), { recursive: true })
+    fs.writeFileSync(path.join(d, 'src', 'manifest'), 'title=T\n')
+    fs.writeFileSync(path.join(d, 'src', 'source', 'main.brs'), 'sub main()\nend sub\n')
+    fs.writeFileSync(path.join(d, 'bsconfig.json'), JSON.stringify({ rootDir: 'src' }))
+    const r = await json(d)
+    expect(r.project.isRokuApp).toBe(true)
+    expect(r.recommendation.blockers.join('\n')).not.toMatch(/rootDir is not honored/)
+  })
+  const withFiles = async (files) => {
+    const d = fs.mkdtempSync(path.join(tmp, 'f-'))
+    fs.writeFileSync(path.join(d, 'manifest'), 'title=T\n')
+    fs.writeFileSync(path.join(d, 'bsconfig.json'), JSON.stringify({ files }))
+    return json(d)
+  }
+  test('files with a { src, dest } object is a blocker', async () => {
+    const r = await withFiles(['manifest', { src: '../lib/**', dest: 'source' }])
+    expect(r.recommendation.blockers.join('\n')).toMatch(/files list is not honored.*2 entries/)
+  })
+  test('files equal to the bsc defaults is not a blocker but a confirm', async () => {
+    const r = await withFiles(['manifest', 'source/**/*.*', 'components/**/*', 'images/**/*.*'])
+    expect(r.recommendation.blockers.join('\n')).not.toMatch(/files list/)
+    expect(r.recommendation.unknowns.join('\n')).toMatch(/files list matches the bsc defaults: confirm/)
+  })
+  test('rootDir with a newline is echoed escaped, not as a fake line', async () => {
+    const d = fs.mkdtempSync(path.join(tmp, 'nl-'))
+    fs.writeFileSync(path.join(d, 'manifest'), 'title=T\n')
+    fs.writeFileSync(path.join(d, 'bsconfig.json'), JSON.stringify({ rootDir: 'a\nFAKE: line' }))
+    const out = (await run([d])).out
+    expect(out).not.toMatch(/^FAKE: line/m)
   })
 })

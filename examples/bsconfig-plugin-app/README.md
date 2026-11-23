@@ -19,6 +19,6 @@ bsconfig:  bsconfig.json, unsupported: plugins
 census:    0 scenes, 0 tasks, setUrl 0/0 covered, 0 could not instrument
 recommend: greenfield; edit permission unknown
   blocker: bsconfig plugins are not honored by brighttest: ./plugins/noop-plugin.js
-  blocker: bsconfig rootDir is not honored by brighttest (census reads source/ and components/ under the project root only): src
-  blocker: bsconfig files list is not honored by brighttest (the default source/, components/ layout is assumed): 3 pattern(s)
+  blocker: bsconfig rootDir is not honored by brighttest (census reads source/ and components/ under the project root only): "src"
+  blocker: bsconfig files list is not honored by brighttest (the default source/, components/ layout is assumed): 3 entries
 ```
