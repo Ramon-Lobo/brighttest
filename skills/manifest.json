@@ -3,6 +3,15 @@
   "cliVersion": "0.7.0",
   "skills": [
     {
+      "name": "adopting-brighttest",
+      "files": [
+        "SKILL.md",
+        "references/command-cheatsheet.md",
+        "references/decision-tree.md",
+        "references/exit-criteria.md"
+      ]
+    },
+    {
       "name": "debugging-failing-tests",
       "files": [
         "SKILL.md"

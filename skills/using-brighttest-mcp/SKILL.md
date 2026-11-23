@@ -2,7 +2,7 @@
 name: using-brighttest-mcp
 description: Use when an AI agent should look at or drive a real Roku live through the brighttest MCP server (`brighttest mcp`) instead of the CLI — list devices, check device health, read the SceneGraph tree, press remote keys, move focus to a node, take a screenshot, read the app's published state, or run one flow file and get step results. Covers the eight tools and their parameters, the per-call device lease, budgets, and typed errors.
 triggers: brighttest mcp; drive a roku through mcp; read the scenegraph tree live; press remote keys from an agent; take a device screenshot; check device health; read published app state; run one flow via mcp
-when-not-to-use: Do not use to author or maintain *.e2e.yaml files (use writing-e2e-flows) or for CLI-driven test runs and config (use setting-up-brighttest).
+when-not-to-use: Do not use to author or maintain *.e2e.yaml files (use writing-e2e-flows) or for CLI-driven test runs and config (use setting-up-brighttest). For where to start or whether brighttest fits at all, use adopting-brighttest.
 license: MIT
 metadata:
   source: brighttest

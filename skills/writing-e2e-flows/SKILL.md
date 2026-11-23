@@ -2,7 +2,7 @@
 name: writing-e2e-flows
 description: Use when writing, running, or debugging brighttest end-to-end UI flows (*.e2e.yaml) that drive a real Roku over ECP — launching the channel, moving focus with the D-pad, typing text, and asserting on the live SceneGraph. Also use when the user points at a node on screen and wants an assertion built for it: `inspect <selector>` dumps all of that node's fields and generates ready-to-paste (or auto-appended) assertions. Covers the author-first workflow (inspect → write → run), the flow file format, selectors, focus navigation, authoring tools (inspect/record/stamp), scaling across devices, and the pitfalls unique to Roku's focus-based, no-tap model.
 triggers: write an e2e flow; *.e2e.yaml; ui test on a roku; assert on a node; inspect a node selector; record a flow; d-pad focus navigation; type text in a flow
-when-not-to-use: Do not use for Rooibos unit specs (use writing-rooibos-tests), one-off interactive device control by an agent (use using-brighttest-mcp), or run failures unrelated to flows (use debugging-failing-tests).
+when-not-to-use: Do not use for Rooibos unit specs (use writing-rooibos-tests), one-off interactive device control by an agent (use using-brighttest-mcp), or run failures unrelated to flows (use debugging-failing-tests). For where to start or whether brighttest fits at all, use adopting-brighttest.
 license: MIT
 metadata:
   source: brighttest
