@@ -112,5 +112,5 @@ who might publish it.
 
 - A bsc plugin or `bs_const` override in `bsconfig.json`: not honored (`bsconfig-mapping.md`).
 - Specs inside the app folder when writes are not allowed: keep them in the copy and hand over a patch.
-- `@SGNode` and Task suites: the default run may hang on some engine versions; the outcome is non-gating while
-  ENG-PUB is held. Use `--no-sgnode`.
+- `@SGNode` and Task suites: the default run may hang on some engine versions; the outcome does not block the first
+  green run on the current engine. Use `--no-sgnode`.

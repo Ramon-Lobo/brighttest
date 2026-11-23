@@ -9,8 +9,8 @@ Brownfield trap fixture: a plain app whose build is driven by `bsconfig.json`.
 
 ## Expected `brighttest assess` blockers
 
-Brighttest does not run bsc plugins and does not honor `rootDir` or a custom `files` list, so assess reports all three.
-The census follows the bsconfig `rootDir` as a hint, so it finds the Scene under `src/`; the build does not, which is what the `rootDir` blocker says.
+Brighttest does not run bsc plugins and reads `rootDir` from bsconfig.json as a census hint only (the build uses `rootDir` from `brighttest.json`) and does not honor a custom `files` list, so assess reports all three.
+The census finds the scene under `src/` through the bsconfig hint; the build still needs `rootDir` in `brighttest.json`.
 
 Real output (`node bin/cli.js assess examples/bsconfig-plugin-app`), key lines:
 

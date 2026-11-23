@@ -60,7 +60,7 @@ flip in the spec only, never in app code.
 
 Run `npx brighttest doctor --engines` (exit 0 passes). A default run includes `@SGNode` suites, and on the engine
 version used here it did not finish on the legacy-app copy. Record which of the two outcomes you saw
-(`--no-sgnode` green, default run green or hung). The `@SGNode` outcome is non-gating while ENG-PUB is held: do not
+(`--no-sgnode` green, default run green or hung). The `@SGNode` outcome does not block the first green run on the current engine: do not
 block the first green run on it, and do not claim it works or fails beyond the run you did.
 
 ## Failure modes and routes

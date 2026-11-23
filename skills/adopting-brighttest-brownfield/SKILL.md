@@ -35,18 +35,17 @@ app folder stays byte-identical and you work on a copy. No device means every st
 
 ```bash
 npx brighttest doctor --engines
-npx brighttest instrument census --json --out .brighttest/census
+npx brighttest instrument census --json --out "$TMPDIR/bt-census"
 ```
 
 Install the package with `setting-up-brighttest`. `doctor --engines` exits 0 when the engine probe passes, 1 when
 it fails or disagrees with package metadata, 2 when no engine is installed. `census` writes `census.json` and
-`census.md` into the folder and does not edit the app; `.brighttest/` is the staging folder, so it must be ignored
-by git. List `could not instrument` entries and `Not covered` reasons as known gaps. Do not enable strict yet.
+`census.md` into that folder, which sits outside the app, so `git status` stays unchanged. List `could not instrument` entries and `Not covered` reasons as known gaps. Do not enable strict yet.
 
 Engine smoke step: on the legacy-app copy a default run (which includes the `@SGNode` suite) printed nothing
 after "building the test bundle" for over 100 s and was killed; with `--no-sgnode` the same project ran. So
 run `npx brighttest --no-sgnode` for the first green run and add `--timeout <sec>` when you do try `@SGNode`.
-Recorded here as an outcome, not a fix: the `@SGNode` result is non-gating while ENG-PUB is held.
+Recorded here as an outcome, not a fix: the `@SGNode` result does not block the first green run on the current engine.
 
 ## Step 2: map bsconfig.json into brighttest.json
 
