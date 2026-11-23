@@ -515,6 +515,50 @@ describe('ADOPT-26 (bsconfig rootDir and files are blockers)', () => {
     const r = await json(d)
     expect(r.recommendation.blockers.join('\n')).not.toMatch(/rootDir/)
   })
+  const mkApp = (name, sub) => {
+    const d = fs.mkdtempSync(path.join(tmp, name))
+    const b = sub ? path.join(d, sub) : d
+    fs.mkdirSync(path.join(b, 'source'), { recursive: true })
+    fs.mkdirSync(path.join(b, 'components'), { recursive: true })
+    fs.writeFileSync(path.join(b, 'manifest'), 'title=T\n')
+    fs.writeFileSync(path.join(b, 'source', 'main.brs'), 'sub main()\nend sub\n')
+    fs.writeFileSync(path.join(b, 'components', 'S.xml'), '<component name="S" extends="Scene"></component>\n')
+    return d
+  }
+  test('guard follows the census effective root (brighttest.json rootDir and bsconfig rootDir)', async () => {
+    const d = mkApp('g1-', 'app'); fs.writeFileSync(path.join(d, 'brighttest.json'), '{"rootDir":"app"}')
+    fs.writeFileSync(path.join(d, 'app', 'source', '.env'), 'K=v'); fs.writeFileSync(path.join(d, 'app', 'source', 'dev.key'), 'k')
+    const r = await json(d)
+    expect(r.census.error).toMatch(/census skipped: sensitive/)
+    expect(r.recommendation.path).not.toBe('not-a-roku-app')
+    const e = mkApp('g2-', 'src'); fs.writeFileSync(path.join(e, 'bsconfig.json'), '{"rootDir":"src"}')
+    fs.writeFileSync(path.join(e, 'src', 'source', '.env'), 'K=v')
+    expect((await json(e)).census.error).toMatch(/census skipped: sensitive/)
+  })
+  test('extends never opens a non-json file', async () => {
+    const d = mkApp('x1-', 'src'); fs.writeFileSync(path.join(d, '.env'), '{"rootDir":"src"}'); fs.writeFileSync(path.join(d, 'bsconfig.json'), '{"extends":".env"}')
+    const r = await json(d)
+    expect(r.recommendation.blockers.join('\n')).not.toMatch(/rootDir is read/)
+  })
+  test('brighttest.json rootDir is resolved once (src and src/src)', async () => {
+    const d = mkApp('dbl-', 'src'); fs.writeFileSync(path.join(d, 'brighttest.json'), '{"rootDir":"src"}')
+    const r = await json(d)
+    expect(r.census.scenes).toBe(1)
+  })
+  test('brighttest.json-only and extends-only rootDir keep the recommendation and the hint', async () => {
+    const d = mkApp('bo-', 'app'); fs.writeFileSync(path.join(d, 'brighttest.json'), '{"rootDir":"app"}')
+    const r = await json(d)
+    expect(r.recommendation.path).not.toBe('not-a-roku-app'); expect(r.census.scenes).toBe(1)
+    const e = mkApp('eo-', 'src'); fs.writeFileSync(path.join(e, 'base.json'), '{"rootDir":"src"}'); fs.writeFileSync(path.join(e, 'bsconfig.json'), '{"extends":"./base.json"}')
+    const r2 = await json(e)
+    expect(r2.recommendation.path).not.toBe('not-a-roku-app'); expect(r2.census.scenes).toBe(1)
+    expect(r2.recommendation.blockers.join('\n')).toMatch(/rootDir is read by the census as a hint only.*: "src"/)
+  })
+  test('absolute brighttest.json rootDir at the same folder and src/./ raise no blocker', async () => {
+    const d = mkApp('abs-', 'src'); fs.writeFileSync(path.join(d, 'bsconfig.json'), '{"rootDir":"src/./"}')
+    fs.writeFileSync(path.join(d, 'brighttest.json'), JSON.stringify({ rootDir: path.join(d, 'src') }))
+    expect((await json(d)).recommendation.blockers.join('\n')).not.toMatch(/rootDir/)
+  })
   test('rootDir pointing elsewhere is named as outside the root and never read', async () => {
     for (const rd of ['..', '../x', '/etc', 'C:/Windows']) {
       const d = fs.mkdtempSync(path.join(tmp, 'rd-'))

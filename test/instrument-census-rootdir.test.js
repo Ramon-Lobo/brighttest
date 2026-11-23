@@ -90,4 +90,18 @@ describe('census honours bsconfig rootDir', () => {
     expect(msg).not.toContain('SECRET')
     expect(JSON.stringify(c || {})).not.toContain('SECRET')
   })
+  it('never opens secret-named, certs/ or oversized files (reported as skipped)', async () => {
+    const d = mk('guard'); app(d, '.'); put(d, 'source/.env', 'K=v'); put(d, 'source/dev.key', 'k'); put(d, 'components/certs/a.pem', 'p')
+    put(d, 'components/Big.brs', 'x'.repeat(2 * 1024 * 1024 + 1))
+    const c = await census(d)
+    const files = c.skipped.filter((x) => x.kind === 'sensitive-or-oversized-not-read').map((x) => x.file).sort()
+    expect(files).toEqual(['components/Big.brs', 'components/certs/', 'source/.env', 'source/dev.key'])
+    expect(c.counts.components).toBe(1)
+  })
+  it('does not follow bsconfig extends to a non-json or secret-named file', async () => {
+    const d = mk('ext-env'); app(d, 'src'); put(d, '.env', '{"rootDir":"src"}'); put(d, 'bsconfig.json', '{"extends":".env"}')
+    expect((await census(d)).counts.components).toBe(0)
+    const e = mk('ext-txt'); app(e, 'src'); put(e, 'base.txt', '{"rootDir":"src"}'); put(e, 'bsconfig.json', '{"extends":"base.txt"}')
+    expect((await census(e)).counts.components).toBe(0)
+  })
 })
