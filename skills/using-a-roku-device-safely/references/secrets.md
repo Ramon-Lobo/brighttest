@@ -34,5 +34,5 @@ history yourself. The human rotates the password on the device.
 
 ## Tokens
 
-A session token is like a password: keep it in a shell variable within one shell invocation, pass it with
+A session token is like a password: keep it in a shell variable within one shell invocation (lock, `&&`-chained steps, unlock in an EXIT trap, as in `lease-protocol.md`), pass it with
 `device with --lease`, and `device unlock` when done. Never write it to disk.

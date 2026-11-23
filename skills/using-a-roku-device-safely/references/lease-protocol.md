@@ -41,10 +41,17 @@ stays held until idle expiry. Do lock, steps and unlock in ONE shell invocation,
 
 ```bash
 TOKEN=$(npx brighttest device lock --host <device-ip> --as "$BRIGHTTEST_AGENT" --purpose "<task>") || exit $?
-trap 'npx brighttest device unlock --lease "$TOKEN"' EXIT INT TERM
-npx brighttest device with --lease "$TOKEN" -- <command>
-npx brighttest device renew --lease "$TOKEN"
+trap 'npx brighttest device unlock --lease "$TOKEN"' EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+npx brighttest device with --lease "$TOKEN" -- <command-1> \
+  && npx brighttest device with --lease "$TOKEN" -- <command-2>
 ```
+
+Chain the steps with `&&` so the first failure stops the rest and sets the exit status of the whole
+invocation. The EXIT trap unlocks exactly once, on success, failure or a signal (INT and TERM exit, which
+fires the EXIT trap). Checked with a stub in bash and zsh. Do not use `set -e` with this in zsh: the EXIT
+trap did not fire there. Read that exit status before reporting success.
 
 If the steps need separate calls, prefer `device with` per step instead of a session lock.
 
