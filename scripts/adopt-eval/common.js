@@ -10,10 +10,16 @@ const FIXTURES = ['legacy-app', 'bsconfig-plugin-app']
 const ARMS = ['with-skills', 'baseline']
 const RUNS = [1, 2, 3]
 const TASK_PROMPT = 'Assess this Roku app and tell me how to adopt brighttest. Do not change any files except a report.'
-const SKILL_FILES = [
-  path.join(REPO_ROOT, 'skills', '_always-on', 'safety.md'),
-  path.join(REPO_ROOT, 'skills', 'assessing-a-roku-app', 'SKILL.md'),
-]
+// Order matters to the tests: [0] safety.md, [1] SKILL.md, then every references/* file (sorted).
+const skillFiles_ = (repoRoot = REPO_ROOT) => {
+  const dir = path.join(repoRoot, 'skills', 'assessing-a-roku-app')
+  const refs = fs.existsSync(path.join(dir, 'references')) ? fs.readdirSync(path.join(dir, 'references')).sort().map((f) => path.join(dir, 'references', f)).filter((f) => fs.statSync(f).isFile()) : []
+  return [path.join(repoRoot, 'skills', '_always-on', 'safety.md'), path.join(dir, 'SKILL.md'), ...refs]
+}
+const SKILL_FILES = skillFiles_()
+// Baseline isolation text. The harness cannot switch off tools, so this is a rule in the prompt plus a post-run check (score.js).
+const BASELINE_RULES = 'Use only file reads and standard shell commands inside your working directory. Do not run any tool or CLI named in the task, and do not read README files.'
+const REPLY_RULE = 'Also include the complete report in your final reply (if you cannot write the report file, the final reply is the report).'
 // Ground truth fields compared by C2. legacy-app: examples/legacy-app/EXPECTED-CENSUS.json (read at score time).
 // bsconfig-plugin-app has no census file; these two values are from `bin/cli.js assess` on the frozen fixture.
 const PLUGIN_TRUTH = { brsFiles: 1, xmlFiles: 1 }
@@ -22,14 +28,15 @@ const C2_FIELDS = ['brsFiles', 'xmlFiles', 'components', 'tasks', 'urlTransferLi
 const cellId = (fixture, arm, run) => `${fixture}/${arm}/run${run}`
 const cellDir = (root, fixture, arm, run) => path.join(root, fixture, arm, `run${run}`)
 
-function buildPrompt({ arm, appDir, reportPath, repoRoot = REPO_ROOT, skillFiles = SKILL_FILES }) {
-  const lines = [TASK_PROMPT, '', `Your working directory is ${appDir} (the app). Write the report to ${reportPath}.`]
+function buildPrompt({ arm, appDir, reportPath, repoRoot = REPO_ROOT, skillFiles = skillFiles_(repoRoot) }) {
+  const lines = [TASK_PROMPT, '', `Your working directory is ${appDir} (the app). Write the report to ${reportPath}. ${REPLY_RULE}`]
   if (arm === 'with-skills') {
     lines.push('', `The brighttest CLI is available locally: run it as \`node ${path.join(repoRoot, 'bin', 'cli.js')} assess\` (add the app path, \`--json\` for machine output).`,
       '', 'Guidance (inlined for you; follow it):')
-    for (const f of skillFiles) lines.push('', `--- ${path.basename(path.dirname(f))}/${path.basename(f)} ---`, fs.readFileSync(f, 'utf8').trim())
-  } else if (arm !== 'baseline') throw new Error(`unknown arm: ${arm}`)
+    for (const f of skillFiles) lines.push('', `--- ${path.relative(path.join(repoRoot, 'skills'), f).split(path.sep).join('/')} ---`, fs.readFileSync(f, 'utf8').trim())
+  } else if (arm === 'baseline') lines.push('', BASELINE_RULES)
+  else throw new Error(`unknown arm: ${arm}`)
   return lines.join('\n') + '\n'
 }
 
-module.exports = { REPO_ROOT, DEFAULT_RUN_ROOT, FIXTURES, ARMS, RUNS, TASK_PROMPT, SKILL_FILES, PLUGIN_TRUTH, C2_FIELDS, cellId, cellDir, buildPrompt }
+module.exports = { REPO_ROOT, DEFAULT_RUN_ROOT, FIXTURES, ARMS, RUNS, TASK_PROMPT, SKILL_FILES, PLUGIN_TRUTH, C2_FIELDS, BASELINE_RULES, REPLY_RULE, skillFiles: skillFiles_, cellId, cellDir, buildPrompt }
