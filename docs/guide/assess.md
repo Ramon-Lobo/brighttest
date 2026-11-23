@@ -72,7 +72,7 @@ Host, project, bsconfig, manifest, engines, census, CI, `.gitignore`, devices, r
   `brighttest.json` has the same `rootDir`. A `rootDir` that is absolute or contains `..` is named as outside the project
   root and never read. A `files` list that only has entries from the roku-deploy defaults (`source/**/*.*`, `components/**/*.*`, `images/**/*.*`, `locale/**/*`, `manifest`; may vary by bsc version) is not a
   blocker; it adds an unknown, "confirm". A manifest app with 0 scenes and no `rootDir` gets a `census found 0 scenes`
-  blocker. The blocker check reads only the `rootDir` written in `bsconfig.json`, not one inherited through `extends`.
+  blocker. A `rootDir` inherited through bsconfig `extends` raises the same blocker, and manifest discovery, the recommended path and the `dirs` follow the census's effective root. `extends` is followed only to a plain `*.json` file that is not secret-named and is under 2 MB. The sensitive-file and size guard runs on the census's effective root, and census itself never opens secret-named files, `certs/` folders or files over 2 MB.
 - `scan.treeHash` is a stable hash of the scanned file list (path, size and content hash), so you can check that a run
   changed nothing.
 - `scan` holds the file counts (`files`, `skippedSensitive`, `overCap`, `truncated`) and the `treeHash`. `scans` says
