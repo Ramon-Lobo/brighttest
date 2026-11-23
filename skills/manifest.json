@@ -12,6 +12,16 @@
       ]
     },
     {
+      "name": "adopting-brighttest-brownfield",
+      "files": [
+        "SKILL.md",
+        "references/bsconfig-mapping.md",
+        "references/first-green-run.md",
+        "references/no-edit-path.md",
+        "references/seams-cookbook.md"
+      ]
+    },
+    {
       "name": "adopting-brighttest-greenfield",
       "files": [
         "SKILL.md",
