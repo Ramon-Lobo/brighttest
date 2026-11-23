@@ -114,6 +114,7 @@
     "using-a-roku-device-safely",
     "using-brighttest-mcp",
     "using-brighttest-studio",
+    "wiring-brighttest-into-ci",
     "writing-e2e-flows",
     "writing-rooibos-tests"
   ],

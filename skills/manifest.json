@@ -80,6 +80,15 @@
       ]
     },
     {
+      "name": "wiring-brighttest-into-ci",
+      "files": [
+        "SKILL.md",
+        "references/device-runners.md",
+        "references/github-actions.md",
+        "references/windows.md"
+      ]
+    },
+    {
       "name": "writing-e2e-flows",
       "files": [
         "SKILL.md",
