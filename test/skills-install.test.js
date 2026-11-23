@@ -499,6 +499,7 @@ describe('installer follow-ups (ADOPT-07)', () => {
     put('CLAUDE.md', 'mine\n')
     const real = fs.renameSync
     let calls = 0
+    const plat = vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
     const spy = vi.spyOn(fs, 'renameSync').mockImplementation((a, b) => {
       if (String(b).endsWith('CLAUDE.md')) { calls++; if (calls <= 2) { const e = new Error('busy'); e.code = 'EBUSY'; throw e } }
       return real(a, b)
@@ -514,7 +515,18 @@ describe('installer follow-ups (ADOPT-07)', () => {
       expect(out).not.toMatch(/read-only/)
       expect(read('CLAUDE.md')).toBe('mine\n')
       expect(fs.readdirSync(cwd).filter((f) => f.includes('bt-tmp'))).toEqual([])
-    } finally { spy.mockRestore() }
+    } finally { spy.mockRestore(); plat.mockRestore() }
+  })
+
+  test('a user file quoting the marker text survives install and uninstall', async () => {
+    const note = 'notes: files carry `brighttest skills:retired-skill v0.1.0` in a comment\n'
+    put('.cursor/rules/notes.mdc', note)
+    put('.cursor/rules/retired-skill.mdc', '<!-- brighttest skills:retired-skill v0.1.0 — x -->\nold\n')
+    await go('install', { agent: 'cursor' })
+    expect(read('.cursor', 'rules', 'notes.mdc')).toBe(note)
+    expect(fs.existsSync(p('.cursor', 'rules', 'retired-skill.mdc'))).toBe(false)
+    await go('uninstall', { agent: 'cursor' })
+    expect(read('.cursor', 'rules', 'notes.mdc')).toBe(note)
   })
 
   test('validRelFile rejects segments ending in a dot or space', () => {
