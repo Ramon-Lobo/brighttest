@@ -583,7 +583,7 @@ describe('ADOPT-29 census error redaction', () => {
   test('absolute project path and home directory become <path> in blocker, markdown, text and json', async () => {
     const app = mkApp()
     const home = os.homedir()
-    fail(`Cannot find module 'x'\nRequire stack:\n- ${app}/components/A.brs\n- ${home}/work/node_modules/y/index.js\n  at ${home}/z.js:12:3`)
+    fail(`Cannot find module 'x'\nRequire stack:\n- ${path.join(app, 'components', 'A.brs')}\n- ${home}/work/node_modules/y/index.js\n  at ${home}/z.js:12:3`)
     const r = await json(app)
     const all = JSON.stringify(r)
     expect(all).not.toContain(app)
@@ -613,7 +613,7 @@ describe('ADOPT-29 census error redaction', () => {
       'c /Volumes/Client Drive/AcmeCo App/c.js: boom',
       'd \\\\fileserver\\share\\AcmeCo\\d.js',
       'e https://example.com/x/y and 1 / 2 and and/or',
-      `f ${app}/components/A.brs:3:1`,
+      `f ${path.join(app, 'components', 'A.brs')}:3:1`,
     ].join('\n'))
     const e = (await json(app)).census.error.split('\n')
     expect(e[0]).toBe('a <path>/b.js')
@@ -622,5 +622,16 @@ describe('ADOPT-29 census error redaction', () => {
     expect(e[3]).toBe('d <path>/d.js')
     expect(e[4]).toBe('e https://example.com/x/y and 1 / 2 and and/or')
     expect(e[5]).toBe('f <path>/components/A.brs:3:1')
+  })
+  test('redactPathsWith handles win32-style roots and case-insensitive compare', () => {
+    const r = assess.redactPathsWith
+    const root = 'C:\\Users\\Dev\\app'
+    expect(r('x C:\\Users\\Dev\\app\\components\\A.brs:3:1', [root], true)).toBe('x <path>/components/A.brs:3:1')
+    expect(r('x c:/users/dev/APP/components/A.brs', [root], true)).toBe('x <path>/components/A.brs')
+    expect(r('x C:\\Users\\Dev\\app2\\z\\a.js', [root], true)).toBe('x <path>/a.js')
+    expect(r('x C:\\Users\\Dev\\other\\b.js', [root], true)).toBe('x <path>/b.js')
+    expect(r('x /tmp/App/A.brs', ['/tmp/app'], false)).toBe('x <path>/A.brs')
+    expect(r('x /tmp/app/A.brs', ['/tmp/app'], false)).toBe('x <path>/A.brs')
+    expect(r('x /tmp/app/sub/A.brs', ['/tmp/app'], false)).toBe('x <path>/sub/A.brs')
   })
 })
