@@ -114,3 +114,56 @@ describe('bundled agent definitions (ADOPT-18)', () => {
     for (const n of NAMES) expect(fs.existsSync(p('.claude', 'agents', `${n}.md`))).toBe(true)
   })
 })
+
+describe('copilot agents target (ADOPT-24)', () => {
+  const BOTH = AGENT.replace('hosts: [claude]', 'hosts: [claude, copilot]').replace('tools: Read, Grep', 'tools: Read, Grep, Bash')
+  const bodyOf = (t) => t.replace(/\r\n/g, '\n').match(/^---\n[\s\S]*?\n---\n([\s\S]*)$/)[1]
+  beforeEach(() => { fs.writeFileSync(path.join(root, '_agents', 'fixture-helper.md'), BOTH) })
+
+  test('renders .github/agents/<name>.agent.md: name, description, mapped tools, marker, unchanged body', async () => {
+    expect(await go('install', { agent: 'all' })).toBe(0)
+    const t = fs.readFileSync(p('.github', 'agents', 'fixture-helper.agent.md'), 'utf8')
+    const keys = t.match(/^---\n([\s\S]*?)\n---/)[1].split('\n').map((l) => l.split(':')[0])
+    expect(keys).toEqual(['name', 'description', 'tools'])
+    expect(t).toContain('tools: [read, search, execute]')
+    expect(t).toContain(`<!-- brighttest agent:fixture-helper v${VERSION} `)
+    const neutralBody = BOTH.match(/^---\n[\s\S]*?\n---\n([\s\S]*)$/)[1].trim()
+    expect(bodyOf(t).replace(/^<!--.*-->\n/, '').trim()).toBe(neutralBody)
+    expect(fs.existsSync(p('.claude', 'agents', 'fixture-helper.md'))).toBe(true)
+  })
+
+  test('only agents that list copilot render for it; claude-only stays out', async () => {
+    fs.writeFileSync(path.join(root, '_agents', 'fixture-helper.md'), AGENT)
+    expect(await go('install', { agent: 'all' })).toBe(0)
+    expect(fs.existsSync(p('.github', 'agents'))).toBe(false)
+    expect(fs.existsSync(p('.claude', 'agents', 'fixture-helper.md'))).toBe(true)
+  })
+
+  test('second run is unchanged, --no-agents skips, user file is never overwritten', async () => {
+    await go('install', { agent: 'copilot' })
+    await go('install', { agent: 'copilot' })
+    expect(out).toContain('unchanged')
+    fs.rmSync(p('.github', 'agents'), { recursive: true })
+    await go('install', { agent: 'copilot', noAgents: true })
+    expect(fs.existsSync(p('.github', 'agents'))).toBe(false)
+    fs.mkdirSync(p('.github', 'agents'), { recursive: true })
+    fs.writeFileSync(p('.github', 'agents', 'fixture-helper.agent.md'), 'mine\n')
+    await go('install', { agent: 'copilot', force: true })
+    expect(out).toContain('skipped')
+    expect(fs.readFileSync(p('.github', 'agents', 'fixture-helper.agent.md'), 'utf8')).toBe('mine\n')
+  })
+
+  test('uninstall removes only our copilot agent files', async () => {
+    await go('install', { agent: 'copilot' })
+    fs.writeFileSync(p('.github', 'agents', 'mine.agent.md'), 'user agent\n')
+    fs.writeFileSync(p('.github', 'agents', 'plain.md'), 'user plain\n')
+    expect(await go('uninstall', { agent: 'copilot' })).toBe(0)
+    expect(fs.existsSync(p('.github', 'agents', 'fixture-helper.agent.md'))).toBe(false)
+    expect(fs.readFileSync(p('.github', 'agents', 'mine.agent.md'), 'utf8')).toBe('user agent\n')
+    expect(fs.readFileSync(p('.github', 'agents', 'plain.md'), 'utf8')).toBe('user plain\n')
+    fs.rmSync(p('.github', 'agents'), { recursive: true })
+    await go('install', { agent: 'copilot' })
+    await go('uninstall', { agent: 'copilot' })
+    expect(fs.existsSync(p('.github', 'agents'))).toBe(false)
+  })
+})
