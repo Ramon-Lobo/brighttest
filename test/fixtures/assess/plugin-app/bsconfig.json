@@ -1,0 +1,6 @@
+{
+  // comment
+  "rootDir": ".",
+  "plugins": ["my-plugin"],
+  "manifest": { "bs_const": { "X": true } },
+}
