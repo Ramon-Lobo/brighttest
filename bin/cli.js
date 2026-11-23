@@ -527,7 +527,7 @@ Auto-detection (no --agent) writes to whichever the project already uses: .claud
 Every target also gets the always-on safety rules (device lease, secrets, claims): one managed block named
 brighttest (safety + skill index) in CLAUDE.md, AGENTS.md, .rules or .github/copilot-instructions.md, or a
 brighttest-safety rule file for Cursor, Windsurf and Cline. Content outside the block is preserved; old
-per-skill blocks and flattened Cursor files are migrated. uninstall removes the block and the index.
+per-skill blocks and flattened Cursor files are migrated (a full install also migrates those of retired skills). uninstall removes the block and the index.
 `;
 
 const HELP = `

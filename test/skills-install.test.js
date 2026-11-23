@@ -400,3 +400,126 @@ describe('manifest v2 generator (ADOPT-06)', () => {
 })
 
 test('every target key is covered by the size-gate list', () => { expect(ALL_AGENTS.length).toBe(8) })
+
+describe('installer follow-ups (ADOPT-07)', () => {
+  const legacy = (n) => `<!-- BEGIN brighttest:${n} -->\n<!-- brighttest skills:${n} v0.1.0 — managed by \`brighttest skills\`; edits are overwritten on update -->\nold body\n<!-- END brighttest:${n} -->\n`
+
+  test('folder-first: every folder target writes the skill folders, one block, no full bodies, under 6 KB added', async () => {
+    for (const [agent, dir, file] of [['agents', '.agents/skills', 'AGENTS.md'], ['opencode', '.agents/skills', 'AGENTS.md'], ['codex', '.agents/skills', 'AGENTS.md'],
+      ['copilot', '.github/skills', '.github/copilot-instructions.md'], ['zed', '.agents/skills', '.rules'], ['cursor', '.agents/skills', '.cursor/rules/brighttest-safety.mdc']]) {
+      fs.rmSync(cwd, { recursive: true, force: true }); fs.mkdirSync(cwd)
+      put(file, 'user line\n')
+      expect(await go('install', { agent }), agent).toBe(0)
+      expect(fs.existsSync(p(...dir.split('/'), 'writing-e2e-flows', 'SKILL.md')), agent).toBe(true)
+      const txt = read(...file.split('/'))
+      expect((txt.match(/<!-- BEGIN brighttest -->/g) || []).length, agent).toBeLessThanOrEqual(1)
+      expect(txt, agent).not.toContain('## Reference files')
+      expect(Buffer.byteLength(txt) - Buffer.byteLength('user line\n'), agent).toBeLessThan(SAFETY_MAX_BYTES)
+    }
+  })
+
+  test('failed legacy migration: no safety block is written next to the stuck legacy block, uninstall does not throw', async () => {
+    const stuck = '<!-- BEGIN brighttest:testing-app-state -->\n<!-- brighttest skills:testing-app-state v0.1.0 — x -->\nbody without end\n'
+    put('AGENTS.md', stuck)
+    expect(await go('install', { agent: 'agents' })).toBe(1)
+    expect(out).toMatch(/legacy migration/)
+    expect(read('AGENTS.md')).toBe(stuck)
+    expect(await go('uninstall', { agent: 'agents' })).toBe(1)
+    expect(out).toMatch(/malformed/)
+    expect(read('AGENTS.md')).toBe(stuck)
+  })
+
+  test('one bad legacy block does not hide the one that migrated', async () => {
+    put('AGENTS.md', legacy('writing-rooibos-tests') + '\n<!-- BEGIN brighttest:testing-app-state -->\n<!-- brighttest skills:testing-app-state v0.1.0 — x -->\nno end\n')
+    await go('install', { agent: 'agents' })
+    expect(out).toMatch(/migrated/)
+    expect(out).toMatch(/failed/)
+  })
+
+  test('lone-newline and whitespace-only files round-trip', async () => {
+    for (const orig of ['\n', '\n\n', '\r\n', '  \n', ' ']) {
+      put('AGENTS.md', orig)
+      await go('install', { agent: 'agents' })
+      expect(read('AGENTS.md')).toContain(BEGIN)
+      await go('uninstall', { agent: 'agents' })
+      expect(read('AGENTS.md'), JSON.stringify(orig)).toBe(orig)
+    }
+  })
+
+  test('uninstall with user text after the block leaves one separator, not two', async () => {
+    await go('install', { agent: 'agents' })
+    const blk = read('AGENTS.md').replace(/\n$/, '')
+    fs.rmSync(p('AGENTS.md'))
+    const crlf = (t) => t.replace(/\n/g, '\r\n')
+    for (const [pre, post, want, eol] of [
+      ['A\n\n', '\n\nB\n', 'A\n\nB\n'],
+      ['A\n\n', '\nB\n', 'A\n\nB\n'],
+      ['', '\n\nB\n', 'B\n'],
+      ['A\n', '\n\nB\n', 'A\n\nB\n'],
+      ['A\n\n', '\n\nB\n', 'A\n\nB\n', 'crlf'],
+    ]) {
+      const t = (x) => (eol ? crlf(x) : x)
+      put('AGENTS.md', t(pre + blk + post))
+      await go('uninstall', { agent: 'agents' })
+      expect(read('AGENTS.md'), JSON.stringify([pre, post, eol])).toBe(t(want))
+    }
+  })
+
+  test('full install migrates legacy blocks and cursor files of skills no longer in the manifest; --skill does not', async () => {
+    put('AGENTS.md', legacy('retired-skill') + '\nTail\n')
+    put('.cursor/rules/retired-skill.mdc', '<!-- brighttest skills:retired-skill v0.1.0 — x -->\nold\n')
+    await go('install', { agent: 'agents', skill: 'testing-app-state' })
+    expect(read('AGENTS.md')).toContain('BEGIN brighttest:retired-skill')
+    await go('install', { agent: 'agents' })
+    expect(read('AGENTS.md')).not.toContain('retired-skill')
+    expect(read('AGENTS.md')).toContain('Tail')
+    await go('install', { agent: 'cursor' })
+    expect(fs.existsSync(p('.cursor', 'rules', 'retired-skill.mdc'))).toBe(false)
+    expect(out).toMatch(/retired-skill/)
+  })
+
+  test('uninstall removes a retired skill legacy cursor file but keeps a user file', async () => {
+    put('.cursor/rules/retired-skill.mdc', '<!-- brighttest skills:retired-skill v0.1.0 — x -->\nold\n')
+    put('.cursor/rules/mine.mdc', 'mine\n')
+    await go('uninstall', { agent: 'cursor' })
+    expect(fs.existsSync(p('.cursor', 'rules', 'retired-skill.mdc'))).toBe(false)
+    expect(read('.cursor', 'rules', 'mine.mdc')).toBe('mine\n')
+  })
+
+  test('a dangling symlink is refused, not replaced by a regular file', async () => {
+    if (process.platform === 'win32') return
+    fs.symlinkSync(p('nowhere.md'), p('CLAUDE.md'))
+    expect(await go('install', { agent: 'claude' })).toBe(1)
+    expect(out).toMatch(/symlink whose target does not exist/)
+    expect(fs.lstatSync(p('CLAUDE.md')).isSymbolicLink()).toBe(true)
+    expect(fs.existsSync(p('nowhere.md'))).toBe(false)
+  })
+
+  test('EBUSY on rename is retried, then reported as transient (not read-only)', async () => {
+    put('CLAUDE.md', 'mine\n')
+    const real = fs.renameSync
+    let calls = 0
+    const spy = vi.spyOn(fs, 'renameSync').mockImplementation((a, b) => {
+      if (String(b).endsWith('CLAUDE.md')) { calls++; if (calls <= 2) { const e = new Error('busy'); e.code = 'EBUSY'; throw e } }
+      return real(a, b)
+    })
+    try {
+      expect(await go('install', { agent: 'claude' })).toBe(0)
+      expect(read('CLAUDE.md')).toContain(BEGIN)
+      calls = -100
+      put('CLAUDE.md', 'mine\n')
+      spy.mockImplementation((a, b) => { if (String(b).endsWith('CLAUDE.md')) { const e = new Error('perm'); e.code = 'EPERM'; throw e } return real(a, b) })
+      expect(await go('install', { agent: 'claude' })).toBe(1)
+      expect(out).toMatch(/still busy/)
+      expect(out).not.toMatch(/read-only/)
+      expect(read('CLAUDE.md')).toBe('mine\n')
+      expect(fs.readdirSync(cwd).filter((f) => f.includes('bt-tmp'))).toEqual([])
+    } finally { spy.mockRestore() }
+  })
+
+  test('validRelFile rejects segments ending in a dot or space', () => {
+    const { validRelFile } = skills
+    for (const bad of ['a.', 'a /b.md', 'references/x.md.', 'references /x.md', 'a/b ', '.. ', '...']) expect(validRelFile(bad), bad).toBe(false)
+    for (const good of ['SKILL.md', 'references/a.b.md', 'references/.hidden.md', 'a b/c.md']) expect(validRelFile(good), good).toBe(true)
+  })
+})
