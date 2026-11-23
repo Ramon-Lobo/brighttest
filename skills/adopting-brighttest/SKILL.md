@@ -52,7 +52,9 @@ See `references/decision-tree.md` for the full table.
      next step is `npx brighttest init`, not `init --greenfield` (that edits the manifest and writes into `source/`).
    - `not-a-roku-app`: stop and ask the human; run assess from the folder with the manifest.
    New app with nothing written yet: `npx brighttest init --greenfield`.
-   Fix every blocker in `recommendation.blockers` before step 3.
+   Read every entry in `recommendation.blockers` before step 3 (what each one means and does:
+   `references/decision-tree.md`). A blocker means brighttest cannot see, or does not honor, part of the app.
+   Do not edit bsconfig or move folders to clear one without the human's OK.
 3. Get one headless run green: `npx brighttest --junit results.xml`. Fix the config before writing tests.
 4. Add specs for the logic that matters (`writing-rooibos-tests`). Add flows only for what needs a screen
    (`writing-e2e-flows`). State inside a running app is `testing-app-state`.

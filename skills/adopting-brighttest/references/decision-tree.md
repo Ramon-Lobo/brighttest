@@ -31,7 +31,18 @@ Run `npx brighttest assess . --json` and read `recommendation.path`, `blockers` 
   Use `init --greenfield` only for an app with nothing written yet.
 - `not-a-roku-app`: stop and ask the human; assess must run from the folder with the manifest.
 - `editPermission` is always `unknown`: ask the human (section 3).
-- Fix every blocker (bsconfig plugins, bs_const overrides, census errors, Node too old) before the first run.
+- A blocker means brighttest cannot see, or does not honor, part of the app. Every blocker `assess` can emit
+  (`lib/assess.js`, `docs/guide/assess.md`), and what to do:
+  - `bsconfig plugins are not honored`: unsupported (a bscPlugins passthrough is not shipped). Report it.
+  - `bsconfig manifest.bs_const overrides are not honored`: report it; results may differ from the real build.
+  - `bsconfig rootDir is not honored`, `bsconfig files list is not honored`, `census found 0 scenes`: brighttest
+    reads `source/` and `components/` at the project root only. Do NOT change bsconfig or move folders without the
+    human's OK. Report the blocker and record it under "Not verified".
+  - `census skipped ...` (a sensitive or over-2 MB file under `source/` or `components/`): with the human's OK,
+    move those files out of the app folders (`docs/guide/assess.md`), then run assess again.
+  - `census could not parse the project`: report the error text; do not guess a fix.
+  - `Node <v> does not satisfy ...`: install Node 22 or newer, or ask the human.
+  On the no-edit path none of these may be cleared by editing the app.
 - A mix (a new module in an old app): treat the app as existing; add the new module's specs first.
 
 ## 3. May you edit the app?
