@@ -23,7 +23,7 @@ npx brighttest assess . --out .brighttest/assess
 
 Read-only and offline. Without `--out` nothing is written. Exit 0 means a report was produced, even for a
 non-Roku directory (its path is `not-a-roku-app`); 2 is a usage error or a refused `--out`.
-Docs: `docs/guide/assess.md` when present, else `npx brighttest assess --help`.
+Docs: `docs/guide/assess.md`; flags: `npx brighttest assess --help`.
 
 ## Scaffold
 
