@@ -63,16 +63,19 @@ Host, project, bsconfig, manifest, engines, census, CI, `.gitignore`, devices, r
 - `scan.treeHash` is a stable hash of the scanned file list (path, size and content hash), so you can check that a run
   changed nothing.
 - `scan` holds the file counts (`files`, `skippedSensitive`, `overCap`, `truncated`) and the `treeHash`. `scans` says
-  whether each scan ran and how many files it looked at: `{ secrets: { ran, files }, risky: { ran, files } }`.
+  whether each scan ran and how many files it looked at: `{ secrets: { ran, files, skippedLongLines }, risky: { ran, files, skippedLongLines } }`.
 - `secrets` lists `{ file, line, key, kind }` and nothing else. Kinds: `assignment` (a sensitive key name such as
   token, secret, password or api key set to a literal string; placeholders like `${VAR}` and empty values are ignored),
   `bearer-literal`, `private-key` and `url-credentials` (these three have `key: null`). The value and the line text are
-  never read into the report, so the JSON and Markdown are safe to paste into an issue. The scan covers BrightScript,
+  never read into the report, so the JSON and Markdown are safe to paste into an issue. Key names are matched by word
+  (`apiToken`, `client_secret`, `passphrase`; not `author` or `passThrough`), values may contain spaces, and an XML
+  `<field id="apiKey" value="..."/>` counts. Lines over 4,000 characters are not scanned and are counted in
+  `scans.secrets.skippedLongLines` (and `scans.risky.skippedLongLines`). The scan covers BrightScript,
   BrighterScript, XML, `manifest`, `bsconfig*.json` and `brighttest*.json`.
 - `risky` lists `{ kind, file, line }` for these kinds: `eval` (an `Eval(` call), `roInput-unknown-keys` (`.getInfo()` in a
   file that uses `roInput`), `render-thread-sync-http` (`GetToString`, `GetToFile`, `PostFromString` or `PostFromFile`
-  outside a Task script), `task-infinite-loop` (`while true` or `while 1` in a Task script), `logs-deeplink-params`
-  (`print` of `launchArgs`, `inputData`, `contentId`, `mediaType` or a `deeplink*` name) and `large-global` (more than 20
+  outside a Task script), `task-infinite-loop` (`while true` or `while 1` in a Task script with no `wait(` call in the loop body), `logs-deeplink-params`
+  (`print` or `?` of `launchArgs`, `inputData`, `contentId`, `mediaType` or a `deeplink*` name) and `large-global` (more than 20
   distinct `m.global` fields, reported once at the first). Comments and string contents are ignored. An empty list is not
   proof that the project is clean; the patterns are a short, fixed list.
 - `--out <dir>` writes `assess.json`, `assess.md`, `census.json` and `census.md`. If the path is an existing file the

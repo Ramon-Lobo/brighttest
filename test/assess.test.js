@@ -354,7 +354,7 @@ describe('ADOPT-05b secret scan', () => {
     const everything = [j.out, j.err, h.out, md, ...fs.readdirSync(out).map((f) => fs.readFileSync(path.join(out, f), 'utf8'))].join('\n')
     for (const v of FAKE_VALUES) expect(everything).not.toContain(v)
   })
-  test('placeholders, non-secret keys and comments are not findings', async () => {
+  test('placeholders and non-secret keys are not findings; a secret in a comment still is', async () => {
     fs.cpSync(SKELETON, tmp, { recursive: true })
     fs.writeFileSync(path.join(tmp, 'source', 'ok.brs'), [
       'a.password = "${PASSWORD}"', 'a.authType = "basic"', "' a.token = \"fake-commented-value\"x", 'a.token = ""', 'a.title = "Plain title"',
@@ -362,6 +362,27 @@ describe('ADOPT-05b secret scan', () => {
     const r = await json(tmp)
     expect(r.secrets.filter((x) => x.line !== 4)).toEqual([{ file: 'source/ok.brs', line: 3, key: 'token', kind: 'assignment' }])
     expect(r.secrets.length).toBe(1)
+  })
+  test('long values, values with spaces, XML id/value pairs and tighter key names', async () => {
+    fs.cpSync(SKELETON, tmp, { recursive: true })
+    const jwt = 'fakejwt' + 'a'.repeat(600)
+    fs.writeFileSync(path.join(tmp, 'source', 'k.brs'), [
+      `a.accessToken = "${jwt}"`, 'a.passphrase = "fake pass phrase here"', 'a.author = "Someone Else"', 'a.passThrough = "abcdefgh"', 'a.compass = "abcdefgh"', 'a.api_key = "fake-key-0009"',
+    ].join('\n') + '\n')
+    fs.mkdirSync(path.join(tmp, 'components'), { recursive: true })
+    fs.writeFileSync(path.join(tmp, 'components', 'F.xml'), '<component name="F" extends="Group">\n<interface><field id="apiKey" type="string" value="fake-xml-0011" /></interface>\n</component>\n')
+    const r = await json(tmp)
+    expect(r.secrets.map((x) => `${x.file}:${x.line}:${x.key}`)).toEqual(['components/F.xml:2:apiKey', 'source/k.brs:1:accessToken', 'source/k.brs:2:passphrase', 'source/k.brs:6:api_key'])
+    expect(JSON.stringify(r)).not.toMatch(/fakejwt|fake pass|fake-xml|fake-key-0009/)
+  })
+  test('lines over the limit are counted, and a long URL-like line is scanned fast', async () => {
+    fs.cpSync(SKELETON, tmp, { recursive: true })
+    fs.writeFileSync(path.join(tmp, 'source', 'long.brs'), 'a = "' + 'http://a:'.repeat(700) + '"\nb = "' + 'x'.repeat(5000) + '"\n')
+    const t0 = Date.now()
+    const r = await json(tmp)
+    expect(Date.now() - t0).toBeLessThan(5000)
+    expect(r.scans.secrets.skippedLongLines).toBe(2)
+    expect(r.scans.risky.skippedLongLines).toBe(2)
   })
   test('a private key block is reported without a key', async () => {
     fs.cpSync(SKELETON, tmp, { recursive: true })
@@ -383,19 +404,29 @@ describe('ADOPT-05b risky-pattern scan', () => {
     'roInput-unknown-keys': ['p = CreateObject("roInput")\ni = e.getInfo()', 'i = e.getInfo()'],
     'render-thread-sync-http': ['t = x.GetToString()', "' t = x.GetToString()"],
     'logs-deeplink-params': ['print args.contentId', 'print "contentId"'],
+    'logs-deeplink-params (? shorthand)': ['? args.contentId', '? "contentId"'],
   }
-  for (const [kind, [pos, neg]] of Object.entries(cases)) {
-    test(`${kind}: one positive and one negative line`, async () => {
-      const hits = await kindsFor(`${kind}-pos`, pos)
+  for (const [label, [pos, neg]] of Object.entries(cases)) {
+    const kind = label.split(' ')[0]
+    const tag = label.replace(/\W+/g, '-')
+    test(`${label}: one positive and one negative line`, async () => {
+      const hits = await kindsFor(`${tag}-pos`, pos)
       expect(hits.filter((x) => x.kind === kind).length).toBe(1)
       expect(hits.find((x) => x.kind === kind).file).toBe('source/probe.brs')
-      expect((await kindsFor(`${kind}-neg`, neg)).filter((x) => x.kind === kind)).toEqual([])
+      expect((await kindsFor(`${tag}-neg`, neg)).filter((x) => x.kind === kind)).toEqual([])
     })
   }
   const task = { 'components/T.xml': '<component name="T" extends="Task"><script uri="pkg:/source/probe.brs"/></component>\n' }
+  test('a trailing `: rem` comment and BrighterScript backtick strings are not code', async () => {
+    expect((await kindsFor('cm1', 'x = 1 : rem r = Eval("1")')).filter((x) => x.kind === 'eval')).toEqual([])
+    expect((await kindsFor('cm2', 'x = `r = Eval(1)`')).filter((x) => x.kind === 'eval')).toEqual([])
+    expect((await kindsFor('cm3', 'x = 1 : r = Eval("1")')).filter((x) => x.kind === 'eval').length).toBe(1)
+  })
   test('task-infinite-loop: positive in a Task script, negative for a bounded loop or a non-Task script', async () => {
     expect((await kindsFor('tl-pos', 'while true\nend while', task)).filter((x) => x.kind === 'task-infinite-loop')).toEqual([{ kind: 'task-infinite-loop', file: 'source/probe.brs', line: 1 }])
     expect((await kindsFor('tl-neg', 'while i < 3\nend while', task)).filter((x) => x.kind === 'task-infinite-loop')).toEqual([])
+    const normal = 'while true\n  msg = wait(0, port)\n  if msg = invalid then exit while\nend while'
+    expect((await kindsFor('tl-neg3', normal, task)).filter((x) => x.kind === 'task-infinite-loop')).toEqual([])
     expect((await kindsFor('tl-neg2', 'while true\nend while')).filter((x) => x.kind === 'task-infinite-loop')).toEqual([])
   })
   test('render-thread-sync-http is not reported inside a Task script', async () => {
