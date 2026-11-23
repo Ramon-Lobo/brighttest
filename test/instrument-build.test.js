@@ -340,7 +340,7 @@ describe('strict table', () => {
     expect(t('excluded-candidate', { excludedBy: 'default' })).toBe(false)
     for (const k of ['empty-init', 'inline-cdata-scene', 'unknown-scene-subtype', 'init-in-excluded-file', 'init-shared-with-excluded-scene', 'indexed-seturl', 'bare-geturl', 'net-receiver-unknown', 'xml-parse-failed', 'parse-threw']) expect(t(k), k).toBe(true)
     expect(t('init-shared-with-excluded-scene', { via: 'extends' })).toBe(true)
-    for (const k of ['rewritten-shared-with-excluded', 'net-receiver-excluded', 'callfunc-seturl']) expect(t(k), k).toBe(false)
+    for (const k of ['rewritten-shared-with-excluded', 'net-receiver-excluded', 'callfunc-seturl', 'net-render-thread']) expect(t(k), k).toBe(false)
     expect(t('some-future-kind')).toBe(true) // fail closed
   })
   it('informational kinds of the plugin never trip', () => {
