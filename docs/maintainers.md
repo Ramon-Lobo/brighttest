@@ -26,7 +26,7 @@ brighttest/
 ├── docs/                    # this VitePress site (not published to npm)
 ├── experiments/             # spike scripts + device FINDINGS (not shipped) — see "E2E lane"
 ├── design/                  # RFC/design notes, e.g. design/e2e-lane.md (not shipped)
-├── skills/                  # agent skills (shipped) + manifest.json, facts.json (`npm run skills:manifest`; `skills --check` gates claims against facts)
+├── skills/                  # agent skills (shipped) + manifest.json, facts.json (`npm run skills:manifest`; `skills --check` gates claims against facts; the size gate grandfathers `writing-rooibos-tests/references/examples.md` (226 lines, over the 200 limit) until it is split, then drop `REF_LINES_GRANDFATHERED`)
 ├── scripts/                 # check-denylist, skills manifest, audit gate (not shipped)
 ├── examples/                # sample-app (every lane), greenfield-app, legacy-app, device-channel, streaming-app (not shipped)
 └── package.json             # deps: @ramonlobo/brs-node, @ramonlobo/rooibos-roku, brighterscript, jszip
@@ -454,7 +454,7 @@ transitively (the two forks, `brighterscript` and `jszip`). Docs tooling (`vitep
 and aren't shipped. For local development use `file:` linking and run `npm install` inside `brighttest/`
 once so its `node_modules` is populated.
 
-Release flow: bump with `npm version <patch|minor|major>` (commits + tags `vX.Y.Z` on `main`), push the
+Release flow: `skills/facts.json` carries `cliVersion`, so `npm version` alone leaves it stale. Run `npm run skills:manifest` after any version bump, dependency range change, CLI flag/subcommand/help change or lease/instrument default change, and commit the result (`brighttest skills --check` fails on drift). Bump with `npm version <patch|minor|major>` (commits + tags `vX.Y.Z` on `main`; regenerate and commit facts before it, or amend the release commit before tagging), push the
 branch **and the tag**, then `npm publish --access public`. The npm account has **2FA enabled**, so publish
 prompts for a one-time password — pass it with `--otp=<code>` (it can't be automated interactively; use an
 automation token for unattended CI releases). `npm pack --dry-run` before publishing to confirm the tarball

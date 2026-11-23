@@ -105,6 +105,26 @@ describe('facts gate (ADR 0023)', () => {
     expect(rule(5)[0]).toMatch(/exit 4.*buildStrict/)
   })
 
+  test('rule 5: the number must sit next to exit, so other sentences pass', () => {
+    edit(SKILL, (s) => s + '\nStep 3 exits the app with Back.\n\nCheck line 4 of the log.\n')
+    expect(rule(5)).toEqual([])
+  })
+
+  test('rule 6: explicit overrides are not default claims', () => {
+    edit(SKILL, (s) => s + '\nUse `--wait 10m` to give up sooner.\n\nSet --hub-port 8791 for the hub, default or not.\n\n```sh\nnpx brighttest device with --wait 60m -- npm test\n```\n')
+    expect(rule(6)).toEqual([])
+  })
+
+  test('nodeMin does not throw without engines.node', () => {
+    edit('package.json', (s) => { const j = JSON.parse(s); delete j.engines; return JSON.stringify(j) })
+    expect(() => collectFacts(tmp)).not.toThrow()
+  })
+
+  test('rule 3: only the table under the Skill | Teaches header counts', () => {
+    edit('docs/guide/agent-skills.md', (s) => s + '\n| `.claude/` | other table |\n\n| Thing | x |\n|---|---|\n| `stray-name` | y |\n')
+    expect(rule(3)).toEqual([])
+  })
+
   test('rule 6: lease defaults and the hub port', () => {
     expect(rule(6)).toEqual([])
     edit(SKILL, (s) => s + '\nThe wait defaults to 20m, and a hold is capped at 60m.\n')

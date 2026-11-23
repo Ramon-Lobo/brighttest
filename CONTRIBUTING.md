@@ -100,14 +100,14 @@ checkout, so you can test changes against a real Roku project. Run `npm unlink -
 - [ ] Change is scoped to one thing and the branch is up to date with `main`.
 - [ ] `npm test` passes, and new/changed behaviour has test coverage under `test/`.
 - [ ] Ran the CLI against a real/sample project and confirmed the expected behaviour.
-- [ ] Regenerated the skills manifest if `skills/` changed (`npm run skills:manifest`).
+- [ ] Ran `npm run skills:manifest` if `skills/` changed, or the version, a dependency range, a CLI flag/subcommand/help text, or a lease/instrument default changed (regenerates `skills/facts.json`; `skills --check` fails on drift).
 - [ ] `npm run docs:build` succeeds if docs changed.
 - [ ] Commit messages follow Conventional Commits.
 - [ ] Updated relevant docs (`README.md`, `docs/…`).
 
 ## Releasing (maintainers)
 
-Releases are cut by maintainers: bump the version in `package.json` (semver), tag the commit, and publish
+Releases are cut by maintainers: bump the version in `package.json` (semver), run `npm run skills:manifest` and commit `skills/facts.json` (it carries `cliVersion`), tag the commit, and publish
 to npm. See [`docs/maintainers.md`](docs/maintainers.md) for the internals and the dependency patches.
 
 ## Questions
