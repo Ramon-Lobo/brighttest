@@ -26,16 +26,20 @@ npx brighttest skills install
 
 With no `--agent`, this **auto-detects** the agents your project already uses and installs to each:
 
-| Detected | Installs to |
-|---|---|
-| `.claude/` | `.claude/skills/<skill>/` (native Claude Code skill, with reference files) |
-| `.agents/` | `.agents/skills/<skill>/` (generic Agent Skills folder; override root with `--skills-dir`) |
-| `.cursor/` | `.cursor/rules/<skill>.mdc` (scoped to `**/*.spec.bs`) |
-| `.windsurf/` | `.windsurf/rules/<skill>.md` |
-| `.clinerules` | `.clinerules/<skill>.md` |
-| `.rules` | managed block in `.rules` (Zed) |
-| `AGENTS.md` / `opencode.json` | managed block in `AGENTS.md` (also covers opencode, Codex) |
-| `.github/` | managed block in `.github/copilot-instructions.md` |
+| Detected | Skills go to | Always-on safety rules go to |
+|---|---|---|
+| `.claude/` or `CLAUDE.md` | `.claude/skills/<skill>/` | managed block in `CLAUDE.md` |
+| `.agents/` | `.agents/skills/<skill>/` (override root with `--skills-dir`) | managed block in `AGENTS.md` |
+| `.cursor/` | `.agents/skills/<skill>/` | `.cursor/rules/brighttest-safety.mdc` (`alwaysApply: true`) |
+| `.windsurf/` | `.windsurf/rules/<skill>.md` (SKILL.md body; references copied to `.agents/skills/<skill>/references/`) | `.windsurf/rules/brighttest-safety.md` |
+| `.clinerules` | `.clinerules/<skill>.md` (same shape as Windsurf) | `.clinerules/brighttest-safety.md` |
+| `.rules` | `.agents/skills/<skill>/` | managed block in `.rules` (Zed) |
+| `AGENTS.md` / `opencode.json` | `.agents/skills/<skill>/` (also covers opencode, Codex) | managed block in `AGENTS.md` |
+| `.github/` | `.github/skills/<skill>/` | managed block in `.github/copilot-instructions.md` |
+
+The always-on safety rules (device lease, secrets, claims; under 6 KB per file) are written for every target.
+Block targets get one managed block named `brighttest` holding the rules plus a short skill index, never full
+skill bodies. Pass `--no-safety` to skip it.
 
 Target explicitly with `--agent` (creates the folders if needed):
 
@@ -59,30 +63,37 @@ npx brighttest skills update --ref v0.3.0 # pin a tag/branch
 ```
 
 It reads the skills manifest over HTTPS, fetches each file, and re-installs to your agents, reporting
-`vOLD → vNEW` where it can tell. Requires network access.
+`vOLD → vNEW` where it can tell. Requires network access. A ref whose manifest is the older v1 format installs
+skills only (no safety block, no migration) and says so.
 
 ## List and remove
 
 ```sh
-npx brighttest skills list        # available skills + detected agents
+npx brighttest skills list        # available skills, detected agents, installed vs CLI version
 npx brighttest skills uninstall   # remove installed skills (respects --agent / --skill)
 ```
 
 ## Safe to re-run
 
-`AGENTS.md`, `.rules`, and `.github/copilot-instructions.md` are updated **in place** inside a managed
-block, one per skill:
+`CLAUDE.md`, `AGENTS.md`, `.rules`, and `.github/copilot-instructions.md` are updated **in place** inside one
+managed block (a missing or empty file is created or filled; CRLF files stay CRLF):
 
 ```
-<!-- BEGIN brighttest:writing-rooibos-tests -->
+<!-- BEGIN brighttest -->
 …
-<!-- END brighttest:writing-rooibos-tests -->
+<!-- END brighttest -->
 ```
 
-Re-running replaces only that block — everything else in the file is preserved. The folder- and file-based
-targets (Claude Code, Agent Skills, Cursor, Windsurf, Cline) are brighttest-owned; re-running refreshes
-them. If one of those paths already exists and wasn't created by brighttest, it's skipped with a hint —
-pass `--force` to overwrite.
+Re-running replaces only that block and reports `unchanged` when nothing differs; everything else in the file is
+preserved. Older installs used one block per skill (`<!-- BEGIN brighttest:<skill> -->`) and Cursor used
+`.cursor/rules/<skill>.mdc`: those are removed on the next install and reported as `migrated`. Anything without
+the brighttest marker is left alone. A read-only file is reported as `failed` and not touched.
+`skills uninstall` removes the block and index (and deletes a file that held nothing else); a single-skill
+`--skill` run leaves the block as it is.
+
+The folder- and file-based targets are brighttest-owned; re-running refreshes them. If one of those paths already
+exists and wasn't created by brighttest, it's skipped with a hint — pass `--force` to overwrite.
+`skills list` shows, per target, the version brighttest last wrote next to the CLI version.
 
 ## Export for manual placement
 

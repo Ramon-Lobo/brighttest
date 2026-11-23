@@ -1,5 +1,6 @@
 {
-  "schema": "brighttest-skills/v1",
+  "schema": "brighttest-skills/v2",
+  "cliVersion": "0.7.0",
   "skills": [
     {
       "name": "debugging-failing-tests",
@@ -61,5 +62,11 @@
         "references/pitfalls.md"
       ]
     }
-  ]
+  ],
+  "agents": [],
+  "alwaysOn": {
+    "file": "_always-on/safety.md",
+    "maxLines": 45
+  },
+  "facts": "facts.json"
 }

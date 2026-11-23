@@ -52,6 +52,7 @@
     "--net-unmatched",
     "--no-hygiene",
     "--no-lease",
+    "--no-safety",
     "--no-sgnode",
     "--no-strict",
     "--open",

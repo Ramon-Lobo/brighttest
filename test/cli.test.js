@@ -69,6 +69,11 @@ describe('parseArgs', () => {
 })
 
 describe('parseSkillsArgs', () => {
+  it('--no-safety turns the always-on block off (default on)', () => {
+    expect(parseSkillsArgs(['install']).noSafety).toBe(false)
+    expect(parseSkillsArgs(['install', '--no-safety']).noSafety).toBe(true)
+  })
+
   it('defaults to the install action', () => {
     expect(parseSkillsArgs([]).skillsAction).toBe('install')
   })
