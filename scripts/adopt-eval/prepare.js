@@ -16,7 +16,10 @@ function git(cwd, args) {
 
 function prepare({ runRoot = DEFAULT_RUN_ROOT, clean = false, repoRoot = REPO_ROOT } = {}) {
   runRoot = path.resolve(runRoot)
-  if (path.relative(repoRoot, runRoot) === '' || !path.relative(repoRoot, runRoot).startsWith('..')) throw new Error('run root must be outside the repo')
+  const rel = path.relative(repoRoot, runRoot)
+  // A different drive (Windows) makes path.relative return an absolute path: that is outside the repo.
+  const inside = rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel))
+  if (inside) throw new Error('run root must be outside the repo')
   if (fs.existsSync(runRoot) && fs.readdirSync(runRoot).length) {
     if (!clean) throw new Error(`run root ${runRoot} is not empty (use --clean to wipe it)`)
     fs.rmSync(runRoot, { recursive: true, force: true })
