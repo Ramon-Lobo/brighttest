@@ -4,8 +4,8 @@ Evidence: sections, field names, blocker texts and exit codes are from `lib/asse
 --help` and `docs/guide/assess.md` on this version. Not device-verified. The census behavior is "until ADOPT-27
 merges".
 
-Three forms: the terminal summary (default), `--json` (the document), and `assess.md` / `census.md` / `census.json`
-/ `assess.json` written by `--out <dir>`. They hold the same facts.
+Three forms: the terminal summary (default), `--json` (the document), and `assess.md` / `assess.json` written by
+`--out <dir>`, plus `census.md` / `census.json` only when the census ran. They hold the same facts.
 
 ## Sections of the JSON
 

@@ -19,12 +19,12 @@ Edit permission: unknown -> asked the human: <answer or "not asked yet">
 ## The app
 Language: <language>  Files: <brs> brs, <bs> bs, <xml> xml  Scan truncated: <yes|no>
 Census: <components> components, <scenes> scenes, <tasks> tasks, setUrl <covered>/<sites> covered
-Census error: <none|text>
+Census error: <none|text, with absolute or home paths, username and host replaced by <path>>
 Specs: <specFiles> (Rooibos present: <yes|no>)
 bsconfig: <none|file>; rootDir <value|none>; plugins <list|none>
 Manifest keys set: <bs_const|rsg_version|...|none>
 
-## Blockers (each one, verbatim from recommendation.blockers)
+## Blockers (each one from recommendation.blockers, with absolute or home paths, username and host replaced by <path>)
 - <blocker text> -> what it means: <one line> -> needs human OK to change: <yes|n/a>
 
 ## Unknowns (recommendation.unknowns)
