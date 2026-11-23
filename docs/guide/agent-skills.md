@@ -47,6 +47,23 @@ The always-on safety rules (device lease, secrets, claims; under 6 KB per file) 
 Block targets get one managed block named `brighttest` holding the rules plus a short skill index, never full
 skill bodies. Pass `--no-safety` to skip it.
 
+### Subagent definitions (Claude target)
+
+For the `claude` target, `install` and `update` also write each shipped subagent definition to
+`.claude/agents/<name>.md`. Pass `--no-agents` to skip them. Other targets get no agent files. A `--skill <name>` run
+does not touch agents.
+
+Every rendered file carries an ownership marker line (`<!-- brighttest agent:<name> v<version> ... -->`) right after
+its frontmatter. Rules:
+
+- A file at the same path **without** our marker is yours: it is reported as `skipped` and never overwritten, and
+  `--force` does not change that.
+- `uninstall` removes only files carrying the marker (and `.claude/agents/` itself if that leaves it empty). Your own
+  agent files are left alone. `--no-agents` makes `uninstall` leave agents in place too.
+- Editing a marked file is pointless: the next `install` or `update` rewrites it.
+
+The bundled agent definitions arrive in a later release; until then this step writes nothing.
+
 Target explicitly with `--agent` (creates the folders if needed):
 
 ```sh
