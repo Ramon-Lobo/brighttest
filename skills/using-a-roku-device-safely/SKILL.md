@@ -15,6 +15,10 @@ press each other's keys, and the debug ports take one client each. Nothing on th
 you only get wrong results. brighttest therefore leases each device. Every command that touches a device
 takes the lease first and waits its turn.
 
+Evidence: documented in `docs/guide/device-lease.md` and `docs/guide/troubleshooting.md`, and checked against
+`lib/device-hook.js` and the facts gate. Not device-verified by this skill. The 10-minute stall and the 240 s
+`Fwd` keepalive are a single-device observation, not verified across devices or firmware.
+
 ## Before you touch a device
 
 1. Name yourself: `export BRIGHTTEST_AGENT=<role>#<n>` (or pass `--as`). Give each command a `--purpose`.
@@ -31,7 +35,7 @@ Run anything that can take minutes in the background with a deadline, and poll w
 
 ## Which tool takes the lease
 
-- Lanes (`--device`, `--cross-check`, `e2e run`, `e2e inspect`, `e2e record`) take it themselves.
+- Lanes (`--device`, `--cross-check`, `e2e run`, `e2e inspect`, `e2e record`), `studio`, `instrument build --sideload` and the MCP device tools take it themselves. Do not wrap `studio` in `device with`.
 - Any other command (a script, `curl`, a runner) goes inside `device with --`.
 - Several steps in a row: `device lock` prints a token; run each step with `device with --lease <token>`;
   end with `device unlock --lease <token>`. The token expires on idle, so renew it with `device renew`.
@@ -55,7 +59,7 @@ command's own exit code through, so read the `[brighttest lease]` line on stderr
 - Never run `device unlock --force`, and never kill another holder.
 - Never use sudo, change a firewall, or change a device setting such as the screensaver.
 - Never write the dev password or a lease token to a file, a log, a commit or a report.
-- Never press `PowerOff` or an input-switch key.
+- Never press `PowerOff` or an input-switch key (MCP refuses them; flows and raw ECP do not).
 
 Details: `references/forbidden.md` and `references/secrets.md`.
 

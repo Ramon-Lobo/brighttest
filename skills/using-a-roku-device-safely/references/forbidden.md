@@ -12,7 +12,7 @@ Each item has a reason. If a task seems to need one of these, stop and ask the h
 | Change device settings (screensaver, network access, developer mode) | Shared device, owner decides | Report what doctor says |
 | Write the dev password to any file, log or report | Secrets leak | See `secrets.md` |
 | Write a lease token to a file or log | It lets anything use the device | Shell variable only |
-| Press `PowerOff` or input-switch keys | The device would leave the app | None; they are refused |
+| Press `PowerOff` or input-switch keys (`InputHDMI*`, `InputAV*`, `InputTuner`) | The device would leave the app | Nothing. The MCP server refuses them, but e2e flows and raw ECP do not, so never send them |
 | Loop on exit 75 or hold a lock while idle | Starves others | Wait once, or release |
 | Leave a session lock held at the end | Blocks others until idle expiry | `device unlock` |
 

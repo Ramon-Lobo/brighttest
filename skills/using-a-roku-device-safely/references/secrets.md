@@ -10,7 +10,7 @@
 ## How to pass the password
 
 Set it out of band, before the agent starts: the human exports `ROKU_PASSWORD`, or puts it in the project
-`.env` that is git-ignored, or in the device cache. `device with` puts `ROKU_HOST` and `ROKU_PASSWORD` in the
+`.env`, or in the device cache. `init` does not add `.env` to `.gitignore`: before anyone writes a password there, check that `.env` is listed in `.gitignore`, and ask the human to add it if not. Never write the password yourself. `device with` puts `ROKU_HOST` and `ROKU_PASSWORD` in the
 wrapped command's environment, so the command reads the variable; you never type the value.
 
 - Refer to it by name: `"$ROKU_PASSWORD"`. Never paste the value into a command line, a file, a prompt,
@@ -34,5 +34,5 @@ history yourself. The human rotates the password on the device.
 
 ## Tokens
 
-A session token is like a password: keep it in a shell variable for the session, pass it with
+A session token is like a password: keep it in a shell variable within one shell invocation, pass it with
 `device with --lease`, and `device unlock` when done. Never write it to disk.
