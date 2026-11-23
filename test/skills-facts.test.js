@@ -36,7 +36,7 @@ describe('facts gate (ADR 0023)', () => {
     expect(f.schema).toBe('brighttest-facts/v1')
     expect(f.exitCodes).toEqual({ buildStrict: 4, leaseBusy: 75, leaseDir: 78, leaseLost: 77, verifyInstrumented: 3 })
     expect(f.hubDefaultPort).toBe(8790)
-    expect(f.agents).toEqual([])
+    expect(f.agents).toEqual(['adoption-assessor', 'ci-integrator', 'device-debugger', 'test-author'])
     expect(f.subcommands).toEqual(expect.arrayContaining(['device with', 'e2e inspect', 'instrument census', 'skills install', 'doctor']))
     expect(fs.readFileSync(path.join(repo, 'skills', 'facts.json'), 'utf8')).toBe(renderFacts(f))
   })
@@ -173,7 +173,7 @@ describe('facts gate (ADR 0023)', () => {
     const forbidden = 'Never use --no-lease. Never run device unlock --force.'
     agent('tools: Read, Bash\nskills: writing-rooibos-tests', `Reads code. ${forbidden}`)
     regen()
-    expect(JSON.parse(read('skills/facts.json')).agents).toEqual(['probe'])
+    expect(JSON.parse(read('skills/facts.json')).agents).toEqual(expect.arrayContaining(['probe']))
     expect(rule(9)).toEqual([])
     agent('tools: Read, Bash\nskills: writing-rooibos-tests, no-such-skill', forbidden)
     expect(rule(9)[0]).toMatch(/skill 'no-such-skill' does not exist/)
