@@ -543,6 +543,7 @@ Usage:
   brighttest e2e run <flow…> --host <ip>             On-device UI e2e tests from YAML flows (see: e2e --help)
   brighttest studio --host <ip>                      Visual studio to author/debug flows on a device (see: studio --help)
   brighttest net convert <file.har> [-o <rules.json>]  Turn a recorded HAR into hand-editable net rules
+  brighttest assess [<dir>] [--json] [--out <dir>]   Read-only assessment of a Roku project (see: assess --help)
   brighttest doctor --host <ip> [--json]             Check a device's capabilities and print exact fixes
   brighttest mcp                                     Serve e2e primitives to an AI agent over MCP stdio (see: mcp --help)
   brighttest devices                                 Discover Rokus on the network and cache one's credentials
@@ -721,6 +722,11 @@ async function main() {
     const code = await require('../lib/device-command').run(o, cfg);
     // process.exit() drops pending async pipe writes (a piped `device log --json` was cut at 8192 bytes):
     // exit only once stdout has flushed. Streams through the pipe, no extra buffering.
+    process.stdout.write('', () => process.exit(code));
+    return;
+  }
+  if (argv[0] === 'assess') {
+    const code = await require('../lib/assess').run(argv.slice(1));
     process.stdout.write('', () => process.exit(code));
     return;
   }
