@@ -9,8 +9,8 @@ Brownfield trap fixture: a plain app whose build is driven by `bsconfig.json`.
 
 ## Expected `brighttest assess` blockers
 
-Stated expectation: the bsconfig plugin caveat (brighttest does not run bsc plugins), plus
-the `rootDir` and custom `files` list as things to confirm.
+Brighttest does not run bsc plugins and does not honor `rootDir` or a custom `files` list, so assess reports all three.
+The census shows 0 scenes because the Scene sits under `src/`; the `rootDir` blocker explains it.
 
 Real output (`node bin/cli.js assess examples/bsconfig-plugin-app`), key lines:
 
@@ -19,8 +19,6 @@ bsconfig:  bsconfig.json, unsupported: plugins
 census:    0 scenes, 0 tasks, setUrl 0/0 covered, 0 could not instrument
 recommend: greenfield; edit permission unknown
   blocker: bsconfig plugins are not honored by brighttest: ./plugins/noop-plugin.js
+  blocker: bsconfig rootDir is not honored by brighttest (census reads source/ and components/ under the project root only): src
+  blocker: bsconfig files list is not honored by brighttest (the default source/, components/ layout is assumed): 3 pattern(s)
 ```
-
-Only the plugin caveat is a reported blocker today. `rootDir` and the `files` list are not
-reported as blockers, and the census shows 0 scenes (the Scene sits under `src/`), so the
-`rootDir` case is not surfaced by assess yet.
