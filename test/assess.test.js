@@ -260,6 +260,29 @@ describe('review fixes', () => {
     expect(ok2.code).toBe(0)
     expect(fs.existsSync(path.join(tmp, '..cache', 'assess.json'))).toBe(true)
   })
+  test('--out inside a source/ that is itself a symlink is refused', async () => {
+    const real = path.join(tmp, 'real-src'), app = path.join(tmp, 'app')
+    fs.mkdirSync(real); fs.mkdirSync(app)
+    fs.writeFileSync(path.join(app, 'manifest'), 'title=x\n')
+    try { fs.symlinkSync(real, path.join(app, 'source'), 'dir') } catch (e) { return }
+    expect((await run([app, '--out', path.join(app, 'source', 'out')])).code).toBe(2)
+    expect(fs.readdirSync(real)).toEqual([])
+  })
+  test('Certs/ in any case is skipped and never read', async () => {
+    fs.cpSync(SKELETON, tmp, { recursive: true })
+    for (const d of ['Certs', path.join('source', 'CERTS')]) {
+      fs.mkdirSync(path.join(tmp, d), { recursive: true })
+      fs.writeFileSync(path.join(tmp, d, 'bsconfig.json'), '{"x":"fake-probe-0008"}')
+      fs.writeFileSync(path.join(tmp, d, 'brighttest.json'), '{"x":"fake-probe-0009"}')
+    }
+    const opened = []
+    const real = fs.readFileSync
+    vi.spyOn(fs, 'readFileSync').mockImplementation((p, ...a) => { opened.push(String(p)); return real(p, ...a) })
+    const r = await run([tmp, '--json'])
+    expect(r.code).toBe(0)
+    expect(opened.filter((p) => /certs/i.test(p))).toEqual([])
+    expect(JSON.parse(r.out).census.error).toMatch(/census skipped/)
+  })
   test('sensitive or oversized files under source/ or components/ skip the census without opening them', async () => {
     fs.cpSync(PLUGIN, tmp, { recursive: true })
     fs.writeFileSync(path.join(tmp, 'components', '.env'), 'fake-probe-0005')
