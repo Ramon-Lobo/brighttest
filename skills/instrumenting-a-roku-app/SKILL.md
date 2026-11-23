@@ -57,6 +57,9 @@ limit is researched from Roku's public docs, not verified here (see `references/
 7. Release gate, on the package you will publish, never the debug zip:
    `npx brighttest instrument verify build/store.zip` must exit 0 (clean). Then compare the zip size against the
    budget in `references/package-size.md`.
+8. Device-to-hub reach: `npx brighttest doctor --host <device-ip>` reports it as `not-tested` by default. The opt-in
+   `BRIGHTTEST_DOCTOR_HUB_PROBE=1` (with `ROKU_PASSWORD` exported, never printed) proves reach by sideloading a no-icon
+   probe package; it replaces the dev channel slot and takes the lease. Firewall problems are the human's to fix.
 
 ## Exit codes at a glance
 

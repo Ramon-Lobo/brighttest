@@ -40,8 +40,9 @@ stderr lines look like `strict: <kind> <file>:<line> <reason>`. Kinds that fail 
 `excluded-candidate` in a file the user excluded, `empty-init`, `inline-cdata-scene`, `unknown-scene-subtype`,
 `init-in-excluded-file`, `init-shared-with-excluded-scene`, `indexed-seturl`, `indexed-geturl`, `bare-geturl`,
 `xml-parse-failed`, `net-receiver-unknown`, `wrap-target-unknown`, and any kind not listed (fail closed).
-Informational (never fail strict): `rewritten-shared-with-excluded`, `net-receiver-excluded`, `callfunc-seturl`, and
-`excluded-candidate` in a default-excluded path. `--verbose` lists the informational entries of a successful build.
+Informational (never fail strict): `rewritten-shared-with-excluded`, `net-receiver-excluded`, `callfunc-seturl`,
+`net-render-thread` (a hand-written `BT_url(` call on the render thread: identity on device, URL unchanged; wrap it in a Task),
+and `excluded-candidate` in a default-excluded path. `--verbose` lists the informational entries of a successful build.
 
 ## Verify markers
 
