@@ -122,7 +122,7 @@ function parseNetArgs(argv) {
 // `brighttest skills [install|update|export|list|uninstall] …` — a positional subcommand with its own parser.
 const SKILLS_ACTIONS = ['install', 'update', 'export', 'list', 'uninstall'];
 function parseSkillsArgs(rest) {
-  const opts = { skillsAction: 'install', agent: null, skill: null, out: null, ref: null, skillsDir: null, force: false, noSafety: false, noAgents: false, check: false, help: false };
+  const opts = { skillsAction: 'install', agent: null, skill: null, out: null, ref: null, skillsDir: null, force: false, noSafety: false, noAgents: false, withHook: false, withMcp: false, check: false, help: false };
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
     if (SKILLS_ACTIONS.includes(a)) opts.skillsAction = a;
@@ -139,6 +139,8 @@ function parseSkillsArgs(rest) {
     else if (a === '--check') opts.check = true;
     else if (a === '--no-safety') opts.noSafety = true;
     else if (a === '--no-agents') opts.noAgents = true;
+    else if (a === '--with-hook') opts.withHook = true;
+    else if (a === '--with-mcp') opts.withMcp = true;
     else if (a === '--force' || a === '-f') opts.force = true;
     else if (a === '--help' || a === '-h') opts.help = true;
   }
@@ -505,7 +507,7 @@ Usage:
   brighttest skills update    [--ref <branch|tag>] [--agent <a>] ...      Pull the latest skills from the repo
   brighttest skills export    [--out <dir>] [--force]                     Dump the raw skill folders
   brighttest skills list                                                  List available skills + detected agents
-  brighttest skills uninstall [--agent <a>] [--skill <name>] [--force]    Remove installed skills
+  brighttest skills uninstall [--agent <a>] [--skill <name>] [--force]    Remove installed skills (and the hook/MCP entries it merged)
   brighttest skills --check                                               CI: exit 1 if skills/manifest.json drifted
 
 Options:
@@ -517,6 +519,8 @@ Options:
   -o, --out <dir>   (export) Destination (default: ./brighttest-skills)
   --no-safety       (install, update) Skip the always-on safety block (default: written for every target)
   --no-agents       (install, update, uninstall) Skip subagent definitions (default: .claude/agents/<name>.md for the claude target)
+  --with-hook       (install, claude target) Merge the device-lease guard hook into .claude/settings.json (never overwrites; invalid JSON is refused)
+  --with-mcp        (install, claude target) Merge the brighttest MCP server into .mcp.json (never overwrites; invalid JSON is refused)
   --check           Compare skills/manifest.json with the skills/ tree (no writes); exit 1 on drift
   -f, --force       Overwrite files not created by brighttest
   -h, --help        Show this help

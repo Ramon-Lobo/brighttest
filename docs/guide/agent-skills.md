@@ -75,6 +75,33 @@ npx brighttest skills install --skill writing-rooibos-tests --agent cursor
 `--agent` accepts `claude`, `agentskills`, `cursor`, `windsurf`, `cline`, `zed`, `agents`, `copilot`,
 `opencode`, `hermes`, or `all`.
 
+### Guard hook and MCP server (opt-in, Claude target)
+
+Two flags merge brighttest entries into your own config files. Neither is on by default, and both apply to the
+`claude` target only.
+
+```sh
+npx brighttest skills install --agent claude --with-hook   # .claude/settings.json
+npx brighttest skills install --agent claude --with-mcp    # .mcp.json
+```
+
+- `--with-hook` appends one `PreToolUse` entry (matcher `Bash`, command
+  `node "$CLAUDE_PROJECT_DIR/node_modules/brighttest/bin/cli.js" device hook`, timeout 5 s) to `hooks.PreToolUse` in
+  `.claude/settings.json`. It denies raw device access (for example `curl` to port 8060) unless the command goes through
+  a lease-aware brighttest command; see [Sharing a device](./device-lease.md#the-claude-code-guard-hook). It assumes
+  brighttest is installed in the project's `node_modules`.
+- `--with-mcp` adds a `brighttest` server (`node node_modules/brighttest/bin/cli.js mcp`) under `mcpServers` in
+  `.mcp.json`.
+
+Rules: existing keys, hooks and servers are kept; running again reports `unchanged`. A file that is not strict JSON
+(comments and trailing commas count), a key of the wrong type, or a different existing `brighttest` server is refused:
+the run prints the entry to add by hand, exits 1, and the file is not touched. Files are written via a temp file and
+rename. Neither entry contains a host, password or token.
+
+To undo, run `skills uninstall --agent claude` (no flag needed): it removes only an entry identical to the one
+installed, leaves everything else, and keeps the file. You can also delete the entry by hand. Re-running `install`
+without the flags does not remove them.
+
 ## Keep them up to date
 
 `skills update` pulls the newest skills straight from the brighttest repository — independent of your

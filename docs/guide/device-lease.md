@@ -306,7 +306,13 @@ If port 8700 is taken (another worktree's Studio), `brighttest studio` uses the 
 ## The Claude Code guard hook
 
 `brighttest device hook` is a Claude Code `PreToolUse` hook for the Bash tool (`lib/device-hook.js`). Register it
-in `.claude/settings.json` with `node bin/cli.js device hook` (this repo does, with a 5 s timeout). It reads the
+in `.claude/settings.json` with `node bin/cli.js device hook` (this repo does, with a 5 s timeout).
+In a project that depends on brighttest, `npx brighttest skills install --agent claude --with-hook` merges the entry for
+you (see [Agent skills](./agent-skills.md#guard-hook-and-mcp-server-opt-in-claude-target)). That changes one user file,
+`.claude/settings.json`, by appending to `hooks.PreToolUse`; it never overwrites, and `skills uninstall --agent claude`
+or deleting that entry undoes it. The merged command is
+`node "$CLAUDE_PROJECT_DIR/node_modules/brighttest/bin/cli.js" device hook`.
+ It reads the
 hook JSON on stdin and denies a raw device command (`curl`/`wget` to the device ports, `nc`, a bare `rooibos`
 run) unless the command is wrapped by a lease-aware command (`device with`, an e2e or `--device` run) or carries a
 live `BRIGHTTEST_LEASE` token from `device lock`. The deny message prints the `device with` command to use instead,
