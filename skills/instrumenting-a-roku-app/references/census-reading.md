@@ -18,9 +18,9 @@ Scope until ADOPT-27 merges: it scans `source/` and `components/` under the curr
 with `rootDir` after ADOPT-27 is not described here (unverified).
 
 It reads `brighttest.json` from the current directory and honors `instrument.exclude` and `instrument.net`.
-Verified here: `census --config <path>` does not apply that file's excludes (a file excluding `components/net/**`
-showed no change). Run census from the folder holding the `brighttest.json` you mean; the bug is a follow-up for
-the maintainers (the CLI hands census the path string where it expects a config object).
+Do not pass `--config` to census: the CLI hands census the path string as the config object, so that file's
+excludes and net settings are dropped and `./brighttest.json` is ignored too (verified by running it). ADOPT-28 will fix
+`census --config`; until then run census with no `--config` from the folder holding `brighttest.json`.
 
 ## Sections
 
@@ -47,4 +47,6 @@ A parse error list may appear when a file or component XML did not parse; treat 
 3. Check "setUrl sites" with `Covered: no`. If those matter for the flows you plan, say so.
 4. Write the result as a short note: counts, the rows you accept, the excludes you propose.
 
-`excluded-candidate` rows say a file you excluded still contains URL call sites. That is expected for vendor code.
+`excluded-candidate` rows say a file you excluded still contains URL call sites. That is expected for vendor code,
+but an exclude you add yourself trips strict (default-excluded paths do not), so excludes added in step 2 of the flow
+can make the strict build in step 4 exit 4.

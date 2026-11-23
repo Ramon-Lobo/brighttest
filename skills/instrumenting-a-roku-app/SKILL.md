@@ -24,10 +24,16 @@ limit is researched from Roku's public docs, not verified here (see `references/
   agreed. Report the problem and the exact change you would make, then ask.
 - Writing `brighttest.json` (the `instrument` block) changes a file in the repo: ask the human first if the repo
   has none. `instrument census` and `instrument verify` write nothing unless you pass `--out` to census.
-- Sideloading touches a real device: it needs the human's device, `--host`, and goes through the lease. Load
-  `using-a-roku-device-safely` first. Never `--no-lease`. The password comes from `ROKU_PASSWORD`; never print it.
-- `.brighttest/` and `*.bt-instrumented.zip` must be gitignored before you build. Check with
-  `git check-ignore .brighttest` and `git check-ignore app.bt-instrumented.zip`; if either prints nothing, tell the
+- Every device access goes through a brighttest lane or `npx brighttest device with --as "$BRIGHTTEST_AGENT"
+  --purpose "<task>" -- <cmd>`. Never `--no-lease`, never `device unlock --force`, never raw `curl` to a device.
+  Sideloading needs the human's device and `--host`. Load `using-a-roku-device-safely` first.
+- Never run sudo or change a firewall, pf or any device setting. Never press `PowerOff` or an input-switch key.
+- The dev password lives in `ROKU_PASSWORD` or a gitignored `.env`. Run `git check-ignore .env` first and add it to
+  `.gitignore` before any password is written. Never print it, commit it or put it in a report. Do not dump the
+  environment (no `env`, `printenv`) and do not use `pgrep -f`.
+- `.brighttest/` and `*.bt-instrumented.zip` must be gitignored before you build. Always build into `.brighttest/`
+  with a `*.bt-instrumented.zip` name, which both entries cover (a path like `build/` is not covered). Check with
+  `git check-ignore .brighttest/debug.bt-instrumented.zip`; if either prints nothing, tell the
   human instead of editing `.gitignore` unasked.
 - Never certify, publish or attach an instrumented zip anywhere. Build the release package from the original
   sources and run the gate on it.
@@ -39,12 +45,12 @@ limit is researched from Roku's public docs, not verified here (see `references/
    merges, census reads the folder you run it in (the current directory), not the bsconfig `rootDir`.
 2. Decide excludes with the human. Vendor and generated code go in `instrument.exclude`
    (`references/instrument-config.md`). Defaults already skip `source/vendor/**`, `roku_modules/**` and Rooibos paths.
-3. Build: `npx brighttest instrument build --out build/debug.zip`. Exit 0 means the package exists. Any other
+3. Build: `npx brighttest instrument build --out .brighttest/debug.bt-instrumented.zip`. Exit 0 means the package exists. Any other
    code: `references/errors-and-exit-codes.md`. A failed build writes nothing new at `--out`.
-4. Try strict once: `npx brighttest instrument build --strict --out build/debug.zip`. Strict is off by default.
+4. Try strict once: `npx brighttest instrument build --strict --out .brighttest/debug.bt-instrumented.zip`. Strict is off by default.
    Exit 4 is a strict failure: the build is valid but an entry could not instrument cleanly; show the human the list. Do not turn
    strict on in their config without their OK.
-5. Prove it cannot ship: `npx brighttest instrument verify build/debug.zip` must exit 3 and list markers.
+5. Prove it cannot ship: `npx brighttest instrument verify .brighttest/debug.bt-instrumented.zip` must exit 3 and list markers.
 6. Sideload only with the human's device (`--sideload --host <device-ip> --as "$BRIGHTTEST_AGENT" --purpose "<task>"`).
 7. Release gate, on the package you will publish, never the debug zip:
    `npx brighttest instrument verify build/store.zip` must exit 0 (clean). Then compare the zip size against the
