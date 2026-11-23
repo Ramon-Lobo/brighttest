@@ -36,6 +36,16 @@
       ]
     },
     {
+      "name": "instrumenting-a-roku-app",
+      "files": [
+        "SKILL.md",
+        "references/census-reading.md",
+        "references/errors-and-exit-codes.md",
+        "references/instrument-config.md",
+        "references/package-size.md"
+      ]
+    },
+    {
       "name": "setting-up-brighttest",
       "files": [
         "SKILL.md"

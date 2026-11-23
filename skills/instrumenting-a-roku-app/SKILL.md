@@ -1,0 +1,78 @@
+---
+name: instrumenting-a-roku-app
+description: Use when you must read an instrument census, build an instrumented debug package of a Roku app without editing its source, sideload it, set the instrument.exclude config, fix a BT9001 to BT9005 build error or an exit code from instrument build or verify, or gate a release with instrument verify and a package size check.
+triggers: instrument census; instrument build; instrument verify; instrumented package; release gate; bt9001; bt9003; exit 3 instrument verify; instrument.exclude; package size limit
+when-not-to-use: Do not use to decide whether to adopt brighttest or pick a path (use adopting-brighttest), to write flow steps or assertState checks against the instrumented build (use testing-app-state and writing-e2e-flows), or for lease and device rules (use using-a-roku-device-safely).
+license: MIT
+metadata:
+  source: brighttest
+---
+
+# Instrumenting a Roku app (debug build, no source edits)
+
+`instrument build` makes a debug-only package from a staged copy. Your source tree is not modified. The package
+carries the instrumentation runtime and a per-build token, so it must never be published.
+
+Evidence: every command, flag, exit code and error name here was checked against `node bin/cli.js instrument --help`,
+`lib/instrument/{build,verify,census,plugin,sideload}.js` and `docs/guide/instrument.md` at this version, and the
+recipes were run on `examples/legacy-app` in bash and zsh. Headless only: not device-verified. The package size
+limit is researched from Roku's public docs, not verified here (see `references/package-size.md`).
+
+## Rules first
+
+- Do not edit the app's source, `bsconfig.json` or `manifest` to make instrumentation work unless the human has
+  agreed. Report the problem and the exact change you would make, then ask.
+- Writing `brighttest.json` (the `instrument` block) changes a file in the repo: ask the human first if the repo
+  has none. `instrument census` and `instrument verify` write nothing unless you pass `--out` to census.
+- Sideloading touches a real device: it needs the human's device, `--host`, and goes through the lease. Load
+  `using-a-roku-device-safely` first. Never `--no-lease`. The password comes from `ROKU_PASSWORD`; never print it.
+- `.brighttest/` and `*.bt-instrumented.zip` must be gitignored before you build. Check with
+  `git check-ignore .brighttest` and `git check-ignore app.bt-instrumented.zip`; if either prints nothing, tell the
+  human instead of editing `.gitignore` unasked.
+- Never certify, publish or attach an instrumented zip anywhere. Build the release package from the original
+  sources and run the gate on it.
+
+## The flow
+
+1. Census, read-only, from the app folder (the folder with `source/` and `components/`):
+   `npx brighttest instrument census` (markdown) or `--json`. Read `references/census-reading.md`. Until ADOPT-27
+   merges, census reads the folder you run it in (the current directory), not the bsconfig `rootDir`.
+2. Decide excludes with the human. Vendor and generated code go in `instrument.exclude`
+   (`references/instrument-config.md`). Defaults already skip `source/vendor/**`, `roku_modules/**` and Rooibos paths.
+3. Build: `npx brighttest instrument build --out build/debug.zip`. Exit 0 means the package exists. Any other
+   code: `references/errors-and-exit-codes.md`. A failed build writes nothing new at `--out`.
+4. Try strict once: `npx brighttest instrument build --strict --out build/debug.zip`. Strict is off by default.
+   Exit 4 is a strict failure: the build is valid but an entry could not instrument cleanly; show the human the list. Do not turn
+   strict on in their config without their OK.
+5. Prove it cannot ship: `npx brighttest instrument verify build/debug.zip` must exit 3 and list markers.
+6. Sideload only with the human's device (`--sideload --host <device-ip> --as "$BRIGHTTEST_AGENT" --purpose "<task>"`).
+7. Release gate, on the package you will publish, never the debug zip:
+   `npx brighttest instrument verify build/store.zip` must exit 0 (clean). Then compare the zip size against the
+   budget in `references/package-size.md`.
+
+## Exit codes at a glance
+
+| Command | Code | Meaning |
+|---|---|---|
+| build | 0 | package written |
+| build | 1 | build failure (bsc or plugin error, `BT9003`); with `--sideload` also auth, port 80 or installer failure |
+| build, verify, census | 2 | usage error (verify: missing or unreadable input) |
+| verify | 3 | instrumentation markers found: do not release |
+| build | 4 | strict mode: a could-not-instrument entry |
+| build --sideload | 75, 77, 78 | device lease: busy or wait timeout, lost, lease directory problem |
+| verify | 0 | clean |
+
+Details and the BT9001 to BT9005 fixes: `references/errors-and-exit-codes.md`.
+
+## Report back
+
+Say: census counts and the "Could not instrument" entries; the exit code of build, strict build and verify; the
+excludes you propose and why; that no source file changed (`git status --short` shows only files the human OK'd);
+that nothing was run on a device unless it was.
+
+## References
+
+- `references/census-reading.md`: what each census section means and what to do about it.
+- `references/instrument-config.md`: the `instrument` block, `instrument.exclude`, strict, the deprecated alias.
+- `references/errors-and-exit-codes.md`: exit codes, BT9001 to BT9005, strict kinds, sideload failures.
+- `references/package-size.md`: the 4 MB certification limit, the budget, what is researched versus verified.
