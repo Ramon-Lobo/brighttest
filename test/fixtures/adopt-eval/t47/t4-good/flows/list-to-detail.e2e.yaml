@@ -1,0 +1,6 @@
+appId: dev
+steps:
+  - launch
+  - assertVisible: { id: itemList }
+  - press: Select
+  - assertVisible: { id: detailTitle }
