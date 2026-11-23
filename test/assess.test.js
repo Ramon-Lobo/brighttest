@@ -574,3 +574,34 @@ describe('ADOPT-26 (bsconfig rootDir and files are blockers)', () => {
     expect(out).not.toMatch(/^FAKE: line/m)
   })
 })
+
+describe('ADOPT-29 census error redaction', () => {
+  const censusMod = require('../lib/instrument/census')
+  const fail = (msg) => vi.spyOn(censusMod, 'census').mockRejectedValue(new Error(msg))
+  const mkApp = () => { const d = path.join(tmp, 'app'); fs.cpSync(SKELETON, d, { recursive: true }); return d }
+
+  test('absolute project path and home directory become <path> in blocker, markdown, text and json', async () => {
+    const app = mkApp()
+    const home = os.homedir()
+    fail(`Cannot find module 'x'\nRequire stack:\n- ${app}/components/A.brs\n- ${home}/work/node_modules/y/index.js\n  at ${home}/z.js:12:3`)
+    const r = await json(app)
+    const all = JSON.stringify(r)
+    expect(all).not.toContain(app)
+    expect(all).not.toContain(home)
+    expect(all).not.toMatch(/"?[^\w<]\/(?:Users|home|var|tmp|private)\//)
+    expect(r.census.error).toContain('<path>/components/A.brs')
+    expect(r.census.error).toContain('<path>/work/node_modules/y/index.js')
+    expect(r.census.error).toContain("Cannot find module 'x'")
+    expect(r.recommendation.blockers.join('\n')).toMatch(/census could not parse the project: Cannot find module/)
+    const md = (await run([app])).out
+    expect(md).toContain('<path>')
+    expect(md).not.toContain(home)
+    expect(md).not.toContain(app)
+  })
+  test('an error without paths is unchanged', async () => {
+    const app = mkApp()
+    fail('bad token at source/main.brs line 4 and/or more')
+    const r = await json(app)
+    expect(r.census.error).toBe('bad token at source/main.brs line 4 and/or more')
+  })
+})
