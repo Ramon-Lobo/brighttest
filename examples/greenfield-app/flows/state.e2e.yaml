@@ -1,9 +1,16 @@
-# Needs app-state read/write (fixtures/state/premium.json). Sign in and read the tier label.
+# Needs an instrumented build (`instrument build`) and the hub. App state lives in the BTStore slices
+# m.global.btState_user / btState_nav (read as btstate_user / btstate_nav). The flow writes the user slice through
+# the agent, checks the tier label follows it, then restores.
 appId: dev
 config: { timeout: 8 }
 steps:
   - launch
+  - waitForAgent: { timeout: 10 }
   - assertText: { id: tierLabel, equals: "Tier: free" }
-  - focus: { id: signInButton }
-  - press: Select
+  - snapshot: fresh_home
+  - setState: { layer: global, path: btstate_user.tier, value: premium }
   - assertText: { id: tierLabel, equals: "Tier: premium" }
+  - assertState: { path: global.btstate_user.tier, equals: premium }
+  - restore: fresh_home
+  - assertText: { id: tierLabel, equals: "Tier: free" }
+  - assertState: { path: global.btstate_user.tier, equals: free }

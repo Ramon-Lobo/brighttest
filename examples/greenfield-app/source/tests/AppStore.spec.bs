@@ -1,5 +1,6 @@
 namespace tests
-  ' Hosted inside a real AppStore node: dispatch() updates the observable state field.
+  ' Hosted inside a real AppStore node: state lives in the BTStore slices m.global.btState_user / btState_nav;
+  ' dispatch() routes to BTStore_dispatch.
   @suite("AppStore component")
   @SGNode("AppStore")
   class AppStoreTests extends rooibos.BaseTestSuite
@@ -8,21 +9,35 @@ namespace tests
 
     @it("starts on the home screen as a free user")
     function _()
-      m.assertEqual(m.top.state.nav.screen, "home")
-      m.assertEqual(m.top.state.user.tier, "free")
+      m.assertEqual(m.global.btstate_nav.screen, "home")
+      m.assertEqual(m.global.btstate_user.tier, "free")
     end function
 
     @it("applies user/signIn")
     function _()
       m.top.callFunc("dispatch", { type: "user/signIn", tier: "premium" })
-      m.assertEqual(m.top.state.user.tier, "premium")
-      m.assertTrue(m.top.state.user.signedIn)
+      m.assertEqual(m.global.btstate_user.tier, "premium")
+      m.assertTrue(m.global.btstate_user.signedIn)
     end function
 
     @it("applies nav/go with an item id")
     function _()
       m.top.callFunc("dispatch", { type: "nav/go", screen: "DetailsScreen", id: "tile2" })
-      m.assertEqual(m.top.state.nav.detailsId, "tile2")
+      m.assertEqual(m.global.btstate_nav.detailsId, "tile2")
+    end function
+
+    @it("applies user/signOut")
+    function _()
+      m.top.callFunc("dispatch", { type: "user/signIn", tier: "premium" })
+      m.top.callFunc("dispatch", { type: "user/signOut" })
+      m.assertEqual(m.global.btstate_user.tier, "free")
+      m.assertFalse(m.global.btstate_user.signedIn)
+    end function
+
+    @it("publishes the user slice to m.global")
+    function _()
+      m.top.callFunc("dispatch", { type: "user/signIn", tier: "gold" })
+      m.assertEqual(m.global.btstate_user.tier, "gold")
     end function
 
   end class

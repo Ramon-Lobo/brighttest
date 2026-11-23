@@ -12,8 +12,8 @@ fixture for hand-off test packs (TP-NET, TP-STA, TP-ROB, TP-MCP, TP-ENG).
   `FocusScreen` (focus chain `outerGroup > innerGroup > leafButton`; `plainTarget` is a plain `Group`).
 - `HttpTask`: modes `get` (sync), `getAsync`, `post` (JSON body), `download` (to `tmp:/`); `lastUrl` is the
   `getUrl()` read-back. Base URL comes from launch parameter `BT_BASE_URL` (default `http://127.0.0.1:8787`).
-- `AppStore`: `state` assocarray (`user`, `nav` slices) and `dispatch(action)`; `EffectsTask` persists one
-  preference to registry section `greenfield`.
+- `AppStore`: a `BTStore` (`source/brighttest/BTStore.brs`) with slices `user` and `nav`, and `dispatch(action)`,
+  which routes to `BTStore_dispatch`. `EffectsTask` persists one preference to registry section `greenfield`.
 - Periodic mode: launch with `periodic=true` to GET `/home` every 10 s.
 - `Badge` sets `Label.forceUpperCase` (non-device behaviour).
 
@@ -25,12 +25,29 @@ brighttest                 # headless: pure + @SGNode suites
 brighttest --coverage
 ```
 
+## State layer
+
+`AppStore` calls `BTStore_init` with one reducer per slice (`Reducer_user`, `Reducer_nav`, built on `Reducer_apply`).
+The slices live in `m.global.btState_user` and `m.global.btState_nav` (BrightScript field names are
+case-insensitive, so specs and flows read them as `btstate_user` and `btstate_nav`). There is no `state` field on
+`AppStore` any more: read a slice from `m.global`, change it through `dispatch` (or `m.global.btAction` from a Task).
+`MainScene` observes `btState_user` and sets `tierLabel` from `tier`.
+
+| Path | Value |
+| --- | --- |
+| `btstate_user.tier` | `free` (default), `premium` after `user/signIn` |
+| `btstate_user.signedIn` | boolean |
+| `btstate_nav.screen`, `btstate_nav.detailsId` | current screen name and item id |
+
+In a flow, `setState: { layer: global, path: btstate_user.tier, value: premium }` writes the slice and
+`assertState: { path: global.btstate_user.tier, equals: premium }` reads it (see `flows/state.e2e.yaml`).
+
 ## Specs (`source/tests`)
 
 | Suite | Kind |
 | --- | --- |
 | `Format.spec.bs` | pure functions (Format, Http, Config, Reducer) |
-| `AppStore.spec.bs` | `@SGNode("AppStore")` |
+| `AppStore.spec.bs` | `@SGNode("AppStore")`, reads the `btstate_*` slices |
 | `Badge.spec.bs` | `@SGNode`, `@tags("bt-nondevice")` (forceUpperCase) |
 | `BTNetIdentity/Faults/Record.spec.bs` | `@tags("needs-n1")`, `@ignore`d sketches of the `BTNet_*` spec API |
 | `FailOnPurpose.spec.bs` | `@tags("fail-on-purpose")`, `@ignore`d (remove it to see a failing run) |
