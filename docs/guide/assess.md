@@ -45,7 +45,7 @@ The census uses the existing `brighttest instrument census` code, which opens ev
 census, never opens those files, sets `census.error` with the reason and adds a blocker. Move such files out of the app
 folders to get a census.
 
-Symlinks are skipped, not followed. Only the root `.gitignore` is read, not nested ones. `--out` is checked on real paths
+Symlinks are skipped, not followed. Only the root `.gitignore` is opened; nested ones are listed but never read. `certs/` folders are skipped in any letter case. `--out` is checked on real paths
 (symlinks resolved, case-insensitive on macOS and Windows), so it cannot point into `source/` or `components/` by an
 alias. When `-c` points outside the project, `brighttest.config.file` is `null`, never an absolute path. When several
 `brighttest*.json` files exist, `brighttest.json` wins.
