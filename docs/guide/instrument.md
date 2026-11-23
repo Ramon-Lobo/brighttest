@@ -104,6 +104,8 @@ npx brighttest instrument census --config path/to/brighttest.json     # read tha
 
 A `brighttest.json` (or `--config` file) that is malformed, not a JSON object, or unreadable makes census exit 2 with a message on stderr; it is never treated as empty. `--config` with no value is a usage error (exit 2).
 
+Census follows the `rootDir` of a `bsconfig.json` in the project root (set directly or inherited through `extends`) and scans `source/` and `components/` there. A `rootDir` or `extends` that resolves outside the project root is ignored, and census never reads outside the project root.
+
 A static scan of the app in the current directory (no device, no network, nothing in your tree is written unless
 `--out` is given): Scenes, Tasks, `m.global.addFields` keys, registry section literals, `setUrl` and `CreateObject`
 sites, and a "could not instrument" section. Inline-CDATA Scenes are reported only.
