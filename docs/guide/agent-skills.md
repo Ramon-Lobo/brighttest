@@ -9,6 +9,7 @@ plus `references/`), and the content is authored once and adapted to whichever a
 
 | Skill | Teaches |
 |---|---|
+| `adopting-brighttest` | The router: where to start, whether brighttest fits, the existing-app or new-app path, the hard rules, and what "adopted" means. |
 | `writing-rooibos-tests` | Suite/test annotations, assertions, test doubles, parameterized tests, headless-vs-device rules, and the pitfalls that make specs silently fail. |
 | `setting-up-brighttest` | Installing the package, `brighttest.json`, where specs live, choosing a lane, npm scripts, and CI. |
 | `debugging-failing-tests` | Reading the output, isolating causes, `--cross-check` fidelity, `globalFields` seeding, and testing the Task/API layer. |
