@@ -375,6 +375,17 @@ describe('ADOPT-05b secret scan', () => {
     expect(r.secrets.map((x) => `${x.file}:${x.line}:${x.key}`)).toEqual(['components/F.xml:2:apiKey', 'source/k.brs:1:accessToken', 'source/k.brs:2:passphrase', 'source/k.brs:6:api_key'])
     expect(JSON.stringify(r)).not.toMatch(/fakejwt|fake pass|fake-xml|fake-key-0009/)
   })
+  test('key name rule: compound one-word keys are flagged; author, compass, passThrough, authStatus are not', async () => {
+    fs.cpSync(SKELETON, tmp, { recursive: true })
+    const yes = ['apitoken', 'authtoken', 'accesstoken', 'secretkey', 'clientsecret', 'devicepassword', 'APIToken', 'AUTHTOKEN', 'JWTToken', 'password', 'apiKey', 'api_key', 'secretToken', 'SECRET_KEY', 'ROKU_PASSWORD', 'privateKey']
+    const no = ['author', 'compass', 'passThrough', 'authStatus']
+    fs.writeFileSync(path.join(tmp, 'source', 'k.brs'), [...yes, ...no].map((k) => `a.${k} = "fake-value-0012"`).join('\n') + '\n')
+    fs.mkdirSync(path.join(tmp, 'components'), { recursive: true })
+    fs.writeFileSync(path.join(tmp, 'components', 'F.xml'), '<component name="F" extends="Group">\n<field value="fake-xml-0013" id="apiKey" type="string" />\n<field id="authStatus" value="pending" />\n</component>\n')
+    const r = await json(tmp)
+    expect(r.secrets.filter((x) => x.file === 'source/k.brs').map((x) => x.key)).toEqual(yes)
+    expect(r.secrets.filter((x) => x.file === 'components/F.xml').map((x) => `${x.line}:${x.key}`)).toEqual(['2:apiKey'])
+  })
   test('lines over the limit are counted, and a long URL-like line is scanned fast', async () => {
     fs.cpSync(SKELETON, tmp, { recursive: true })
     fs.writeFileSync(path.join(tmp, 'source', 'long.brs'), 'a = "' + 'http://a:'.repeat(700) + '"\nb = "' + 'x'.repeat(5000) + '"\n')
