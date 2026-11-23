@@ -11,7 +11,7 @@ to stress instrumentation the way long-lived apps do. Invented content only. Fix
   (`LegacyScene.renderThreadProbe`, gated by `config.renderThreadSync`, press Rewind); URLs built by string
   concatenation (`Util_buildUrl`); `SetCertificatesFile` with the system bundle and `pkg:/certs/custom-ca.pem`;
   `GetToString` and `AsyncGetToString`; a `Poster.uri` and a `Video` content url (media, not covered).
-  `source/vendor/**` also uses `roUrlTransfer`; `brighttest.json` lists it under `instrumentExclude`.
+  `source/vendor/**` also uses `roUrlTransfer`; `brighttest.json` lists it under `instrument.exclude`.
 - State: `m.global` as a bag (`addFields` in `main.brs`, later `setField` and in-place AA replacement on Play),
   dummy secrets (`authToken`, `sessionId`, `password`), a 60-item array, a 2 KB+ string, an
   `roDateTime`, an integer `launchCount`; registry sections `legacy_prefs`, `legacy_session` (read at startup,

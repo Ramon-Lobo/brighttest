@@ -4,5 +4,5 @@
   "testsFilePattern": "**/*.spec.bs",
   "stagingDir": ".brighttest",
   "diagnosticFilters": [1140],
-  "instrumentExclude": ["source/vendor/**"]
+  "instrument": { "exclude": ["source/vendor/**"] }
 }

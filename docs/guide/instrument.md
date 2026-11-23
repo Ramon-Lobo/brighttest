@@ -163,6 +163,8 @@ Current limitations (the full design is not implemented yet):
 }
 ```
 
+`instrument.exclude` is the canonical way to exclude files from instrumentation. A top-level `instrumentExclude` array still works as a deprecated alias: the config loader merges it into `instrument.exclude` (deduplicated), so the build and `instrument census` always see the same list.
+
 `strict` is **off** by default; `--strict` / `--no-strict` override it per run. The CI recipe turns it on:
 
 ```yaml
