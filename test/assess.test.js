@@ -153,6 +153,7 @@ describe('assess: --json shape (brighttest-assess/v1)', () => {
     expect(keys(r.recommendation)).toEqual(['blockers', 'editPermission', 'nextSteps', 'path', 'unknowns'])
     expect(r.secrets).toEqual([])
     expect(r.scans.secrets).toMatch(/not-run/)
+    expect(JSON.stringify(r)).not.toContain(JSON.stringify(os.homedir()).slice(1, -1))
     expect(JSON.stringify(r)).not.toContain(os.homedir())
   })
   test('human output lists the sections in order', async () => {
@@ -238,6 +239,72 @@ describe('TP-ADOPT-06 (greenfield, plugin app, non-Roku dir, bad input)', () => 
     process.chdir(tmp)
     try { expect((await run(['.', '--out', 'source'])).code).toBe(2) } finally { process.chdir(cwd) }
     expect(fs.existsSync(path.join(tmp, 'source', 'assess.json'))).toBe(false)
+  })
+})
+
+describe('review fixes', () => {
+  test('--out guard: symlink into source, case variant and a ..name sibling', async () => {
+    fs.cpSync(PLUGIN, tmp, { recursive: true })
+    const before = hashTree(tmp)
+    const link = path.join(os.tmpdir(), `bt-assess-link-${process.pid}`)
+    let linked = false
+    try { fs.symlinkSync(path.join(tmp, 'source'), link, 'dir'); linked = true } catch (e) { /* no symlink right (windows) */ }
+    try {
+      if (linked) expect((await run([tmp, '--out', path.join(link, 'x')])).code).toBe(2)
+    } finally { if (linked) fs.unlinkSync(link) }
+    if (process.platform === 'darwin' || process.platform === 'win32') expect((await run([tmp, '--out', path.join(tmp, 'Source', 'x')])).code).toBe(2)
+    expect(hashTree(tmp)).toBe(before)
+    const ok = await run([tmp, '--out', path.join(tmp, 'source..cache')])
+    expect(ok.code).toBe(0)
+    const ok2 = await run([tmp, '--out', path.join(tmp, '..cache')])
+    expect(ok2.code).toBe(0)
+    expect(fs.existsSync(path.join(tmp, '..cache', 'assess.json'))).toBe(true)
+  })
+  test('sensitive or oversized files under source/ or components/ skip the census without opening them', async () => {
+    fs.cpSync(PLUGIN, tmp, { recursive: true })
+    fs.writeFileSync(path.join(tmp, 'components', '.env'), 'fake-probe-0005')
+    fs.mkdirSync(path.join(tmp, 'source', 'certs'))
+    fs.writeFileSync(path.join(tmp, 'source', 'certs', 'a.pem'), 'fake-probe-0006')
+    fs.writeFileSync(path.join(tmp, 'source', 'id_rsa'), 'fake-probe-0007')
+    const opened = []
+    const real = fs.readFileSync
+    vi.spyOn(fs, 'readFileSync').mockImplementation((p, ...a) => { opened.push(String(p)); return real(p, ...a) })
+    const r = await run([tmp, '--json'])
+    expect(r.code).toBe(0)
+    expect(opened.filter((p) => /\.env|\.pem|id_rsa/.test(p))).toEqual([])
+    expect(r.out).not.toMatch(/fake-probe-000/)
+    const rep = JSON.parse(r.out)
+    expect(rep.census.error).toMatch(/census skipped/)
+    expect(rep.recommendation.blockers.join(' ')).toMatch(/census/)
+  })
+  test('brighttest.json beats brighttest-ci.json; config.file is project-relative or null', async () => {
+    fs.cpSync(SKELETON, tmp, { recursive: true })
+    fs.writeFileSync(path.join(tmp, 'brighttest-ci.json'), '{"a":1}')
+    fs.writeFileSync(path.join(tmp, 'brighttest.json'), '{"z":1}')
+    const r = await json(tmp)
+    expect(r.brighttest.config.file).toBe('brighttest.json')
+    expect(r.brighttest.config.keys).toEqual(['z'])
+    const outside = path.join(os.tmpdir(), `bt-assess-cfg-${process.pid}.json`)
+    fs.writeFileSync(outside, '{"q":1}')
+    try {
+      const o = await json(tmp, ['-c', outside])
+      expect(o.brighttest.config.keys).toEqual(['q'])
+      expect(o.brighttest.config.file).toBeNull()
+    } finally { fs.rmSync(outside, { force: true }) }
+  })
+  test('greenfield boundary: 4 components is greenfield, 5 is brownfield', async () => {
+    fs.cpSync(SKELETON, tmp, { recursive: true })
+    fs.mkdirSync(path.join(tmp, 'components'))
+    const comp = (i) => fs.writeFileSync(path.join(tmp, 'components', `C${i}.xml`), `<?xml version="1.0" encoding="utf-8" ?>\n<component name="C${i}" extends="Group"></component>\n`)
+    for (let i = 1; i < assess.GREENFIELD_MAX_COMPONENTS; i++) comp(i)
+    expect((await json(tmp)).recommendation.path).toBe('greenfield')
+    comp(99)
+    expect((await json(tmp)).recommendation.path).toBe('brownfield')
+  })
+  test('only the root .gitignore counts', async () => {
+    fs.cpSync(SKELETON, tmp, { recursive: true })
+    fs.writeFileSync(path.join(tmp, 'source', '.gitignore'), '.env\n')
+    expect((await json(tmp)).gitignore.present).toBe(false)
   })
 })
 
