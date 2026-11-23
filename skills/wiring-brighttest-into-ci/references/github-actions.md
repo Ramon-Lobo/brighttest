@@ -63,12 +63,22 @@ instrument (a policy failure, the build itself is valid). Strict is off by defau
 team has read the census (`instrumenting-a-roku-app`). The debug zip is never published; do not upload it as a
 release asset.
 
-## Release gate
+## Release gate (release-only workflow)
+
+Keep this out of the every-push workflow: it needs the store package, which only a release build produces. Put it in
+its own file that runs on a release trigger or by hand, with the build first.
 
 ```yaml
+name: release
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
   release-gate:
     runs-on: ubuntu-latest
-    needs: headless
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -76,14 +86,15 @@ release asset.
           node-version: "22"
           cache: npm
       - run: npm ci
-      # Build the STORE package with the project's own build, then check that exact file.
+      # Replace with the project's own store-package build (unverified here: brighttest does not build it).
+      - run: ./scripts/build-store.sh   # must write build/store.zip
       - run: npx brighttest instrument verify build/store.zip
+      # publish steps come after this one
 ```
 
 `instrument verify <zip|dir>` exits 0 when clean, 3 when any instrumentation marker is found (markers print to
-stderr), 2 on a missing or unreadable input. How `build/store.zip` is produced is the project's own build step;
-it is not something brighttest does, so take its command from the project (unverified here). Put the gate between
-that build and the publish step, and never publish when it exits non-zero.
+stderr), 2 on a missing or unreadable input, so it fails on a fresh checkout without the build. Never publish when
+it exits non-zero. The script name above is a placeholder: take the real command from the project.
 
 ## Local check of the shell lines
 

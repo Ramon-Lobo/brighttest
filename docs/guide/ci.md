@@ -92,11 +92,10 @@ If the self-hosted runner shares a Roku with developers or agents on the same ma
       BRIGHTTEST_AGENT: ci:${{ github.run_id }}
       BRIGHTTEST_LEASE_WAIT: 45m
     steps:
-      - run: npx brighttest device status   # who holds the device before the run
       - run: npx brighttest --cross-check --host "$ROKU_HOST" --password "$ROKU_PASSWORD"
-      - run: npx brighttest device status
-        if: always()
 ```
+
+`npx brighttest device status` lists device addresses from the lease directory, so keep it out of CI logs; run it from your own shell.
 
 For CI runs against each other, add `concurrency: { group: roku-device, cancel-in-progress: false }`. Leases
 across different OS users are not supported; run CI as the same OS user. A wait that times out exits **75**.

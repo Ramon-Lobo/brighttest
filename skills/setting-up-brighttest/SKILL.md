@@ -1,8 +1,8 @@
 ---
 name: setting-up-brighttest
-description: Use when adding brighttest to a Roku/BrightScript project or configuring how its tests run — installing the package, creating brighttest.json, deciding where specs live, choosing a run lane, wiring npm scripts and CI, and setting up device/coverage runs.
-triggers: add brighttest to a project; create brighttest.json; install brighttest; choose a run lane; wire npm scripts; set up ci; configure device runs; configure coverage
-when-not-to-use: Do not use to write spec files (use writing-rooibos-tests), to write UI flows (use writing-e2e-flows), or to fix a failing run (use debugging-failing-tests). For where to start or whether brighttest fits at all, use adopting-brighttest.
+description: Use when adding brighttest to a Roku/BrightScript project or configuring how its tests run — installing the package, creating brighttest.json, deciding where specs live, choosing a run lane, wiring npm scripts, and setting up device/coverage runs. CI workflows belong to wiring-brighttest-into-ci.
+triggers: add brighttest to a project; create brighttest.json; install brighttest; choose a run lane; wire npm scripts; configure device runs; configure coverage
+when-not-to-use: Do not use to write spec files (use writing-rooibos-tests), to write UI flows (use writing-e2e-flows), to fix a failing run (use debugging-failing-tests), or to write CI workflows (use wiring-brighttest-into-ci). For where to start or whether brighttest fits at all, use adopting-brighttest.
 license: MIT
 metadata:
   source: brighttest

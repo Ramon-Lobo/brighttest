@@ -1,6 +1,6 @@
 # Windows
 
-Stance (decision D11): macOS and Linux are the supported hosts for brighttest.
+Stance: macOS and Linux are the supported hosts for brighttest.
 
 - Headless lane on Windows: best-effort and unverified for user projects. This repo runs only its own unit suite on
   `windows-latest`, as a non-required job (`continue-on-error: true`, Node 22, `shell: bash` for the test step, and

@@ -1,7 +1,7 @@
 ---
 name: wiring-brighttest-into-ci
-description: Use when adding brighttest to CI (GitHub Actions): the everyday headless gate with JUnit and LCOV, the `instrument build --strict` debug build, the `instrument verify` release gate (exit 3: instrumentation markers found), an opt-in device job on a self-hosted runner that queues on the device lease and handles exit 75 (device busy or wait timed out), secrets as CI secret references only, and the Windows status. Existing workflows are never overwritten without the human's OK.
-triggers: add brighttest to ci; github actions for brighttest; self-hosted roku runner; release gate in ci; junit lcov ci; ci device job; device busy exit 75
+description: Use when adding brighttest to CI (GitHub Actions): the everyday headless gate with JUnit and LCOV, the `instrument build --strict` debug build, the `instrument verify` release gate (exit 3: instrumentation markers found), an opt-in device job on a self-hosted runner that queues on the device lease and handles a device job's exit 75 (busy or wait timed out), secrets as CI secret references only, and the Windows status. Existing workflows are never overwritten without the human's OK.
+triggers: add brighttest to ci; github actions for brighttest; self-hosted roku runner; release gate in ci; junit lcov ci; ci device job; ci device job busy
 when-not-to-use: Do not use to decide whether to adopt brighttest (use adopting-brighttest), to get the first headless run green (use setting-up-brighttest), for the lease rules themselves (use using-a-roku-device-safely) or to write specs and flows (use writing-rooibos-tests, writing-e2e-flows). It covers GitHub Actions only; other CI systems are not covered.
 license: MIT
 metadata:
@@ -45,6 +45,8 @@ Recipes: `references/github-actions.md`. Device job: `references/device-runners.
   instrumentation markers were found; the package must not ship.
 - Upload JUnit and LCOV as artifacts with `if: always()` so a failed run still shows its report.
 - A device job is a separate, opt-in job: `workflow_dispatch` or a schedule, never on every push, never required.
+- Do not run `npx brighttest device status` in CI: it lists device addresses from the lease directory into the job
+  log. Use the job's own exit code and the uploaded artifacts instead.
 - Device credentials come only from CI secrets: `${{ secrets.ROKU_HOST }}`, `${{ secrets.ROKU_PASSWORD }}` passed
   through `env:`. Never write a value, an IP or a password into a workflow file, a log or a report.
 - Never interpolate `${{ }}` of user-controlled input (workflow inputs) into a shell line; pass it through `env:`
@@ -63,6 +65,9 @@ Recipes: `references/github-actions.md`. Device job: `references/device-runners.
 - An instrumented package (`*.bt-instrumented.zip`) is debug-only. `instrument verify` on the store zip must
   exit 0 before any publish.
 - Do not edit the app's own source to make a test pass unless the human allowed it. Say what you changed.
+- A self-hosted `roku` runner on a public repository would let a fork's pull request run code on the human's LAN.
+  Use it only on a private repository, or with required approval for outside contributors, or a restricted runner
+  group; never trigger it from `pull_request_target`. Ask the human which applies.
 - Never run `env` or `printenv` (they print secrets), and never `pgrep -f` or `ps` on a command line that holds
   a password.
 
