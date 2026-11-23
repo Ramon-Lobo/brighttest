@@ -91,8 +91,8 @@ preserved. Older installs used one block per skill (`<!-- BEGIN brighttest:<skil
 `.cursor/rules/<skill>.mdc`: those are removed on the next install and reported as `migrated`. Anything without
 the brighttest marker is left alone. A full `skills install` also migrates old blocks and Cursor files of skills that
 are no longer shipped; a `--skill <name>` run migrates only that skill. If an old block cannot be removed (for example
-its END marker is missing), that target is reported as `failed`, the new safety block is not written for it, and the
-file is left as it was: fix the file and re-run. A read-only file is reported as `failed` and not touched; on Windows a
+its END marker is missing), that target is reported as `failed` and the new safety block is not written for it. Other old
+blocks in the same file are still removed; only the stuck one stays: fix it and re-run. A read-only file is reported as `failed` and not touched; on Windows a
 rename that fails with `EPERM`/`EBUSY` is retried a few times and then reported as a transient error (another program
 has the file open), not as read-only. A symlink whose target does not exist is refused rather than replaced by a regular
 file. A file holding only a line break or other whitespace gets the block appended and is restored byte for byte on
