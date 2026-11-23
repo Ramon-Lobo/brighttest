@@ -1,0 +1,24 @@
+name: ci
+on: [push]
+jobs:
+  headless:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - name: Specs
+        run: |
+          npx brighttest --coverage --lcov \
+          --junit reports/junit.xml
+      - name: Release gate
+        run: npx brighttest instrument verify dist/app.zip
+  device:
+    runs-on: [self-hosted, roku]
+    env:
+      BRIGHTTEST_AGENT: ci:${{ github.run_id }}
+      BRIGHTTEST_LEASE_WAIT: 600
+      ROKU_PASSWORD: ${{ secrets.ROKU_PASSWORD }}
+    steps:
+      - run: npx brighttest device status
