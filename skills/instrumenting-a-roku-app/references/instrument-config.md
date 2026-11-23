@@ -5,7 +5,7 @@ Evidence: `docs/guide/instrument.md` (Configuration), `lib/config.js` (the exclu
 
 ## Where it lives
 
-`brighttest.json` in the app folder (build accepts `--config <path>`; do not pass it to census, see `references/census-reading.md`). All keys are optional. Adding or
+`brighttest.json` in the app folder (build and census accept `--config <path>`). All keys are optional. Adding or
 changing this file is an edit to the repo: ask the human if it does not exist yet. `npx brighttest init --brownfield`
 writes the block for you (`strict: false`, proposed `state.registrySections`) and adds `.brighttest/` and
 `*.bt-instrumented.zip` to `.gitignore`; it adds no spec. An existing `instrument` block is kept unless `--force`, except a block holding only `exclude`: that one is replaced
@@ -59,4 +59,4 @@ npx brighttest instrument census --json --out .brighttest/census >/dev/null && g
 
 The `&&` stops on a census failure (non-zero exit, message on stderr), so a crash is never read as zero. The count is
 only how many report entries cite an excluded file (zero is fine; grep then exits 1, which is not an error). Run it
-from the folder holding `brighttest.json`, without `--config`.
+from the folder holding `brighttest.json`, or pass `--config <path>`.

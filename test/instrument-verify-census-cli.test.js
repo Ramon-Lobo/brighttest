@@ -35,7 +35,7 @@ describe('arg parsing', () => {
 
 describe('instrument verify (CLI)', () => {
   it('exit 0 on a clean directory', () => {
-    const d = mkdir('clean', { manifest: MANIFEST, 'source/main.brs': 'sub main()\nend sub\n' })
+    const d = mkdir('clean', { manifest: MANIFEST, 'source/main.brs': 'sub main()\n  x = CreateObject("roUrlTransfer")\nend sub\n' })
     const r = bt(tmp, ['instrument', 'verify', d])
     expect(r.status, r.stderr).toBe(0)
     expect(r.stdout).toMatch(/clean/)
@@ -73,7 +73,7 @@ describe('instrument census (CLI)', () => {
     return census(legacy).then((c) => expect(printed.counts).toEqual(c.counts))
   })
   it('prints markdown by default and writes nothing without --out', () => {
-    const d = mkdir('cen-md', { manifest: MANIFEST, 'source/main.brs': 'sub main()\nend sub\n' })
+    const d = mkdir('cen-md', { manifest: MANIFEST, 'source/main.brs': 'sub main()\n  x = CreateObject("roUrlTransfer")\nend sub\n' })
     const r = bt(d, ['instrument', 'census'])
     expect(r.status).toBe(0)
     expect(r.stdout).toMatch(/^# Instrumentation census/)
@@ -112,5 +112,43 @@ describe('init --brownfield', () => {
     expect(fs.readFileSync(path.join(d, '.gitignore'), 'utf8')).toBe(gi)
     bt(d, ['init', '--brownfield', '--force'])
     expect(JSON.parse(fs.readFileSync(p, 'utf8')).instrument.strict).toBe(false)
+  })
+})
+
+describe('census config handling (ADOPT-28)', () => {
+  const app = (name, cfgText) => mkdir(name, { manifest: MANIFEST, 'source/main.brs': 'sub main()\n  x = CreateObject("roUrlTransfer")\nend sub\n', 'source/vendor/V.brs': 'sub v()\n  x = CreateObject("roUrlTransfer")\nend sub\n', ...(cfgText == null ? {} : { 'brighttest.json': cfgText }) })
+
+  it('--config <path> is honoured (a non-default exclude changes the output)', () => {
+    const dir = app('cfg-honoured', null)
+    fs.writeFileSync(path.join(dir, 'other.json'), JSON.stringify({ instrument: { exclude: ['source/main.brs'] } }))
+    const base = bt(dir, ['instrument', 'census', '--json'])
+    const withCfg = bt(dir, ['instrument', 'census', '--json', '--config', 'other.json'])
+    expect(base.status).toBe(0)
+    expect(withCfg.status).toBe(0)
+    const site = (r) => JSON.parse(r.stdout).network.createObjectSites.find((x) => x.file === 'source/main.brs')
+    expect(site(base).covered).toBe(true)
+    expect(site(withCfg).covered).toBe(false)
+    expect(withCfg.stdout).not.toBe(base.stdout)
+  })
+  it('malformed brighttest.json is an error (exit non-zero, no absolute path)', () => {
+    const dir = app('cfg-malformed', '{ not json')
+    const r = bt(dir, ['instrument', 'census', '--json'])
+    expect(r.status).not.toBe(0)
+    expect(r.stderr).toMatch(/brighttest\.json is not valid JSON/)
+    expect(r.stderr).not.toContain(dir)
+    expect(r.stderr).not.toContain(os.homedir())
+  })
+  it('malformed or missing --config file is an error without absolute paths', () => {
+    const dir = app('cfg-bad-explicit', null)
+    fs.writeFileSync(path.join(dir, 'bad.json'), '[1')
+    for (const f of ['bad.json', 'missing.json']) {
+      const r = bt(dir, ['instrument', 'census', '--config', f])
+      expect(r.status).not.toBe(0)
+      expect(r.stderr).toContain(f)
+      expect(r.stderr).not.toContain(dir)
+    }
+  })
+  it('no brighttest.json still uses defaults', () => {
+    expect(bt(app('cfg-none', null), ['instrument', 'census', '--json']).status).toBe(0)
   })
 })
