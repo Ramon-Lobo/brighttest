@@ -88,8 +88,11 @@ Re-running replaces only that block and reports `unchanged` when nothing differs
 preserved. Older installs used one block per skill (`<!-- BEGIN brighttest:<skill> -->`) and Cursor used
 `.cursor/rules/<skill>.mdc`: those are removed on the next install and reported as `migrated`. Anything without
 the brighttest marker is left alone. A read-only file is reported as `failed` and not touched.
-`skills uninstall` removes the block and index (and deletes a file that held nothing else); a single-skill
-`--skill` run leaves the block as it is.
+`skills uninstall` removes the block and index and restores the file's other bytes; a file left empty is kept,
+not deleted. Uninstalling `agents` removes the shared `AGENTS.md` block that `agentskills` also uses. A
+single-skill `--skill` run leaves the block as it is. Unbalanced, duplicated or reordered markers are reported as
+`failed` with the file name and the file is left untouched; brighttest also refuses to write through a symlink that
+leaves the project, writes via a temp file and rename, and leaves read-only files alone.
 
 The folder- and file-based targets are brighttest-owned; re-running refreshes them. If one of those paths already
 exists and wasn't created by brighttest, it's skipped with a hint — pass `--force` to overwrite.
