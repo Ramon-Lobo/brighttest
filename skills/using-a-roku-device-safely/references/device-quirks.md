@@ -14,7 +14,7 @@ Limited or developer-disabled device.
 The two fixable states:
 
 - **Limited ECP.** Set Settings, System, Advanced system settings, Control by mobile apps, Network access to
-  **Permissive**. In Limited mode, keypresses and queries are refused or partial.
+  **Permissive**.
 - **Developer mode disabled.** Enable it with the remote sequence the doctor fix text prints.
 
 Both are device settings. Tell the human; do not guess at other settings.
@@ -24,9 +24,9 @@ Both are device settings. Tell the human; do not guess at other settings.
 | Port | Use | Notes |
 |---|---|---|
 | 8060 | ECP: keypresses, `query/*` | needs Permissive; default ECP port |
-| 80 | web installer: sideload, screenshot, `Delete` | needs the dev password (digest auth) |
-| 8085 | BrightScript console, log capture | exactly one client; telnet or another tool blocks capture |
-| 8080 | debug server | one client; `ROKU_LOG_PORT` changes the console port |
+| 80 | dev installer: sideload, `Delete` | needs the dev password (Digest auth) |
+| 8085 | BrightScript console, log capture | exactly one client; `ROKU_LOG_PORT` changes the console port |
+| 8080 | debug port | one client; see device-lease.md |
 
 If capture fails with "Console connection is already in use", close the other client on 8085. Always use the
 device IP and the default ECP port: a host name or another ECP port gives the same device a second lease key.
