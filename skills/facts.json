@@ -1,5 +1,10 @@
 {
-  "agents": [],
+  "agents": [
+    "adoption-assessor",
+    "ci-integrator",
+    "device-debugger",
+    "test-author"
+  ],
   "cliVersion": "0.7.0",
   "engines": {
     "brsNode": "^2.2.0",

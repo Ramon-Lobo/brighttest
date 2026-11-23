@@ -128,7 +128,54 @@
       ]
     }
   ],
-  "agents": [],
+  "agents": [
+    {
+      "name": "adoption-assessor",
+      "file": "_agents/adoption-assessor.md",
+      "hosts": [
+        "claude"
+      ],
+      "skills": [
+        "assessing-a-roku-app",
+        "adopting-brighttest"
+      ]
+    },
+    {
+      "name": "ci-integrator",
+      "file": "_agents/ci-integrator.md",
+      "hosts": [
+        "claude"
+      ],
+      "skills": [
+        "wiring-brighttest-into-ci",
+        "instrumenting-a-roku-app"
+      ]
+    },
+    {
+      "name": "device-debugger",
+      "file": "_agents/device-debugger.md",
+      "hosts": [
+        "claude"
+      ],
+      "skills": [
+        "using-a-roku-device-safely",
+        "using-brighttest-mcp",
+        "debugging-failing-tests"
+      ]
+    },
+    {
+      "name": "test-author",
+      "file": "_agents/test-author.md",
+      "hosts": [
+        "claude"
+      ],
+      "skills": [
+        "writing-rooibos-tests",
+        "writing-e2e-flows",
+        "mocking-network-and-store"
+      ]
+    }
+  ],
   "alwaysOn": {
     "file": "_always-on/safety.md",
     "maxLines": 45

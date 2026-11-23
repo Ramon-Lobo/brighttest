@@ -89,3 +89,28 @@ describe('agents target (ADOPT-08)', () => {
     expect(await go('install', { agentsRoot: undefined })).toBe(0)
   })
 })
+
+describe('bundled agent definitions (ADOPT-18)', () => {
+  const NAMES = ['adoption-assessor', 'ci-integrator', 'device-debugger', 'test-author']
+  const dir = path.join(__dirname, '..', 'skills', '_agents')
+  const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'skills', 'manifest.json'), 'utf8'))
+
+  test('manifest lists exactly the four agents, claude host, no Agent tool', () => {
+    expect(manifest.agents.map((a) => a.name).sort()).toEqual(NAMES)
+    for (const n of NAMES) {
+      const t = fs.readFileSync(path.join(dir, `${n}.md`), 'utf8')
+      const tools = /^tools:\s*(.*)$/m.exec(t)[1].split(',').map((x) => x.trim())
+      expect(tools).not.toContain('Agent')
+      expect(t).toMatch(/^hosts: \[claude\]$/m)
+      expect(t).toMatch(/## Must not/)
+      expect(t).toMatch(/## Hand back to the user when/)
+    }
+  })
+
+  test('install from the bundled skills renders all four agents', async () => {
+    out = ''
+    const spy = vi.spyOn(process.stdout, 'write').mockImplementation((s) => { out += s; return true })
+    try { expect(await run(null, { skillsAction: 'install', cwd, agent: 'claude' })).toBe(0) } finally { spy.mockRestore() }
+    for (const n of NAMES) expect(fs.existsSync(p('.claude', 'agents', `${n}.md`))).toBe(true)
+  })
+})
