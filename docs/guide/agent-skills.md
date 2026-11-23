@@ -89,7 +89,15 @@ managed block (a missing or empty file is created or filled; CRLF files stay CRL
 Re-running replaces only that block and reports `unchanged` when nothing differs; everything else in the file is
 preserved. Older installs used one block per skill (`<!-- BEGIN brighttest:<skill> -->`) and Cursor used
 `.cursor/rules/<skill>.mdc`: those are removed on the next install and reported as `migrated`. Anything without
-the brighttest marker is left alone. A read-only file is reported as `failed` and not touched.
+the brighttest marker is left alone. A full `skills install` also migrates old blocks and Cursor files of skills that
+are no longer shipped; a `--skill <name>` run migrates only that skill. If an old block cannot be removed (for example
+its END marker is missing), that target is reported as `failed`, the new safety block is not written for it, and the
+file is left as it was: fix the file and re-run. A read-only file is reported as `failed` and not touched; on Windows a
+rename that fails with `EPERM`/`EBUSY` is retried a few times and then reported as a transient error (another program
+has the file open), not as read-only. A symlink whose target does not exist is refused rather than replaced by a regular
+file. A file holding only a line break or other whitespace gets the block appended and is restored byte for byte on
+uninstall; when you have added text after the block, uninstall leaves one blank line between your text before and after,
+never two.
 `skills uninstall` removes the block and index and restores the file's other bytes; a file left empty is kept,
 not deleted. Uninstalling `agents` removes the shared `AGENTS.md` block that `agentskills` also uses. A
 single-skill `--skill` run leaves the block as it is. Unbalanced, duplicated or reordered markers are reported as
