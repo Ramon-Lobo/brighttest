@@ -517,7 +517,7 @@ Options:
   -f, --force       Overwrite files not created by brighttest
   -h, --help        Show this help
 
-Skills (Agent Skills / agentskills.io format): debugging-failing-tests, setting-up-brighttest, testing-app-state,
+Skills (Agent Skills / agentskills.io format): debugging-failing-tests, setting-up-brighttest, testing-app-state, using-a-roku-device-safely,
   using-brighttest-mcp, using-brighttest-studio, writing-e2e-flows, writing-rooibos-tests.
 
 Auto-detection (no --agent) writes to whichever the project already uses: .claude/, .cursor/, .windsurf/,
