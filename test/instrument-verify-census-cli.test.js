@@ -94,7 +94,7 @@ describe('init --brownfield', () => {
     const cfg = JSON.parse(fs.readFileSync(path.join(d, 'brighttest.json'), 'utf8'))
     expect(cfg.instrument.strict).toBe(false)
     expect(cfg.instrument.state.registrySections).toEqual(['legacy_prefs', 'legacy_session'])
-    expect(cfg.instrumentExclude).toEqual(['source/vendor/**']) // existing settings kept
+    expect(cfg.instrument.exclude).toEqual(['source/vendor/**']) // existing settings kept
     expect(fs.readFileSync(path.join(d, '.gitignore'), 'utf8')).toMatch(/^\*\.bt-instrumented\.zip$/m)
     expect(fs.existsSync(path.join(d, 'source/tests/Example.spec.bs'))).toBe(false)
     expect(r.stdout).toMatch(/Proposed registry sections: legacy_prefs, legacy_session/)
