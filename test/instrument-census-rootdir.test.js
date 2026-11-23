@@ -5,7 +5,9 @@ import path from 'node:path'
 import { createRequire } from 'node:module'
 
 const require = createRequire(import.meta.url)
-const { census } = require('../lib/instrument/census.js')
+const { census, safeRead } = require('../lib/instrument/census.js')
+const { execFileSync } = require('node:child_process')
+const fifoIt = process.platform === 'win32' ? it.skip : it
 let tmp
 beforeAll(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-census-rd-')) })
 afterAll(() => fs.rmSync(tmp, { recursive: true, force: true }))
@@ -104,4 +106,39 @@ describe('census honours bsconfig rootDir', () => {
     const e = mk('ext-txt'); app(e, 'src'); put(e, 'base.txt', '{"rootDir":"src"}'); put(e, 'bsconfig.json', '{"extends":"base.txt"}')
     expect((await census(e)).counts.components).toBe(0)
   })
+  it('safeRead refuses symlink, dir, secret-named, oversized; reads a regular file', () => {
+    const d = mk('sr'); put(d, 'a.json', '{}'); put(d, '.env', 'K=v'); put(d, 'big.json', 'x'.repeat(2 * 1024 * 1024 + 1))
+    fs.symlinkSync(path.join(d, 'a.json'), path.join(d, 'link.json')); fs.mkdirSync(path.join(d, 'dir.json'))
+    expect(safeRead(path.join(d, 'a.json')).buf.toString()).toBe('{}')
+    for (const n of ['link.json', 'dir.json', '.env', 'big.json']) expect(safeRead(path.join(d, n)).refused).toBeTruthy()
+    expect(safeRead(path.join(d, 'nope')).refused).toBe('missing')
+  })
+  it('bsconfig.json symlinked to an in-root .env is not opened', async () => {
+    const d = mk('bs-link'); app(d, 'src'); put(d, '.env', '{"rootDir":"src"}'); fs.symlinkSync(path.join(d, '.env'), path.join(d, 'bsconfig.json'))
+    const c = await census(d)
+    expect(c.counts.components).toBe(0)
+    expect(c.skipped.some((x) => x.file === 'bsconfig.json')).toBe(true)
+  })
+  it('an oversized bsconfig.json is not read', async () => {
+    const d = mk('bs-big'); app(d, 'src'); put(d, 'bsconfig.json', '{"rootDir":"src"' + ' '.repeat(2 * 1024 * 1024) + '}')
+    expect((await census(d)).counts.components).toBe(0)
+  })
+  it('a manifest symlinked to .env is not read', async () => {
+    const d = mk('man-link'); put(d, '.env', 'bs_const=SECRET=true\n'); put(d, 'components/Home.xml', SCENE); put(d, 'components/Home.brs', BRS)
+    fs.symlinkSync(path.join(d, '.env'), path.join(d, 'manifest'))
+    const c = await census(d)
+    expect(c.skipped.some((x) => x.file === 'manifest')).toBe(true)
+  })
+  it('a rootDir under a .env-named folder is refused', async () => {
+    const d = mk('env-dir'); app(d, '.env/app'); put(d, 'bsconfig.json', '{"rootDir":".env/app"}')
+    expect((await census(d)).counts.components).toBe(0)
+  })
+  fifoIt('a FIFO bsconfig.json or extends target never hangs', async () => {
+    const d = mk('fifo'); app(d, 'src'); execFileSync('mkfifo', [path.join(d, 'bsconfig.json')])
+    expect((await census(d)).counts.components).toBe(0)
+    const e = mk('fifo-ext'); app(e, 'src'); execFileSync('mkfifo', [path.join(e, 'base.json')]); put(e, 'bsconfig.json', '{"extends":"./base.json"}')
+    expect((await census(e)).counts.components).toBe(0)
+    const f = mk('fifo-man'); put(f, 'components/Home.xml', SCENE); put(f, 'components/Home.brs', BRS); execFileSync('mkfifo', [path.join(f, 'manifest')])
+    expect((await census(f)).counts.components).toBe(1)
+  }, 10000)
 })

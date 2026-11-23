@@ -540,6 +540,12 @@ describe('ADOPT-26 (bsconfig rootDir and files are blockers)', () => {
     const r = await json(d)
     expect(r.recommendation.blockers.join('\n')).not.toMatch(/rootDir is read/)
   })
+  ;(process.platform === 'win32' ? test.skip : test)('a FIFO bsconfig.json or manifest does not hang assess', async () => {
+    const { execFileSync } = require('node:child_process')
+    const d = mkApp('fifo-'); fs.rmSync(path.join(d, 'manifest')); execFileSync('mkfifo', [path.join(d, 'manifest')]); execFileSync('mkfifo', [path.join(d, 'bsconfig.json')])
+    const r = await json(d)
+    expect(r.recommendation.path).toBe('not-a-roku-app')
+  }, 15000)
   test('brighttest.json rootDir is resolved once (src and src/src)', async () => {
     const d = mkApp('dbl-', 'src'); fs.writeFileSync(path.join(d, 'brighttest.json'), '{"rootDir":"src"}')
     const r = await json(d)
