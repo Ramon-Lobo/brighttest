@@ -68,8 +68,8 @@ Host, project, bsconfig, manifest, engines, census, CI, `.gitignore`, devices, r
   token, secret, password or api key set to a literal string; placeholders like `${VAR}` and empty values are ignored),
   `bearer-literal`, `private-key` and `url-credentials` (these three have `key: null`). The value and the line text are
   never read into the report, so the JSON and Markdown are safe to paste into an issue. Key names are matched by word
-  (`apiToken`, `client_secret`, `passphrase`; not `author` or `passThrough`), values may contain spaces, and an XML
-  `<field id="apiKey" value="..."/>` counts. Lines over 4,000 characters are not scanned and are counted in
+  (`apiToken`, `authtoken`, `client_secret`, `passphrase`, `ROKU_PASSWORD`; not `author`, `passThrough` or `authStatus`, and a bare `pass` or `auth` is not flagged), values may contain spaces, and an XML
+  field with a secret-looking `id` and a `value` (either attribute order) counts. Lines over 4,000 characters are not scanned and are counted in
   `scans.secrets.skippedLongLines` (and `scans.risky.skippedLongLines`). The scan covers BrightScript,
   BrighterScript, XML, `manifest`, `bsconfig*.json` and `brighttest*.json`.
 - `risky` lists `{ kind, file, line }` for these kinds: `eval` (an `Eval(` call), `roInput-unknown-keys` (`.getInfo()` in a
