@@ -79,13 +79,12 @@ are advice, not something the tool checks.
 - Honest labels: write "not device-verified" for anything about running on a Roku; write "not checked" for what
   assess does not look at (see the limits in `references/reading-assess-output.md`).
 
-## Census caveat (until ADOPT-27 merges)
+## Census and rootDir
 
-The census reads `source/` and `components/` in the folder that holds the manifest. That is the project root,
-or `<rootDir>/manifest` when a bsconfig `rootDir` is set and no manifest sits at the root. A `rootDir` anywhere
-else is reported as a blocker and not read. A `rootDir` set through bsconfig `extends`, or in a bsconfig that
-does not parse, is not detected. Until ADOPT-27 merges, treat any `rootDir` or `files` blocker as "brighttest
-does not honor this", and say so. Do not assume the later behavior.
+The census follows a bsconfig `rootDir` (direct or through `extends`) only as a hint, and only when `brighttest.json`
+sets no `rootDir`. The build uses `rootDir` from `brighttest.json` and does not read `bsconfig.json`. A `rootDir`
+blocker therefore means: the census saw the app, but the build would not. Report it and confirm with the human; the
+fix is the same `rootDir` in `brighttest.json`. A `files` blocker still means brighttest does not honor the list.
 
 ## After the report
 
