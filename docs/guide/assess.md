@@ -59,7 +59,11 @@ Host, project, bsconfig, manifest, engines, census, CI, `.gitignore`, devices, r
 - `recommendation.path`: `not-a-roku-app` without a manifest; `greenfield` with a manifest, fewer than 5 components and
   no spec files; otherwise `brownfield`.
 - `recommendation.editPermission` is always `"unknown"`: only a person can say whether app code may be edited.
-- `recommendation.blockers` names things brighttest does not honor, such as bsconfig `plugins`.
+- `recommendation.blockers` names things brighttest does not honor: bsconfig `plugins`, `manifest.bs_const`, a `rootDir` other
+  than the project root, and a custom `files` list. Assess and census read `source/` and `components/` under the project
+  root only, so a `rootDir` such as `src` is reported as a blocker instead of a silent `0 scenes`. A `rootDir` that is
+  absolute or contains `..` is named as outside the project root and never read. A manifest app with 0 scenes and no
+  `rootDir` also gets a `census found 0 scenes` blocker.
 - `scan.treeHash` is a stable hash of the scanned file list (path, size and content hash), so you can check that a run
   changed nothing.
 - `scan` holds the file counts (`files`, `skippedSensitive`, `overCap`, `truncated`) and the `treeHash`. `scans` says

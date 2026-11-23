@@ -495,3 +495,33 @@ describe('ADOPT-05b follow-ups', () => {
 // TP-ADOPT-05 coverage: covered here are exit 0, no network or subprocess (spies), tree unchanged without --out, no
 // secret value found (fixture values, .env probe-0001, devices cache), and secrets[] entries with key and line.
 // Left out: the NODE_OPTIONS block-net.js preload run and the legacy-app README dummy values grep (pack-run steps).
+
+describe('ADOPT-26 (bsconfig rootDir and files are blockers)', () => {
+  const BSC = path.join(ROOT, 'examples', 'bsconfig-plugin-app')
+  test('rootDir src app reports rootDir and files blockers, not a silent 0 scenes', async () => {
+    const r = await json(BSC)
+    const b = r.recommendation.blockers.join('\n')
+    expect(r.census.scenes).toBe(0)
+    expect(b).toMatch(/bsconfig rootDir is not honored.*: src/)
+    expect(b).toMatch(/bsconfig files list is not honored.*3 pattern/)
+  })
+  test('rootDir pointing elsewhere is named as outside the root and never read', async () => {
+    for (const rd of ['..', '../x', '/etc', 'C:/Windows']) {
+      const d = fs.mkdtempSync(path.join(tmp, 'rd-'))
+      fs.writeFileSync(path.join(d, 'manifest'), 'title=T\n')
+      fs.writeFileSync(path.join(d, 'bsconfig.json'), JSON.stringify({ rootDir: rd }))
+      const r = await json(d)
+      const b = r.recommendation.blockers.join('\n')
+      expect(b).toMatch(/rootDir is not honored.*outside the project root, not read/)
+      expect(b).not.toContain(rd === '..' ? 'xx' : rd)
+    }
+  })
+  test('manifest app with 0 scenes and no rootDir gets a census blocker', async () => {
+    const d = fs.mkdtempSync(path.join(tmp, 'z-'))
+    fs.writeFileSync(path.join(d, 'manifest'), 'title=T\n')
+    fs.mkdirSync(path.join(d, 'source'))
+    fs.writeFileSync(path.join(d, 'source', 'main.brs'), 'sub main()\nend sub\n')
+    const r = await json(d)
+    expect(r.recommendation.blockers.join('\n')).toMatch(/census found 0 scenes/)
+  })
+})
