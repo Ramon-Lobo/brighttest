@@ -590,7 +590,7 @@ describe('ADOPT-29 census error redaction', () => {
     expect(all).not.toContain(home)
     expect(all).not.toMatch(/"?[^\w<]\/(?:Users|home|var|tmp|private)\//)
     expect(r.census.error).toContain('<path>/components/A.brs')
-    expect(r.census.error).toContain('<path>/work/node_modules/y/index.js')
+    expect(r.census.error).toContain('<path>/index.js')
     expect(r.census.error).toContain("Cannot find module 'x'")
     expect(r.recommendation.blockers.join('\n')).toMatch(/census could not parse the project: Cannot find module/)
     const md = (await run([app])).out
@@ -603,5 +603,24 @@ describe('ADOPT-29 census error redaction', () => {
     fail('bad token at source/main.brs line 4 and/or more')
     const r = await json(app)
     expect(r.census.error).toBe('bad token at source/main.brs line 4 and/or more')
+  })
+  test('ADOPT-29 review: home folders, sibling roots, spaces, UNC, URLs and division', async () => {
+    const app = mkApp()
+    const home = os.homedir()
+    fail([
+      `a ${home}/clients/AcmeCo/tool/b.js`,
+      `b ${app}2/AcmeClient/a.js`,
+      'c /Volumes/Client Drive/AcmeCo App/c.js: boom',
+      'd \\\\fileserver\\share\\AcmeCo\\d.js',
+      'e https://example.com/x/y and 1 / 2 and and/or',
+      `f ${app}/components/A.brs:3:1`,
+    ].join('\n'))
+    const e = (await json(app)).census.error.split('\n')
+    expect(e[0]).toBe('a <path>/b.js')
+    expect(e[1]).toBe('b <path>/a.js')
+    expect(e[2]).toBe('c <path>/c.js: boom')
+    expect(e[3]).toBe('d <path>/d.js')
+    expect(e[4]).toBe('e https://example.com/x/y and 1 / 2 and and/or')
+    expect(e[5]).toBe('f <path>/components/A.brs:3:1')
   })
 })
