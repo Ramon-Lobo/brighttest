@@ -258,7 +258,8 @@ Highlights: [Getting started](docs/guide/getting-started.md) ·
 [Writing tests](docs/writing-tests/index.md) · [Headless vs device](docs/writing-tests/headless-vs-device.md) ·
 [On-device E2E](docs/e2e/index.md) · [CI](docs/guide/ci.md) · [Troubleshooting](docs/guide/troubleshooting.md) ·
 [Instrumented builds](docs/guide/instrument.md) · [Assess](docs/guide/assess.md) ·
-[Network faults](docs/guide/net-faults.md) · [Examples](docs/guide/examples.md).
+[Network faults](docs/guide/net-faults.md) · [Examples](docs/guide/examples.md) ·
+[Adopting brighttest](docs/guide/adopting.md).
 
 A runnable [example project](examples/sample-app/) exercises every lane (unit, `@SGNode`, coverage,
 device, and E2E flows) end to end. The other sample apps (greenfield, legacy, roChannelStore fixtures, ...) are listed

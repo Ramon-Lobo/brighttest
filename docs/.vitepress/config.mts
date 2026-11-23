@@ -60,6 +60,7 @@ export default withMermaid({
           { text: 'Network fault model', link: '/guide/net-faults' },
           { text: 'Network recipe', link: '/guide/network-recipe' },
           { text: 'Studio', link: '/guide/studio' },
+          { text: 'Adopting brighttest', link: '/guide/adopting' },
           { text: 'Assess a project', link: '/guide/assess' },
           { text: 'Example apps', link: '/guide/examples' },
           { text: 'Agent skills', link: '/guide/agent-skills' },
