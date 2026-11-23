@@ -13,10 +13,14 @@ Recording passes requests to the real origin, so it needs the human's OK for eac
 3. Without `upstreamHosts` the command exits 2 with `net.record requires net.upstreamHosts`. `--net-record` with
    `--device` or `--cross-check` also exits 2. Verified at this version.
 4. Record only with a test account, never real user credentials.
-5. Clean the HAR before it goes anywhere. The defaults redact `Authorization`, `Cookie` and `*token*` headers and the
-   `token`, `access_token` and `sig` query keys (`lib/instrument/net-rules.js`). Request and response bodies (a login
-   POST, a token in response JSON) are redacted only through `instrument.net.redact.jsonPaths`. Add each secret
-   field to `instrument.net.redact` (`headers`, `query` or `jsonPaths`) and record again, or delete the HAR. Open
+5. Clean the HAR before it goes anywhere. The defaults redact the `Authorization`, `Proxy-Authorization`, `Cookie`,
+   `Set-Cookie` and `X-Api-Key` headers, `x-roku-reserved-*` headers, any header name containing `token`, `secret`,
+   `key` or `session`, and the `token`, `access_token` and `sig` query keys (`lib/instrument/net-rules.js`). JSON
+   request and response bodies (a token in response JSON) are redacted through `instrument.net.redact.jsonPaths`.
+   Form-encoded bodies (`application/x-www-form-urlencoded`, for example a login POST) are redacted by query name
+   through `instrument.net.redact.query`, defaults included; `jsonPaths` do not apply to them. Other body types are
+   not changed. Add each secret field to `instrument.net.redact` (`headers`, `query` or `jsonPaths`) and record
+   again, or delete the HAR. Open
    the file and read it: check cookies, tokens, user ids and real hostnames. Never commit a HAR without the human's
    OK, and do not paste its contents into a report.
 
