@@ -51,7 +51,9 @@ and zsh. Not device-verified. Anything marked "unverified" was not run.
 - A passing mock run shows the app logic handles the response the spec chose. It does not show the real server or
   device behaves that way. Fidelity needs a device run, through the lease.
 - Runnable starting points in this repo: `examples/store-fixtures-app/` (store) and `test/fixtures/media-driver/`
-  (media). Run one with `cd <folder> && node ../../bin/cli.js` from a checkout of brighttest (`npx brighttest` in your own project).
+  (media). From a checkout of brighttest, run `cd examples/store-fixtures-app && node ../../bin/cli.js` or
+  `cd test/fixtures/media-driver && node ../../../bin/cli.js` (the second folder is one level deeper). In your own
+  project use `npx brighttest`.
 
 ## Workflow
 

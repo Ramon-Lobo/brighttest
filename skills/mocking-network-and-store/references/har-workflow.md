@@ -12,9 +12,13 @@ Recording passes requests to the real origin, so it needs the human's OK for eac
    `.brighttest/net/<run>.har`).
 3. Without `upstreamHosts` the command exits 2 with `net.record requires net.upstreamHosts`. `--net-record` with
    `--device` or `--cross-check` also exits 2. Verified at this version.
-4. Open the HAR before keeping it. Redaction covers the configured headers, query keys and `jsonPaths`; it does not
-   know your secrets. Check for cookies, tokens, user ids and real hostnames, and do not commit a HAR you have not
-   read. Do not paste its contents into a report.
+4. Record only with a test account, never real user credentials.
+5. Clean the HAR before it goes anywhere. The defaults redact `Authorization`, `Cookie` and `*token*` headers and the
+   `token`, `access_token` and `sig` query keys (`lib/instrument/net-rules.js`). Request and response bodies (a login
+   POST, a token in response JSON) are redacted only through `instrument.net.redact.jsonPaths`. Add each secret
+   field to `instrument.net.redact` (`headers`, `query` or `jsonPaths`) and record again, or delete the HAR. Open
+   the file and read it: check cookies, tokens, user ids and real hostnames. Never commit a HAR without the human's
+   OK, and do not paste its contents into a report.
 
 ## Replay
 
