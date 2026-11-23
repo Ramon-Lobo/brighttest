@@ -46,6 +46,15 @@
       ]
     },
     {
+      "name": "mocking-network-and-store",
+      "files": [
+        "SKILL.md",
+        "references/btnet-rules.md",
+        "references/csfake-and-btmedia.md",
+        "references/har-workflow.md"
+      ]
+    },
+    {
       "name": "setting-up-brighttest",
       "files": [
         "SKILL.md"

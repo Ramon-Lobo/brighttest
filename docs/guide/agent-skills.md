@@ -17,6 +17,7 @@ plus `references/`), and the content is authored once and adapted to whichever a
 | `setting-up-brighttest` | Installing the package, `brighttest.json`, where specs live, choosing a lane, npm scripts, and CI. |
 | `debugging-failing-tests` | Reading the output, isolating causes, `--cross-check` fidelity, `globalFields` seeding, and testing the Task/API layer. |
 | `testing-app-state` | Reading, setting, snapshotting and asserting app state (`m.global`, scene fields, registry) with `__bt_state`, `assertState`, and the state flow steps. |
+| `mocking-network-and-store` | Faking what the app talks to in headless specs: BTNet rules and faults, HAR record and replay, `csfake` roChannelStore fixtures and the `BTMedia_*` Video/Audio driver, and what none of them prove about a device. |
 | `using-brighttest-mcp` | Driving a real Roku through the `brighttest mcp` server: the eight tools, the per-call device lease, budgets, and typed errors. |
 | `using-a-roku-device-safely` | Before any command that touches a real Roku: the device lease, exit codes 75, 77 and 78, doctor, ECP Permissive, ports, keepalive and the 10-minute stall, secrets, and what an agent must never do. |
 | `using-brighttest-studio` | Using `brighttest studio` in the browser: live SceneGraph, remote, flow runs with a step trace, and the Profile page. |
