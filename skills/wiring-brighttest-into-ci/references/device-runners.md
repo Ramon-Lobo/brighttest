@@ -51,7 +51,6 @@ jobs:
           BRIGHTTEST_AGENT: ci:${{ github.run_id }}
           BRIGHTTEST_LEASE_WAIT: 30m
         run: |
-          npx brighttest device status
           rc=0
           npx brighttest e2e run "$FLOWS" --screenshots e2e-artifacts --screenshots-mode failure || rc=$?
           if [ "$rc" -eq 75 ]; then
@@ -69,7 +68,7 @@ jobs:
 - `e2e run` takes the lease itself, per device. Do not wrap it in `device with`. A step that is not a brighttest lane
   (a script, `curl`, `npx rooibos`) goes inside `npx brighttest device with -- <cmd>`.
 - `BRIGHTTEST_AGENT` labels the holder in `device status` (`ci:run-123` is the help text's own example form).
-  `BRIGHTTEST_LEASE_WAIT` is how long the job queues for the device; `docs/guide/ci.md` sets a longer value for CI. `--wait 0` fails at once if the device is busy.
+  `BRIGHTTEST_LEASE_WAIT` is how long the job queues for the device; the value shown is the default; raise it if local agents hold the device for long. `--wait 0` fails at once if the device is busy.
 - `concurrency: group: roku-device` makes workflow runs queue behind each other instead of cancelling. The host
   is a secret and cannot be in the group name, so the group is a fixed label (as `e2e-device.yml` explains).
 - The `FLOWS` input goes through `env:` and is quoted, never interpolated into the shell line.
@@ -90,10 +89,18 @@ jobs:
 Whether to mark exit 75 (device busy) as neutral instead of failed is the human's decision; the default is failed and visible.
 Do not hide it with `|| true`.
 
+## Who may trigger it (public repositories)
+
+A self-hosted runner executes whatever workflow runs on it. On a public repository a fork's pull request can add a
+job with `runs-on: [self-hosted, roku]` and run code on the human's network. Allow this only if the repository is
+private, or the repository requires approval before workflows from outside contributors run, or the runner sits in
+a restricted runner group. Never trigger the device job from `pull_request_target`. Ask the human which of these
+applies before writing the job; the controls live in the repository or organization settings (unverified here).
+
 ## What not to do
 
-- No device step on a hosted runner, and no device job on `push` or `pull_request` (a fork's pull request would
-  run on the human's network).
+- No device step on a hosted runner, and no device job on `push` or `pull_request` (see the section above).
+- Do not run `device status` in the job: it prints device addresses into the log. Check it from your own shell.
 - Do not print `ROKU_HOST` or the password; the repo's workflow summary prints only the number of devices.
 - Do not hold the lease across steps unless you need to; a long hold blocks every local agent on that device.
   A multi-step session lock needs one shell invocation with an `unlock` trap (see `using-a-roku-device-safely`).
