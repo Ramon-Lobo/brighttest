@@ -39,8 +39,16 @@ It never opens `.env*`, `*.pem`, `*.p12`, `*.pkg`, `certs/` or `~/.brighttest/de
 checks that the cache file exists and whether `ROKU_HOST` is set, never their values). It makes no network call, touches
 no device or lease, and starts no subprocess. The census runs in process.
 
-The census scans `source/` and `components/` with the existing `brighttest instrument census` code. Keep key or
-certificate files out of those two folders.
+The census uses the existing `brighttest instrument census` code, which opens every file under `source/` and
+`components/`. So assess first lists those two folders by name and size only. If it finds a sensitive file (`.env*`,
+`*.pem`, `*.key`, `*.p12`, `*.pkg`, `id_rsa*`, anything under a `certs/` folder) or a file over 2 MB, it does not run the
+census, never opens those files, sets `census.error` with the reason and adds a blocker. Move such files out of the app
+folders to get a census.
+
+Symlinks are skipped, not followed. Only the root `.gitignore` is read, not nested ones. `--out` is checked on real paths
+(symlinks resolved, case-insensitive on macOS and Windows), so it cannot point into `source/` or `components/` by an
+alias. When `-c` points outside the project, `brighttest.config.file` is `null`, never an absolute path. When several
+`brighttest*.json` files exist, `brighttest.json` wins.
 
 ## Report sections
 
@@ -54,5 +62,7 @@ Host, project, bsconfig, manifest, engines, census, CI, `.gitignore`, devices, r
 - `recommendation.blockers` names things brighttest does not honor, such as bsconfig `plugins`.
 - `scan.treeHash` is a stable hash of the scanned file list (path, size and content hash), so you can check that a run
   changed nothing.
+- `scan` holds the file counts (`files`, `skippedSensitive`, `overCap`, `truncated`) and the `treeHash`; `scans` says which
+  scans did not run.
 - `secrets` and `risky` are always empty in this version and `scans` says `not-run`: the secret and risky-pattern scans
   arrive in a later release. An empty list here does not mean the project is clean.
