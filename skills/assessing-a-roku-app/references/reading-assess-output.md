@@ -1,8 +1,8 @@
 # Reading the assess output (`brighttest-assess/v1`)
 
 Evidence: sections, field names, blocker texts and exit codes are from `lib/assess.js`, `node bin/cli.js assess
---help` and `docs/guide/assess.md` on this version. Not device-verified. The census behavior is "until ADOPT-27
-merges".
+--help` and `docs/guide/assess.md` on this version. Not device-verified. The census follows rootDir as a hint
+(see below).
 
 Three forms: the terminal summary (default), `--json` (the document), and `assess.md` / `assess.json` written by
 `--out <dir>`, plus `census.md` / `census.json` only when the census ran. They hold the same facts.
@@ -39,7 +39,7 @@ Three forms: the terminal summary (default), `--json` (the document), and `asses
 |---|---|---|
 | `bsconfig plugins are not honored by brighttest:` | A bsconfig plugin is listed; brighttest does not run it. | Remove the plugin. |
 | `bsconfig manifest.bs_const overrides are not honored by brighttest` | A build constant set in bsconfig is ignored. | Move it into the manifest without OK. |
-| `bsconfig rootDir is not honored by brighttest (census reads source/ and components/ under the project root only):` | `rootDir` is set and the manifest is not in that folder. The value is shown JSON-quoted, or "points outside the project root, not read" for an absolute or `..` path. | Move folders. |
+| `bsconfig rootDir is read by the census as a hint only; the brighttest build uses rootDir from brighttest.json ...` | bsconfig `rootDir` is set and `brighttest.json` does not repeat it. The value is shown JSON-quoted, or "points outside the project root, not read" for an absolute or `..` path. | Confirm with the human; set the same `rootDir` in `brighttest.json`. |
 | `bsconfig files list is not honored by brighttest (the default source/, components/ layout is assumed):` | A custom `files` list (not only the roku-deploy defaults); the count of entries follows. | Edit the list. |
 | `census found 0 scenes: check the app keeps components/ at the project root ...` | A manifest app whose census found no scene and no `rootDir` is set. | Treat 0 as "no scenes exist". |
 | `census skipped: ...` | Sensitive or oversized files under `source/` or `components/` (not opened), or over 20,000 files there. `census.error` holds the same text. | Open or print the named files. |
@@ -49,12 +49,10 @@ Three forms: the terminal summary (default), `--json` (the document), and `asses
 Every blocker is a limit of what brighttest sees. List it in the report with the "needs human OK" note whenever
 clearing it would mean editing bsconfig, the manifest or the folder layout.
 
-## Census, until ADOPT-27 merges
+## Census and rootDir
 
-The census reads `source/` and `components/` in the folder with the manifest: the project root, or
-`<rootDir>/manifest` when bsconfig `rootDir` is set and there is no manifest at the root (then no `rootDir`
-blocker). Other `rootDir` values are blockers. `rootDir` through `extends`, or in a bsconfig that does not parse,
-is not detected. Do not describe any broader behavior as current. `census.setUrlCovered` of `setUrlSites` tells
+The census follows a bsconfig `rootDir` (direct or through `extends`) only as a hint, when `brighttest.json` sets no
+`rootDir`. The build uses `rootDir` from `brighttest.json` and does not read `bsconfig.json`. `census.setUrlCovered` of `setUrlSites` tells
 how many HTTP-call sites the census can instrument; `notCovered` gives the reasons.
 
 ## Limits to state in every report

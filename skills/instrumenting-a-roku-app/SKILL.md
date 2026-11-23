@@ -42,8 +42,9 @@ limit is researched from Roku's public docs, not verified here (see `references/
 ## The flow
 
 1. Census, read-only, from the app folder (the folder with `source/` and `components/`):
-   `npx brighttest instrument census` (markdown) or `--json`. Read `references/census-reading.md`. Until ADOPT-27
-   merges, census reads the folder you run it in (the current directory), not the bsconfig `rootDir`.
+   `npx brighttest instrument census` (markdown) or `--json`. Read `references/census-reading.md`. Census reads
+   the `rootDir` from `brighttest.json`, else a bsconfig `rootDir` (a census-only hint; build ignores bsconfig), else the
+   current directory.
 2. Decide excludes with the human. Vendor and generated code go in `instrument.exclude`
    (`references/instrument-config.md`). Defaults already skip `source/vendor/**`, `roku_modules/**` and Rooibos paths.
 3. Build: `npx brighttest instrument build --out .brighttest/debug.bt-instrumented.zip`. Exit 0 means the package exists. Any other

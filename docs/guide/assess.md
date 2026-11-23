@@ -64,14 +64,15 @@ Host, project, bsconfig, manifest, engines, census, CI, `.gitignore`, devices, r
 - `recommendation.path`: `not-a-roku-app` without a manifest; `greenfield` with a manifest, fewer than 5 components and
   no spec files; otherwise `brownfield`.
 - `recommendation.editPermission` is always `"unknown"`: only a person can say whether app code may be edited.
-- `recommendation.blockers` names things brighttest does not honor: bsconfig `plugins`, `manifest.bs_const`, a `rootDir`
-  that is not used to find the manifest, and a custom `files` list (string globs or `{ src, dest }` entries). Census reads
-  `source/` and `components/` in the manifest's folder. When there is no manifest at the root but `<rootDir>/manifest`
-  exists, census reads there and there is no `rootDir` blocker. Otherwise a `rootDir` such as `src` is a blocker instead
-  of a silent `0 scenes`. A `rootDir` that is absolute or contains `..` is named as outside the project root and never
-  read. A `files` list that only has entries from the roku-deploy defaults (`source/**/*.*`, `components/**/*.*`, `images/**/*.*`, `locale/**/*`, `manifest`; may vary by bsc version) is not a
+- `recommendation.blockers` names things brighttest does not honor: bsconfig `plugins`, `manifest.bs_const`, a bsconfig
+  `rootDir` that `brighttest.json` does not repeat, and a custom `files` list (string globs or `{ src, dest }` entries).
+  Census follows a bsconfig `rootDir` (direct or through `extends`) only as a hint, and only when `brighttest.json` sets
+  no `rootDir`; the build uses `rootDir` from `brighttest.json` and does not read `bsconfig.json`. So a bsconfig `rootDir`
+  such as `src` is a blocker to confirm with the human (set the same `rootDir` in `brighttest.json`); it clears when
+  `brighttest.json` has the same `rootDir`. A `rootDir` that is absolute or contains `..` is named as outside the project
+  root and never read. A `files` list that only has entries from the roku-deploy defaults (`source/**/*.*`, `components/**/*.*`, `images/**/*.*`, `locale/**/*`, `manifest`; may vary by bsc version) is not a
   blocker; it adds an unknown, "confirm". A manifest app with 0 scenes and no `rootDir` gets a `census found 0 scenes`
-  blocker. A `rootDir` set through bsconfig `extends`, or in a bsconfig that does not parse, is not detected.
+  blocker. The blocker check reads only the `rootDir` written in `bsconfig.json`, not one inherited through `extends`.
 - `scan.treeHash` is a stable hash of the scanned file list (path, size and content hash), so you can check that a run
   changed nothing.
 - `scan` holds the file counts (`files`, `skippedSensitive`, `overCap`, `truncated`) and the `treeHash`. `scans` says

@@ -13,9 +13,9 @@ npx brighttest instrument census --json --out .brighttest/census  # JSON to stdo
 It is static: no device, no network, no build. Nothing is written unless you pass `--out`. Run it from the app
 folder. Exit 0 means a report was produced; 2 means census failed (the message is on stderr).
 
-Scope until ADOPT-27 merges: it scans `source/` and `components/` under the current directory (test folders and
-`*.spec.*` skipped). It does not follow bsconfig `rootDir`. If the app lives in a subfolder, `cd` there. Behavior
-with `rootDir` after ADOPT-27 is not described here (unverified).
+Scope: it scans `source/` and `components/` under the `rootDir` from `brighttest.json`, else a bsconfig `rootDir`
+(a census-only hint: build and instrument do not read `bsconfig.json`), else the current directory (test folders and
+`*.spec.*` skipped). A `rootDir` outside the project root is ignored.
 
 It reads `brighttest.json` from the current directory (or the file given with `--config <path>`) and honors
 `instrument.exclude` and `instrument.net`. A `brighttest.json` or `--config` file that is not valid JSON, or a missing

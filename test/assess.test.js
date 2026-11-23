@@ -498,12 +498,22 @@ describe('ADOPT-05b follow-ups', () => {
 
 describe('ADOPT-26 (bsconfig rootDir and files are blockers)', () => {
   const BSC = path.join(ROOT, 'examples', 'bsconfig-plugin-app')
-  test('rootDir src app reports rootDir and files blockers, not a silent 0 scenes', async () => {
+  test('rootDir src app: census follows it as a hint, blocker says build uses brighttest.json', async () => {
     const r = await json(BSC)
     const b = r.recommendation.blockers.join('\n')
-    expect(r.census.scenes).toBe(0)
-    expect(b).toMatch(/bsconfig rootDir is not honored.*: "src"/)
+    expect(r.census.scenes).toBe(1)
+    expect(b).toMatch(/bsconfig rootDir is read by the census as a hint only.*: "src"/)
     expect(b).toMatch(/bsconfig files list is not honored.*3 entries/)
+  })
+  test('no rootDir blocker when brighttest.json repeats the bsconfig rootDir', async () => {
+    const d = fs.mkdtempSync(path.join(tmp, 'rdok-'))
+    fs.mkdirSync(path.join(d, 'src', 'source'), { recursive: true })
+    fs.writeFileSync(path.join(d, 'src', 'manifest'), 'title=T\n')
+    fs.writeFileSync(path.join(d, 'src', 'source', 'main.brs'), 'sub main()\nend sub\n')
+    fs.writeFileSync(path.join(d, 'bsconfig.json'), JSON.stringify({ rootDir: 'src' }))
+    fs.writeFileSync(path.join(d, 'brighttest.json'), JSON.stringify({ rootDir: 'src' }))
+    const r = await json(d)
+    expect(r.recommendation.blockers.join('\n')).not.toMatch(/rootDir/)
   })
   test('rootDir pointing elsewhere is named as outside the root and never read', async () => {
     for (const rd of ['..', '../x', '/etc', 'C:/Windows']) {
@@ -512,7 +522,7 @@ describe('ADOPT-26 (bsconfig rootDir and files are blockers)', () => {
       fs.writeFileSync(path.join(d, 'bsconfig.json'), JSON.stringify({ rootDir: rd }))
       const r = await json(d)
       const b = r.recommendation.blockers.join('\n')
-      expect(b).toMatch(/rootDir is not honored.*outside the project root, not read/)
+      expect(b).toMatch(/rootDir is read by the census as a hint only.*outside the project root, not read/)
       expect(b).not.toContain(rd)
     }
   })
