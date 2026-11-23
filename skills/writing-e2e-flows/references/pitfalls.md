@@ -16,8 +16,8 @@ The mistakes that make a flow fail to connect, flake, or falsely pass. For the s
 
 ## Selectors that never match
 
-- **A selector matches nothing even though the node is clearly on screen** → you're selecting on `testId`
-  (or another custom field). `sgnodes` only dumps built-in fields; the app's `id` surfaces as `name=`. Use
+- **A selector matches nothing even though the node is clearly on screen** → the selector uses a custom field
+  (such as `testId`, which is never dumped). `sgnodes` only dumps built-in fields; the app's `id` surfaces as `name=`. Use
   `{ id: … }`, or fall back to `{ text: … }` / `{ subtype: … }`.
 - **No ids anywhere in `inspect`** → the app sets none. Add ids by hand to the nodes you target, or
   auto-inject with `stamp` (stamp a *copy* for the e2e build). See authoring.

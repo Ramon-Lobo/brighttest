@@ -35,7 +35,7 @@ problem directly (e.g. `expected "true (Boolean)" to be false`).
 5. **`assertEqual` fails on values that look equal** → type-strict numeric comparison. Compare floats to
    float literals, or use `m.assertTrue(a = b)` for value-only numeric equality.
 6. **Passes headless, fails/crashes on `--device`** → see "Global-context crashes" below.
-7. **Exit 75 or 77 on a device lane** → not a test failure. 75 = *device in use*: another holder kept the
+7. **Exit 75 (busy) or 77 (lease lost) on a device lane** → not a test failure. 75 = *device in use*: another holder kept the
    device past `--wait` (run `npx brighttest device status` to see who). 77 = the lease was lost or reached
    its deadline; re-run. *Device unreachable* is different: a connection error naming the IP, exit 1 —
    check the IP, network and developer mode.
