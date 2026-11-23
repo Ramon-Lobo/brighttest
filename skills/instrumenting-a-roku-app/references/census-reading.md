@@ -17,10 +17,9 @@ Scope until ADOPT-27 merges: it scans `source/` and `components/` under the curr
 `*.spec.*` skipped). It does not follow bsconfig `rootDir`. If the app lives in a subfolder, `cd` there. Behavior
 with `rootDir` after ADOPT-27 is not described here (unverified).
 
-It reads `brighttest.json` from the current directory and honors `instrument.exclude` and `instrument.net`.
-Do not pass `--config` to census: the CLI hands census the path string as the config object, so that file's
-excludes and net settings are dropped and `./brighttest.json` is ignored too (verified by running it). ADOPT-28 will fix
-`census --config`; until then run census with no `--config` from the folder holding `brighttest.json`.
+It reads `brighttest.json` from the current directory (or the file given with `--config <path>`) and honors
+`instrument.exclude` and `instrument.net`. A `brighttest.json` or `--config` file that is not valid JSON, or a missing
+`--config` file, fails census with exit 2 and a message on stderr; it is never treated as empty.
 
 ## Sections
 

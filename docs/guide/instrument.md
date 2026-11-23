@@ -12,7 +12,7 @@ instrumentation marker. Build the store package without `instrument build`.
 
 ```bash
 npx brighttest instrument build                       # -> .brighttest/instrument/app.bt-instrumented.zip
-npx brighttest instrument build --out build/debug.zip --strict
+npx brighttest instrument build --out .brighttest/debug.bt-instrumented.zip --strict
 ```
 
 ## Example: the sample app
@@ -99,6 +99,7 @@ user function named `BT_op` fails the build (`BT9001`).
 ```bash
 npx brighttest instrument census                       # markdown report to stdout
 npx brighttest instrument census --json --out .brighttest/census   # JSON to stdout, census.json + census.md in the dir
+npx brighttest instrument census --config path/to/brighttest.json     # read that config file instead of ./brighttest.json
 ```
 
 A static scan of the app in the current directory (no device, no network, nothing in your tree is written unless
@@ -168,7 +169,7 @@ Current limitations (the full design is not implemented yet):
 `strict` is **off** by default; `--strict` / `--no-strict` override it per run. The CI recipe turns it on:
 
 ```yaml
-- run: npx brighttest instrument build --strict --out build/debug.zip   # exit 4 = policy, exit 1 = broken build
+- run: npx brighttest instrument build --strict --out .brighttest/debug.bt-instrumented.zip   # exit 4 = policy, exit 1 = broken build
 ```
 
 ### What counts for strict

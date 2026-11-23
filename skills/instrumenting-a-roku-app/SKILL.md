@@ -33,7 +33,8 @@ limit is researched from Roku's public docs, not verified here (see `references/
   environment (no `env`, `printenv`) and do not use `pgrep -f`.
 - `.brighttest/` and `*.bt-instrumented.zip` must be gitignored before you build. Always build into `.brighttest/`
   with a `*.bt-instrumented.zip` name, which both entries cover (a path like `build/` is not covered). Check with
-  `git check-ignore .brighttest/debug.bt-instrumented.zip`; if either prints nothing, tell the
+  `git check-ignore .brighttest/debug.bt-instrumented.zip`; it prints the path when the zip is ignored. If it prints
+  nothing, tell the
   human instead of editing `.gitignore` unasked.
 - Never certify, publish or attach an instrumented zip anywhere. Build the release package from the original
   sources and run the gate on it.
