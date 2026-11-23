@@ -180,3 +180,155 @@ describe('doctor args', () => {
     expect(parseDoctorArgs(['--host=1.2.3.4', '--json', '--show-serial', '--ecp-port', '9'])).toMatchObject({ host: '1.2.3.4', json: true, showSerial: true, ecpPort: '9' })
   })
 })
+
+describe('doctor hub reach probe (ADR 0024)', () => {
+  const PW = 'pw-secret-xyz'
+  const caps = (o = {}) => ({ model: 'x', softwareVersion: '16.0.4', developerEnabled: true, ecpSettingMode: 'permissive', videoMode: '720p', videoModeSource: 'video-mode', serial: 'SER-123', ...o })
+  const setup = (o = {}) => {
+    const keys = []
+    const zips = []
+    const deps = {
+      env: { BRIGHTTEST_DOCTOR_HUB_PROBE: '1' },
+      createDevice: () => ({ deviceCapabilities: async () => caps(o.caps), keypress: async (k) => { keys.push(k) } }),
+      probeBind: async () => ({ ok: true, address: '0.0.0.0', port: 1 }),
+      lanHost: () => '192.0.2.7',
+      resolveDevice: () => ({ host: '127.0.0.1', password: 'password' in o ? o.password : PW }),
+      acquireForLane: vi.fn(async () => ('lease' in o ? o.lease : { lease: { leaseId: 'outer-1', release: vi.fn() } })),
+      sideload: vi.fn(async (cfg, a) => { zips.push(a.zip); return o.sideload ? o.sideload(a) : 0 }),
+      listen: async () => ({ ok: true, waitHit: async () => (o.hit !== false), close: async () => {} }),
+      waitMs: 50,
+      ...(o.deps || {}),
+    }
+    return { deps, keys, zips }
+  }
+  const go = async (deps, extra = {}) => {
+    const get = capture()
+    const code = await doctor.run({ host: '127.0.0.1', json: true, ...extra }, deps)
+    return { code, j: JSON.parse(get()) }
+  }
+
+  it('1. default: not-tested/not-requested, no hub-reach check, no sideload or lease', async () => {
+    const { deps } = setup()
+    deps.env = {}
+    const r = await go(deps)
+    expect(r.code).toBe(0)
+    expect(r.j.hub).toMatchObject({ reach: 'not-tested', reachReason: 'not-requested', reachProven: false })
+    expect(r.j.checks.find((k) => k.id === 'hub-reach')).toBeUndefined()
+    expect(deps.sideload).not.toHaveBeenCalled()
+    expect(deps.acquireForLane).not.toHaveBeenCalled()
+  })
+
+  it('2. opt-in, hit: reached, hub-reach ok, exit 0, Home pressed, temp dir removed', async () => {
+    const { deps, keys, zips } = setup()
+    const r = await go(deps)
+    expect(r.code).toBe(0)
+    expect(r.j.hub).toMatchObject({ reach: 'reached', reachProven: true })
+    expect(r.j.checks.find((k) => k.id === 'hub-reach')).toMatchObject({ ok: true })
+    expect(keys).toEqual(['Home'])
+    expect(zips).toHaveLength(1)
+    expect(fs.existsSync(path.dirname(zips[0]))).toBe(false)
+  })
+
+  it('3. opt-in, no hit: not-reached, hub-reach fails with the fix, exit 1', async () => {
+    const { deps } = setup({ hit: false })
+    const r = await go(deps)
+    expect(r.code).toBe(1)
+    expect(r.j.hub).toMatchObject({ reach: 'not-reached', reachProven: false })
+    expect(r.j.checks.find((k) => k.id === 'hub-reach')).toMatchObject({ ok: false, fix: doctor.FIX_HUB_REACH('192.0.2.7', 8790) })
+    const { deps: d2 } = setup({ hit: false })
+    const get = capture()
+    await doctor.run({ host: '127.0.0.1' }, d2)
+    expect(get()).toContain('re-sideload your app')
+  })
+
+  it('4. every not-tested reason keeps exit 0 and adds no check', async () => {
+    const reasons = async (o, want) => {
+      const { deps } = setup(o)
+      const r = await go(deps)
+      expect(r.code).toBe(0)
+      expect(r.j.hub).toMatchObject({ reach: 'not-tested', reachReason: want, reachProven: false })
+      expect(r.j.checks.find((k) => k.id === 'hub-reach')).toBeUndefined()
+      expect(deps.sideload).not.toHaveBeenCalled()
+    }
+    await reasons({ password: null }, 'no-password')
+    await reasons({ lease: { code: 75 } }, 'lease-busy')
+    // developer disabled: its own check fails (exit 1), the probe is skipped
+    const { deps: dd } = setup({ caps: { developerEnabled: false } })
+    const rd = await go(dd)
+    expect(rd.j.hub).toMatchObject({ reach: 'not-tested', reachReason: 'developer-disabled' })
+    expect(dd.sideload).not.toHaveBeenCalled()
+    // sideload 1 with an auth message that contains the password: scrubbed
+    const { deps } = setup()
+    deps.sideload = vi.fn(async (c, a, d) => { d.log(`authentication failed: bad ${PW}`); return 1 })
+    const r = await go(deps)
+    expect(r.code).toBe(0)
+    expect(r.j.hub.reachReason).toBe('sideload-failed')
+    expect(JSON.stringify(r.j)).not.toContain(PW)
+    // device unreachable
+    const un = setup({ deps: { createDevice: () => ({ deviceCapabilities: async () => { throw new Error('down') } }) } })
+    const ru = await go(un.deps)
+    expect(ru.j.hub).toMatchObject({ reach: 'not-tested', reachReason: 'device-unreachable' })
+    // port busy: a real loopback listener holds the port
+    const net = require('net')
+    const holder = net.createServer()
+    await new Promise((res) => holder.listen(0, '127.0.0.1', res))
+    const port = holder.address().port
+    try {
+      const res = await doctor.probeHubReach({ host: '127.0.0.1', ecpPort: 8060, password: PW, port, advertisedHost: '127.0.0.1', env: {} }, {
+        acquireForLane: async () => ({ lease: { leaseId: 'o', release() {} } }), sideload: vi.fn(),
+        listen: (a) => doctor.listenForProbe({ ...a, bindHost: '127.0.0.1' }),
+      })
+      expect(res).toMatchObject({ reach: 'not-tested', reachReason: 'port-busy' })
+    } finally { await new Promise((res) => holder.close(res)) }
+  })
+
+  it('5. nested lease: inner acquire gets the outer lease id; the outer release runs once', async () => {
+    const release = vi.fn()
+    const { deps } = setup({ lease: { lease: { leaseId: 'outer-42', release } } })
+    deps.sideload = vi.fn(async (c, a, d) => { await d.acquireForLane({ host: a.host }); return 0 })
+    await go(deps)
+    expect(deps.acquireForLane).toHaveBeenCalledTimes(2)
+    expect(deps.acquireForLane.mock.calls[0][0]).toMatchObject({ purpose: 'doctor hub probe', allowBypass: false })
+    expect(deps.acquireForLane.mock.calls[1][0].env.BRIGHTTEST_LEASE).toBe('outer-42')
+    expect(release).toHaveBeenCalledTimes(1)
+  })
+
+  it('6. listenForProbe: wrong nonce or non-device peer gets 404 and does not count; the right one gets 204', async () => {
+    const http = require('http')
+    const get = (port, p) => new Promise((res) => http.get({ host: '127.0.0.1', port, path: p }, (r) => { r.resume(); r.on('end', () => res(r.statusCode)) }))
+    const probe = async (peer) => {
+      const probeSrv = require('net').createServer()
+      await new Promise((r) => probeSrv.listen(0, '127.0.0.1', r)); const port = probeSrv.address().port
+      await new Promise((r) => probeSrv.close(r))
+      const l = await doctor.listenForProbe({ port, deviceHost: '10.0.0.5', nonce: 'abc', bindHost: '127.0.0.1', peerOf: () => peer })
+      return { l, port }
+    }
+    let { l, port } = await probe('::ffff:10.0.0.5')
+    expect(await get(port, '/bt-probe/wrong')).toBe(404)
+    expect(await l.waitHit(30)).toBe(false)
+    expect(await get(port, '/bt-probe/abc')).toBe(204)
+    expect(await l.waitHit(30)).toBe(true)
+    await l.close()
+    ;({ l, port } = await probe('10.0.0.99'))
+    expect(await get(port, '/bt-probe/abc')).toBe(404)
+    expect(await l.waitHit(30)).toBe(false)
+    await l.close()
+  })
+
+  it('7. buildProbeZip: the three entries, main.brs carries the URL', async () => {
+    const JSZip = require('jszip')
+    const url = 'http://192.0.2.7:8790/bt-probe/n0nce'
+    const z = await JSZip.loadAsync(await doctor.buildProbeZip(url))
+    expect(Object.keys(z.files).sort()).toEqual(['components/', 'components/ProbeScene.xml', 'manifest', 'source/', 'source/main.brs'])
+    expect(await z.file('source/main.brs').async('string')).toContain(url)
+    expect(await z.file('manifest').async('string')).toBe(doctor.PROBE_MANIFEST)
+  })
+
+  it('8. --json carries reach, reachReason, reachProven; serial stays hidden', async () => {
+    const { deps } = setup()
+    const r = await go(deps)
+    expect(r.j.hub).toMatchObject({ reach: 'reached', reachProven: true })
+    expect('reachReason' in r.j.hub).toBe(true)
+    expect(r.j.serial).toBeUndefined()
+  })
+})
