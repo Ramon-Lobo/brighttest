@@ -51,7 +51,7 @@ skill bodies. Pass `--no-safety` to skip it.
 ### Subagent definitions (Claude target)
 
 For the `claude` target, `install` and `update` also write each shipped subagent definition to
-`.claude/agents/<name>.md`. Pass `--no-agents` to skip them. Other targets get no agent files. A `--skill <name>` run
+`.claude/agents/<name>.md`. Pass `--no-agents` to skip them. The `copilot` target writes `.github/agents/<name>.agent.md` (name, description, mapped `tools`) for definitions whose `hosts` include `copilot`; none of the shipped definitions do yet. Other targets get no agent files. A `--skill <name>` run
 does not touch agents.
 
 Every rendered file carries an ownership marker line (`<!-- brighttest agent:<name> v<version> ... -->`) right after
