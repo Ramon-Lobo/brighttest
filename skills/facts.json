@@ -112,6 +112,7 @@
     "writing-rooibos-tests"
   ],
   "subcommands": [
+    "assess",
     "device hook",
     "device lock",
     "device log",
