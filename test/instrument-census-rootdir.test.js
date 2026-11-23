@@ -141,4 +141,23 @@ describe('census honours bsconfig rootDir', () => {
     const f = mk('fifo-man'); put(f, 'components/Home.xml', SCENE); put(f, 'components/Home.brs', BRS); execFileSync('mkfifo', [path.join(f, 'manifest')])
     expect((await census(f)).counts.components).toBe(1)
   }, 10000)
+  it('safeRead reports a symlink and a FIFO as their own reasons', () => {
+    const d = mk('reasons'); put(d, 'a.json', '{}'); fs.symlinkSync(path.join(d, 'a.json'), path.join(d, 'l.json'))
+    expect(safeRead(path.join(d, 'l.json')).refused).toBe('symlink')
+    expect(safeRead(path.join(d, 'l.json'), { followLink: true }).buf.toString()).toBe('{}')
+    if (process.platform !== 'win32') { execFileSync('mkfifo', [path.join(d, 'f.json')]); expect(safeRead(path.join(d, 'f.json')).refused).toBe('not a regular file') }
+  })
+  it('a symlinked manifest is reported as a symlink, not as secret-named or oversized', async () => {
+    const d = mk('man-reason'); put(d, 'real', 'bs_const=A=true\n'); put(d, 'components/Home.xml', SCENE); put(d, 'components/Home.brs', BRS)
+    fs.symlinkSync(path.join(d, 'real'), path.join(d, 'manifest'))
+    const s = (await census(d)).skipped.find((x) => x.file === 'manifest')
+    expect(s.reason).toBe('manifest is a symlink and was not read')
+  })
+  it('files under a .env-named folder in source/ are not opened', async () => {
+    const d = mk('env-inner'); put(d, 'manifest', 'title=x\n'); put(d, 'components/Home.xml', SCENE); put(d, 'components/Home.brs', BRS)
+    put(d, 'source/.env/Leak.brs', BRS)
+    const c = await census(d)
+    expect(c.skipped.some((x) => x.file === 'source/.env/' && /secret-named/.test(x.reason))).toBe(true)
+    expect(c.counts.brsFiles).toBe(1)
+  })
 })
