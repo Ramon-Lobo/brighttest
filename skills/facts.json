@@ -84,6 +84,8 @@
     "--version",
     "--video",
     "--wait",
+    "--with-hook",
+    "--with-mcp",
     "-c",
     "-d",
     "-f",
