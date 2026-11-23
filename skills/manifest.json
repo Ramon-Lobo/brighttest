@@ -12,6 +12,15 @@
       ]
     },
     {
+      "name": "adopting-brighttest-greenfield",
+      "files": [
+        "SKILL.md",
+        "references/app-architecture.md",
+        "references/needs-a-device.md",
+        "references/testability-rules.md"
+      ]
+    },
+    {
       "name": "assessing-a-roku-app",
       "files": [
         "SKILL.md",

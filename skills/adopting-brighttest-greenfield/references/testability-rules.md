@@ -9,7 +9,7 @@ Evidence: rules marked "enforced" were checked in `node bin/cli.js` on a scratch
 | 1 | Put logic in plain functions under `source/`, not in node handlers | a plain function runs headless in milliseconds; a handler needs a node suite or a device | convention |
 | 2 | Specs live under `source/` and end in `.spec.bs` | `testsFilePattern` is `**/*.spec.bs` and only compiled paths run | enforced: pattern from `init`'s `brighttest.json` |
 | 3 | Reducers return a new state and take `(state, action)` | `BTStore_create` calls every reducer with every action, and stores the return value | enforced by the template code |
-| 4 | Every node a flow touches has an `id` | the only stable selector is the node `id` (flows use `id`, not `testId`); without it you fall back to `text` or `subtype`, which break on copy changes | convention; `e2e lint` does not check ids against your XML |
+| 4 | Every node a flow touches has an `id` | the only stable selector is the node `id` (flows use `id`, not `testId`); without it you fall back to `text` or `subtype`, which break on copy changes | convention; `e2e lint` does not check ids against your XML, and exits 0 on warnings (read the count) |
 | 5 | Give ids by hand to what you assert; `e2e stamp` is for apps you cannot edit | hand-picked ids win and survive refactors | convention (`docs/e2e/authoring.md`) |
 | 6 | Keep Tasks thin: one request or write, result through fields | the rule is in a function the spec tests | convention |
 | 7 | Tasks that change store state set `m.global.btAction` | `BTStore_dispatch` from a Task thread returns `{}` | enforced by the template code (header comment) |

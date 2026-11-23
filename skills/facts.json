@@ -105,6 +105,7 @@
   "schema": "brighttest-facts/v1",
   "skills": [
     "adopting-brighttest",
+    "adopting-brighttest-greenfield",
     "assessing-a-roku-app",
     "debugging-failing-tests",
     "setting-up-brighttest",

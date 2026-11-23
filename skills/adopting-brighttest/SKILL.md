@@ -36,8 +36,8 @@ See `references/decision-tree.md` for the full table.
 
 | Situation | Path | Load first |
 |---|---|---|
-| Existing app, any size, tests absent or thin | existing app | `setting-up-brighttest` now; `assessing-a-roku-app` and `adopting-brighttest-brownfield` when installed |
-| New app, nothing written yet | new app | `setting-up-brighttest` now; `adopting-brighttest-greenfield` when installed |
+| Existing app, any size, tests absent or thin | existing app | `setting-up-brighttest` and `assessing-a-roku-app` now; `adopting-brighttest-brownfield` when installed |
+| New app, nothing written yet | new app | `setting-up-brighttest` now, then `adopting-brighttest-greenfield` |
 | You may not edit the app's code | existing app, no-edit | the same as existing, then `instrument` (see `references/command-cheatsheet.md`) |
 | App already has Rooibos specs that fail | not adoption | `debugging-failing-tests` |
 
@@ -83,7 +83,7 @@ runs the headless gate, and the report names what was not run on a device.
 
 ## Coming skills (planned, not installed yet)
 
-`assessing-a-roku-app`, `adopting-brighttest-brownfield`, `adopting-brighttest-greenfield`,
+`adopting-brighttest-brownfield`,
 `instrumenting-a-roku-app`, `wiring-brighttest-into-ci`, `mocking-network-and-store`. Until a sibling is
 installed, use the existing skill named in the table, and read `references/command-cheatsheet.md`. Run
 `npx brighttest skills list` to see the skills bundled with this version and the agents it detects.
