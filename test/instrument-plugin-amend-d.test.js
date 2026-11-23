@@ -173,6 +173,34 @@ describe('callfunc-seturl (informational)', () => {
   })
 })
 
+describe('net-render-thread (informational)', () => {
+  const app = (name) => mkapp(name, {
+    'source/main.brs': 'sub main()\nend sub\n',
+    'components/Home.xml': comp('Home', 'Scene', ['components/home.brs']),
+    'components/home.brs': 'sub init()\n    m.video.content.url = BT_url(m.top.src)\nend sub\n',
+    'components/Fetch.xml': comp('Fetch', 'Task', ['components/fetch.brs']),
+    'components/fetch.brs': 'sub init()\n    m.top.functionName = "run"\nend sub\nsub run()\n    u = BT_url(m.top.src)\nend sub\n',
+  })
+  it('reports a Scene init BT_url call and not a Task functionName call', async () => {
+    const b = await build(app('rt'), 'rt')
+    const e = b.result.skipped.filter((x) => x.kind === 'net-render-thread')
+    expect(e).toHaveLength(1)
+    expect(e[0]).toMatchObject({ file: 'components/home.brs', line: 2 })
+    expect(e[0].reason).toMatch(/wrap the URL in a Task/)
+    expect(INFORMATIONAL_KINDS).toContain('net-render-thread')
+    expect(SKIP_KINDS).toContain('net-render-thread')
+  })
+  it('reports a Task init call and an observer callback call, not the entry function', async () => {
+    const dir = mkapp('rt2', {
+      'source/main.brs': 'sub main()\nend sub\n',
+      'components/T.xml': comp('T', 'Task', ['components/t.brs']),
+      'components/t.brs': 'sub init()\n    m.top.observeField("x", "onX")\n    a = BT_url("a")\n    m.top.functionName = "run"\nend sub\nsub onX()\n    b = BT_url("b")\nend sub\nsub run()\n    c = BT_url("c")\nend sub\n',
+    })
+    const b = await build(dir, 'rt2')
+    expect(b.result.skipped.filter((x) => x.kind === 'net-render-thread').map((x) => x.line)).toEqual([3, 7])
+  })
+})
+
 describe('reserved names and feature detect', () => {
   it('a namespaced BT_url does not trip BT9001, a global one does', async () => {
     const ok = mkapp('ns-ok', { 'source/main.brs': 'sub main()\nend sub\n', 'source/ns.bs': 'namespace x\n    function BT_url(u as string) as string\n        return u\n    end function\nend namespace\n' })

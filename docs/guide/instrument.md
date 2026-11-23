@@ -186,10 +186,26 @@ Current limitations (the full design is not implemented yet):
 | `indexed-seturl`, `indexed-geturl`, `bare-geturl`, `xml-parse-failed` | yes |
 | `net-receiver-unknown` (only emitted with `net.unknown: "report"`) | yes |
 | `wrap-target-unknown` (a `state.dispatch` or `state.tasks` name that matches nothing, or a dispatch function used as a value) | yes |
-| `rewritten-shared-with-excluded`, `net-receiver-excluded`, `callfunc-seturl` | no, informational |
+| `rewritten-shared-with-excluded`, `net-receiver-excluded`, `callfunc-seturl`, `net-render-thread` | no, informational |
 | anything not listed | yes (fail closed) |
 
 `--verbose` lists the informational entries of a successful build.
+
+### Media URLs
+
+`BT_url(url)` routes a media URL (a stream or image URL that a node fetches itself) through the hub. You write the call
+by hand, because the plugin only rewrites `setUrl` and `getUrl` on `roUrlTransfer`.
+
+- **Wrap the call in a Task.** On the render thread `BT_url` is the identity on device: `roUrlTransfer` is not available
+  there on some firmware, so the first-use hello fails and the URL comes back unchanged. Resolve the URL in a Task and
+  hand the result to the node through a field.
+- **Guard it with `#if BT_AGENT` and set `BT_AGENT=false` in `bs_const`.** `BT_url` exists only in the instrumented build,
+  so an unguarded call does not compile in a production build.
+- **The limit.** A call in a Scene or any other component that does not extend `Task` is a no-op on device. The build
+  reports it as the informational `net-render-thread` entry (file, line and the hint "render-thread BT_url is the identity
+  on device; wrap the URL in a Task"); for a Task it reports calls in `init` and in `observeField` callbacks it
+  registers (best effort). It never fails strict. Calls the plugin inserts itself are not reported.
+- **Failed hello.** A failed hello is cached for 30 s and retried, with one console line per retry.
 
 ## Headless network fixtures: flags, config and run records
 
