@@ -41,6 +41,8 @@ are advice, not something the tool checks.
    ```
 
    The summary prints to the terminal. `$OUT` gets `assess.json` and `assess.md`, plus `census.json` and `census.md` when the census ran.
+   The terminal summary is short: it omits the network counts and the list of excluded paths. Those are in
+   `census.md` (top lines) and `census.json` (`counts`), so read them from `$OUT`.
    Use `--json` to print the JSON instead of the summary. Use `-c <file>` only when the config is not
    `<dir>/brighttest.json`.
 3. Read the headline fields (guide: `references/reading-assess-output.md`):
@@ -49,16 +51,37 @@ are advice, not something the tool checks.
    node -e 'const r=require(process.argv[1]);const c=r.recommendation;console.log(c.path,"|",c.editPermission,"|",c.blockers.length,"blockers |",r.secrets.length,"secrets |",r.risky.length,"risky")' "$OUT/assess.json"
    ```
 
-4. Read every entry of `recommendation.blockers` and `recommendation.unknowns`. A blocker means brighttest
+4. Collect the census facts for the report. Quote the numbers as the tool prints them; do not estimate or recount:
+   - files: brs, bs and xml counts (`project.files`), components, scenes, tasks, specs;
+   - network, from `$OUT/census.md` ("Network:" line) or `census.json` `counts`: `roUrlTransfer` literals, dynamic
+     `CreateObject`, sync `GetToString` calls, async calls, certificate calls;
+   - `setUrl` covered of sites, and every `notCovered` reason with its count. The reason `excluded` means the path
+     matches `instrument.exclude` in `brighttest.json` (for example third-party code under `source/vendor/`). Say which
+     paths are excluded (read `instrument.exclude` in `brighttest.json`) and that brighttest will not instrument them;
+   - `inlineCdataScenes`: scenes whose script is inline CDATA in the XML. The census reports them and never rewrites
+     them, so name each one and say it needs a different approach (guidance: a separate `.brs` file is an app edit);
+   - `globalFields` and `registrySections`.
+   When one of these is zero or absent (no inline CDATA scenes, no excluded paths, no render-thread finding), say so
+   explicitly in the report instead of leaving it out, so the human can tell "none found" from "not looked at".
+5. Read every entry of `recommendation.blockers` and `recommendation.unknowns`. A blocker means brighttest
    cannot see, or does not honor, part of the app. Say so in the report; do not clear it by editing bsconfig,
    moving folders or changing source unless the human says yes.
-5. Look at `secrets` (file, line and key name only) and `risky` (kind, file, line). Open the cited line only
+6. Look at `secrets` (file, line and key name only) and `risky` (kind, file, line). Name every `render-thread-sync-http` finding with its file and line and say why it matters:
+   a synchronous request on the render thread can freeze the UI and is harder to mock. Open the cited line only
    when the human asked you to explain it, and never print or quote a secret value (see below). Meanings:
    `references/risky-patterns.md`.
-6. Check the run changed nothing: `git status --short` shows what it showed in step 1, and `scan.treeHash` is the
+7. Check the run changed nothing: `git status --short` shows what it showed in step 1, and `scan.treeHash` is the
    same on a second run (same `--json` field, optional).
-7. Fill `references/assessment-template.md` and give it to the human. Include the exit code you saw. Ask the
-   human about edit permission; `recommendation.editPermission` is always `unknown`.
+8. Fill `references/assessment-template.md` and give it to the human. Include the exit code you saw. Put the
+   whole report in your reply to the human, even when you also saved it to a file (the file may not be readable
+   to them). Before you propose any change, ask the human these two questions and end the reply with them:
+   - "May I edit the app's own files (source, components, bsconfig, manifest), or must it stay untouched?"
+     (`recommendation.editPermission` is always `unknown`, and so is `whether the team will edit app code`.)
+   - "Is a Roku device available for this work, and may I use it? If so, which one?" (`unknowns` always lists
+     `device availability`; assess uses no device and `ROKU_HOST` being set proves nothing about access.)
+
+   Do not run anything that edits the app or touches a device until both are answered. Until then, give the next
+   steps as a proposal only.
 
 ## Rules
 

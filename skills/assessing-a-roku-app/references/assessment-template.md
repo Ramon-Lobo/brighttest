@@ -15,10 +15,14 @@ Same tree before and after (git status): <yes|no>
 ## Verdict
 Path: <brownfield|greenfield|not-a-roku-app> (recommendation.path)
 Edit permission: unknown -> asked the human: <answer or "not asked yet">
+Device available: unknown -> asked the human: <answer or "not asked yet">
 
 ## The app
 Language: <language>  Files: <brs> brs, <bs> bs, <xml> xml  Scan truncated: <yes|no>
 Census: <components> components, <scenes> scenes, <tasks> tasks, setUrl <covered>/<sites> covered
+Network (census.md): <n> roUrlTransfer literals, <n> dynamic CreateObject, <n> sync get, <n> async get, <n> certificate calls
+setUrl not covered: <reason> <count>, ...   Excluded by brighttest.json instrument.exclude: <paths|none>
+Inline CDATA scenes: <count> (<names>)
 Census error: <none|text as assess prints it (it already redacts paths to <path>/...)>
 Specs: <specFiles> (Rooibos present: <yes|no>)
 bsconfig: <none|file>; rootDir <value|none>; plugins <list|none>
