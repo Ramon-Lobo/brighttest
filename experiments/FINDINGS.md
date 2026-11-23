@@ -112,3 +112,14 @@ path-finding, a deterministic flow format, and getting test IDs onto components.
 - roUrlTransfer (LAN hub): 200/200 sync and async OK (avg 16 / 11 ms). Codes: refused -7, DNS -6, reset -52, redirect loop -47 (16), too-slow -28, TLS name mismatch -60, HTTP 4xx/5xx with retained body; no total timeout (caller cancels). Sync API has no `GetResponseCode`. 10 MB GET, 8 MB POST OK.
 - Engine fidelity: invalid->scalar field resets to type default; vector/rect/floatarray/translation elements are floats; `Poster.loadDisplayMode` lowercased; detached `findNode` returns the node; `Label.forceUpperCase` does not exist; `Str(3000000000&)`=`" 3e+09"`; `for each` over AA is key-sorted; `Eval` is a compile error without `rsg_version=1.1`; `GetLastRun` absent; `roUserInfo/roProfile/roPerfetto` exist; `ContentNode.update()` and `FromISO8601String()` are subs (using the return throws).
 - brighttest bugs seen: Studio sgdebug lacks `target`, `logrendezvous status` invalid, perf cadence ~2 s for 1 s interval (details and repro in the brief).
+
+## Device matrix
+
+Devices used for brighttest device verification. Serials, LAN addresses and passwords are never recorded.
+
+| Device | Model | Firmware (build) | ECP mode | Dev mode | Recorded | Source |
+|---|---|---|---|---|---|---|
+| 1 | Roku Ultra 4850CA | 16.0.4 (853) | not recorded | enabled | 2026-11-19 | device verification batch above |
+| 2 | Roku Ultra 4850CA | 16.0.4 (853) | permissive | enabled | 2026-11-23 | `brighttest doctor`: reachable, ecp-mode, developer-mode, hub-bind all pass; hub reach not proven by doctor (TP-NET-20) |
+
+**Verified on device (fw 16.0.4, 2026-11-23).** The second device matches the first on model and firmware, so the 16.0.4 baseline holds for both.
