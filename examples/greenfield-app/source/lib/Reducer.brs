@@ -22,3 +22,12 @@ function Reducer_apply(state as object, action as object) as object
     end if
     return nextState
 end function
+
+' Per-slice reducers for BTStore_init; Reducer_apply stays the whole-state form used by pure specs.
+function Reducer_user(state as object, action as object) as object
+    return Reducer_apply({ user: state, nav: Reducer_initial().nav }, action).user
+end function
+
+function Reducer_nav(state as object, action as object) as object
+    return Reducer_apply({ user: Reducer_initial().user, nav: state }, action).nav
+end function

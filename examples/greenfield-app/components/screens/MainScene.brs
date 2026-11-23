@@ -1,7 +1,7 @@
 sub init()
     m.stage = m.top.findNode("stage")
     m.store = CreateObject("roSGNode", "AppStore")
-    m.store.observeField("state", "onState")
+    m.global.observeField("btState_user", "onState")
     m.current = ""
     m.pending = {}
     showScreen("HomeScreen", "")
@@ -89,8 +89,8 @@ sub onAction(msg as object)
 end sub
 
 sub onState()
-    state = m.store.state
-    if m.current = "HomeScreen" then m.stage.getChild(0).tierText = Format_tierLabel(state.user.tier)
+    user = m.global.btstate_user
+    if m.current = "HomeScreen" then m.stage.getChild(0).tierText = Format_tierLabel(user.tier)
 end sub
 
 function onKeyEvent(key as string, press as boolean) as boolean

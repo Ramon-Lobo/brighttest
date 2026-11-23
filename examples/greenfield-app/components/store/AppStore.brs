@@ -1,10 +1,9 @@
+' State lives in BTStore slices: m.global.btState_user and m.global.btState_nav (read as btstate_user / btstate_nav).
 sub init()
-    m.top.state = Reducer_initial()
+    BTStore_init({ user: Reducer_user, nav: Reducer_nav }, Reducer_initial())
 end sub
 
-' Apply an action ({type, ...}) and publish the new state. Returns the new state.
+' Apply an action ({type, ...}) through BTStore and publish the slices. Returns the new state.
 function dispatch(action as object) as object
-    nextState = Reducer_apply(m.top.state, action)
-    m.top.state = nextState
-    return nextState
+    return BTStore_dispatch(action)
 end function
