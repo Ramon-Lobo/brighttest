@@ -28,7 +28,7 @@ the simulator is faithful (`debugging-failing-tests`).
 
 - Every device command takes the lease. Load `using-a-roku-device-safely` before the first one; it holds the
   protocol, the exit codes and the forbidden list. This file does not repeat them.
-- Never use `--no-lease` or `device unlock --force`. Never press `PowerOff` or an input-switch key.
+- Never use `--no-lease` or `device unlock --force`. Never press `PowerOff` or an input-switch key. Never run raw `curl` to a device, sudo, or change a firewall, pf or any device setting. Do not use `env`, `printenv` or `pgrep -f`.
 - Run long device work in the background with a deadline, and report anything you did not run as "not run on a
   device" with the exact command for the human.
 - The device password is set by the human in `ROKU_PASSWORD` or a gitignored `.env`. Run
