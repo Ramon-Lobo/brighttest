@@ -160,4 +160,9 @@ describe('census honours bsconfig rootDir', () => {
     expect(c.skipped.some((x) => x.file === 'source/.env/' && /secret-named/.test(x.reason))).toBe(true)
     expect(c.counts.brsFiles).toBe(1)
   })
+  it('a build.pkg folder is walked, only .env* folders are skipped', async () => {
+    const d = mk('pkg-dir'); put(d, 'manifest', 'title=x\n'); put(d, 'components/Home.xml', SCENE); put(d, 'components/Home.brs', BRS)
+    put(d, 'source/build.pkg/A.brs', BRS)
+    expect((await census(d)).counts.brsFiles).toBe(2)
+  })
 })

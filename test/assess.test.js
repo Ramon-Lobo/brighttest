@@ -698,7 +698,6 @@ describe('ADOPT-29 census error redaction', () => {
 
 describe('ADOPT-27 follow-ups: safe reads in assess', () => {
   const { execFileSync, spawnSync } = require('node:child_process')
-  const fifoIt = process.platform === 'win32' ? test.skip : test
   const mkTmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'bt-a27-'))
   test('-c <FIFO> returns a usage error instead of hanging (child process, kill timer)', () => {
     if (process.platform === 'win32') return
@@ -736,6 +735,30 @@ describe('ADOPT-27 follow-ups: safe reads in assess', () => {
       spy.mockRestore()
       expect(opened).toEqual([])
       expect(JSON.stringify(j)).not.toContain('hunter2')
+    } finally { fs.rmSync(d, { recursive: true, force: true }) }
+  })
+  test('a FIFO at node_modules/brs-node/package.json does not hang assess', () => {
+    if (process.platform === 'win32') return
+    const d = mkTmp()
+    try {
+      fs.mkdirSync(path.join(d, 'node_modules', 'brs-node'), { recursive: true })
+      execFileSync('mkfifo', [path.join(d, 'node_modules', 'brs-node', 'package.json')])
+      const script = `require(${JSON.stringify(path.join(ROOT, 'lib', 'assess'))}).run([${JSON.stringify(d)},'--json'],{stdout(){},stderr(){}}).then((c)=>process.stdout.write('CODE'+c))`
+      const r = spawnSync(process.execPath, ['-e', script], { encoding: 'utf8', timeout: 20000, killSignal: 'SIGKILL' })
+      expect(r.error).toBeUndefined()
+      expect(r.stdout).toContain('CODE0')
+    } finally { fs.rmSync(d, { recursive: true, force: true }) }
+  })
+  test('a .env-named folder in source/ is a guard blocker; a build.pkg folder is not skipped', async () => {
+    const d = mkTmp()
+    try {
+      fs.mkdirSync(path.join(d, 'source', '.env'), { recursive: true }); fs.mkdirSync(path.join(d, 'source', 'build.pkg'), { recursive: true })
+      fs.writeFileSync(path.join(d, 'manifest'), 'title=x\n')
+      fs.writeFileSync(path.join(d, 'source', 'main.brs'), 'sub main()\nend sub\n')
+      fs.writeFileSync(path.join(d, 'source', 'build.pkg', 'a.brs'), 'sub a()\nend sub\n')
+      const j = await json(d)
+      expect(String(j.census.error || '')).toContain('.env')
+      expect(j.scans.risky.files).toBeGreaterThanOrEqual(2)
     } finally { fs.rmSync(d, { recursive: true, force: true }) }
   })
 })
