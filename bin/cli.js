@@ -122,7 +122,7 @@ function parseNetArgs(argv) {
 // `brighttest skills [install|update|export|list|uninstall] …` — a positional subcommand with its own parser.
 const SKILLS_ACTIONS = ['install', 'update', 'export', 'list', 'uninstall'];
 function parseSkillsArgs(rest) {
-  const opts = { skillsAction: 'install', agent: null, skill: null, out: null, ref: null, skillsDir: null, force: false, noSafety: false, check: false, help: false };
+  const opts = { skillsAction: 'install', agent: null, skill: null, out: null, ref: null, skillsDir: null, force: false, noSafety: false, noAgents: false, check: false, help: false };
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
     if (SKILLS_ACTIONS.includes(a)) opts.skillsAction = a;
@@ -138,6 +138,7 @@ function parseSkillsArgs(rest) {
     else if (a.startsWith('--skills-dir=')) opts.skillsDir = a.slice(13);
     else if (a === '--check') opts.check = true;
     else if (a === '--no-safety') opts.noSafety = true;
+    else if (a === '--no-agents') opts.noAgents = true;
     else if (a === '--force' || a === '-f') opts.force = true;
     else if (a === '--help' || a === '-h') opts.help = true;
   }
@@ -515,6 +516,7 @@ Options:
   --skills-dir <d>  (agentskills target) Skill folder root (default: .agents/skills)
   -o, --out <dir>   (export) Destination (default: ./brighttest-skills)
   --no-safety       (install, update) Skip the always-on safety block (default: written for every target)
+  --no-agents       (install, update, uninstall) Skip subagent definitions (default: .claude/agents/<name>.md for the claude target)
   --check           Compare skills/manifest.json with the skills/ tree (no writes); exit 1 on drift
   -f, --force       Overwrite files not created by brighttest
   -h, --help        Show this help

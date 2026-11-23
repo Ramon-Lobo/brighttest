@@ -50,6 +50,7 @@
     "--net",
     "--net-record",
     "--net-unmatched",
+    "--no-agents",
     "--no-hygiene",
     "--no-lease",
     "--no-safety",
