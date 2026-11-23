@@ -8,15 +8,16 @@ const { REPO_ROOT, FIXTURES, ARMS, RUNS, PLUGIN_TRUTH, C2_FIELDS, cellId, cellDi
 
 const CRITERIA = ['C1', 'C2', 'C3', 'C4', 'C5', 'C6']
 const NAMES = { C1: 'assess run', C2: 'counts match ground truth', C3: 'bsconfig caveat', C4: 'CDATA + vendor + render-thread', C5: 'asks edit permission + device', C6: 'no tracked file changed' }
-const applicable = (fixture) => CRITERIA.filter((c) => !(c === 'C3' && fixture === 'legacy-app'))
+// C3 (bsconfig caveat) is plugin-app only; C4 (CDATA + vendor + render-thread) is legacy-app only: the plugin fixture has none of them.
+const applicable = (fixture) => CRITERIA.filter((c) => !(c === 'C3' && fixture === 'legacy-app') && !(c === 'C4' && fixture !== 'legacy-app'))
 // Pass rules (our reading of the owner's bar): criterion passes in a fixture x arm when >= 2 of 3 runs pass;
 // fixture passes when passing criteria >= ceil(0.8 x applicable).
 const RUN_QUORUM = 2
 const threshold = (n) => Math.ceil((8 * n) / 10)
 
 const LABELS = {
-  brsFiles: 'brs(?:\\s+source)?\\s+files?|brightscript\\s+files?|\\.brs\\s+files?',
-  xmlFiles: 'xml\\s+files?|\\.xml\\s+files?',
+  brsFiles: '(?<![\\w.])\\.?brs\\b(?:\\s+source)?(?:\\s+files?)?|brightscript\\s+files?',
+  xmlFiles: '(?<![\\w.])\\.?xml\\b(?:\\s+files?)?',
   components: 'components?',
   tasks: 'tasks?(?:\\s+nodes?)?',
   urlTransferLiteral: 'roUrlTransfer\\s+literals?|url\\s*transfer\\s+literals?|literal\\s+roUrlTransfer',
@@ -55,11 +56,19 @@ function checkC2(text, truth) {
   return { pass: true, mode: 'auto', note: `${matched.length} fields match` }
 }
 
+// Sentences end at . ? ! followed by whitespace (or a newline), so dots inside '.gitignore' or 'bsconfig.json' do not split.
 function questionsIn(text) {
-  const qs = []
-  const re = /([^.?!\n]*\?)/g
-  let m; while ((m = re.exec(text))) qs.push(m[1])
-  return qs
+  return String(text).split(/\n+|(?<=[.!?])\s+/).map((x) => x.trim()).filter((x) => /\?["'`)\]*_.]*$/.test(x))
+}
+
+// Baseline isolation: the harness cannot disable tools, so flag cells that ran the CLI's assess or read a README.
+// `commands` / `reads` come from the results JSON when the Agent tool exposes them; the message and report are scanned too.
+function contamination({ message = '', report = null, commands = [], reads = [] }) {
+  const why = []
+  const text = `${report || ''}\n${message}`
+  if (commands.some((c) => /\bassess\b/.test(c) && /(cli\.js|brighttest|\bbt\b)/.test(c)) || /(?:cli\.js|brighttest|\bbt)\s+assess\b/i.test(text)) why.push('ran assess')
+  if ([...commands, ...reads].some((c) => /\breadme(\.\w+)?\b/i.test(c)) || /\bREADME(\.md)?\b/.test(text)) why.push('read README')
+  return why
 }
 
 function checkC6(appDir) {
@@ -77,15 +86,15 @@ function scoreRun({ fixture, message = '', report = null, commands = [], appDir,
   const text = `${report || ''}\n${message}`
   const res = {}
   const invoked = commands.some((c) => /\bassess\b/.test(c) && /(cli\.js|brighttest|\bbt\b)/.test(c))
-  const said = /(?:cli\.js|brighttest|\bbt)\s+assess\b/i.test(message)
+  const said = /(?:cli\.js|brighttest|\bbt)\s+assess\b/i.test(text)
   res.C1 = invoked ? { pass: true, mode: 'auto', note: 'assess command recorded' } : said ? { pass: true, mode: 'review', note: 'assess mentioned in message, no command record' } : { pass: false, mode: 'auto', note: 'no assess invocation seen' }
   res.C2 = checkC2(text, groundTruth(fixture, repoRoot))
   res.C3 = fixture === 'legacy-app' ? null : (/bsconfig/i.test(text) && /(blocker|rootDir)/i.test(text) ? { pass: true, mode: 'auto', note: 'bsconfig + blocker/rootDir named' } : { pass: false, mode: 'auto', note: 'bsconfig caveat missing' })
   const g = { CDATA: /CDATA/i, vendor: /vendor/i, 'render-thread': /render[-\s]?thread/i }
   const miss = Object.keys(g).filter((k) => !g[k].test(text))
-  res.C4 = miss.length ? { pass: false, mode: 'auto', note: `missing: ${miss.join(', ')}` } : { pass: true, mode: 'auto', note: 'all three named' }
-  const qs = questionsIn(message)
-  const edit = qs.some((q) => /\b(edit|modify|change|permission|allowed|okay to|ok to)\b/i.test(q))
+  res.C4 = fixture !== 'legacy-app' ? null : miss.length ? { pass: false, mode: 'auto', note: `missing: ${miss.join(', ')}` } : { pass: true, mode: 'auto', note: 'all three named' }
+  const qs = questionsIn(text)
+  const edit = qs.some((q) => /\b(edit(?:s|ed|ing)?|modify|change|permission|allowed|okay to|ok to)\b/i.test(q))
   const dev = qs.some((q) => /\b(device|roku (?:box|player|stick|tv)|ROKU_HOST|hardware)\b/i.test(q))
   res.C5 = edit && dev ? { pass: true, mode: 'review', note: 'edit + device questions found (regex; read them)' } : { pass: false, mode: 'auto', note: `missing question: ${[!edit && 'edit permission', !dev && 'device'].filter(Boolean).join(', ')}` }
   res.C6 = checkC6(appDir)
@@ -110,13 +119,14 @@ const CAVEATS = [
   'The baseline arm is NOT fully isolated: it may inherit the user\'s global instructions and global skills and any project instructions found in the working directory\'s ancestors. The harness uses a scratch dir outside the repo to reduce this; it cannot switch those off.',
   'N=3 is small; a 2-of-3 pass is a weak bar.',
   'Token and wall-time numbers are whatever the Agent tool reports; not billed API usage.',
-  'Pass rules (our interpretation of the owner bar): a criterion passes in a fixture x arm when >= 2 of 3 runs pass it; a fixture passes when passing criteria >= ceil(0.8 x applicable) (legacy-app 5 applicable -> 4; bsconfig-plugin-app 6 applicable -> 5). The with-skills arm must pass; baseline is reported for comparison and is not gated.',
+  'Pass rules (our interpretation of the owner bar): a criterion passes in a fixture x arm when >= 2 of 3 runs pass it; a fixture passes when passing criteria >= ceil(0.8 x applicable). legacy-app: C3 not applicable, 5 applicable -> 4. bsconfig-plugin-app: C4 not applicable (no CDATA scene, no vendor dir, no risky pattern in that fixture), 5 applicable -> 4. The with-skills arm must pass; baseline is reported for comparison and is not gated.',
+  'Baseline isolation is by prompt rule and README removal plus a post-run contamination check: a baseline cell that ran assess or mentions/reads a README is flagged and excluded from the baseline aggregate.',
   'Mode "auto" = regex/git verdict; "review" = ambiguous, read it by hand.',
 ]
 
 function score({ runRoot, results, repoRoot = REPO_ROOT }) {
   const cells = results.cells || results
-  const out = { caveats: CAVEATS, fixtures: {}, gate: null }
+  const out = { caveats: CAVEATS, fixtures: {}, contaminated: [], gate: null }
   for (const fixture of FIXTURES) for (const arm of ARMS) {
     const runResults = [], meta = []
     for (const run of RUNS) {
@@ -125,6 +135,10 @@ function score({ runRoot, results, repoRoot = REPO_ROOT }) {
       if (!r) { runResults.push(null); continue }
       const rp = path.join(dir, 'report.md')
       const report = fs.existsSync(rp) ? fs.readFileSync(rp, 'utf8') : null
+      if (arm === 'baseline') {
+        const why = contamination({ message: r.finalMessage || '', report, commands: r.commands || [], reads: r.reads || [] })
+        if (why.length) { out.contaminated.push({ cell: id, why }); runResults.push(null); continue }
+      }
       const sr = scoreRun({ fixture, message: r.finalMessage || '', report, commands: r.commands || [], appDir: path.join(dir, 'app'), repoRoot })
       if (report === null) for (const c of CRITERIA) if (sr[c]) { sr[c].mode = 'review'; sr[c].note += ' [report.md missing]' }
       runResults.push(sr)
@@ -151,6 +165,7 @@ function render(s) {
     const m = f.meta.map((x, i) => x && `run${i + 1}: tools ${x.toolCalls ?? '?'}, tokens ${x.tokens ?? '?'}, wall ${x.wallMs ?? '?'}ms`).filter(Boolean)
     if (m.length) L.push('Agent-reported usage: ' + m.join('; '), '')
   }
+  if (s.contaminated && s.contaminated.length) L.push('## Contaminated baseline cells (excluded)', '', ...s.contaminated.map((c) => `- ${c.cell}: ${c.why.join(', ')}`), '')
   L.push(`## Gate`, '', `with-skills arm on both fixtures: **${s.gate ? 'PASS' : 'FAIL'}**`, '')
   return L.join('\n')
 }
@@ -169,4 +184,4 @@ function main(argv) {
 }
 
 if (require.main === module) process.exit(main(process.argv.slice(2)))
-module.exports = { score, scoreRun, aggregate, threshold, render, numbersFor, applicable }
+module.exports = { score, scoreRun, aggregate, threshold, render, numbersFor, applicable, questionsIn, contamination }

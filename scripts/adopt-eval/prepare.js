@@ -30,7 +30,8 @@ function prepare({ runRoot = DEFAULT_RUN_ROOT, clean = false, repoRoot = REPO_RO
     const dir = cellDir(runRoot, fixture, arm, run)
     const app = path.join(dir, 'app')
     fs.mkdirSync(dir, { recursive: true })
-    fs.cpSync(path.join(repoRoot, 'examples', fixture), app, { recursive: true, filter: (s) => !HIDDEN.has(path.basename(s)) })
+    // The fixture README describes the tool; baseline cells must not be able to read it, so it is left out of baseline copies.
+    fs.cpSync(path.join(repoRoot, 'examples', fixture), app, { recursive: true, filter: (s) => !HIDDEN.has(path.basename(s)) && !(arm === 'baseline' && /^readme(\.|$)/i.test(path.basename(s)) && path.dirname(s) === path.join(repoRoot, 'examples', fixture)) })
     git(app, ['init', '-q'])
     git(app, ['add', '-A'])
     git(app, ['commit', '-q', '-m', 'fixture baseline'])

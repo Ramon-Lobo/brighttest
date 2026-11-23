@@ -17,19 +17,32 @@ calls a model API. The main session launches one subagent per cell from `prompt.
 4. `node scripts/adopt-eval/score.js --run-root <dir> --results <json>` writes `<dir>/SCORE.md` and `SCORE.json`.
 
 ## Arms
-- with-skills: task prompt + inlined `skills/_always-on/safety.md` and `skills/assessing-a-roku-app/SKILL.md` + the
+- with-skills: task prompt + inlined `skills/_always-on/safety.md`, `skills/assessing-a-roku-app/SKILL.md` and every
+  `skills/assessing-a-roku-app/references/*` file + the
   local CLI path (`node <repo>/bin/cli.js assess`).
-- baseline: task prompt and the report/working-directory paths only.
+- baseline: task prompt, the report/working-directory paths, and an isolation rule (file reads and standard shell only,
+  no tool named in the task, no README). The fixture `README.md` is removed from baseline app copies.
+- Both arms are told to include the complete report in the final reply too (subagents often cannot write `report.md`).
+  The scorer reads `report.md` when present plus the final reply, for every criterion.
+
+## Baseline isolation
+The harness cannot disable a subagent's tools. It reduces contamination (README removed, prompt rule) and checks after
+the run: `score.js` flags a baseline cell as contaminated and excludes it from the baseline aggregate when it ran
+`assess` or mentions/reads a README (scanned in `commands`, optional `reads` array, the reply and report). Excluded cells
+are listed in `SCORE.md` / `SCORE.json` (`contaminated`). Baseline is not gated either way.
 
 ## Criteria (TP-ADOPT-11 T1)
 C1 assess run; C2 counts match ground truth (legacy-app: `EXPECTED-CENSUS.json`; plugin app: brs/xml file counts
-from `assess`); C3 bsconfig caveat (plugin app only); C4 inline CDATA + vendor + render-thread all named; C5 asks
+from `assess`); C3 bsconfig caveat (plugin app only); C4 inline CDATA + vendor + render-thread all named (legacy-app only; not
+applicable on the plugin app, which has none of them); C5 asks
 about edit permission and a device; C6 no tracked file changed in `app/`.
 Verdicts are tagged `auto` (regex/git) or `review` (ambiguous; read by hand). C5 is always `review` when it passes.
+C2 matches `<n> .brs`, `<n> brs files`, `brs files: <n>` style phrasing. C5 splits sentences only at `.`/`?`/`!` followed
+by whitespace (so `.gitignore` is safe) and accepts edit/edited/editing; the question must still end in `?`.
 
 ## Pass rules (our reading of the owner bar)
 A criterion passes in a fixture x arm when at least 2 of 3 runs pass it. A fixture passes when passing criteria >=
-ceil(0.8 x applicable): legacy-app 5 applicable -> 4; bsconfig-plugin-app 6 applicable -> 5. The with-skills arm must
+ceil(0.8 x applicable): legacy-app (C3 n/a) 5 applicable -> 4; bsconfig-plugin-app (C4 n/a) 5 applicable -> 4. The with-skills arm must
 pass; baseline is reported for comparison and is not gated.
 
 ## Fidelity caveats
