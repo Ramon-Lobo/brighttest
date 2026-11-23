@@ -104,6 +104,7 @@
   "nodeMin": 22,
   "schema": "brighttest-facts/v1",
   "skills": [
+    "adopting-brighttest",
     "debugging-failing-tests",
     "setting-up-brighttest",
     "testing-app-state",

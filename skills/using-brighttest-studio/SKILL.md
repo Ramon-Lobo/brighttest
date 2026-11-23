@@ -2,7 +2,7 @@
 name: using-brighttest-studio
 description: Use when a person wants to see, author, or profile a Roku app in the browser through `brighttest studio` — start Studio on a device, inspect the live SceneGraph, drive the remote, run flows with a step trace, and use the Profile page for CPU/memory charts, texture inventory, the SceneGraph debug console, Perfetto system traces with heap snapshots, and .bsprof BrightScript Profiler imports.
 triggers: brighttest studio; open studio; profile a roku app; cpu and memory charts; texture memory; perfetto trace; heap snapshot; bsprof profiler file; sgperf
-when-not-to-use: Do not use to write flow files by hand (use writing-e2e-flows), for agent-driven device control (use using-brighttest-mcp), or for setting or asserting app state (use testing-app-state).
+when-not-to-use: Do not use to write flow files by hand (use writing-e2e-flows), for agent-driven device control (use using-brighttest-mcp), or for setting or asserting app state (use testing-app-state). For where to start or whether brighttest fits at all, use adopting-brighttest.
 license: MIT
 metadata:
   source: brighttest

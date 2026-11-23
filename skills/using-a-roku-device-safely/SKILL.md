@@ -2,7 +2,7 @@
 name: using-a-roku-device-safely
 description: Use before any command that touches a real Roku. Covers the device lease (`device status`, `device with`, `device lock`), the lease exit codes 75, 77 and 78, `brighttest doctor`, ECP Permissive mode, the ports 8060, 80, 8085 and 8080, `--keepalive` and the stall at about 10 minutes, firmware quirks, how to handle the dev password, and what an agent must never do on a shared device.
 triggers: roku device lease; device with; device lock; device status; exit 75; ecp limited mode; keepalive; touch a real roku; device busy; device password
-when-not-to-use: Do not use for headless runs that never reach a device (use writing-rooibos-tests), or for the MCP tool list (use using-brighttest-mcp). It does not teach flow syntax (use writing-e2e-flows).
+when-not-to-use: Do not use for headless runs that never reach a device (use writing-rooibos-tests), or for the MCP tool list (use using-brighttest-mcp). It does not teach flow syntax (use writing-e2e-flows). For where to start or whether brighttest fits at all, use adopting-brighttest.
 license: MIT
 metadata:
   source: brighttest

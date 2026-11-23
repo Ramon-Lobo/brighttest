@@ -2,7 +2,7 @@
 name: testing-app-state
 description: Use when a brighttest flow needs to read, set, snapshot, restore, or assert an app's internal state (m.global, scene fields, registry values) — publishing state with __bt_state or the instrumented agent, the assertState matchers, the setState/snapshot/restore/callFunc/waitForAgent flow steps, the instrument.state config keys, and the typed STATE_* errors.
 triggers: assertState; setState step; snapshot and restore state; callFunc in a flow; waitForAgent; __bt_state; m.global in a flow; registry state in a test; STATE_ACK_TIMEOUT
-when-not-to-use: Do not use for the one-off `app_state` MCP tool call (use using-brighttest-mcp), for general flow syntax and selectors (use writing-e2e-flows), or for the Studio State tab layout (use using-brighttest-studio).
+when-not-to-use: Do not use for the one-off `app_state` MCP tool call (use using-brighttest-mcp), for general flow syntax and selectors (use writing-e2e-flows), or for the Studio State tab layout (use using-brighttest-studio). For where to start or whether brighttest fits at all, use adopting-brighttest.
 license: MIT
 metadata:
   source: brighttest
