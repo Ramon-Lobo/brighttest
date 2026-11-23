@@ -556,9 +556,15 @@ describe('ADOPT-26 (bsconfig rootDir and files are blockers)', () => {
     expect(r.recommendation.blockers.join('\n')).toMatch(/files list is not honored.*2 entries/)
   })
   test('files equal to the bsc defaults is not a blocker but a confirm', async () => {
-    const r = await withFiles(['manifest', 'source/**/*.*', 'components/**/*', 'images/**/*.*'])
+    const r = await withFiles(['manifest', 'source/**/*.*', 'components/**/*.*', 'images/**/*.*', 'locale/**/*', 'manifest'])
     expect(r.recommendation.blockers.join('\n')).not.toMatch(/files list/)
     expect(r.recommendation.unknowns.join('\n')).toMatch(/files list matches the bsc defaults: confirm/)
+  })
+  test('default list plus an extra entry or a looser glob is a blocker', async () => {
+    const r = await withFiles(['manifest', 'source/**/*.*', 'fonts/**/*'])
+    expect(r.recommendation.blockers.join('\n')).toMatch(/files list is not honored/)
+    const r2 = await withFiles(['manifest', 'source/**'])
+    expect(r2.recommendation.blockers.join('\n')).toMatch(/files list is not honored/)
   })
   test('rootDir with a newline is echoed escaped, not as a fake line', async () => {
     const d = fs.mkdtempSync(path.join(tmp, 'nl-'))
