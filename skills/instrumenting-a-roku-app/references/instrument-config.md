@@ -1,6 +1,6 @@
 # The instrument config
 
-Evidence: `docs/guide/instrument.md` (Configuration), `lib/config.js` (`mergedInstrumentExclude`, `INSTRUMENT_DEFAULTS`),
+Evidence: `docs/guide/instrument.md` (Configuration), `lib/config.js` (the exclude merge helper, `INSTRUMENT_DEFAULTS`),
 `lib/instrument/plugin.js` (`DEFAULT_EXCLUDE`) and `node bin/cli.js instrument --help`. Not device-verified.
 
 ## Where it lives
