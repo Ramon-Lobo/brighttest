@@ -19,10 +19,12 @@ it detects in the project, not what is installed.
 
 ```bash
 npx brighttest assess . --json
-npx brighttest assess . --out .brighttest/assess
+OUT="$(mktemp -d)/assess-out"
+npx brighttest assess . --out "$OUT"
 ```
 
-Read-only and offline. Without `--out` nothing is written. Exit 0 means a report was produced, even for a
+Read-only and offline. Without `--out` nothing is written. Write `--out` outside the app and outside any repo you
+would commit (as above); do not commit the output without the human's OK (`assessing-a-roku-app`). Exit 0 means a report was produced, even for a
 non-Roku directory (its path is `not-a-roku-app`); 2 is a usage error or a refused `--out`.
 Docs: `docs/guide/assess.md`; flags: `npx brighttest assess --help`.
 
