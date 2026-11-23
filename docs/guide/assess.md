@@ -54,7 +54,7 @@ alias. When `-c` points outside the project, `brighttest.config.file` is `null`,
 
 Host, project, bsconfig, manifest, engines, census, CI, `.gitignore`, devices, recommendation. In the JSON
 (`schema: "brighttest-assess/v1"`) these are `host`, `project` (including `bsconfig` and `manifestKeys`),
-`brighttest` (config and `engines`), `census`, `ci`, `gitignore`, `devices` and `recommendation`.
+`brighttest` (config and `engines`), `census`, `ci`, `gitignore`, `devices`, `secrets`, `risky` and `recommendation`.
 
 - `recommendation.path`: `not-a-roku-app` without a manifest; `greenfield` with a manifest, fewer than 5 components and
   no spec files; otherwise `brownfield`.
@@ -62,7 +62,20 @@ Host, project, bsconfig, manifest, engines, census, CI, `.gitignore`, devices, r
 - `recommendation.blockers` names things brighttest does not honor, such as bsconfig `plugins`.
 - `scan.treeHash` is a stable hash of the scanned file list (path, size and content hash), so you can check that a run
   changed nothing.
-- `scan` holds the file counts (`files`, `skippedSensitive`, `overCap`, `truncated`) and the `treeHash`; `scans` says which
-  scans did not run.
-- `secrets` and `risky` are always empty in this version and `scans` says `not-run`: the secret and risky-pattern scans
-  arrive in a later release. An empty list here does not mean the project is clean.
+- `scan` holds the file counts (`files`, `skippedSensitive`, `overCap`, `truncated`) and the `treeHash`. `scans` says
+  whether each scan ran and how many files it looked at: `{ secrets: { ran, files }, risky: { ran, files } }`.
+- `secrets` lists `{ file, line, key, kind }` and nothing else. Kinds: `assignment` (a sensitive key name such as
+  token, secret, password or api key set to a literal string; placeholders like `${VAR}` and empty values are ignored),
+  `bearer-literal`, `private-key` and `url-credentials` (these three have `key: null`). The value and the line text are
+  never read into the report, so the JSON and Markdown are safe to paste into an issue. The scan covers BrightScript,
+  BrighterScript, XML, `manifest`, `bsconfig*.json` and `brighttest*.json`.
+- `risky` lists `{ kind, file, line }` for these kinds: `eval` (an `Eval(` call), `roInput-unknown-keys` (`.getInfo()` in a
+  file that uses `roInput`), `render-thread-sync-http` (`GetToString`, `GetToFile`, `PostFromString` or `PostFromFile`
+  outside a Task script), `task-infinite-loop` (`while true` or `while 1` in a Task script), `logs-deeplink-params`
+  (`print` of `launchArgs`, `inputData`, `contentId`, `mediaType` or a `deeplink*` name) and `large-global` (more than 20
+  distinct `m.global` fields, reported once at the first). Comments and string contents are ignored. An empty list is not
+  proof that the project is clean; the patterns are a short, fixed list.
+- `--out <dir>` writes `assess.json`, `assess.md`, `census.json` and `census.md`. If the path is an existing file the
+  command exits 2 and writes nothing. Without `--out` nothing is written.
+- The 20,000-file cap is reported once: `scan.truncated` for the scan, and a single `census skipped` message when
+  `source/` and `components/` alone pass the cap.

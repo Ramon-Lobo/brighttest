@@ -151,8 +151,9 @@ describe('assess: --json shape (brighttest-assess/v1)', () => {
     expect(keys(r.ci)).toEqual(['nodeOk', 'nodeVersions', 'runsBrighttest', 'selfHosted', 'systems'])
     expect(keys(r.gitignore)).toEqual(['brighttest', 'coverage', 'env', 'instrumentedZip', 'present'])
     expect(keys(r.recommendation)).toEqual(['blockers', 'editPermission', 'nextSteps', 'path', 'unknowns'])
-    expect(r.secrets).toEqual([])
-    expect(r.scans.secrets).toMatch(/not-run/)
+    expect(Array.isArray(r.secrets)).toBe(true)
+    expect(r.scans.secrets.ran).toBe(true)
+    expect(r.scans.risky.ran).toBe(true)
     expect(JSON.stringify(r)).not.toContain(JSON.stringify(os.homedir()).slice(1, -1))
     expect(JSON.stringify(r)).not.toContain(os.homedir())
   })
@@ -331,5 +332,124 @@ describe('review fixes', () => {
   })
 })
 
-// Left to ADOPT-05b: TP-ADOPT-05 secret cases (secrets[] entries with key and line only, dummy values from the
-// legacy-app README never appear) and the risky-pattern scan.
+const SCANS = path.join(FIX, 'scans-app')
+const FAKE_VALUES = ['fake-token-value-0001', 'fake-secret-value-0002', 'fake-pass-0003', 'fake0123456789abcdefABCDEF']
+
+describe('ADOPT-05b secret scan', () => {
+  test('reports key names and file:line, never a value, in stdout, JSON or Markdown', async () => {
+    const out = path.join(tmp, 'out')
+    const j = await run([SCANS, '--json', '--out', out])
+    const h = await run([SCANS])
+    const rep = JSON.parse(j.out)
+    expect(rep.secrets).toEqual([
+      { file: 'source/Config.brs', line: 3, key: 'apiToken', kind: 'assignment' },
+      { file: 'source/Config.brs', line: 8, key: 'clientSecret', kind: 'assignment' },
+      { file: 'source/Config.brs', line: 9, key: null, kind: 'url-credentials' },
+      { file: 'source/Config.brs', line: 10, key: null, kind: 'bearer-literal' },
+    ])
+    for (const x of rep.secrets) expect(Object.keys(x).sort()).toEqual(['file', 'key', 'kind', 'line'])
+    const md = fs.readFileSync(path.join(out, 'assess.md'), 'utf8')
+    expect(md).toContain('source/Config.brs:3 apiToken (assignment)')
+    expect(h.out).toContain('source/Config.brs:3 apiToken')
+    const everything = [j.out, j.err, h.out, md, ...fs.readdirSync(out).map((f) => fs.readFileSync(path.join(out, f), 'utf8'))].join('\n')
+    for (const v of FAKE_VALUES) expect(everything).not.toContain(v)
+  })
+  test('placeholders, non-secret keys and comments are not findings', async () => {
+    fs.cpSync(SKELETON, tmp, { recursive: true })
+    fs.writeFileSync(path.join(tmp, 'source', 'ok.brs'), [
+      'a.password = "${PASSWORD}"', 'a.authType = "basic"', "' a.token = \"fake-commented-value\"x", 'a.token = ""', 'a.title = "Plain title"',
+    ].join('\n') + '\n')
+    const r = await json(tmp)
+    expect(r.secrets.filter((x) => x.line !== 4)).toEqual([{ file: 'source/ok.brs', line: 3, key: 'token', kind: 'assignment' }])
+    expect(r.secrets.length).toBe(1)
+  })
+  test('a private key block is reported without a key', async () => {
+    fs.cpSync(SKELETON, tmp, { recursive: true })
+    fs.writeFileSync(path.join(tmp, 'manifest'), fs.readFileSync(path.join(tmp, 'manifest'), 'utf8') + '# -----BEGIN RSA PRIVATE KEY-----\n')
+    expect((await json(tmp)).secrets.map((x) => x.kind)).toEqual(['private-key'])
+  })
+})
+
+describe('ADOPT-05b risky-pattern scan', () => {
+  const kindsFor = async (name, body, extra = {}) => {
+    const d = path.join(tmp, `p-${name}`)
+    fs.cpSync(SKELETON, d, { recursive: true })
+    fs.writeFileSync(path.join(d, 'source', 'probe.brs'), body + '\n')
+    for (const [f, c] of Object.entries(extra)) { fs.mkdirSync(path.dirname(path.join(d, f)), { recursive: true }); fs.writeFileSync(path.join(d, f), c) }
+    return (await json(d)).risky.filter((x) => x.file !== 'source/main.brs')
+  }
+  const cases = {
+    'eval': ['r = Eval("1+1")', 'r = evaluate(1)'],
+    'roInput-unknown-keys': ['p = CreateObject("roInput")\ni = e.getInfo()', 'i = e.getInfo()'],
+    'render-thread-sync-http': ['t = x.GetToString()', "' t = x.GetToString()"],
+    'logs-deeplink-params': ['print args.contentId', 'print "contentId"'],
+  }
+  for (const [kind, [pos, neg]] of Object.entries(cases)) {
+    test(`${kind}: one positive and one negative line`, async () => {
+      const hits = await kindsFor(`${kind}-pos`, pos)
+      expect(hits.filter((x) => x.kind === kind).length).toBe(1)
+      expect(hits.find((x) => x.kind === kind).file).toBe('source/probe.brs')
+      expect((await kindsFor(`${kind}-neg`, neg)).filter((x) => x.kind === kind)).toEqual([])
+    })
+  }
+  const task = { 'components/T.xml': '<component name="T" extends="Task"><script uri="pkg:/source/probe.brs"/></component>\n' }
+  test('task-infinite-loop: positive in a Task script, negative for a bounded loop or a non-Task script', async () => {
+    expect((await kindsFor('tl-pos', 'while true\nend while', task)).filter((x) => x.kind === 'task-infinite-loop')).toEqual([{ kind: 'task-infinite-loop', file: 'source/probe.brs', line: 1 }])
+    expect((await kindsFor('tl-neg', 'while i < 3\nend while', task)).filter((x) => x.kind === 'task-infinite-loop')).toEqual([])
+    expect((await kindsFor('tl-neg2', 'while true\nend while')).filter((x) => x.kind === 'task-infinite-loop')).toEqual([])
+  })
+  test('render-thread-sync-http is not reported inside a Task script', async () => {
+    expect((await kindsFor('rt-task', 'x.GetToString()', task)).filter((x) => x.kind === 'render-thread-sync-http')).toEqual([])
+  })
+  test(`large-global: more than ${assess.LARGE_GLOBAL_FIELDS} distinct fields is one finding at the first one`, async () => {
+    const mk = (n) => Array.from({ length: n }, (_, i) => `m.global.f${i} = ${i}`).join('\n')
+    expect((await kindsFor('lg-pos', mk(assess.LARGE_GLOBAL_FIELDS + 1))).filter((x) => x.kind === 'large-global')).toEqual([{ kind: 'large-global', file: 'source/probe.brs', line: 1 }])
+    expect((await kindsFor('lg-neg', mk(assess.LARGE_GLOBAL_FIELDS))).filter((x) => x.kind === 'large-global')).toEqual([])
+  })
+  test('fixture finds every kind once and the Markdown lists them with file:line', async () => {
+    const out = path.join(tmp, 'o')
+    const rep = JSON.parse((await run([SCANS, '--json', '--out', out])).out)
+    expect(rep.risky.map((x) => x.kind).sort()).toEqual(['eval', 'logs-deeplink-params', 'render-thread-sync-http', 'roInput-unknown-keys', 'task-infinite-loop'].sort())
+    const md = fs.readFileSync(path.join(out, 'assess.md'), 'utf8')
+    expect(md).toContain('## Risky patterns')
+    expect(md).toContain('source/main.brs:3 eval')
+  })
+})
+
+describe('ADOPT-05b follow-ups', () => {
+  test('the file cap is reported once, with its own wording', async () => {
+    fs.cpSync(SKELETON, tmp, { recursive: true })
+    fs.mkdirSync(path.join(tmp, 'components', 'a'), { recursive: true })
+    fs.mkdirSync(path.join(tmp, 'components', 'b'), { recursive: true })
+    for (let i = 0; i <= assess.MAX_FILES; i++) fs.writeFileSync(path.join(tmp, 'components', i % 2 ? 'a' : 'b', `f${i}.txt`), '')
+    const r = await json(tmp)
+    expect(r.census.error.match(/20,000/g).length).toBe(1)
+    expect(r.recommendation.blockers.filter((b) => /20,000/.test(b)).length).toBe(1)
+    expect(r.census.error).toMatch(/file cap reached/)
+    expect(r.project.files.truncated).toBe(true)
+  }, 60000)
+  test('--out on an existing file, or under one, is a usage error (exit 2)', async () => {
+    fs.cpSync(SKELETON, path.join(tmp, 'app'), { recursive: true })
+    const f = path.join(tmp, 'file.txt')
+    fs.writeFileSync(f, 'keep')
+    for (const target of [f, path.join(f, 'sub')]) {
+      const r = await run([path.join(tmp, 'app'), '--out', target])
+      expect(r.code).toBe(2)
+      expect(r.err).toMatch(/--out/)
+    }
+    expect(fs.readFileSync(f, 'utf8')).toBe('keep')
+  })
+  test('without --out nothing is written and the Markdown is not produced', async () => {
+    const before = hashTree(SCANS)
+    await run([SCANS])
+    expect(hashTree(SCANS)).toBe(before)
+  })
+  test('an empty directory is not-a-roku-app', async () => {
+    fs.mkdirSync(path.join(tmp, 'empty'))
+    expect((await json(path.join(tmp, 'empty'))).recommendation.path).toBe('not-a-roku-app')
+  })
+})
+
+// TP-ADOPT-05 coverage: covered here are exit 0, no network or subprocess (spies), tree unchanged without --out, no
+// secret value found (fixture values, .env probe-0001, devices cache), and secrets[] entries with key and line.
+// Left out: the NODE_OPTIONS block-net.js preload run and the legacy-app README dummy values grep (pack-run steps).
