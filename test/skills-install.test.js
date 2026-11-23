@@ -100,11 +100,61 @@ describe('always-on safety block (ADOPT-06)', () => {
     expect(out).toMatch(/safety block was not touched/)
   })
 
-  test('a malformed block (BEGIN without END) is skipped, not clobbered', async () => {
-    put('CLAUDE.md', `x\n${BEGIN}\nhalf\n`)
-    await go('install', { agent: 'claude' })
-    expect(read('CLAUDE.md')).toBe(`x\n${BEGIN}\nhalf\n`)
-    expect(out).toMatch(/malformed/)
+  test.each([
+    ['BEGIN without END', `x\n${BEGIN}\nhalf\n`],
+    ['END without BEGIN', `x\n${END}\n`],
+    ['END before BEGIN', `${END}\nx\n${BEGIN}\n`],
+    ['duplicate blocks', `${BEGIN}\na\n${END}\n${BEGIN}\nb\n${END}\n`],
+  ])('malformed block (%s): failed with the file name, file untouched, no TypeError', async (_n, body) => {
+    put('CLAUDE.md', body)
+    expect(await go('install', { agent: 'claude' })).toBe(1)
+    expect(read('CLAUDE.md')).toBe(body)
+    expect(out).toMatch(/CLAUDE\.md: managed block .* is malformed/)
+    expect(out).not.toMatch(/TypeError/)
+    out = ''
+    const spy = vi.spyOn(process.stdout, 'write').mockImplementation((s) => { out += s; return true })
+    await run(null, { skillsAction: 'uninstall', cwd, agent: 'claude' }); spy.mockRestore()
+    expect(read('CLAUDE.md')).toBe(body)
+    expect(out).toMatch(/failed/)
+  })
+
+  test('markers inside a code fence are not our block', async () => {
+    const user = '# Docs\n\n```md\n' + BEGIN + '\nexample\n' + END + '\n```\n'
+    put('AGENTS.md', user)
+    await go('install', { agent: 'agents' })
+    expect(read('AGENTS.md').startsWith(user + '\n' + BEGIN)).toBe(true)
+    await go('uninstall', { agent: 'agents' })
+    expect(read('AGENTS.md')).toBe(user)
+  })
+
+  test('uninstall restores the exact original bytes (no trailing newline, trailing blanks, CRLF)', async () => {
+    for (const orig of ['keep', 'keep\n', 'keep\n\n\n', 'a\r\nb', 'a\r\nb\r\n']) {
+      put('AGENTS.md', orig)
+      await go('install', { agent: 'agents' })
+      await go('uninstall', { agent: 'agents' })
+      expect(read('AGENTS.md'), JSON.stringify(orig)).toBe(orig)
+    }
+  })
+
+  test('a symlinked target that resolves outside the project is refused', async () => {
+    if (process.platform === 'win32') return
+    const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-skills-out-'))
+    try {
+      fs.writeFileSync(path.join(outside, 'real.md'), 'outside\n')
+      fs.symlinkSync(path.join(outside, 'real.md'), p('CLAUDE.md'))
+      expect(await go('install', { agent: 'claude' })).toBe(1)
+      expect(out).toMatch(/symlink that resolves outside the project/)
+      expect(fs.readFileSync(path.join(outside, 'real.md'), 'utf8')).toBe('outside\n')
+    } finally { fs.rmSync(outside, { recursive: true, force: true }) }
+  })
+
+  test('writes keep the file mode and leave no temp files', async () => {
+    if (process.platform === 'win32') return
+    put('AGENTS.md', 'x\n')
+    fs.chmodSync(p('AGENTS.md'), 0o640)
+    await go('install', { agent: 'agents' })
+    expect(fs.statSync(p('AGENTS.md')).mode & 0o777).toBe(0o640)
+    expect(fs.readdirSync(cwd).filter((f) => f.includes('bt-tmp'))).toEqual([])
   })
 })
 
@@ -152,6 +202,15 @@ describe('migration (ADOPT-06)', () => {
     expect((out.match(/migrated/g) || []).length).toBeGreaterThanOrEqual(2)
   })
 
+  test('install --skill X migrates only X; other legacy blocks stay', async () => {
+    put('AGENTS.md', `${legacy('writing-rooibos-tests')}\n${legacy('testing-app-state')}`)
+    await go('install', { agent: 'agents', skill: 'writing-rooibos-tests' })
+    const cur = read('AGENTS.md')
+    expect(cur).not.toContain('BEGIN brighttest:writing-rooibos-tests')
+    expect(cur).toContain('BEGIN brighttest:testing-app-state')
+    expect(cur).toContain('old body')
+  })
+
   test('cursor flattened file with our marker is removed; a user file of the same name is kept', async () => {
     put('.cursor/rules/writing-rooibos-tests.mdc', '---\n---\n<!-- brighttest skills:writing-rooibos-tests v0.1.0 — x -->\nold\n')
     put('.cursor/rules/testing-app-state.mdc', 'my own rule, no marker\n')
@@ -173,15 +232,15 @@ describe('migration (ADOPT-06)', () => {
 })
 
 describe('uninstall (ADOPT-06)', () => {
-  test('removes block and index, keeps user content; deletes a file that held only the block', async () => {
+  test('removes block and index, keeps user content; a file left empty is kept', async () => {
     put('AGENTS.md', '# Mine\n\nkeep\n')
     put('CLAUDE.md', '')
     await go('install', { agent: 'agents' })
     await go('install', { agent: 'claude' })
     await go('uninstall', { agent: 'agents' })
-    expect(read('AGENTS.md')).toBe('# Mine\n\nkeep\n'.replace(/\n$/, '') + '\n')
+    expect(read('AGENTS.md')).toBe('# Mine\n\nkeep\n')
     await go('uninstall', { agent: 'claude' })
-    expect(fs.existsSync(p('CLAUDE.md'))).toBe(false)
+    expect(read('CLAUDE.md')).toBe('')
     expect(fs.existsSync(p('.agents', 'skills', 'writing-e2e-flows'))).toBe(false)
   })
 
@@ -237,6 +296,68 @@ describe('update from an older ref (ADOPT-06)', () => {
     await go('update', { agent: 'claude', ref: 'new-tag' })
     expect(read('CLAUDE.md')).toContain('## remote rules v0.0.9')
     expect(read('CLAUDE.md')).toContain('- only-skill: A skill.')
+  })
+})
+
+describe('untrusted --ref manifest (ADOPT-06)', () => {
+  const SAFE = '## rules v<version>\nbe safe\n'
+  const remote = (skillsEntry, extra = {}, alwaysOn = { file: '_always-on/safety.md' }) => {
+    const files = { 'package.json': '{"version":"0.0.9"}', 'skills/_always-on/safety.md': SAFE,
+      'skills/ok/SKILL.md': '---\nname: ok\ndescription: d\n---\n# ok\n', ...extra }
+    const seen = []
+    vi.stubGlobal('fetch', async (url) => {
+      seen.push(url)
+      const key = Object.keys(files).find((k) => url.endsWith('/' + k))
+      if (url.endsWith('/skills/manifest.json')) return { ok: true, status: 200, text: async () => JSON.stringify({ schema: 'brighttest-skills/v2', skills: skillsEntry, alwaysOn }) }
+      return key ? { ok: true, status: 200, text: async () => files[key] } : { ok: true, status: 200, text: async () => 'PWNED' }
+    })
+    return seen
+  }
+  const okSkill = { name: 'ok', files: ['SKILL.md'] }
+  const bad = [
+    ['skill name with ..', [{ name: '../../escape', files: ['SKILL.md'] }]],
+    ['skill name with slash', [{ name: 'a/b', files: ['SKILL.md'] }]],
+    ['file with ..', [{ name: 'ok', files: ['SKILL.md', '../../../pwned.md'] }]],
+    ['absolute file', [{ name: 'ok', files: ['/etc/pwned.md'] }]],
+    ['backslash file', [{ name: 'ok', files: ['a\\b.md'] }]],
+    ['drive letter file', [{ name: 'ok', files: ['C:evil.md'] }]],
+    ['NUL file', [{ name: 'ok', files: ['a\u0000b.md'] }]],
+  ]
+  test.each(bad)('rejects %s before writing anything', async (_n, entries) => {
+    remote(entries)
+    expect(await go('update', { agent: 'claude', ref: 'x' })).toBe(1)
+    expect(fs.existsSync(p('.claude'))).toBe(false)
+    expect(fs.existsSync(p('CLAUDE.md'))).toBe(false)
+    expect(fs.existsSync(path.join(cwd, '..', 'pwned.md'))).toBe(false)
+  })
+  test('rejects alwaysOn.file other than _always-on/safety.md', async () => {
+    remote([okSkill], {}, { file: '../../other/repo/main/README.md' })
+    expect(await go('update', { agent: 'claude', ref: 'x' })).toBe(1)
+    expect(fs.existsSync(p('CLAUDE.md'))).toBe(false)
+  })
+  test.each([
+    ['END marker', '## r\n<!-- END brighttest -->\nmore\n'],
+    ['BEGIN marker', '<!-- BEGIN brighttest -->\n'],
+    ['over 45 lines', Array(46).fill('x').join('\n') + '\n'],
+    ['over 6 KB', 'x'.repeat(7000) + '\n'],
+  ])('rejects safety text with %s', async (_n, text) => {
+    remote([okSkill], { 'skills/_always-on/safety.md': text })
+    expect(await go('update', { agent: 'claude', ref: 'x' })).toBe(1)
+    expect(fs.existsSync(p('CLAUDE.md'))).toBe(false)
+    expect(fs.existsSync(p('.claude'))).toBe(false)
+  })
+  test('writer refuses a path outside the destination (defense in depth)', () => {
+    expect(() => skills.writeFilesTo(path.join(cwd, 'dest'), { '../x.md': 'a' })).toThrow(/outside/)
+    expect(() => skills.writeFilesTo(path.join(cwd, 'dest'), { 'sub/../../x.md': 'a' })).toThrow(/outside/)
+    expect(fs.existsSync(p('x.md'))).toBe(false)
+  })
+  test('uninstall rejects a --skill that is a path', async () => {
+    expect(await go('uninstall', { agent: 'claude', skill: '../x' })).toBe(1)
+  })
+  test('a good remote still installs', async () => {
+    remote([okSkill])
+    expect(await go('update', { agent: 'claude', ref: 'x' })).toBe(0)
+    expect(read('CLAUDE.md')).toContain('## rules v0.0.9')
   })
 })
 
