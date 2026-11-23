@@ -21,6 +21,7 @@ plus `references/`), and the content is authored once and adapted to whichever a
 | `using-a-roku-device-safely` | Before any command that touches a real Roku: the device lease, exit codes 75, 77 and 78, doctor, ECP Permissive, ports, keepalive and the 10-minute stall, secrets, and what an agent must never do. |
 | `using-brighttest-studio` | Using `brighttest studio` in the browser: live SceneGraph, remote, flow runs with a step trace, and the Profile page. |
 | `writing-e2e-flows` | Authoring/running on-device UI flows (`*.e2e.yaml`): the inspect → write → run workflow, steps, selectors (`id` not `testId`), focus navigation, `record`/`stamp`, multi-device sharding, and CI. |
+| `wiring-brighttest-into-ci` | Adding brighttest to GitHub Actions: the headless gate with JUnit and LCOV, the `instrument verify` release gate, the strict debug build, an opt-in device job on a self-hosted runner under the lease (exit 75), and the Windows status. |
 
 ## Install
 
