@@ -309,9 +309,38 @@ no second lease:
   A second session asking for the same device's hub in the same process is refused (`PEER_LOCKED`) and the first hub is
   not touched.
 - `brighttest doctor --host <ip>` adds a `hub-bind` check: it opens and closes a TCP listener on all interfaces. It
-  proves only that this machine can listen. It does **not** prove the device can reach the hub (a firewall or Wi-Fi
-  isolation can still block it); that is proved on a device with an instrumented build. The check line says so, and a
-  failed bind prints its own `fix:` line. The ECP fix texts are unchanged.
+  proves only that this machine can listen. A failed bind prints its own `fix:` line. The ECP fix texts are unchanged.
+
+By default doctor does **not** prove the device can reach the hub (a firewall or Wi-Fi isolation can still block it) and
+says so: `hub reach: not tested (set BRIGHTTEST_DOCTOR_HUB_PROBE=1 and ROKU_PASSWORD; replaces the dev channel)`.
+
+### Proving device-to-hub reach: `BRIGHTTEST_DOCTOR_HUB_PROBE=1`
+
+```
+export ROKU_PASSWORD=<dev password>
+BRIGHTTEST_DOCTOR_HUB_PROBE=1 brighttest doctor --host <ip>
+```
+
+This opt-in probe **replaces the app in the device's dev channel slot** with a tiny `brighttest hub probe` channel, reads
+`ROKU_PASSWORD`, and takes the device lease (re-entrant under `brighttest device with`). The probe channel asks this
+machine's LAN address on the hub port (8790) for a one-off URL, and a short-lived listener checks that the request came
+from the device. Afterwards doctor presses Home and prints `dev channel now holds the brighttest probe; re-sideload your
+app`. It uses the default port and the detected LAN address; `brighttest.json` is not read.
+
+The `hub reach` result is one of:
+
+| State | Meaning | Check and exit |
+|---|---|---|
+| `reached` | the device's request arrived | `hub-reach` passes |
+| `not-reached` | probe installed and running, no request arrived within 15 s | `hub-reach` fails with a `fix:` line, exit 1 |
+| `not-tested` | the probe did not run or could not finish | no check, exit unchanged |
+
+`not-tested` carries a reason (`--json`: `hub.reachReason`): `not-requested`, `device-unreachable`, `developer-disabled`,
+`no-password`, `port-busy` (something already listens on the hub port), `lease-busy`, `sideload-failed`. `--json` also
+carries `hub.reach` and `hub.reachProven` (true only for `reached`). The `not-reached` fix: allow inbound TCP on the hub
+port for node in the local firewall, keep this machine and the device on the same network without Wi-Fi client or guest
+isolation, make sure no VPN captures the LAN route, and set `instrument.hub.host` when the machine has several
+interfaces. Doctor never changes any of these settings.
 
 ### The hub token: `--net` and `BRIGHTTEST_HUB_TOKEN`
 

@@ -178,7 +178,7 @@ describe('doctor hub bind check', () => {
     await doctor.run({ host: '127.0.0.1', ecpPort: a.ecpPort, json: true }, deps)
     await stub.stop()
     const j = JSON.parse(out)
-    expect(j.hub).toEqual({ bindAddress: '0.0.0.0', port: 8790, advertisedHost: '192.0.2.7', reachProven: false })
+    expect(j.hub).toEqual({ bindAddress: '0.0.0.0', port: 8790, advertisedHost: '192.0.2.7', reach: 'not-tested', reachReason: 'not-requested', reachProven: false })
   })
   it('an unreachable device skips the bind check', async () => {
     let out = ''
