@@ -1,0 +1,6 @@
+title=Sample Plugin App
+major_version=1
+minor_version=0
+build_version=00001
+ui_resolutions=fhd
+bs_const=DEMO_FLAG=true

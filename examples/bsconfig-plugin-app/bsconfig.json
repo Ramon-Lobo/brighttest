@@ -1,0 +1,5 @@
+{
+  "rootDir": "src",
+  "files": ["manifest", "source/**/*.brs", "components/**/*.xml"],
+  "plugins": ["./plugins/noop-plugin.js"]
+}
