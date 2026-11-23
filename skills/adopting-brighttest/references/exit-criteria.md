@@ -1,8 +1,7 @@
 # Exit criteria: what "adopted" means
 
-Evidence: these criteria are this skill's definition, taken from `adoption-skills.md` exit criteria (section
-6.3 of the planning design) and the CLI behavior in `references/command-cheatsheet.md`. They are not enforced
-by any command. Not device-verified.
+Evidence: this checklist is this skill's own definition of "adopted", built on the CLI behavior in
+`references/command-cheatsheet.md`. No command enforces it. Not device-verified.
 
 ## The checklist
 
@@ -10,8 +9,9 @@ Mark each line done, not done, or not applicable, with the command you ran.
 
 1. Tool runs: `npx brighttest --version` prints a version.
 2. Config committed: `brighttest.json` exists and names the real sources and test pattern.
-3. Ignore entries: `.brighttest/` and `*.bt-instrumented.zip` are in `.gitignore`; no password or token in any
-   tracked file (`git status` and `git diff` show none).
+3. Ignore entries: `.brighttest/` and `*.bt-instrumented.zip` are in `.gitignore`; `git check-ignore .env`
+   prints `.env` before any password is written; no password or token in any tracked file (`git status` and
+   `git diff` show none).
 4. Green headless run: `npx brighttest --junit results.xml` exits 0, and you read the summary, not only the code.
    A zero-test run is not green: confirm the test count is above zero.
 5. A real guard: at least one spec or flow covers logic the app depends on (not only the scaffolded example).
