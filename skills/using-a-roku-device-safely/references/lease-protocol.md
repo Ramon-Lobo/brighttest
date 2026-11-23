@@ -36,19 +36,24 @@ Durations are `90s`, `10m`, `1h` or plain milliseconds.
 
 ## Several steps: a session lock
 
+Agent Bash tools usually reset shell state between calls, so a token kept in a variable is lost and the lock
+stays held until idle expiry. Do lock, steps and unlock in ONE shell invocation, with the unlock in a trap:
+
 ```bash
-TOKEN=$(npx brighttest device lock --host <device-ip> --as "$BRIGHTTEST_AGENT" --purpose "<task>")
+TOKEN=$(npx brighttest device lock --host <device-ip> --as "$BRIGHTTEST_AGENT" --purpose "<task>") || exit $?
+trap 'npx brighttest device unlock --lease "$TOKEN"' EXIT INT TERM
 npx brighttest device with --lease "$TOKEN" -- <command>
 npx brighttest device renew --lease "$TOKEN"
-npx brighttest device unlock --lease "$TOKEN"
 ```
+
+If the steps need separate calls, prefer `device with` per step instead of a session lock.
 
 - `device lock` queues like any command, presses Home twice, and prints the token on stdout.
 - No process owns a session. It ends on `device unlock`, after `--idle` (default 10 minutes) without use, or
   at `--max` (default 45 minutes). Each use of the token renews the idle time, never past `--max`.
 - A command carrying an expired or unlocked token exits 77 and does not run unlocked.
 - `device lock` on a device you already hold exits 2. Unlock first.
-- Hold the token in a shell variable only. Do not write it to a file or a log.
+- Keep the token in a variable inside that one invocation. Never write it to a file or a log.
 
 ## Exit codes
 

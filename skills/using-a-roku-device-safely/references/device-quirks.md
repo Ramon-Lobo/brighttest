@@ -1,5 +1,10 @@
 # Device quirks
 
+Evidence: documented in `docs/guide/troubleshooting.md`, `docs/guide/device-lease.md` and `docs/guide/instrument.md`;
+ports match `lib/device-hook.js`. Device-verified: only the stall and `Fwd` keepalive, on one lab device (firmware
+16.0.4.853); this is a single-device observation, not verified across devices or firmware. Everything else: not
+device-verified here.
+
 ## doctor: is the device ready?
 
 ```bash
@@ -26,7 +31,7 @@ Both are device settings. Tell the human; do not guess at other settings.
 | 8060 | ECP: keypresses, `query/*` | needs Permissive; default ECP port |
 | 80 | dev installer: sideload, `Delete` | needs the dev password (Digest auth) |
 | 8085 | BrightScript console, log capture | exactly one client; `ROKU_LOG_PORT` changes the console port |
-| 8080 | debug port | one client; see device-lease.md |
+| 8080 | debug port | one client (the debug ports 8080 and 8085 take one client each) |
 
 If capture fails with "Console connection is already in use", close the other client on 8085. Always use the
 device IP and the default ECP port: a host name or another ECP port gives the same device a second lease key.
@@ -37,7 +42,7 @@ A long run with no key presses stalls at about 10 minutes: timers stop and the r
 lease is valid. It is measured from the last input, not from launch. The device screensaver appears at about
 601 s with no input, the likely cause (not proven).
 
-Measured on one lab device (firmware 16.0.4.853) only: one host-side ECP `Fwd` keypress every 240 s kept the
+Single-device observation, not verified across devices or firmware. Measured on one lab device (firmware 16.0.4.853) only: one host-side ECP `Fwd` keypress every 240 s kept the
 app alive for 45 minutes. Other keys and intervals are untested.
 
 ```bash
