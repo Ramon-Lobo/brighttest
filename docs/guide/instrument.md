@@ -102,6 +102,8 @@ npx brighttest instrument census --json --out .brighttest/census   # JSON to std
 npx brighttest instrument census --config path/to/brighttest.json     # read that config file instead of ./brighttest.json
 ```
 
+A `brighttest.json` (or `--config` file) that is malformed, not a JSON object, or unreadable makes census exit 2 with a message on stderr; it is never treated as empty. `--config` with no value is a usage error (exit 2).
+
 A static scan of the app in the current directory (no device, no network, nothing in your tree is written unless
 `--out` is given): Scenes, Tasks, `m.global.addFields` keys, registry section literals, `setUrl` and `CreateObject`
 sites, and a "could not instrument" section. Inline-CDATA Scenes are reported only.

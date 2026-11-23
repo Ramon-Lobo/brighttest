@@ -35,7 +35,7 @@ describe('arg parsing', () => {
 
 describe('instrument verify (CLI)', () => {
   it('exit 0 on a clean directory', () => {
-    const d = mkdir('clean', { manifest: MANIFEST, 'source/main.brs': 'sub main()\n  x = CreateObject("roUrlTransfer")\nend sub\n' })
+    const d = mkdir('clean', { manifest: MANIFEST, 'source/main.brs': 'sub main()\nend sub\n' })
     const r = bt(tmp, ['instrument', 'verify', d])
     expect(r.status, r.stderr).toBe(0)
     expect(r.stdout).toMatch(/clean/)
@@ -73,7 +73,7 @@ describe('instrument census (CLI)', () => {
     return census(legacy).then((c) => expect(printed.counts).toEqual(c.counts))
   })
   it('prints markdown by default and writes nothing without --out', () => {
-    const d = mkdir('cen-md', { manifest: MANIFEST, 'source/main.brs': 'sub main()\n  x = CreateObject("roUrlTransfer")\nend sub\n' })
+    const d = mkdir('cen-md', { manifest: MANIFEST, 'source/main.brs': 'sub main()\nend sub\n' })
     const r = bt(d, ['instrument', 'census'])
     expect(r.status).toBe(0)
     expect(r.stdout).toMatch(/^# Instrumentation census/)
@@ -134,7 +134,7 @@ describe('census config handling (ADOPT-28)', () => {
     const dir = app('cfg-malformed', '{ not json')
     const r = bt(dir, ['instrument', 'census', '--json'])
     expect(r.status).not.toBe(0)
-    expect(r.stderr).toMatch(/brighttest\.json is not valid JSON/)
+    expect(r.stderr).toMatch(/could not parse brighttest\.json as JSON/)
     expect(r.stderr).not.toContain(dir)
     expect(r.stderr).not.toContain(os.homedir())
   })
@@ -147,6 +147,16 @@ describe('census config handling (ADOPT-28)', () => {
       expect(r.stderr).toContain(f)
       expect(r.stderr).not.toContain(dir)
     }
+  })
+  it('never echoes file content, and --config without a value is a usage error', () => {
+    const dir = app('cfg-secret', null)
+    fs.writeFileSync(path.join(dir, '.env'), 'API_SECRET=hunter2hunter2\n')
+    const r = bt(dir, ['instrument', 'census', '--config', '.env'])
+    expect(r.status).not.toBe(0)
+    expect(r.stderr).not.toMatch(/API_SECRET|hunter2|API_/)
+    const m = bt(dir, ['instrument', 'census', '--config'])
+    expect(m.status).toBe(2)
+    expect(m.stderr).toMatch(/--config \(needs a value\)/)
   })
   it('no brighttest.json still uses defaults', () => {
     expect(bt(app('cfg-none', null), ['instrument', 'census', '--json']).status).toBe(0)

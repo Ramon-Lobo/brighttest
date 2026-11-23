@@ -158,7 +158,7 @@ function parseInstrumentArgs(rest) {
     else if (a === '--strict') o.strict = true;
     else if (a === '--no-strict') o.strict = false;
     else if (a === '--verbose') o.verbose = true;
-    else if (a === '--config' || a === '-c') o.config = rest[++i];
+    else if (a === '--config' || a === '-c') { o.config = rest[++i]; if (o.config === undefined) o.unknown.push(`${a} (needs a value)`); }
     else if (a.startsWith('--config=')) o.config = a.slice(9);
     else if (a === '--sideload') o.sideload = true;
     else if (a === '--net') o.net = true;
