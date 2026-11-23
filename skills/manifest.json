@@ -12,6 +12,15 @@
       ]
     },
     {
+      "name": "assessing-a-roku-app",
+      "files": [
+        "SKILL.md",
+        "references/assessment-template.md",
+        "references/reading-assess-output.md",
+        "references/risky-patterns.md"
+      ]
+    },
+    {
       "name": "debugging-failing-tests",
       "files": [
         "SKILL.md"

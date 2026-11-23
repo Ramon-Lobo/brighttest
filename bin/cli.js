@@ -519,7 +519,7 @@ Options:
   -f, --force       Overwrite files not created by brighttest
   -h, --help        Show this help
 
-Skills (Agent Skills / agentskills.io format): adopting-brighttest, debugging-failing-tests, setting-up-brighttest, testing-app-state, using-a-roku-device-safely,
+Skills (Agent Skills / agentskills.io format): adopting-brighttest, assessing-a-roku-app, debugging-failing-tests, setting-up-brighttest, testing-app-state, using-a-roku-device-safely,
   using-brighttest-mcp, using-brighttest-studio, writing-e2e-flows, writing-rooibos-tests.
 
 Auto-detection (no --agent) writes to whichever the project already uses: .claude/ or CLAUDE.md, .cursor/,
