@@ -46,8 +46,9 @@ census, never opens those files, sets `census.error` with the reason and adds a 
 folders to get a census.
 
 Census errors can carry absolute paths, for example a missing-module require stack. Assess redacts them in the blocker,
-the Markdown and text reports and the JSON: the project root and your home directory become `<path>`, and any other
-absolute path becomes `<path>/<file name>`. The file name and the error message stay.
+the Markdown and text reports and the JSON. A path inside the project root keeps its folders relative to the root
+(`<path>/components/A.brs`); any other absolute path, including anything under your home directory or a Windows
+network path, becomes `<path>/<file name>`. The file name and the error message stay.
 
 Symlinks are skipped, not followed. Only the root `.gitignore` is opened; nested ones are listed but never read. `certs/` folders are skipped in any letter case. `--out` is checked on real paths
 (symlinks resolved, case-insensitive on macOS and Windows), so it cannot point into `source/` or `components/` by an
