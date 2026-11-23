@@ -60,3 +60,25 @@ describe('skills --check (AGT-03)', () => {
     expect(check(path.join(__dirname, '..', 'skills'), sink(), sink())).toBe(0);
   })
 })
+
+describe('shipped text matches the code (ADOPT-02)', () => {
+  const repo = path.join(__dirname, '..')
+  const manifestNames = JSON.parse(fs.readFileSync(path.join(repo, 'skills', 'manifest.json'), 'utf8')).skills.map(s => s.name)
+
+  test('help lists every manifest skill', () => {
+    const { execFileSync } = require('node:child_process')
+    const help = execFileSync(process.execPath, [path.join(repo, 'bin', 'cli.js'), 'skills', '--help'], { encoding: 'utf8' })
+    for (const n of manifestNames) expect(help).toContain(n)
+    const doc = fs.readFileSync(path.join(repo, 'docs', 'guide', 'agent-skills.md'), 'utf8')
+    const rows = [...doc.split('## The skills')[1].split('## Install')[0].matchAll(/^\| `([a-z0-9-]+)` \|/gm)].map(m => m[1])
+    expect(rows.sort()).toEqual([...manifestNames].sort())
+  })
+
+  test('no stale Node 18 / node-version 20 / group-writable text in shipped files', () => {
+    const files = ['skills/setting-up-brighttest/SKILL.md', 'docs/guide/ci.md', 'docs/guide/ci-device-shelf.md', 'docs/guide/agent-skills.md', 'lib/skills.js', 'README.md']
+    for (const f of files) {
+      const t = fs.readFileSync(path.join(repo, f), 'utf8')
+      expect(t, f).not.toMatch(/Node(\.js)? ?18|node-version: '20'|group-writable/)
+    }
+  })
+})

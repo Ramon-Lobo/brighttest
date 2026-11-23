@@ -20,7 +20,7 @@ headless **with coverage**, or **on a device**. This skill covers getting a proj
 npm i -D brighttest
 ```
 
-Node 18+. This brings its own toolchain (BrighterScript, Rooibos, and a headless BrightScript interpreter)
+Node 22+. This brings its own toolchain (BrighterScript, Rooibos, and a headless BrightScript interpreter)
 — you don't install those separately.
 
 ## Where specs must live
@@ -101,7 +101,7 @@ Two-tier setup works well:
 - **Sharing the Roku with local users or agents:** device lanes take a per-device lease, so a CI job on the
   same machine (same OS user) queues behind them. Set `BRIGHTTEST_AGENT=ci:<run id>` and a longer
   `BRIGHTTEST_LEASE_WAIT` (e.g. `45m`); add `npx brighttest device status` before and after the device steps.
-  CI running as another OS user: point `BRIGHTTEST_LEASE_DIR` on both sides at one shared group-writable dir.
+  Leases across different OS users are not supported (the lease dir is private to its user); run CI as the same OS user.
   Use one CI concurrency group per device. Exit 75 = the device stayed busy; 77 = the lease was lost.
 
 ## Teaching your AI agent

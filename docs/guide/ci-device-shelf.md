@@ -29,7 +29,7 @@ Every brighttest device command takes the [device lease](/guide/device-lease) it
 | `BRIGHTTEST_AGENT` | Holder label shown in `brighttest device status`, for example `ci:<run id>` |
 | `BRIGHTTEST_LEASE_WAIT` | How long the run queues for a busy device (for example `45m`). A wait that times out exits 75 |
 
-If the runner is a different OS user from the people sharing the shelf, point `BRIGHTTEST_LEASE_DIR` at one shared, group-writable directory on both sides so they see the same leases.
+Leases across different OS users are not supported (the lease directory is private to its user); run the runner as the same OS user as the people sharing the shelf.
 
 ## Serializing runs: the `concurrency` group
 

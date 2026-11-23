@@ -37,7 +37,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
       - run: npm ci
       - run: npx brighttest --coverage --lcov coverage/lcov.info --junit reports/junit.xml
       - if: always()
@@ -68,7 +68,7 @@ matches real firmware via `--cross-check` (fails on any divergence). Gate it to 
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
       - run: npm ci
       - name: Confirm headless matches the device
         env:
@@ -98,9 +98,8 @@ If the self-hosted runner shares a Roku with developers or agents on the same ma
         if: always()
 ```
 
-For CI runs against each other, add `concurrency: { group: roku-device, cancel-in-progress: false }`. If
-the runner is another OS user on the same machine, point `BRIGHTTEST_LEASE_DIR` at one shared,
-group-writable directory on both sides. A wait that times out exits **75**.
+For CI runs against each other, add `concurrency: { group: roku-device, cancel-in-progress: false }`. Leases
+across different OS users are not supported; run CI as the same OS user. A wait that times out exits **75**.
 
 ## Recommended split
 

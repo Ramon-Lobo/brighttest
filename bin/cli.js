@@ -493,10 +493,10 @@ Usage:
 `;
 
 const SKILLS_HELP = `
-brighttest skills — install AI-agent skills for writing Rooibos tests
+brighttest skills — install AI-agent skills for working with brighttest
 
-  Ships a "writing-rooibos-tests" skill (authoring rules, pitfalls, limitations, examples)
-  that teaches AI coding agents how to write correct tests for this project.
+  Ships skills (authoring rules, setup, debugging, flows, state, MCP, Studio)
+  that teach AI coding agents how to use this project.
 
 Usage:
   brighttest skills install   [--agent <a>] [--skill <name>] [--force]   Install into detected agents
@@ -517,7 +517,8 @@ Options:
   -f, --force       Overwrite files not created by brighttest
   -h, --help        Show this help
 
-Skills (Agent Skills / agentskills.io format): writing-rooibos-tests, setting-up-brighttest, debugging-failing-tests, writing-e2e-flows.
+Skills (Agent Skills / agentskills.io format): debugging-failing-tests, setting-up-brighttest, testing-app-state,
+  using-brighttest-mcp, using-brighttest-studio, writing-e2e-flows, writing-rooibos-tests.
 
 Auto-detection (no --agent) writes to whichever the project already uses: .claude/, .cursor/, .windsurf/,
 .clinerules, .rules (Zed), .agents/ (agentskills), AGENTS.md/opencode, .github/ (Copilot). Shared files
