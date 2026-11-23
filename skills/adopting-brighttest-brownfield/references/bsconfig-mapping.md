@@ -42,7 +42,7 @@ The matching `brighttest.json`:
 under `src/`: where bsc looks for it under a `rootDir` was not checked, so verify with a build before you rely on it.
 Do not trust a green census alone: the census and the build are separate code paths.
 
-## What the census does with rootDir (ADOPT-27, on main)
+## What the census does with rootDir
 
 The census scan base is, in order: `rootDir` from `brighttest.json`; else the `rootDir` found in `bsconfig.json`
 (own, or through `extends` chains of `.json` files, at most 10 deep); else the project root. It is used only when
