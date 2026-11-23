@@ -50,7 +50,7 @@ the Markdown and text reports and the JSON. A path inside the project root keeps
 (`<path>/components/A.brs`); any other absolute path, including anything under your home directory or a Windows
 network path, becomes `<path>/<file name>`. The file name and the error message stay.
 
-Symlinks are skipped, not followed. Only the root `.gitignore` is opened; nested ones are listed but never read. `certs/` folders are skipped in any letter case. `--out` is checked on real paths
+Symlinks are skipped, not followed: the file scan skips them, and the census opens files with `O_NOFOLLOW` after an `lstat`, refusing a file that changed between the two. A symlinked `manifest` inside the project root is not read (census lists it as `manifest is a symlink and was not read`, and `bs_const` is not taken from it). A FIFO, socket or device in a path census or assess would read is refused as "not a regular file", never opened. A folder named `.env*` is skipped with everything under it, in the file scan and in the census. `-c <file>` must be a regular file (a symlink to one is followed); a FIFO or other special file gives a usage error instead of a read. Only the root `.gitignore` is opened; nested ones are listed but never read. `certs/` folders are skipped in any letter case. `--out` is checked on real paths
 (symlinks resolved, case-insensitive on macOS and Windows), so it cannot point into `source/` or `components/` by an
 alias. When `-c` points outside the project, `brighttest.config.file` is `null`, never an absolute path. When several
 `brighttest*.json` files exist, `brighttest.json` wins.

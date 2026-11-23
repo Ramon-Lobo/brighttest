@@ -695,3 +695,47 @@ describe('ADOPT-29 census error redaction', () => {
     expect(r('x /tmp/app/sub/A.brs', ['/tmp/app'], false)).toBe('x <path>/sub/A.brs')
   })
 })
+
+describe('ADOPT-27 follow-ups: safe reads in assess', () => {
+  const { execFileSync, spawnSync } = require('node:child_process')
+  const fifoIt = process.platform === 'win32' ? test.skip : test
+  const mkTmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'bt-a27-'))
+  test('-c <FIFO> returns a usage error instead of hanging (child process, kill timer)', () => {
+    if (process.platform === 'win32') return
+    const d = mkTmp()
+    try {
+      fs.mkdirSync(path.join(d, 'app'))
+      const fifo = path.join(d, 'cfg.json')
+      execFileSync('mkfifo', [fifo])
+      const script = `const a=require(${JSON.stringify(path.join(ROOT, 'lib', 'assess'))});a.run([${JSON.stringify(path.join(d, 'app'))},'--json','-c',${JSON.stringify(fifo)}],{stdout(){},stderr:(s)=>process.stdout.write(s)}).then((c)=>{process.stdout.write('CODE'+c)})`
+      const r = spawnSync(process.execPath, ['-e', script], { encoding: 'utf8', timeout: 20000, killSignal: 'SIGKILL' })
+      expect(r.error).toBeUndefined()
+      expect(r.stdout).toContain('CODE2')
+      expect(r.stdout).toContain('not a regular file')
+      expect(r.stdout).not.toContain(d)
+    } finally { fs.rmSync(d, { recursive: true, force: true }) }
+  })
+  test('-c <symlink> is still followed (explicit config path)', async () => {
+    const d = mkTmp()
+    try {
+      fs.mkdirSync(path.join(d, 'app')); fs.writeFileSync(path.join(d, 'real.json'), '{}')
+      try { fs.symlinkSync(path.join(d, 'real.json'), path.join(d, 'link.json')) } catch (e) { return }
+      expect((await run([path.join(d, 'app'), '--json', '-c', path.join(d, 'link.json')])).code).toBe(0)
+    } finally { fs.rmSync(d, { recursive: true, force: true }) }
+  })
+  test('the scan does not list or open files under a .env-named folder', async () => {
+    const d = mkTmp()
+    try {
+      fs.mkdirSync(path.join(d, 'source', '.env'), { recursive: true })
+      fs.writeFileSync(path.join(d, 'manifest'), 'title=x\n')
+      fs.writeFileSync(path.join(d, 'source', 'main.brs'), 'sub main()\nend sub\n')
+      fs.writeFileSync(path.join(d, 'source', '.env', 'manifest'), 'password="hunter2hunter2"\n')
+      const spy = vi.spyOn(fs, 'openSync')
+      const j = await json(d)
+      const opened = spy.mock.calls.map((c) => String(c[0])).filter((p) => p.includes(path.join('source', '.env')))
+      spy.mockRestore()
+      expect(opened).toEqual([])
+      expect(JSON.stringify(j)).not.toContain('hunter2')
+    } finally { fs.rmSync(d, { recursive: true, force: true }) }
+  })
+})
