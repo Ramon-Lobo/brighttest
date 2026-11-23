@@ -41,7 +41,7 @@ Three forms: the terminal summary (default), `--json` (the document), and `asses
 | `bsconfig manifest.bs_const overrides are not honored by brighttest` | A build constant set in bsconfig is ignored. | Move it into the manifest without OK. |
 | `bsconfig rootDir is read by the census as a hint only; the brighttest build uses rootDir from brighttest.json ...` | bsconfig `rootDir` is set and `brighttest.json` does not repeat it. The value is shown JSON-quoted, or "points outside the project root, not read" for an absolute or `..` path. | Confirm with the human; set the same `rootDir` in `brighttest.json`. |
 | `bsconfig files list is not honored by brighttest (the default source/, components/ layout is assumed):` | A custom `files` list (not only the roku-deploy defaults); the count of entries follows. | Edit the list. |
-| `census found 0 scenes: check the app keeps components/ at the project root ...` | A manifest app whose census found no scene and no `rootDir` is set. | Treat 0 as "no scenes exist". |
+| `census found 0 scenes: check the app keeps components/ under the rootDir (or the project root)` | A manifest app whose census found no scene and no `rootDir` is set. | Treat 0 as "no scenes exist". |
 | `census skipped: ...` | Sensitive or oversized files under `source/` or `components/` (not opened), or over 20,000 files there. `census.error` holds the same text. | Open or print the named files. |
 | `census could not parse the project: ...` | The census failed on the project. | Guess the counts. |
 | `Node <v> does not satisfy <range>` | The host Node is too old for this brighttest. | Change Node without telling the human (use a version manager only with OK). |
