@@ -59,4 +59,35 @@ describe('census honours bsconfig rootDir', () => {
     const d = mk('bad'); app(d, '.'); put(d, 'bsconfig.json', '{ SECRET nope')
     expect((await census(d)).counts.components).toBe(1)
   })
+  it('brighttest.json rootDir wins over bsconfig rootDir (as build does)', async () => {
+    const d = mk('both'); app(d, 'src'); put(d, 'components/Other.xml', SCENE.replace('Home', 'Other').replace('Home.brs', 'Other.brs')); put(d, 'components/Other.brs', BRS); put(d, 'components/Third.xml', SCENE.replace('Home', 'Third').replace('Home.brs', 'Third.brs')); put(d, 'components/Third.brs', BRS)
+    put(d, 'manifest', 'title=Demo\n'); put(d, 'bsconfig.json', '{"rootDir":"src"}'); put(d, 'brighttest.json', '{"rootDir":"."}')
+    expect((await census(d)).counts.components).toBe(2)
+  })
+  it('brighttest.json rootDir works without a bsconfig', async () => {
+    const d = mk('btonly'); app(d, 'app'); put(d, 'brighttest.json', '{"rootDir":"app"}')
+    expect((await census(d)).counts.components).toBe(1)
+  })
+  it('a brighttest.json rootDir outside the root is ignored', async () => {
+    const outside = mk('outside-bt'); app(outside, '.')
+    const d = mk('bt-escape'); put(d, 'brighttest.json', '{"rootDir":"../outside-bt"}')
+    expect((await census(d)).counts.components).toBe(0)
+  })
+  it('a symlinked components/ pointing outside is not read and is reported', async () => {
+    const outside = mk('outside-comp'); put(outside, 'Home.xml', SCENE); put(outside, 'Home.brs', BRS)
+    const d = mk('comp-link'); put(d, 'manifest', 'title=x\n'); fs.symlinkSync(outside, path.join(d, 'components'))
+    const c = await census(d)
+    expect(c.counts.components).toBe(0)
+    expect(c.skipped.some((x) => x.kind === 'path-outside-root' && x.file === 'components')).toBe(true)
+  })
+  it('handles a BOM and keeps commas inside strings; a malformed bsconfig never echoes content', async () => {
+    const d = mk('bom'); app(d, 'sr,}c'); put(d, 'bsconfig.json', '\uFEFF{"rootDir":"sr,}c",}')
+    expect((await census(d)).counts.components).toBe(1)
+    const e = mk('bad2'); app(e, '.'); put(e, 'bsconfig.json', '{ "rootDir": "SECRET-TOKEN" nope')
+    let msg = ''
+    let c
+    try { c = await census(e) } catch (x) { msg = String(x.message) }
+    expect(msg).not.toContain('SECRET')
+    expect(JSON.stringify(c || {})).not.toContain('SECRET')
+  })
 })
