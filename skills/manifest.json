@@ -20,6 +20,16 @@
       ]
     },
     {
+      "name": "using-a-roku-device-safely",
+      "files": [
+        "SKILL.md",
+        "references/device-quirks.md",
+        "references/forbidden.md",
+        "references/lease-protocol.md",
+        "references/secrets.md"
+      ]
+    },
+    {
       "name": "using-brighttest-mcp",
       "files": [
         "SKILL.md"

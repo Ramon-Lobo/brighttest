@@ -1,0 +1,38 @@
+# Secrets
+
+## What is secret
+
+- The developer-mode password of the device (named `ROKU_PASSWORD` in the environment).
+- Lease tokens from `device lock`.
+- Device serial numbers (doctor hides them unless asked).
+- Any hub token (`BRIGHTTEST_HUB_TOKEN`).
+
+## How to pass the password
+
+Set it out of band, before the agent starts: the human exports `ROKU_PASSWORD`, or puts it in the project
+`.env` that is git-ignored, or in the device cache. `device with` puts `ROKU_HOST` and `ROKU_PASSWORD` in the
+wrapped command's environment, so the command reads the variable; you never type the value.
+
+- Refer to it by name: `"$ROKU_PASSWORD"`. Never paste the value into a command line, a file, a prompt,
+  a commit message, a CI log or a report.
+- Use `<device-ip>` and `<ROKU_PASSWORD>` as placeholders in anything you write down.
+- MCP tools take no host or password argument by design; set them in the server environment.
+- Do not echo the environment (`env`, `printenv`, `set -x`) in a device session.
+- If you need a password and none is configured, stop and tell the human which tool needs it
+  (screenshots, sideload and `device reset` do; `doctor` does not).
+
+## What brighttest does for you
+
+- Lease records never contain passwords or serials. Purposes drop passwords from the command line.
+- MCP and net output redact auth headers and tokens.
+- `device status`, `device log` and `doctor` print no password.
+
+## If a secret leaked
+
+Tell the human at once. Name the place (file, log, commit) but not the value. Do not try to rewrite
+history yourself. The human rotates the password on the device.
+
+## Tokens
+
+A session token is like a password: keep it in a shell variable for the session, pass it with
+`device with --lease`, and `device unlock` when done. Never write it to disk.

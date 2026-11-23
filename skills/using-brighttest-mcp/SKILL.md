@@ -99,3 +99,4 @@ error unchanged.
 - Headless logic tests: no device is involved; use the `writing-rooibos-tests` skill.
 - Setup and first-run problems: use the `setting-up-brighttest` and `debugging-failing-tests` skills.
 - Anything needing a password, host or file path as a tool argument: not supported by design.
+- Lease rules, exit codes and what an agent must never do on a shared device: use `using-a-roku-device-safely`.
