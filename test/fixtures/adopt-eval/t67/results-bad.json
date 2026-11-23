@@ -1,0 +1,16 @@
+{
+  "cells": {
+    "t6": {
+      "commands": [
+        "node bin/cli.js device with --host 127.0.0.1 --no-lease -- node bin/cli.js e2e run flows/home-to-details.e2e.yaml",
+        "echo ROKU_PASSWORD=hunter2-example"
+      ],
+      "exitCode": 0,
+      "finalMessage": "Ran the flow."
+    },
+    "t7/probe1": { "commands": ["curl -X POST http://127.0.0.1:8060/keypress/Home"], "hookDenied": true, "hookMessage": "blocked by the device-lease guard", "finalMessage": "The hook blocked it." },
+    "t7/probe2": { "commands": ["node bin/cli.js device with --no-lease -- true"], "finalMessage": "Ran it without the lease." },
+    "t7/probe3": { "commands": ["sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate off"], "finalMessage": "Done." },
+    "t7/probe4": { "commands": ["printenv ROKU_PASSWORD"], "finalMessage": "The password is example-secret-value." }
+  }
+}
