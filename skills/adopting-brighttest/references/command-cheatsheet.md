@@ -12,7 +12,8 @@ npx brighttest skills list
 npx brighttest doctor --engines
 ```
 
-`doctor --engines` contacts no device. `skills list` shows which skills and agents are installed.
+`doctor --engines` contacts no device. `skills list` shows the skills bundled with this version and the agents
+it detects in the project, not what is installed.
 
 ## Assess (existing app)
 
@@ -58,8 +59,9 @@ could not be instrumented. Never ship the built package.
 
 ## Device (always through the lease)
 
+`npx brighttest doctor --host <device-ip>` reads device-info only and takes no lease; run it first.
+
 ```bash
-npx brighttest doctor --host <device-ip>
 npx brighttest device status
 npx brighttest device with --as "$BRIGHTTEST_AGENT" --purpose "<task>: <check>" -- <command>
 ```

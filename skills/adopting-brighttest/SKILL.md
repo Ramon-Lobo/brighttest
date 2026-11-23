@@ -26,7 +26,8 @@ tool for some jobs. Say so to the human instead of forcing it:
   there is no pixel diff. Only a human on a real device can judge these.
 - An app whose logic cannot be reached without a device you do not have: you can still write headless specs, but
   report every device claim as "not device-verified".
-- A task that only needs a Roku sideload or a one-off screenshot: use `using-brighttest-mcp`, not an adoption.
+- A task that only needs a sideload: use `instrument build --sideload` and `using-a-roku-device-safely`. A one-off
+  screenshot or live tree read: use `using-brighttest-mcp`. Neither is an adoption.
 - You have no permission to change the repo: you can still assess (read-only) and write a plan.
 
 See `references/decision-tree.md` for the full table.
@@ -42,9 +43,16 @@ See `references/decision-tree.md` for the full table.
 
 ## Step 2: the order of work
 
-1. Install and check the tool: `npx brighttest --version`. Needs the Node version in `package.json` engines.
+1. Install and check the tool: `npm i -D brighttest`, then `npx brighttest --version`. Needs Node 22 or newer.
 2. Existing app: assess first, read-only, nothing written without `--out`:
-   `npx brighttest assess . --json`. New app: `npx brighttest init --greenfield`.
+   `npx brighttest assess . --json`. Read `recommendation.path`, `recommendation.blockers` and
+   `recommendation.editPermission` (always `unknown`: ask the human). Then:
+   - `brownfield`: existing-app path.
+   - `greenfield`: the app has a manifest, fewer than 5 components and no specs. Even for an existing app the
+     next step is `npx brighttest init`, not `init --greenfield` (that edits the manifest and writes into `source/`).
+   - `not-a-roku-app`: stop and ask the human; run assess from the folder with the manifest.
+   New app with nothing written yet: `npx brighttest init --greenfield`.
+   Fix every blocker in `recommendation.blockers` before step 3.
 3. Get one headless run green: `npx brighttest --junit results.xml`. Fix the config before writing tests.
 4. Add specs for the logic that matters (`writing-rooibos-tests`). Add flows only for what needs a screen
    (`writing-e2e-flows`). State inside a running app is `testing-app-state`.
@@ -56,7 +64,10 @@ See `references/decision-tree.md` for the full table.
 - Every device access goes through a brighttest lane or `npx brighttest device with --as "$BRIGHTTEST_AGENT"
   --purpose "<task>" -- <cmd>`. Never `--no-lease`, never `device unlock --force`, never raw `curl` to a device.
   Load `using-a-roku-device-safely` before the first device command.
-- The dev password lives in `ROKU_PASSWORD` or a gitignored `.env`. Never print it, commit it or put it in a report.
+- Never run sudo or change a firewall, pf or any device setting. Never press `PowerOff` or an input-switch key
+  (MCP refuses them; flows and raw ECP do not).
+- The dev password lives in `ROKU_PASSWORD` or a gitignored `.env`. Run `git check-ignore .env` first and add it to
+  `.gitignore` before any password is written. Never print it, commit it or put it in a report.
 - Headless is not a device. Write "not device-verified" when you did not run on a Roku.
 - An instrumented package (`*.bt-instrumented.zip`) is debug-only. `instrument verify` on the store zip must
   exit 0 before any publish.
@@ -73,7 +84,7 @@ runs the headless gate, and the report names what was not run on a device.
 `assessing-a-roku-app`, `adopting-brighttest-brownfield`, `adopting-brighttest-greenfield`,
 `instrumenting-a-roku-app`, `wiring-brighttest-into-ci`, `mocking-network-and-store`. Until a sibling is
 installed, use the existing skill named in the table, and read `references/command-cheatsheet.md`. Run
-`npx brighttest skills list` to see what is installed.
+`npx brighttest skills list` to see the skills bundled with this version and the agents it detects.
 
 ## References
 
