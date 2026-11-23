@@ -116,3 +116,5 @@ glue around them.
 
 Isolate the failing suite by pointing `--config` at a cut-down `brighttest.json` (or temporarily `@only`
 the suite/test — never commit `@only`). A single-suite run makes the failure fast to reproduce and read.
+
+For device stalls at about 10 minutes, Limited ECP, port 8085 conflicts and lease exit codes, see the `using-a-roku-device-safely` skill.
