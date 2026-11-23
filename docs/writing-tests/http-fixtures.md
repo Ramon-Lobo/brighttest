@@ -73,7 +73,7 @@ a fixture. Config fixtures keep their declaration order.
   `passthrough` otherwise; set it explicitly. A passthrough to a host not in `upstreamHosts` is refused, never fetched.
 - `upstreamHosts`: the only hosts a passthrough may reach (`host` or `host:port`). Private and loopback addresses are
   refused unless listed.
-- `redact`: removes secrets from the NDJSON and from recorded HARs. `jsonPaths` apply to request bodies and to JSON response bodies, including a response that echoes the request (the paths are also tried on nested objects and on JSON held in a string value). Non-JSON bodies are not changed.
+- `redact`: removes secrets from the NDJSON and from recorded HARs. `jsonPaths` apply to JSON request bodies and to JSON response bodies, including a response that echoes the request (the paths are also tried on nested objects and on JSON held in a string value). Form-encoded bodies (`application/x-www-form-urlencoded`) are not touched by `jsonPaths`; they are redacted by field name through `redact.query` (the default names are included). Other non-JSON bodies are not changed.
 
 The net server starts when the run needs it: a `--net-*` flag, an `instrument.net` block (or `"net": true`), or any
 spec that mentions `BTNet_`. Otherwise a headless run is unchanged.
