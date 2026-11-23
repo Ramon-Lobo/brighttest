@@ -11,6 +11,7 @@ plus `references/`), and the content is authored once and adapted to whichever a
 |---|---|
 | `adopting-brighttest` | The router: where to start, whether brighttest fits, the existing-app or new-app path, the hard rules, and what "adopted" means. |
 | `assessing-a-roku-app` | Running the read-only `brighttest assess`, reading its output (path, blockers, census, secrets, risky patterns), and filling an assessment report without editing the app. |
+| `adopting-brighttest-brownfield` | Adding brighttest to an existing, long-lived Roku app, with or without permission to edit its code: mapping bsconfig.json into brighttest.json, the first green headless run, characterization tests, seam extraction, the no-edit path, exclusions and the strict ramp. |
 | `adopting-brighttest-greenfield` | Starting a new Roku channel that is testable from day one: `init --greenfield`, BTStore and BTHttp and their limits, ids on nodes, thin Tasks, the spec-first loop, and when a feature needs a device. |
 | `instrumenting-a-roku-app` | Building a debug-only instrumented package without editing the app: reading the census, `instrument.exclude`, exit codes and BT9001 to BT9005, the `instrument verify` release gate and the package size budget. |
 | `writing-rooibos-tests` | Suite/test annotations, assertions, test doubles, parameterized tests, headless-vs-device rules, and the pitfalls that make specs silently fail. |
