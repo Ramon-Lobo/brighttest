@@ -122,7 +122,7 @@ function parseNetArgs(argv) {
 // `brighttest skills [install|update|export|list|uninstall] …` — a positional subcommand with its own parser.
 const SKILLS_ACTIONS = ['install', 'update', 'export', 'list', 'uninstall'];
 function parseSkillsArgs(rest) {
-  const opts = { skillsAction: 'install', agent: null, skill: null, out: null, ref: null, skillsDir: null, force: false, check: false, help: false };
+  const opts = { skillsAction: 'install', agent: null, skill: null, out: null, ref: null, skillsDir: null, force: false, noSafety: false, check: false, help: false };
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
     if (SKILLS_ACTIONS.includes(a)) opts.skillsAction = a;
@@ -137,6 +137,7 @@ function parseSkillsArgs(rest) {
     else if (a === '--skills-dir') opts.skillsDir = rest[++i];
     else if (a.startsWith('--skills-dir=')) opts.skillsDir = a.slice(13);
     else if (a === '--check') opts.check = true;
+    else if (a === '--no-safety') opts.noSafety = true;
     else if (a === '--force' || a === '-f') opts.force = true;
     else if (a === '--help' || a === '-h') opts.help = true;
   }
@@ -513,6 +514,7 @@ Options:
   --ref <ref>       (update) Git branch/tag to fetch from (default: main)
   --skills-dir <d>  (agentskills target) Skill folder root (default: .agents/skills)
   -o, --out <dir>   (export) Destination (default: ./brighttest-skills)
+  --no-safety       (install, update) Skip the always-on safety block (default: written for every target)
   --check           Compare skills/manifest.json with the skills/ tree (no writes); exit 1 on drift
   -f, --force       Overwrite files not created by brighttest
   -h, --help        Show this help
@@ -520,9 +522,12 @@ Options:
 Skills (Agent Skills / agentskills.io format): debugging-failing-tests, setting-up-brighttest, testing-app-state, using-a-roku-device-safely,
   using-brighttest-mcp, using-brighttest-studio, writing-e2e-flows, writing-rooibos-tests.
 
-Auto-detection (no --agent) writes to whichever the project already uses: .claude/, .cursor/, .windsurf/,
-.clinerules, .rules (Zed), .agents/ (agentskills), AGENTS.md/opencode, .github/ (Copilot). Shared files
-(AGENTS.md, .rules, copilot-instructions.md) are updated in place inside a managed block — other content preserved.
+Auto-detection (no --agent) writes to whichever the project already uses: .claude/ or CLAUDE.md, .cursor/,
+.windsurf/, .clinerules, .rules (Zed), .agents/ (agentskills), AGENTS.md/opencode, .github/ (Copilot).
+Every target also gets the always-on safety rules (device lease, secrets, claims): one managed block named
+brighttest (safety + skill index) in CLAUDE.md, AGENTS.md, .rules or .github/copilot-instructions.md, or a
+brighttest-safety rule file for Cursor, Windsurf and Cline. Content outside the block is preserved; old
+per-skill blocks and flattened Cursor files are migrated. uninstall removes the block and the index.
 `;
 
 const HELP = `
