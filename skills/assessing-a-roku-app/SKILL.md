@@ -66,8 +66,10 @@ are advice, not something the tool checks.
   `source/` and `components/` (the command refuses those). Do not commit assessment output without the human's OK
   (guidance: it names file paths and key names).
 - Secrets: the scan reports key names and `file:line` only, never values. Never print, quote, paste or re-derive a
-  value. Do not run `cat`, `grep` or `env` on `.env` or key files to "confirm". The report is safe to paste into an
-  issue; the source line is not. If a finding looks real, tell the human to rotate it (guidance).
+  value. Do not run `cat`, `grep` or `env` on `.env` or key files to "confirm". Key names and file:line are safe to paste;
+  the source line is not. Blocker and census-error text (for example `census could not parse the project: ...`) can
+  hold raw error text with absolute or home paths: replace any absolute or home path, username or host with `<path>`
+  before pasting, and re-read the whole report once before sharing it. If a finding looks real, tell the human to rotate it (guidance).
 - `.env` safety: before any file with a password is ever written, `git check-ignore .env` must print `.env`.
   Assessment itself writes none.
 - No device: assess needs none. If the human then wants device work, load `using-a-roku-device-safely`. Never
