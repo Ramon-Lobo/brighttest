@@ -63,7 +63,19 @@ its frontmatter. Rules:
   agent files are left alone. `--no-agents` makes `uninstall` leave agents in place too.
 - Editing a marked file is pointless: the next `install` or `update` rewrites it.
 
-The bundled agent definitions arrive in a later release; until then this step writes nothing.
+The four bundled agents, each preloaded with the skills it needs:
+
+| Agent | What it does | Skills it loads |
+|---|---|---|
+| `adoption-assessor` | Read-only assessment of an app: does brighttest fit, what state is it in, which path. Never edits files or touches a device. | `assessing-a-roku-app`, `adopting-brighttest` |
+| `ci-integrator` | Adds brighttest to CI, including the release-verify step. Edits CI files and package.json scripts only; never pushes. | `wiring-brighttest-into-ci`, `instrumenting-a-roku-app` |
+| `device-debugger` | Leased, bounded investigation on a real Roku. Needs a `BRIGHTTEST_AGENT` name and reports NOT VERIFIED when no device is reachable. | `using-a-roku-device-safely`, `using-brighttest-mcp`, `debugging-failing-tests` |
+| `test-author` | Writes Rooibos specs, e2e flows, fixtures and csfake mocks, and proves each new test can fail. Headless unless given a lease name and purpose. | `writing-rooibos-tests`, `writing-e2e-flows`, `mocking-network-and-store` |
+
+Copilot gets skills and the instructions block only. There are no agent definitions for Copilot or any other
+non-Claude target in this release.
+
+New to brighttest on an existing app? Start with the [adoption guide](./adopting.md).
 
 Target explicitly with `--agent` (creates the folders if needed):
 
@@ -102,6 +114,17 @@ rename. Neither entry contains a host, password or token.
 To undo, run `skills uninstall --agent claude` (no flag needed): it removes only an entry identical to the one
 installed, leaves everything else, and keeps the file. You can also delete the entry by hand. Re-running `install`
 without the flags does not remove them.
+
+### Migrating from older, flattened installs
+
+Earlier versions wrote every skill and reference into always-on files (one block per skill, or one file per skill
+for Cursor). Running `npx brighttest skills install` again moves you to the current layout:
+
+- Folder targets (Claude, `.agents`, Copilot, Cursor) get real skill folders, and the old per-skill blocks and
+  `.cursor/rules/<skill>.mdc` files are removed and reported as `migrated`.
+- Windsurf and Cline keep one file per skill, now holding the SKILL.md body only, with references copied to
+  `.agents/skills/<skill>/references/`.
+- Only blocks and files carrying the brighttest marker are touched. Anything you wrote yourself stays.
 
 ## Keep them up to date
 
