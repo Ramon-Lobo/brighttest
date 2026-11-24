@@ -1,6 +1,6 @@
 ---
 name: adopting-brighttest-brownfield
-description: Use when adding brighttest to an existing, long-lived Roku app, with or without permission to edit its code: mapping bsconfig.json into brighttest.json, the first green headless run, characterization tests, seam extraction, the no-edit path (copy, stamp, patches for a human), exclusions and the strict ramp. Starts by asking the human whether app code may be edited and whether a device is available.
+description: Use when adding brighttest to an existing, long-lived Roku app, with or without permission to edit its code — mapping bsconfig.json into brighttest.json, the first green headless run, characterization tests, seam extraction, the no-edit path (copy, stamp, patches for a human), exclusions and the strict ramp. Starts by asking the human whether app code may be edited and whether a device is available.
 triggers: brownfield roku app; legacy roku app; existing app without tests; map bsconfig to brighttest.json; characterization tests; app i cannot edit; first green headless run; seam extraction
 when-not-to-use: Do not use for a new app (use adopting-brighttest-greenfield), for the read-only report (use assessing-a-roku-app), or for spec and flow syntax (use writing-rooibos-tests, writing-e2e-flows). It does not teach the device lease (use using-a-roku-device-safely).
 license: MIT

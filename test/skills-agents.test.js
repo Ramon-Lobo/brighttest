@@ -166,4 +166,11 @@ describe('copilot agents target (ADOPT-24)', () => {
     await go('uninstall', { agent: 'copilot' })
     expect(fs.existsSync(p('.github', 'agents'))).toBe(false)
   })
+
+  test('a block-scalar description is rejected rather than cut to its first line', async () => {
+    const multi = BOTH.replace('description: Fixture agent for the installer tests', 'description: >\n  Fixture agent\n  for the tests')
+    fs.writeFileSync(path.join(root, '_agents', 'fixture-helper.md'), multi)
+    expect(await go('install', { agent: 'copilot' })).not.toBe(0)
+    expect(out + '').toMatch(/single-line/)
+  })
 })

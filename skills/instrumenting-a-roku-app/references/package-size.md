@@ -1,6 +1,6 @@
 # Package size limit
 
-Evidence labels: **researched** = read from Roku's public docs by the researcher (note ADOPT-15, 2026-11-22), not
+Evidence labels: **researched** = read from Roku's public docs by the researcher (2026-11-22), not
 re-checked here; **verified** = checked in this repo or measured here; **unconfirmed** = not stated by Roku.
 
 ## The limit (researched, external docs)
