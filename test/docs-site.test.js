@@ -1,14 +1,16 @@
-import { describe, test, expect } from 'vitest'
+import { describe, test, expect, afterAll } from 'vitest'
 import { createRequire } from 'module'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { spawnSync } from 'node:child_process'
+import { spawnSync, spawn } from 'node:child_process'
 
 const require = createRequire(import.meta.url)
 const ds = require('../scripts/docs-site')
 const SCRIPT = path.resolve(__dirname, '../scripts/docs-site.js')
-const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'docs-site-test-'))
+const made = []
+const tmp = () => { const d = fs.mkdtempSync(path.join(os.tmpdir(), 'docs-site-test-')); made.push(d); return d }
+afterAll(() => { for (const d of made) fs.rmSync(d, { recursive: true, force: true }) })
 
 describe('plan', () => {
   const tags = ['v0.3.0', 'v0.6.0', 'v0.7.0', 'v0.7.2', 'v0.7.1', 'v0.8.0-rc.1', 'v0.9.0', 'foo', 'v1.0', 'v0.8.1']
@@ -38,6 +40,14 @@ describe('plan', () => {
   test('first slice: only v0.7.0 gives next + root + v0.7', () => {
     const p = ds.plan(['v0.3.0', 'v0.4.0', 'v0.5.0', 'v0.6.0', 'v0.7.0'], { floor: '0.7', exclude: [], keep: 4 })
     expect(p.builds.map((b) => b.base)).toEqual(['/brighttest/', '/brighttest/next/', '/brighttest/v0.7/'])
+  })
+
+  test('bad config values throw a named error', () => {
+    expect(() => ds.plan(tags, { floor: 'abc' })).toThrow('invalid versions.config.json floor: "abc"')
+    expect(() => ds.plan(tags, { exclude: ['0.8', 'zz'] })).toThrow('invalid versions.config.json exclude: "zz"')
+    expect(() => ds.plan(tags, { keep: 0 })).toThrow(/invalid versions.config.json keep: 0/)
+    expect(() => ds.plan(tags, { keep: 'x' })).toThrow(/invalid versions.config.json keep/)
+    expect(() => ds.plan(tags, { keep: 1.5 })).toThrow(/invalid versions.config.json keep/)
   })
 
   test('no tags: no latest', () => {
@@ -106,6 +116,13 @@ describe('ordering and F1 guard', () => {
     expect(fs.readFileSync(path.join(out, 'v0.7', 'index.html'), 'utf8')).toBe('v07')
   })
 
+  test('a root build that already contains next/ cannot be silently overwritten', () => {
+    const root = tmp(); fs.mkdirSync(path.join(root, 'next')); fs.writeFileSync(path.join(root, 'next', 'index.html'), 'x')
+    const nxt = tmp(); fs.writeFileSync(path.join(nxt, 'index.html'), 'n')
+    const items = [{ build: { rel: 'next' }, dir: nxt }, { build: { rel: '' }, dir: root }]
+    expect(() => ds.assemble(path.join(tmp(), 's'), items)).toThrow(/refusing to overwrite/)
+  })
+
   test('refuses to overwrite a path already placed', () => {
     const d = tmp()
     expect(() => ds.assemble(path.join(tmp(), 's'), [{ build: { rel: 'next' }, dir: d }, { build: { rel: 'next' }, dir: d }])).toThrow(/refusing/)
@@ -113,6 +130,19 @@ describe('ordering and F1 guard', () => {
 })
 
 describe('summary and base', () => {
+  test('failure text is escaped in the table; skipped reason is one line without temp paths', () => {
+    const p = ds.plan(['v0.7.0'], {})
+    const err = 'vitepress failed in /tmp/docs-site-abc/wt-v0.7.0 | x\nsecond | line'
+    const res = p.builds.map((b) => ({ build: b, ok: false, error: err }))
+    const md = ds.summaryMarkdown(p, res)
+    for (const l of md.split('\n').filter((x) => x.startsWith('| next'))) {
+      expect(l).toContain('\\| x second \\| line')
+      expect(l.split(/(?<!\\)\|/)).toHaveLength(6)
+    }
+    const v = ds.versionsJson(p, res, { generated: 'T' })
+    expect(v.skipped[0].reason).not.toMatch(/docs-site-|\n/)
+    expect(v.skipped[0].reason).toContain('<tmp>')
+  })
   test('markdown lists each build', () => {
     const p = ds.plan(['v0.7.0'], {})
     const md = ds.summaryMarkdown(p)
@@ -126,7 +156,8 @@ describe('summary and base', () => {
 })
 
 // A tiny git repo with a fake vitepress that, like the real one, empties --outDir first.
-describe('real script path on a fixture repo', () => {
+// POSIX only: shebang scripts, signals and a fake `npm` on PATH.
+describe.skipIf(process.platform === 'win32')('real script path on a fixture repo', () => {
   const git = (cwd, ...a) => {
     const r = spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...a], { cwd, encoding: 'utf8' })
     if (r.status !== 0) throw new Error(r.stderr)
@@ -213,6 +244,65 @@ fs.writeFileSync(path.join(out, 'index.html'), [md, base, process.env.BRIGHTTEST
     expect(r.status).toBe(0)
     expect(r.stderr).toMatch(/no theme overlay/)
   })
+
+  test('without --no-install: tags get ci --ignore-scripts, next gets plain ci', () => {
+    const { repo, bin } = fixture()
+    const dir = tmp()
+    const log = path.join(dir, 'npm.log')
+    const npm = path.join(dir, 'npm')
+    fs.writeFileSync(npm, `#!/usr/bin/env node
+const fs = require('fs'), path = require('path')
+fs.appendFileSync(${JSON.stringify(log)}, JSON.stringify({ argv: process.argv.slice(2), wt: path.basename(process.cwd()) }) + '\\n')
+fs.mkdirSync('node_modules/.bin', { recursive: true })
+fs.copyFileSync(${JSON.stringify(bin)}, 'node_modules/.bin/vitepress'); fs.chmodSync('node_modules/.bin/vitepress', 0o755)
+`)
+    fs.chmodSync(npm, 0o755)
+    const out = path.join(tmp(), 'site')
+    const r = spawnSync('node', [SCRIPT, 'build', '--repo', repo, '--out', out, '--next-ref', 'main'], {
+      encoding: 'utf8', env: { ...process.env, PATH: `${dir}${path.delimiter}${process.env.PATH}` },
+    })
+    expect(r.status).toBe(0)
+    const calls = fs.readFileSync(log, 'utf8').trim().split('\n').map((l) => JSON.parse(l))
+    const by = Object.fromEntries(calls.map((c) => [c.wt, c.argv]))
+    expect(by['wt-v0.7.0']).toEqual(['ci', '--ignore-scripts', '--no-audit', '--no-fund'])
+    expect(by['wt-v0.6.0']).toEqual(['ci', '--ignore-scripts', '--no-audit', '--no-fund'])
+    expect(by['wt-next']).toEqual(['ci', '--no-audit', '--no-fund'])
+    expect(r.stderr).toContain('next: building main')
+  })
+
+  test('rejects a --next-ref that looks like an option', () => {
+    const { repo, bin } = fixture()
+    const r = runScript(repo, bin, path.join(tmp(), 'site'), ['--next-ref', '--evil'])
+    expect(r.status).not.toBe(0)
+  })
+
+  test('SIGTERM kills the running build child and removes the temp root', async () => {
+    const { repo } = fixture()
+    const work = tmp()
+    const pidFile = path.join(work, 'pid')
+    const bin = path.join(work, 'sleepy.js')
+    fs.writeFileSync(bin, `#!/usr/bin/env node
+require('fs').writeFileSync(${JSON.stringify(pidFile)}, String(process.pid))
+setTimeout(() => {}, 60000)
+`)
+    fs.chmodSync(bin, 0o755)
+    const tmpdir = tmp()
+    const child = spawn('node', [SCRIPT, 'build', '--repo', repo, '--out', path.join(work, 'site'), '--no-install', '--vitepress-bin', bin, '--next-ref', 'main'], {
+      env: { ...process.env, TMPDIR: tmpdir }, stdio: 'ignore',
+    })
+    const exited = new Promise((resolve) => child.on('close', (code) => resolve(code)))
+    const deadline = Date.now() + 15000
+    while (!fs.existsSync(pidFile) && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50))
+    expect(fs.existsSync(pidFile)).toBe(true)
+    const pid = Number(fs.readFileSync(pidFile, 'utf8'))
+    child.kill('SIGTERM')
+    const code = await Promise.race([exited, new Promise((r) => setTimeout(() => r('timeout'), 15000))])
+    if (code === 'timeout') child.kill('SIGKILL')
+    expect(code).toBe(143)
+    expect(fs.readdirSync(tmpdir).filter((n) => n.startsWith('docs-site-'))).toEqual([])
+    expect(() => process.kill(pid, 0)).toThrow()
+    expect(git(repo, 'worktree', 'list').trim().split('\n')).toHaveLength(1)
+  }, 30000)
 
   test('plan subcommand prints JSON and writes the step summary', () => {
     const { repo } = fixture()
