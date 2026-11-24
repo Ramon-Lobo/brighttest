@@ -102,7 +102,7 @@ Usage: brighttest mcp
   no tool takes a host, a password or an absolute path. Outside a net window each device tool call takes the device
   lease for that call only and releases it when the call ends (busy: DEVICE_BUSY at once). The first net_requests or
   net_mock call opens a net window: one lease held for the session, which the other device tools reuse, released after
-  10 minutes without a device call, at the session cap, on lease loss or at session end. Per-session caps apply to
+  up to 10 minutes without a device call, at the session lease cap (deviceLease.sessionMax, default 45 minutes), on lease loss or at session end. Per-session caps apply to
   presses and flow runs.
   Exit codes: 0 on a clean end of input, 1 on an internal error, 2 on a usage error.
 `;

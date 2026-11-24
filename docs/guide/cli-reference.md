@@ -19,7 +19,7 @@ brighttest device <action>       the device lease
 ```
 
 Durations (`--wait`, `--max`, `--expect`, `--idle`) are `90s`, `10m`, `1h` or plain milliseconds. Flags accept
-`--flag value`. Most value flags also accept `--flag=value`. The exceptions are `--config`/`-c` and `--pass` (main lane), the lease flags of `instrument` (`--wait`, `--max`, `--expect`, `--as`, `--purpose`), and `--pass` for `e2e` and `studio`: use the space form for these. Most of what is verified on hardware is stated on the page of the
+`--flag value`. Most value flags also accept `--flag=value`. The exceptions are `--config`/`-c` and `--pass` (main lane), the lease flags of `instrument` (`--wait`, `--max`, `--expect`, `--as`, `--purpose`), `--pass` for `e2e` and `studio`, and `--textContains` for `e2e` (use `--text-contains=`): use the space form for these. Most of what is verified on hardware is stated on the page of the
 feature; nothing on this page is a claim of device verification.
 
 ## Test lanes: `brighttest [flags]`
@@ -54,7 +54,7 @@ feature; nothing on this page is a claim of device verification.
 | `-v`, `--version` / `-h`, `--help` | Print the version / help and exit 0 |
 
 Exit codes: `0` all tests passed, `1` a failure (including a crashed test, a device run with no result line, a
-timeout or idle abort), `2` usage or engine-resolution error (an unreadable `brighttest.json` currently exits 1), and the lease codes `75`, `77`, `78`
+timeout or idle abort), `2` usage or engine-resolution error (an unreadable `brighttest.json` currently exits 1; a `--config` path that does not exist is ignored and the defaults are used), and the lease codes `75`, `77`, `78`
 ([device lease](/guide/device-lease#exit-codes)). The engine build is chosen by `BRIGHTTEST_ENGINES`
 (`auto|patched|stock|<package>`) or `engines` in `brighttest.json`; the environment wins.
 
@@ -175,7 +175,7 @@ studio --host <ip> [--password <pw>] [--port 8700] [--app dev] [--flows-dir flow
 
 `--host` (or `ROKU_HOST`), `--password` (`--pass`, or `ROKU_PASSWORD`), `--port <n>` (default 8700; if busy and `--port` was not given, the first free of
 8701-8709; an explicit busy `--port` fails), `--app <id>` (default `dev`), `--flows-dir <dir>` (default `./flows`),
-`-o`, `--open` (open the browser). Studio takes the [device lease](/guide/device-lease#studio) while you use it.
+`-o`, `--open` (open the browser). Studio takes the [device lease](/guide/device-lease#studio) while you use it. See the [Studio guide](/guide/studio).
 
 ## `brighttest net convert`
 
