@@ -24,6 +24,17 @@ function findChrome() {
   const c = [process.env.CHROME_BIN, '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/usr/bin/google-chrome', '/usr/bin/google-chrome-stable', '/usr/bin/chromium', '/usr/bin/chromium-browser'].filter(Boolean);
   return c.find((p) => fs.existsSync(p));
 }
+// A plain generic gradient frame (no app content), encoded with zlib: stands in for the device screenshot.
+function placeholderPng(w = 480, h = 270) {
+  const zlib = require('zlib');
+  const crcT = Array.from({ length: 256 }, (_, n) => { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c >>> 0; });
+  const crc = (b) => { let c = 0xffffffff; for (const x of b) c = crcT[(c ^ x) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+  const chunk = (t, d) => { const len = Buffer.alloc(4); len.writeUInt32BE(d.length); const td = Buffer.concat([Buffer.from(t), d]); const c = Buffer.alloc(4); c.writeUInt32BE(crc(td)); return Buffer.concat([len, td, c]); };
+  const raw = Buffer.alloc((w * 3 + 1) * h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const o = y * (w * 3 + 1) + 1 + x * 3; raw[o] = 40 + (x * 60) / w; raw[o + 1] = 40 + (y * 40) / h; raw[o + 2] = 90 + (x * 70) / w; }
+  const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(w, 0); ihdr.writeUInt32BE(h, 4); ihdr[8] = 8; ihdr[9] = 2;
+  return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
+}
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const getJson = (url) => new Promise((res, rej) => http.get(url, (r) => { let b = ''; r.on('data', (d) => (b += d)); r.on('end', () => { try { res(JSON.parse(b)); } catch (e) { rej(e); } }); }).on('error', rej));
 
@@ -100,7 +111,9 @@ async function main() {
   ws = new WebSocket(page.webSocketDebuggerUrl);
   await new Promise((r, j) => { ws.onopen = r; ws.onerror = j; });
   let id = 0; const waiting = new Map();
-  ws.onmessage = (m) => { const d = JSON.parse(m.data); if (d.id && waiting.has(d.id)) { const { r, j } = waiting.get(d.id); waiting.delete(d.id); d.error ? j(new Error(d.error.message)) : r(d.result); } };
+  const png64 = placeholderPng().toString('base64');
+  ws.onmessage = (m) => { const d = JSON.parse(m.data);
+    if (d.method === 'Fetch.requestPaused') { cdp('Fetch.fulfillRequest', { requestId: d.params.requestId, responseCode: 200, responseHeaders: [{ name: 'Content-Type', value: 'image/png' }], body: png64 }).catch(() => {}); return; } if (d.id && waiting.has(d.id)) { const { r, j } = waiting.get(d.id); waiting.delete(d.id); d.error ? j(new Error(d.error.message)) : r(d.result); } };
   const cdp = (method, params = {}) => new Promise((r, j) => { waiting.set(++id, { r, j }); ws.send(JSON.stringify({ id, method, params })); });
   const js = async (expr) => { const r = await cdp('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true }); if (r.exceptionDetails) throw new Error(r.exceptionDetails.text + ' ' + expr); return r.result.value; };
   const until = async (expr, what) => { for (let i = 0; i < 100; i++) { if (await js(expr)) return; await sleep(100); } throw new Error(`timed out waiting for ${what}`); };
@@ -113,6 +126,7 @@ async function main() {
     console.log(`wrote ${path.relative(root, path.join(outDir, name))}`);
   };
   await cdp('Page.enable');
+  await cdp('Fetch.enable', { patterns: [{ urlPattern: '*/api/screenshot*' }] }); // serve the placeholder frame, not the fake's empty reply
   await cdp('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: 1, mobile: false });
   await cdp('Page.navigate', { url: base });
   await until(`document.querySelector('.rail')`, 'the page');
@@ -141,7 +155,7 @@ async function main() {
   const other = await lease.acquire({ dir: process.env.BRIGHTTEST_LEASE_DIR, key, agent: 'e2e-run#1', purpose: 'e2e run', pid: process.pid, waitMs: 0, exitOnLost: false, timers: false, identity: {} });
   await js(`(() => { const i = document.querySelector('input.ed'); i.value = '5'; i.dispatchEvent(new Event('input', { bubbles: true })); })()`);
   await clickText('button', 'set');
-  await until(`document.querySelector('p.msg.err')`, 'the refusal message');
+  await until(`document.querySelector('p.msg.err, p.empty.err')`, 'the refusal or the held banner'); // the held view replaces the panel, so the message may not stay visible
   await sleep(2500);
   await shot('device-held.png');
   try { if (other.release) await other.release(); } catch {}
