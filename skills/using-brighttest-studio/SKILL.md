@@ -40,7 +40,7 @@ brighttest studio --host <ip> [--password <pw>] [--port 8700] [--app dev] [--flo
 ## What the UI gives you
 
 Pages (`lib/studio/web/src/App.svelte`): Inspect, Runs, Record, Devices, Profile, Settings. In the editor view, tabs next to the
-Node/Tree/Selector inspector include State and Network.
+Node/Tree/Selector inspector include State, Actions (action log with Travel; route-only snapshot recording) and Network.
 
 - Inspect the live SceneGraph and build selectors; use "+" on a node or state leaf to add a step.
 - Drive the remote from the browser (`POST /api/keypress`).

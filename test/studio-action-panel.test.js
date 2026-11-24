@@ -41,3 +41,31 @@ describe('action log panel', () => {
     expect(travelOutcome({ status: 409, code: 'NO_SNAPSHOT', error: 'entry 3 has no recorded snapshot' }).text).toBe('NO_SNAPSHOT: entry 3 has no recorded snapshot')
   })
 })
+
+describe('action log poller', () => {
+  const tick = () => new Promise((r) => setImmediate(r))
+  it('never has two fetches in flight and chains after each settles', async () => {
+    const { createPoller } = await import('../lib/studio/web/src/lib/actionlog.js')
+    let inflight = 0, max = 0, calls = 0; const resolvers = []; const timers = []
+    const p = createPoller(() => { calls++; inflight++; max = Math.max(max, inflight); return new Promise((r) => resolvers.push(() => { inflight--; r({ ok: true }) })) },
+      () => {}, { setT: (fn) => { timers.push(fn); return timers.length }, clearT: () => {} })
+    p.start(); p.now(); p.now(); await tick()
+    expect(calls).toBe(1)
+    expect(timers.length).toBe(0)
+    resolvers.shift()(); await tick()
+    expect(calls).toBe(2) // one queued follow-up, not stacked
+    resolvers.shift()(); await tick()
+    expect(timers.length).toBe(1) // next one is scheduled only after settle
+    expect(max).toBe(1)
+    p.stop()
+  })
+  it('applies a reply and stops cleanly', async () => {
+    const { createPoller } = await import('../lib/studio/web/src/lib/actionlog.js')
+    const applied = []; const res = []
+    const p = createPoller(() => new Promise((r) => res.push(r)), (r) => applied.push(r), { setT: () => 1, clearT: () => {} })
+    p.start(); await tick()
+    res[0]('a'); await tick()
+    expect(applied).toEqual(['a'])
+    p.stop(); await tick()
+  })
+})
