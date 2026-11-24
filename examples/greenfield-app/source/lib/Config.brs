@@ -19,3 +19,17 @@ end function
 function Config_isInputProbe(args as object) as boolean
     return type(args) = "roAssociativeArray" and args.inputprobe = "1"
 end function
+
+' Net-secrets probe: launch parameter netsecrets=1 makes the app send one extra GET to <base>/echo carrying dummy
+' credential-looking values (header and query only), so redaction can be checked. Off by default.
+function Config_isNetSecrets(args as object) as boolean
+    return type(args) = "roAssociativeArray" and args.netsecrets = "1"
+end function
+
+' Shape of the extra request. The values are dummies, not real credentials.
+function Config_netSecretsRequest() as object
+    return {
+        path: "/echo?token=abc&access_token=def&sig=ghi"
+        headers: { "Authorization": "Bearer test-not-secret" }
+    }
+end function
