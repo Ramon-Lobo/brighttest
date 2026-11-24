@@ -88,6 +88,13 @@ describe('feature-tree-app EXPECTED-GRAPH.json', () => {
     }
   })
 
+  it('each component\'s children match its child edges, in order', () => {
+    for (const n of g.nodes.filter((x) => x.kind === 'component')) {
+      const edges = g.edges.filter((e) => e.kind === 'child' && e.from === n.id).sort((x, y) => Number(x.at.split(':')[1]) - Number(y.at.split(':')[1]))
+      expect((n.children || []).map((k) => k.tag), n.id).toEqual(edges.map((e) => e.to.replace(/^(comp|builtin):/, '')))
+    }
+  })
+
   it('edges have valid kind, conf and at, and reference known nodes (null target only when not exact)', () => {
     for (const e of g.edges) {
       expect(EDGE_KINDS).toContain(e.kind)
