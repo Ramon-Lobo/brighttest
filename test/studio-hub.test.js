@@ -169,3 +169,63 @@ describe('studio hub applies instrument.net.redact from a loaded brighttest.json
     expect(started).toHaveLength(0)
   })
 })
+
+describe('studio hub reads instrument.net (NET-STUDIO-CFG)', () => {
+  const { loadConfig } = require('../lib/config.js')
+  const { targetFromPath } = require('../lib/instrument/net-proxy.js')
+  const cfgWith = (netBlock) => {
+    fs.writeFileSync(path.join(dir, 'brighttest.json'), JSON.stringify({ instrument: { hub: { host: '10.0.0.5', port: 8791 }, net: netBlock } }))
+    return loadConfig(dir)
+  }
+  const sendTo = (proxy, target, method = 'GET') => new Promise((resolve) => {
+    const srv = http.createServer((req, res) => { proxy.handle(req, res, targetFromPath(`/bt/t/net/;${target}`)).catch(() => res.destroy()) })
+    srv.listen(0, '127.0.0.1', () => {
+      http.request({ host: '127.0.0.1', port: srv.address().port, method, path: '/' }, (res) => { let b = ''; res.on('data', (c) => (b += c)); res.on('end', () => srv.close(() => resolve({ status: res.statusCode, body: b }))) }).end()
+    })
+  })
+  let origin
+  afterEach(() => { if (origin) origin.close(); origin = null })
+  const startOrigin = () => new Promise((resolve) => {
+    origin = http.createServer((req, res) => { res.setHeader('content-type', 'application/json'); res.end(JSON.stringify({ secret: 'SECRET-TEST-VALUE', ok: 1 })) })
+    origin.listen(0, '127.0.0.1', () => resolve(origin.address().port))
+  })
+
+  it('passes through to an allow-listed origin, refuses others, masks jsonPaths, and 404s mock-this on a refused id', async () => {
+    const op = await startOrigin()
+    await boot({ BRIGHTTEST_HUB_TOKEN: TOKEN }, {}, cfgWith({ upstreamHosts: [`127.0.0.1:${op}`], unmatched: 'passthrough', redact: { bodyKeys: ['secret'] } }))
+    await get('/api/net/rules')
+    const proxy = started[0].netProxy
+    const okRes = await sendTo(proxy, `http://127.0.0.1:${op}/data`)
+    expect(okRes.status).toBe(200)
+    const bad = await sendTo(proxy, 'http://127.0.0.1:1/nope')
+    expect(bad.status).toBe(403)
+    const list = (await get('/api/net/requests?raw=1')).json.requests
+    const good = list.find((r) => r.source === 'passthrough')
+    const refused = list.find((r) => r.source === 'refused')
+    expect(good && refused).toBeTruthy()
+    expect(refused.bytes).toBeNull()
+    for (const p of ['/api/net/requests', `/api/net/mock-this?id=${good.id}`, '/api/net/har']) {
+      const r = await get(p)
+      expect(r.status).toBe(200)
+      expect(r.text).not.toContain('SECRET-TEST-VALUE')
+    }
+    const m = await get(`/api/net/mock-this?id=${refused.id}`)
+    expect(m.status).toBe(404)
+    expect(m.json.code).toBe('NOT_FOUND')
+  })
+
+  it('refuses passthrough when no upstreamHosts are configured', async () => {
+    const op = await startOrigin()
+    await boot({ BRIGHTTEST_HUB_TOKEN: TOKEN }, {}, cfgWith({ unmatched: 'passthrough' }))
+    await get('/api/net/rules')
+    expect((await sendTo(started[0].netProxy, `http://127.0.0.1:${op}/data`)).status).toBe(403)
+  })
+
+  it('fails hub start on an invalid unmatched with the headless error text, shown as the panel message', async () => {
+    await boot({ BRIGHTTEST_HUB_TOKEN: TOKEN }, {}, cfgWith({ unmatched: 'bogus' }))
+    const r = await get('/api/net/rules')
+    expect(r.status).toBe(503)
+    expect(r.json.error).toContain('instrument.net.unmatched must be "fail" or "passthrough"')
+    expect(started).toHaveLength(0)
+  })
+})
