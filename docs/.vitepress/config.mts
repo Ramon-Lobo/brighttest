@@ -49,24 +49,55 @@ export default withMermaid({
         ],
       },
       {
-        text: 'Using brighttest',
+        text: 'Getting started',
         items: [
           { text: 'Quick start', link: '/guide/getting-started' },
           { text: 'CLI reference', link: '/guide/cli-reference' },
+          { text: 'Example apps', link: '/guide/examples' },
+          { text: 'Troubleshooting & how it works', link: '/guide/troubleshooting' },
+        ],
+      },
+      {
+        text: 'Adopting an existing app',
+        collapsed: false,
+        items: [
+          { text: 'Adopting brighttest', link: '/guide/adopting' },
+          { text: 'Assess a project', link: '/guide/assess' },
+          {
+            text: 'Agents',
+            collapsed: false,
+            items: [
+              { text: 'Agent skills', link: '/guide/agent-skills' },
+              { text: 'Agent surface (MCP)', link: '/guide/mcp' },
+            ],
+          },
+        ],
+      },
+      {
+        text: 'Network & fixtures',
+        collapsed: false,
+        items: [
+          { text: 'Network recipe', link: '/guide/network-recipe' },
+          { text: 'Network fault model', link: '/guide/net-faults' },
+          { text: 'HTTP fixtures in specs', link: '/writing-tests/http-fixtures' },
+          { text: 'roChannelStore fixtures', link: '/guide/store-fixtures' },
+        ],
+      },
+      {
+        text: 'Instrumentation & Studio',
+        collapsed: false,
+        items: [
+          { text: 'Instrumented builds', link: '/guide/instrument' },
+          { text: 'Studio', link: '/guide/studio' },
+        ],
+      },
+      {
+        text: 'CI & devices',
+        collapsed: false,
+        items: [
           { text: 'CI integration', link: '/guide/ci' },
           { text: 'Device shelf (CI)', link: '/guide/ci-device-shelf' },
           { text: 'Sharing a device (lease)', link: '/guide/device-lease' },
-          { text: 'Instrumented builds', link: '/guide/instrument' },
-          { text: 'roChannelStore fixtures', link: '/guide/store-fixtures' },
-          { text: 'Network fault model', link: '/guide/net-faults' },
-          { text: 'Network recipe', link: '/guide/network-recipe' },
-          { text: 'Studio', link: '/guide/studio' },
-          { text: 'Adopting brighttest', link: '/guide/adopting' },
-          { text: 'Assess a project', link: '/guide/assess' },
-          { text: 'Example apps', link: '/guide/examples' },
-          { text: 'Agent skills', link: '/guide/agent-skills' },
-          { text: 'Agent surface (MCP)', link: '/guide/mcp' },
-          { text: 'Troubleshooting & how it works', link: '/guide/troubleshooting' },
         ],
       },
       {
