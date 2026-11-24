@@ -574,17 +574,20 @@ in `docs/.vitepress/config.mts`.
 
 ### Version switcher theme
 
-`docs/.vitepress/theme/` extends the default theme with a version switcher (nav bar), a banner
+`docs/.vitepress/theme/` extends the default theme with a version switcher (the `nav-bar-content-before` slot), a banner
 (unreleased or older release) and a 404 body that offers the same page under `/next/` when it exists
 there. At runtime the theme fetches `versions.json` from the site root (the build's base with its
 `next` or `vX.Y` segment removed), finds its own entry by matching `site.base`, and hides all of it
-when the file is missing or its `schema` is not `1`. `npm run docs:dev` and a plain `docs:build` have
+when the file is missing or fails validation: `schema` must be `1`, each entry needs string `id`, `label` and a
+`path` (and optional `alias`) that starts with the site root, ends in `/` and has no `//`, backslash, `:` or `..`,
+and `latest` must name an entry. Any failure drops the whole file. The file is fetched once per page load. `npm run docs:dev` and a plain `docs:build` have
 no `versions.json`, so the switcher and banner do not appear there. To preview them, build with
 `BRIGHTTEST_DOCS_CHANNEL=next npx vitepress build docs --base /brighttest/next/ --outDir <scratch>/next`,
 add a hand-written `versions.json` beside it in `<scratch>` and serve `<scratch>` under `/brighttest/`.
 Setting `BRIGHTTEST_DOCS_CHANNEL=next` also adds `<meta name="robots" content="noindex">` so only
-releases are indexed. The root 404 page cannot know which version path was requested, so it shows a
-neutral "Versions" label and no banner.
+releases are indexed. The 404 body does not read `versions.json`: it probes for the same page under `/next/` with a `HEAD`
+request and links to it when found. The root 404 page cannot know which version path was requested, so its switcher
+shows a neutral "Versions" label and there is no banner.
 
 ## Publishing
 
