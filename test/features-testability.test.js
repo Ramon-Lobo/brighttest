@@ -409,3 +409,64 @@ describe('testability rules', () => {
     expect(node(a, 'comp:ApiTask').testability.primary.rule).toBe('T1')
   })
 })
+
+describe('classify indexes its input once', () => {
+  // a counting array: every pass over it is recorded, so a per-component scan shows up deterministically
+  const counted = (list) => { const a = list.slice(); a.passes = 0; a[Symbol.iterator] = function* () { a.passes++; yield* Array.prototype[Symbol.iterator].call(this) }; return a }
+  it('walks edges and uncertainty a constant number of times, and never searches nodes per component', () => {
+    const N = 300
+    const nodes = []; const edgeList = []; const sites = new Map(); const compFiles = new Map()
+    for (let i = 0; i < N; i++) {
+      nodes.push({ id: `comp:C${i}`, kind: 'component', file: `components/C${i}.xml`, extends: 'Task', builtinRoot: 'Task', isTask: true })
+      nodes.push({ id: `file:components/C${i}.brs`, kind: 'file', lang: 'brs', functions: [{ name: 'F', line: 1, pure: true }] })
+      compFiles.set(`comp:C${i}`, { xml: `components/C${i}.xml`, files: [`components/C${i}.brs`] })
+      edgeList.push({ from: `file:components/C${i}.brs`, to: null, kind: 'calls', conf: 'unresolved', at: `components/C${i}.brs:2` })
+    }
+    nodes.find = () => { throw new Error('nodes.find per component') }
+    const edgesIn = counted(edgeList); const uncIn = counted([{ kind: 'inline-cdata', at: 'components/C0.xml:3', detail: 'x' }])
+    const out = classify({ nodes, edges: edgesIn, sites, compFiles, uncertainty: uncIn })
+    expect(out.size).toBe(2 * N) // N components plus N file records
+    expect(edgesIn.passes).toBeLessThanOrEqual(2)
+    expect(uncIn.passes).toBeLessThanOrEqual(2)
+  })
+})
+
+describe('F5 and D1 follow the base type', () => {
+  const view = (g, id) => node(g, id).testability
+  it('a component extending Video needs media fixtures and playback on the device', async () => {
+    const g = await mk({ 'components/MyPlayer.xml': xml('MyPlayer', 'Video', '') })
+    expect(view(g, 'comp:MyPlayer').primary).toMatchObject({ class: 'headless-fixtures', rule: 'F5' })
+    expect(view(g, 'comp:MyPlayer').alsoNeeds).toContainEqual(expect.objectContaining({ class: 'device', aspect: 'playback', rule: 'F5' }))
+  })
+  it('a child whose tag is an app component extending Video counts, case-insensitively', async () => {
+    const g = await mk({
+      'components/MyPlayer.xml': xml('MyPlayer', 'Video', ''),
+      'components/Shell.xml': xml('Shell', 'Group', '<children>\n    <myplayer id="p" />\n  </children>'),
+    })
+    expect(view(g, 'comp:Shell').primary).toMatchObject({ class: 'headless-fixtures', rule: 'F5', at: 'components/Shell.xml:4' })
+  })
+  it('a component extending Timer or Animation, or having such a child through an app component, needs the device for wall-clock', async () => {
+    const g = await mk({
+      'components/Tm.xml': xml('Tm', 'Timer', ''),
+      'components/An.xml': xml('An', 'Animation', ''),
+      'components/Host.xml': xml('Host', 'Group', '<children>\n    <Tm id="t" />\n  </children>'),
+    })
+    for (const id of ['comp:Tm', 'comp:An', 'comp:Host']) expect(view(g, id).alsoNeeds, id).toContainEqual(expect.objectContaining({ aspect: 'wall-clock', rule: 'D1' }))
+  })
+  it('<children> inherited through extends count for the extending component', async () => {
+    const g = await mk({
+      'components/P.xml': xml('P', 'Group', '<children>\n    <Video id="v" />\n  </children>'),
+      'components/Q.xml': xml('Q', 'P', ''),
+    })
+    expect(view(g, 'comp:Q').primary).toMatchObject({ class: 'headless-fixtures', rule: 'F5', at: 'components/P.xml:4' })
+  })
+  it('a findNode that resolves to an app component extending Video records the platform object and Timer-based ones the timers fact', async () => {
+    const g = await mk({
+      'components/MyPlayer.xml': xml('MyPlayer', 'Video', ''),
+      'components/Tm.xml': xml('Tm', 'Timer', ''),
+      'components/Host.xml': xml('Host', 'Group', '<children>\n    <MyPlayer id="p" />\n    <Tm id="t" />\n  </children>', ['Host.brs']),
+      'components/Host.brs': ['sub init()', '  m.p = m.top.findNode("p")', '  m.t = m.top.findNode("t")', 'end sub'],
+    })
+    expect(node(g, 'file:components/Host.brs').facts).toMatchObject({ platformObjects: ['Video'], timers: true })
+  })
+})
