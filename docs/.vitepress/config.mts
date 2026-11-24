@@ -65,6 +65,7 @@ export default withMermaid({
         ],
       },
       { text: 'E2E', link: '/e2e/' },
+      { text: 'Changelog', link: '/changelog' },
       {
         text: 'CI',
         items: [
@@ -92,6 +93,7 @@ export default withMermaid({
           { text: 'Motivation & decisions', link: '/motivation' },
           { text: 'Architecture', link: '/architecture' },
           { text: 'Design decisions', link: '/decisions-summary' },
+          { text: 'Changelog', link: '/changelog' },
         ],
       },
       {
