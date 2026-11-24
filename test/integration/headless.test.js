@@ -191,3 +191,28 @@ describe('deviceInfo run also mounts the package root and a zero-splash staged m
     expect(fs.readFileSync(path.join(dir, 'manifest'), 'utf8')).not.toContain('splash_min_time')
   })
 })
+
+describe('@async cases in an @SGNode suite are never silently dropped', () => {
+  const spec = (dir) => path.join(dir, 'source', 'tests', 'Async.spec.bs')
+
+  it('counts all 13 cases when every @async case calls m.done()', () => {
+    const dir = makeProject('async-node')
+    fs.writeFileSync(spec(dir), fs.readFileSync(spec(dir), 'utf8').replace(/\n    @async\(500\)/, ''))
+    const res = runCli(dir)
+    expect(res.status).toBe(0)
+    expect(res.output).toContain('13 passed, 0 failed')
+    for (let i = 1; i <= 4; i++) expect(res.output).toContain(`✓ async done ${i}`)
+  })
+
+  it('fails loudly, naming each case that did not run, when an @async case never calls m.done()', () => {
+    const res = runCli(makeProject('async-node'))
+    expect(res.status).not.toBe(0)
+    // 5 ran and passed; the timed-out case + the 7 after it are reported failed: 13 counted in all.
+    expect(res.output).toContain('5 passed, 8 failed')
+    expect(res.output).toContain('Failures (8)')
+    for (const n of ['async never done', 'sync 6', 'sync 7', 'sync 8', 'async done 1', 'async done 4']) {
+      expect(res.output).toContain(`✗ ${n}`)
+    }
+    expect(res.output).toMatch(/m\.done\(\)/)
+  })
+})

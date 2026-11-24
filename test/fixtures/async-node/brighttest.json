@@ -1,0 +1,10 @@
+{
+  "rootDir": ".",
+  "sourceGlobs": ["manifest", "source/**/*", "components/**/*"],
+  "testsFilePattern": "**/*.spec.bs",
+  "stagingDir": ".brighttest",
+  "globalFields": {
+    "*": { "config": null },
+    "Widget": { "config": { "multiplier": 2 } }
+  }
+}

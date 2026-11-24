@@ -1,0 +1,89 @@
+namespace tests
+  @suite("Widget async")
+  @SGNode("Widget")
+  class WidgetAsyncTests extends rooibos.BaseTestSuite
+
+    @describe("sync and async cases")
+
+    @it("sync 1")
+    function _()
+      m.assertTrue(true)
+    end function
+
+    @it("sync 2")
+    function _()
+      m.assertTrue(true)
+    end function
+
+    @it("sync 3")
+    function _()
+      m.assertTrue(true)
+    end function
+
+    @it("sync 4")
+    function _()
+      m.assertTrue(true)
+    end function
+
+    @it("sync 5")
+    function _()
+      m.assertTrue(true)
+    end function
+
+    ' ASYNC_NO_DONE: this case never calls m.done(), so it times out
+
+    @it("async never done")
+    @async(500)
+    function _()
+      m.assertTrue(true)
+    end function
+
+    @it("sync 6")
+    function _()
+      m.assertTrue(true)
+    end function
+
+    @it("sync 7")
+    function _()
+      m.assertTrue(true)
+    end function
+
+    @it("sync 8")
+    function _()
+      m.assertTrue(true)
+    end function
+
+    @it("async done 1")
+    @async(1000)
+    function _()
+      m.top.count = 1
+      m.assertEqual(m.top.doubled, 2)
+      m.done()
+    end function
+
+    @it("async done 2")
+    @async(1000)
+    function _()
+      m.top.count = 2
+      m.assertEqual(m.top.doubled, 4)
+      m.done()
+    end function
+
+    @it("async done 3")
+    @async(1000)
+    function _()
+      m.top.count = 3
+      m.assertEqual(m.top.doubled, 6)
+      m.done()
+    end function
+
+    @it("async done 4")
+    @async(1000)
+    function _()
+      m.top.count = 4
+      m.assertEqual(m.top.doubled, 8)
+      m.done()
+    end function
+
+  end class
+end namespace
