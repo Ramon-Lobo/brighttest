@@ -143,7 +143,7 @@
   {#if selected}
     <div class="detail">
       <div class="acts">
-        <button onclick={() => mockThis(selected)}>Mock this</button>
+        <button onclick={() => mockThis(selected)} disabled={selected.bytes == null} title={selected.bytes == null ? 'No completed exchange to mock (unmatched, refused or failed request)' : 'Add a mockHttp step from this response'}>Mock this</button>
         <button onclick={() => copyRule(selected)}>Copy as rule JSON</button>
         <button onclick={() => blockRule(selected)}>Block (503)</button>
         <button onclick={clearRules}>Clear live rules</button>
