@@ -4,9 +4,9 @@ import os from 'node:os'
 import path from 'node:path'
 import { createRequire } from 'node:module'
 
-// STA23-F1: the unmodified greenfield example declares instrument.state.dispatch ["dispatch"], so its instrument build
+// The unmodified greenfield example declares instrument.state.dispatch ["dispatch"], so its instrument build
 // wraps AppStore's dispatch and the wrapper emits state.action with hashBefore and hashAfter. Headless: staged output
-// plus the real runtime under the fork engine. Device behavior is the TP-STA-23 leg in a DQ-5 batch.
+// plus the real runtime under the fork engine; nothing here touches a device.
 const require = createRequire(import.meta.url)
 const JSZip = require('jszip')
 const { build } = require(path.resolve(__dirname, '../lib/instrument/build.js'))
@@ -14,10 +14,10 @@ const { loadConfig } = require(path.resolve(__dirname, '../lib/config.js'))
 const APP = path.resolve(__dirname, '../examples/greenfield-app')
 
 let tmp
-beforeAll(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-sta23f1-')) })
+beforeAll(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-greenfield-dispatch-')) })
 afterAll(() => fs.rmSync(tmp, { recursive: true, force: true }))
 
-describe('greenfield example: action log config (STA23-F1)', () => {
+describe('greenfield example: action log config', () => {
   it('declares instrument.state.dispatch ["dispatch"] in the shipped brighttest.json', () => {
     const cfg = JSON.parse(fs.readFileSync(path.join(APP, 'brighttest.json'), 'utf8'))
     expect(cfg.instrument.state.dispatch).toEqual(['dispatch'])

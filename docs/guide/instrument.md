@@ -474,6 +474,8 @@ republished (only when the command asked for `ack: reflected`). A session mismat
   then `store.dispatch(a)`) would lose its `m` binding. Such a target is not wrapped and is reported as
   `wrap-target-unknown` (it trips `strict`); wrap a function that is called by name. The payload is masked by key name
   on the device; `redact.paths` is applied host-side only.
+  Actions that Tasks send through `m.global.btAction` reach `BTStore_onAction` and `BTStore_dispatch` directly and skip
+  `AppStore.dispatch`, so the wrap does not log them; `AppStore.dispatch` is the entry point the log sees.
   Defaults are copied as written, so in a `.bs` file only plain-literal defaults (and empty `{}` / `[]`) are wrapped; a
   function whose default uses an enum, const, namespace, template string or call is reported as `wrap-target-unknown`.
   A wrapper that cannot be built is reported the same way and the function stays unwrapped.
