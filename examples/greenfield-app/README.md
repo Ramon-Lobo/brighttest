@@ -39,6 +39,9 @@ case-insensitive, so specs and flows read them as `btstate_user` and `btstate_na
 `AppStore` any more: read a slice from `m.global`, change it through `dispatch` (or `m.global.btAction` from a Task).
 `MainScene` observes `btState_user` and sets `tierLabel` from `tier`.
 
+`brighttest.json` sets `instrument.state.dispatch` to `["dispatch"]`, so an instrument build wraps `dispatch` and the
+action log in Studio (and time travel) work without further config.
+
 | Path | Value |
 | --- | --- |
 | `btstate_user.tier` | `free` (default), `premium` after `user/signIn` |
