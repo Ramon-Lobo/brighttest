@@ -463,7 +463,7 @@ republished (only when the command asked for `ack: reflected`). A session mismat
 
 - Ops: `ping`, `get`, `set`, `merge`, `snapshot`, `restore`, `registry.read`, `registry.write`, `callFunc`, `subscribe`.
   `focus` focuses the node `args.node.id` (`NODE_NOT_FOUND` when no node has that id). `dispatch` is allowed hub-side;
-  the BTStore dispatch op is the greenfield store task (STA-S-T11), the wrap below is the app-side route. Any other op
+  the BTStore dispatch op belongs to the greenfield store (not built yet), the wrap below is the app-side route. Any other op
   answers `op not allowed`. There is no file system op and no registry delete.
 - Dispatch events and Task snapshots (config `instrument.state.dispatch` and `instrument.state.tasks`, see below).
 - `instrument.state.dispatch: ["fn"]` wraps each non-excluded function with that name: the build renames the original to

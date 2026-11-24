@@ -68,7 +68,8 @@ Usage: brighttest doctor [--host <ip>] [--ecp-port <n>] [--json] [--show-serial]
              flavor and the probe result. BRS-02 (Label.forceUpperCase) is shown as NON-DEVICE. Exit 1 when the
              probe fails or disagrees with the package metadata. No device is contacted.
 
-  Reads the device-info only (no password, no lease, no keypresses). Exit 0 when every check passes,
+  Reads the device-info only (no password, no lease, no keypresses), except with BRIGHTTEST_DOCTOR_HUB_PROBE=1:
+  that opt-in hub probe needs ROKU_PASSWORD, takes the lease and replaces the dev channel. Exit 0 when every check passes,
   1 when one fails or the device is unreachable, 2 on a usage error. The serial is hidden unless --show-serial.
 `;
 function parseDoctorArgs(rest) {

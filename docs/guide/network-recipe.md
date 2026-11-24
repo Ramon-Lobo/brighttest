@@ -62,6 +62,6 @@ the session or flow) to go back to the real endpoint.
   app's requests are refused. See [MCP](./mcp) for details.
   The session hub writes `[brighttest hub] ...` lines to MCP stderr (start, each request with method, path without
   query, status and bytes, and stop). No request bodies.
-- Observe-only breadcrumbs and the MCP net tools have been tested headless and against stubs only. A check on a real
-  device is still open (TP-NET-31).
+- Observe-only breadcrumbs and the MCP net tools have been tested headless and against stubs only. They have not been run on a real
+  device.
 - Mocks and faults need the hub; they do nothing in an observe-only build.

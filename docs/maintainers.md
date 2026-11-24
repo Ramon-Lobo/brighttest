@@ -119,7 +119,7 @@ flowchart TD
   - drop records whose `SF:` path matches `(^|/)rooibos/` (framework-injected);
   - join and write to the `--lcov` path.
 - `extractLcov` is exported for unit testing.
-- Fallbacks (ENG-T14): one best-effort Home key press (through the ECP key path) runs after the lease is held and
+- Fallbacks: one best-effort Home key press (through the ECP key path) runs after the lease is held and
   before deploy; a failed Home only warns. The watchdog (`--timeout`) kills the CLI's process group and the run
   fails even if the child never closes. No `[Rooibos Result]` is a failure, even when cases streamed. An idle (output-silence) watchdog
   (`--idle-timeout <sec>`, else config `deviceIdleTimeout`, else 120 s; `0` disables; an explicit value is also passed to the rooibos CLI as `--idle-timeout`, unset leaves its argv unchanged) kills the CLI if the device prints nothing; it sits
