@@ -95,7 +95,8 @@ brighttest mcp — serve brighttest's deterministic e2e primitives to an AI agen
 Usage: brighttest mcp
 
   Speaks newline-delimited JSON-RPC 2.0 on stdin/stdout (logs go to stderr). Tools (contract brighttest-mcp/v1):
-  list_devices, device_doctor, inspect_tree, press, navigate_to, screenshot, app_state, run_flow.
+  list_devices, device_doctor, inspect_tree, press, navigate_to, screenshot, app_state, run_flow, net_requests, net_mock
+  (the two net tools open a net window: one lease and a session hub for up to 10 idle minutes, see docs/guide/mcp.md).
 
   The device comes only from the usual resolution chain (ROKU_HOST, ROKU_PASSWORD, project .env, device cache);
   no tool takes a host, a password or an absolute path. Each device tool call takes the device lease for that call
