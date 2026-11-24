@@ -53,7 +53,7 @@
     "jszip": "3.10.2"
   },
   "devDependencies": {
-    "mermaid": "11.17.0",
+    "mermaid": "12.3.0",
     "vitepress": "1.6.4",
     "vitepress-plugin-mermaid": "2.0.17",
     "vitest": "^4.1.12"
