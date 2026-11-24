@@ -12,12 +12,6 @@ const census = require('../lib/instrument/census')
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const APP = path.join(ROOT, 'examples', 'feature-tree-app')
 const CYCLES = path.join(ROOT, 'test', 'fixtures', 'feature-graph', 'cycles')
-const STRUCTURAL = ['extends', 'script', 'import', 'child', 'creates', 'runs-task', 'entry', 'global-read', 'global-write', 'registry', 'spec-covers']
-// Facts that EXPECTED-GRAPH.json lists but the T1a graph does not produce yet (deferred to T1b); everything else must match.
-const DEFERRED = {
-  'file:components/player/PlayerScreen.brs': { platformObjects: ['Video'] }, // a component-child platform class, not a CreateObject
-  'file:components/shell/MainScene.brs': { timers: true }, // Timer-node detection comes with scope resolution
-}
 // built-in ids are lower-case in the graph; EXPECTED-GRAPH.json keeps the source casing, so compare case-insensitively on those
 const bid = (id) => (typeof id === 'string' && id.startsWith('builtin:') ? id.toLowerCase() : id)
 const ek = (e) => [e.kind, e.from, bid(e.to), e.conf, e.at].join('|')
@@ -41,8 +35,16 @@ describe('feature graph: ground truth', () => {
     expect(app.nodes.map((n) => n.id).sort()).toEqual(expected.nodes.map((n) => bid(n.id)).sort())
   })
   it('matches the structural edges of EXPECTED-GRAPH.json exactly', () => {
-    const want = expected.edges.filter((e) => STRUCTURAL.includes(e.kind)).map(ek).sort()
-    expect(app.edges.map(ek).sort()).toEqual(want)
+    expect(app.edges.map(ek).sort()).toEqual(expected.edges.map(ek).sort())
+  })
+  it('matches the scopes and candidates of the calls, callfunc and observes edges', () => {
+    for (const e of expected.edges.filter((x) => ['calls', 'callfunc', 'observes'].includes(x.kind))) {
+      const got = app.edges.find((x) => ek(x) === ek(e))
+      expect([...(got.scopes || [])].sort(), ek(e)).toEqual([...(e.scopes || [])].sort())
+      expect(got.candidates, ek(e)).toEqual(e.candidates)
+    }
+    expect(app.resolution.edgesTotal).toBe(expected.resolution.edgesTotal)
+    expect(app.resolution.byConf).toEqual(expected.resolution.byConf)
   })
   it('matches component data (extends, task, interface, scene) of EXPECTED-GRAPH.json', () => {
     for (const n of expected.nodes.filter((x) => x.kind === 'component')) {
@@ -54,9 +56,10 @@ describe('feature graph: ground truth', () => {
     for (const n of expected.nodes.filter((x) => x.kind === 'file')) {
       const got = app.nodes.find((x) => x.id === n.id)
       for (const k of ['lang', 'spec', 'vendor']) expect(got[k], `${n.id}.${k}`).toEqual(n[k])
-      expect(got.functions, `${n.id}.functions`).toEqual(n.functions ? n.functions.map((f) => ({ name: f.name, line: f.line })) : undefined)
+      expect((got.functions || []).map((f) => [f.name, f.line]), `${n.id}.functions`).toEqual((n.functions || []).map((f) => [f.name, f.line]))
+      for (const f of n.functions || []) if (f.pure !== undefined) expect(got.functions.find((x) => x.name === f.name).pure, `${n.id} ${f.name} pure`).toBe(f.pure)
+      if (n.scope) expect([...got.scope].sort(), `${n.id}.scope`).toEqual([...n.scope].sort())
       const facts = { ...(n.facts || {}) }
-      for (const k of Object.keys(DEFERRED[n.id] || {})) delete facts[k]
       expect(got.facts, `${n.id}.facts`).toEqual(Object.keys(facts).length ? facts : undefined)
       const real = fs.statSync(path.join(APP, n.id.slice(5))).size
       expect(got.bytes, `${n.id}.bytes`).toBe(real)
