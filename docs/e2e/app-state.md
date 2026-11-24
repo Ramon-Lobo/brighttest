@@ -88,7 +88,8 @@ By default a failed `assertState` prints the app's actual value (`got "..."`), w
 keyboard wants. When an agent drives the run and its output lands in traces or a transcript, switch redaction on.
 The value is then replaced by `<redacted:key>` in the failure message and the step detail when the path has a
 sensitive segment (`token`, `secret`, `password`, `passwd`, `session`, `auth`, `cookie`, `apikey`, `api_key`) or sits under a mask in
-`instrument.state.redact.paths` (`*` matches one segment). Matching ignores case. A value that only contains such keys is scrubbed
+`instrument.state.redact.paths` (`*` matches one segment). Matching ignores case, and an array element is written `list[1]` or
+`list.1`: printing the array or a parent object shows a masked element as `<redacted:1>`. A value that only contains such keys is scrubbed
 inside. Turn it on with any of these (first one set wins, highest first):
 
 | Setting | Where |
@@ -133,9 +134,11 @@ For the legacy `__bt_state` published state, `instrument.state.redact.paths` mat
 `user.name`, not `global.user.name`).
 
 Mask paths (`instrument.state.redact.paths`) are written against the agent state snapshot, so the first segment is the
-layer name (`global`, `scene`, `focus`, `registry`), as in `global.user.email`. A leading `layers.` is also accepted.
-Segments match ignoring case, `*` matches one segment, and an array element is written `list[0]` or `list.0`
-(`global.cart.items[1].price`). A masked element shows as `<redacted:1>`.
+layer name (`global`, `scene`, `focus`, `registry`, `task`), as in `global.user.email`. A leading `layers.` is also accepted.
+Segments match ignoring case, `*` (or `[*]`) matches one segment on the host, and an array element is written `list[0]` or `list.0`
+(`global.cart.items[1].price`). A masked element shows as `<redacted:1>`. This applies to Studio, the hub and `assertState`
+failure messages. The device agent also treats a trailing `.*` as everything below that path, whereas on the host `*` is exactly
+one segment, so `global.*.email` differs between the two: use explicit paths when both matter.
 
 `layer` selects one layer; `path` is then relative to it. Without `layer`, the first segment of `path`
 is the layer name.
@@ -224,7 +227,7 @@ key out and the agent uses its built-in default.
 
 - **`redact.paths`** is an array of strings. A value at a listed path is published as `<redacted:key>`, on top
   of the secret-looking keys that are always redacted. A path starts with the layer name (`global`, `scene`,
-  `focus`, `registry`). `a.b.c` matches that path exactly and `a.b.*` matches everything below `a.b`. Matching
+  `focus`, `registry`, `task`). `a.b.c` matches that path exactly and `a.b.*` matches everything below `a.b` (on the device agent; the host treats `*` as one segment). Matching
   ignores case. An array element is addressed as `a.list[0]` or `a.list.0`: `a.list[1]` masks that element (as
   `<redacted:1>`), and `a.list.*` masks every element.
 - **`publish.maxBytes`** is an integer, the size at which the agent cuts the published document (default 65536).
