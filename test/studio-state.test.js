@@ -345,3 +345,51 @@ describe('GET /api/tree (read-only State view source)', () => {
     expect(r.text).not.toMatch(/tok-secret|Zed|4242/)
   })
 })
+
+describe('read-only published-state masking: fail closed', () => {
+  const SECRET = /tok-secret|Zed|4242|LEAKME/
+  const agentDoc = (extra = {}) => JSON.stringify({ v: 1, seq: 7, snapshot: { layers: { global: { user: { token: 'tok-secret', nickname: 'Zed' } } } }, ...extra })
+  const agentNode = (r) => r.json.nodes.find((n) => n.id === '__bt_agent')
+
+  it('hides an agent document with no snapshot.layers, a non-object literal, and unparseable text', async () => {
+    for (const text of [JSON.stringify({ v: 1, other: { token: 'tok-secret', nickname: 'Zed' }, snapshot: { x: 'LEAKME' } }), '"LEAKME"', 'not json LEAKME']) {
+      fake.setAgentText(text)
+      const r = await req('GET', '/api/tree')
+      expect(r.status).toBe(200)
+      expect(r.text).not.toMatch(SECRET)
+      expect(agentNode(r).text).toBe('<redacted:text>')
+      expect(agentNode(r).attrs.text).toBe('<redacted:text>')
+    }
+  })
+  it('masks fields outside snapshot with the built-in key names', async () => {
+    fake.setAgentText(agentDoc({ meta: { token: 'tok-secret', ok: 1 } }))
+    const r = await req('GET', '/api/tree')
+    expect(r.text).not.toMatch(SECRET)
+    expect(JSON.parse(agentNode(r).text).meta).toEqual({ token: '<redacted:token>', ok: 1 })
+  })
+  it('never returns raw text or quoted input for a __bt_state parse error or a scalar state (unit helpers)', () => {
+    const { maskPublished } = studio._test
+    const bad = maskPublished({ present: true, state: null, error: 'invalid JSON (Unexpected token L in JSON at position 0 LEAKME)', raw: 'LEAKME{' }, [])
+    expect(bad).toEqual({ present: true, state: null, error: 'invalid JSON' })
+    expect(maskPublished({ present: true, state: 'LEAKME', error: null, raw: '"LEAKME"' }, [])).toEqual({ present: true, state: '<redacted:text>', error: null })
+    expect(maskPublished({ present: true, state: { token: 'x', a: { b: 'c' } }, error: null, raw: 'x' }, ['a.b']).state).toEqual({ token: '<redacted:token>', a: { b: '<redacted:b>' } })
+  })
+})
+
+describe('run traces are masked (SSE, /api/runs/:id, meta.json)', () => {
+  it('contains no secret in the stream, the served run or the persisted meta.json; serves an old unmasked meta.json masked', async () => {
+    publish({ global: { user: { token: 'tok-secret', nickname: 'Zed' } } })
+    fs.mkdirSync(path.join(dir, 'flows'), { recursive: true })
+    fs.writeFileSync(path.join(dir, 'flows', 'm.e2e.yaml'), 'appId: dev\nsteps:\n  - press: Home\n')
+    const sse = await req('GET', '/api/run?file=m.e2e.yaml')
+    expect(sse.status).toBe(200)
+    expect(sse.text).toMatch(/"type":"step"/)
+    expect(sse.text).not.toMatch(/tok-secret|Zed/)
+    const list = await req('GET', '/api/runs')
+    const id = list.json[0].id
+    const one = await req('GET', `/api/runs/${id}`)
+    expect(one.text).not.toMatch(/tok-secret|Zed/)
+    const metaFile = path.join(dir, '.brighttest', 'studio', 'runs', String(id), 'meta.json')
+    expect(fs.readFileSync(metaFile, 'utf8')).not.toMatch(/tok-secret|Zed/)
+  })
+})

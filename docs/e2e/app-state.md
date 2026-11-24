@@ -106,6 +106,12 @@ only what Studio masks on top of the agent's own masking, behind a banner, and m
 `<redacted:...>` marker is never a real value, so Studio always refuses to write one; restoring a snapshot skips masked
 values and tells you how many. Registry values are edited as a whole `<section>.<key>` value, never a part of one.
 
+The read-only State view (shown while the hub is held, absent or connecting), the node list in `/api/tree` and the
+saved run traces are masked the same way, and so are traces saved by an earlier version when Studio loads or serves
+them. Published text that cannot be masked (not JSON, or not the expected shape) is replaced by `<redacted:text>`.
+For `__bt_state`, `instrument.state.redact.paths` match from the state root with no layer prefix (for example
+`user.name`, not `global.user.name`).
+
 `layer` selects one layer; `path` is then relative to it. Without `layer`, the first segment of `path`
 is the layer name.
 
