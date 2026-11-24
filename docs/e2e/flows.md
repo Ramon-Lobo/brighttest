@@ -7,7 +7,7 @@ step model that the runner executes against the device.
 
 ```yaml
 appId: dev              # channel to launch (default: dev). --app overrides it.
-config: { timeout: 8 }  # optional per-flow overrides (timeout in seconds, noSystemDialog, ready*)
+config: { timeout: 8 }  # optional per-flow overrides (timeout in seconds, noSystemDialog, redactState, ready*)
 requires: { firmware: ">=12.5" }  # optional: skip the flow on a device that does not match
 steps:
   - launch

@@ -87,18 +87,18 @@ included). Like the other assertions it polls until it matches or the step timeo
 By default a failed `assertState` prints the app's actual value (`got "..."`), which is what a person at the
 keyboard wants. When an agent drives the run and its output lands in traces or a transcript, switch redaction on.
 The value is then replaced by `<redacted:key>` in the failure message and the step detail when the path has a
-sensitive segment (`token`, `secret`, `password`, `session`, `auth`, `cookie`) or sits under a mask in
-`instrument.state.redact.paths` (`*` matches one segment). A value that only contains such keys is scrubbed
+sensitive segment (`token`, `secret`, `password`, `passwd`, `session`, `auth`, `cookie`, `apikey`, `api_key`) or sits under a mask in
+`instrument.state.redact.paths` (`*` matches one segment). Matching ignores case. A value that only contains such keys is scrubbed
 inside. Turn it on with any of these (first one set wins, highest first):
 
 | Setting | Where |
 | --- | --- |
-| runner option `redactState` | the CLI flag, when wired (see the changelog) |
+| runner option `redactState` | programmatic runs only; there is no CLI flag yet |
 | `BRIGHTTEST_REDACT_STATE=1` | environment |
 | `config: { redactState: true }` | the flow file |
 | `"redactState": true` | `brighttest.json` |
 
-`false`/`0`/`off` at a higher level turns it off again. Traces saved before this setting existed are not changed.
+`false`, `0`, `no` or `off` at a higher level turns it off again; any other non-empty value (including a typo) turns it on. A subflow started with `runFlow` inherits the setting and can only turn it on, never off. Redaction covers `assertState` text only: it does not cover screenshots, log tails or `assertField` output.
 
 ### Instrumented apps: layers and the agent node
 
