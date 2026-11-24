@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="InlineBanner" extends="Group">
+  <script type="text/brightscript"><![CDATA[
+    sub init()
+        m.top.visible = Banner_isShown()
+    end sub
+
+    function Banner_isShown() as boolean
+        return true
+    end function
+  ]]></script>
+</component>

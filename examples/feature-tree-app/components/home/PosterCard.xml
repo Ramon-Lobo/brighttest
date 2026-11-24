@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="PosterCard" extends="Group">
+  <interface>
+    <field id="title" type="string" />
+  </interface>
+  <children>
+    <Poster id="art" width="300" height="170" />
+    <Label id="cardTitle" />
+  </children>
+</component>

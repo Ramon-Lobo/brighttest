@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="CycleB" extends="Group">
+  <interface>
+    <function name="pong" />
+  </interface>
+  <script type="text/brightscript" uri="CycleB.brs" />
+  <script type="text/brightscript" uri="pkg:/source/dup2.brs" />
+  <script type="text/brightscript" uri="Missing.brs" />
+</component>

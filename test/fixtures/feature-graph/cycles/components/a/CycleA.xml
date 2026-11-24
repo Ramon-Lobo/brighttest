@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="CycleA" extends="Group">
+  <interface>
+    <function name="ping" />
+  </interface>
+  <script type="text/brightscript" uri="CycleA.brs" />
+  <script type="text/brightscript" uri="pkg:/source/dup1.brs" />
+</component>

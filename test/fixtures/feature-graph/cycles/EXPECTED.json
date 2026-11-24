@@ -1,0 +1,14 @@
+{
+  "schema": "brighttest-feature-graph-cases/v1",
+  "componentCycles": [ ["comp:CycleA", "comp:CycleB"] ],
+  "selfExtends": ["comp:Loop"],
+  "fileCallCycles": [ ["file:source/ping.brs", "file:source/pong.brs", "file:source/pang.brs"] ],
+  "ambiguousCalls": [
+    { "name": "Dup_name", "scope": "source", "candidates": ["file:source/dup1.brs", "file:source/dup2.brs"], "ambiguousIn": ["source"], "notAmbiguousIn": ["CycleA", "CycleB"] }
+  ],
+  "unresolvedScripts": [ { "at": "components/b/CycleB.xml:8", "uri": "Missing.brs" } ],
+  "parseErrors": ["source/broken.brs"],
+  "neverOpened": ["source/secret.key"],
+  "callfuncCycle": [ { "at": "components/a/CycleA.brs:3", "target": "pong" }, { "at": "components/b/CycleB.brs:3", "target": "ping" } ],
+  "uncertaintyKinds": ["ambiguous-call", "unresolved-script", "parse-error", "not-read"]
+}

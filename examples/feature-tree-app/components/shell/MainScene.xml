@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="MainScene" extends="Scene">
+  <script type="text/brightscript" uri="MainScene.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Logger.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/StringUtils.brs" />
+  <children>
+    <HomeScreen id="home" />
+    <Timer id="tick" repeat="true" duration="30" />
+    <LibLoader id="libs" />
+  </children>
+</component>

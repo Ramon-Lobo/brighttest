@@ -1,0 +1,5 @@
+import "pkg:/source/lib/StringUtils.brs"
+
+function Greeting_make(name as string) as string
+    return "Hello, " + Str_title(name)
+end function

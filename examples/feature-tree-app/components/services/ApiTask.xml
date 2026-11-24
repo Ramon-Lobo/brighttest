@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="ApiTask" extends="Task">
+  <interface>
+    <field id="content" type="assocarray" />
+  </interface>
+  <script type="text/brightscript" uri="ApiTask.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Config.brs" />
+</component>
