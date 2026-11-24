@@ -782,3 +782,103 @@ describe('remaining rule and purity edges', () => {
     expect(node(g, 'file:source/lib.brs').testability.primary.needs.map((n) => n.rule)).toEqual(['F6'])
   })
 })
+
+describe('orphan scripts do not depend on file names', () => {
+  const ROLES = { user: 'UseIt', util: 'Util', helpers: 'Help' }
+  const build = (nUser, nUtil, nHelp) => mk({
+    [`components/feature/${nUser}.bs`]: [`import "${nUtil}.bs"`, `import "${nHelp}.bs"`, 'function UseIt()', '  return Util()', 'end function'],
+    [`components/feature/${nUtil}.bs`]: ['function Util()', '  return Help()', 'end function'],
+    [`components/feature/${nHelp}.bs`]: ['function Help()', '  return 1', 'end function'],
+  })
+  it('an imported lib that sorts before its importer gets no scope of its own', async () => {
+    const g = await build('user', 'a_util', 'b_helpers')
+    expect(g.resolution.callSitesResolvedPct).toBe(100)
+    expect(g.uncertainty.items.filter((i) => i.kind === 'unresolved-call')).toEqual([])
+    for (const rel of ['user', 'a_util', 'b_helpers']) for (const f of node(g, `file:components/feature/${rel}.bs`).functions) expect(f.pure, f.name).toBe(true)
+  })
+  it('every sort order of the three names gives the same graph apart from the names', async () => {
+    const orders = [['a', 'b', 'c'], ['a', 'c', 'b'], ['b', 'a', 'c'], ['b', 'c', 'a'], ['c', 'a', 'b'], ['c', 'b', 'a']]
+    const seen = new Set()
+    for (const [u, l, h] of orders) {
+      const g = await build(`${u}_user`, `${l}_util`, `${h}_helpers`)
+      const strip = (x) => { let t = JSON.stringify(x); for (const [role, nm] of [['user', u], ['util', l], ['helpers', h]]) t = t.split(`${nm}_${role}`).join(`X_${role}`); return t }
+      const text = JSON.stringify({ n: g.nodes.map(strip).sort(), e: g.edges.map(strip).sort(), u: g.uncertainty.items.map(strip).sort(), r: g.resolution })
+      seen.add(text)
+    }
+    expect(seen.size).toBe(1)
+  })
+  it('files in a pure import cycle keep their own scope', async () => {
+    const g = await mk({ 'components/lib/a.bs': ['import "b.bs"', 'function A()', '  return B()', 'end function'], 'components/lib/b.bs': ['import "a.bs"', 'function B()', '  return A()', 'end function'] })
+    expect(g.resolution.callSitesResolvedPct).toBe(100)
+    expect(edges(g, 'calls').map((e) => e.to).sort()).toEqual(['file:components/lib/a.bs', 'file:components/lib/b.bs'])
+  })
+})
+
+describe('launch arguments: Lookup, DoesExist and parameter shadowing', () => {
+  const e3 = (g) => node(g, 'entry:main').testability.alsoNeeds.filter((a) => a.rule === 'E3').map((a) => a.at)
+  const mainWith = (body) => mk({ 'source/main.brs': ['sub Main(args as dynamic)', '  s = CreateObject("roSGScreen")', '  s.CreateScene("S")', ...body, 'end sub'], 'components/S.xml': xml('S', 'Scene', '') })
+  it('args.Lookup and args.DoesExist are launch-argument reads', async () => {
+    expect(e3(await mainWith(['  x = args.Lookup("a")']))).toEqual(['source/main.brs:4'])
+    expect(e3(await mainWith(['  x = args.doesExist("a")']))).toEqual(['source/main.brs:4'])
+  })
+  it('a closure whose own parameter is named args does not read the launch arguments', async () => {
+    expect(e3(await mainWith(['  f = function(args)', '    return args.x + args["y"] + args.Lookup("z")', '  end function']))).toEqual([])
+  })
+  it('a closure in another function that takes args does not count either', async () => {
+    const g = await mk({ 'source/main.brs': ['sub Main()', '  s = CreateObject("roSGScreen")', '  s.CreateScene("S")', 'end sub', 'sub Other(args)', '  x = args.a', 'end sub'], 'components/S.xml': xml('S', 'Scene', '') })
+    expect(e3(g)).toEqual([])
+  })
+  it('250 Eval calls on one line give one eval item, so the cap holds distinct items', async () => {
+    const lines = ['sub Run()']
+    for (let i = 0; i < 250; i++) lines.push(`  Eval("a") : Eval("b")`)
+    lines.push('end sub')
+    const g = await mk({ 'source/e.brs': lines })
+    expect(items(g, 'eval').length).toBe(200)
+    expect(new Set(items(g, 'eval').map((i) => i.at)).size).toBe(200)
+  })
+})
+
+describe('surviving mutants: nesting, base types, ancestors, owned edges, entry files', () => {
+  const view = (g, id) => node(g, id).testability
+  it('a doubly nested anonymous function belongs to the named function', async () => {
+    const g = await mk({ 'source/f.brs': ['function Outer()', '  f = function()', '    g = function()', '      return Rnd(5)', '    end function', '    return g', '  end function', '  return f', 'end function'] })
+    expect(fn(g, 'file:source/f.brs', 'Outer').pure).toBe(false)
+  })
+  it('a component created by name whose base is Timer sets the timers fact', async () => {
+    const g = await mk({
+      'components/Tm.xml': xml('Tm', 'Timer', ''),
+      'components/H.xml': xml('H', 'Group', '', ['H.brs']),
+      'components/H.brs': ['sub init()', '  m.top.createChild("Tm")', 'end sub'],
+    })
+    expect(node(g, 'file:components/H.brs').facts.timers).toBe(true)
+  })
+  it('<children> of a grandparent count for the grandchild', async () => {
+    const g = await mk({
+      'components/A.xml': xml('A', 'Group', '<children>\n    <Video id="v" />\n  </children>'),
+      'components/B.xml': xml('B', 'A', ''),
+      'components/C.xml': xml('C', 'B', ''),
+    })
+    expect(view(g, 'comp:C').primary).toMatchObject({ rule: 'F5', at: 'components/A.xml:4' })
+  })
+  it('createChild and CreateObject in a component script give F5 and D1 to the component', async () => {
+    const g = await mk({
+      'components/V.xml': xml('V', 'Group', '', ['V.brs']),
+      'components/V.brs': ['sub init()', '  m.top.createChild("Video")', 'end sub'],
+      'components/T.xml': xml('T', 'Group', '', ['T.brs']),
+      'components/T.brs': ['sub init()', '  m.t = CreateObject("roSGNode", "Timer")', 'end sub'],
+      'components/Y.xml': xml('Y', 'Group', '', ['Y.brs']),
+      'components/Y.brs': ['sub init()', '  m.t = m.top.createChild("Animation")', 'end sub'],
+    })
+    expect(view(g, 'comp:V').primary).toMatchObject({ rule: 'F5', at: 'components/V.brs:2' })
+    expect(view(g, 'comp:T').alsoNeeds).toContainEqual(expect.objectContaining({ rule: 'D1', at: 'components/T.brs:2' }))
+    expect(view(g, 'comp:Y').alsoNeeds).toContainEqual(expect.objectContaining({ rule: 'D1', at: 'components/Y.brs:2' }))
+  })
+  it('launch arguments are only scanned in source/, not in component scripts', async () => {
+    const g = await mk({
+      'source/main.brs': ['sub Main(args as dynamic)', '  s = CreateObject("roSGScreen")', '  s.CreateScene("S")', 'end sub'],
+      'components/S.xml': xml('S', 'Scene', '', ['S.brs']),
+      'components/S.brs': ['sub RunUserInterface(args as dynamic)', '  x = args.a', 'end sub'],
+    })
+    expect(node(g, 'entry:main').testability.alsoNeeds.filter((a) => a.rule === 'E3')).toEqual([])
+  })
+})
