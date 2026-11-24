@@ -8,12 +8,12 @@ the entry point; the lane-specific details live in [E2E](/e2e/), [App state](/e2
 ::: warning What the screenshots are
 The screenshots on this page were captured by `scripts/docs-screenshots.js` against the in-repo **fake Roku**
 (`test/fixtures/fake-roku`) and a **scripted stand-in for an instrumented app** that acks edits. No real Roku was
-involved: the "live device screen" is empty because the fake serves no pictures, and the model and firmware text in the
+involved: the picture in the monitor is a generic placeholder gradient frame that the capture script substitutes for the device screenshot, and the model and firmware text in the
 header comes from the fake. They show the layout and the messages, not device behaviour.
 :::
 
 ![Studio Inspect page connected to a device, with a flow open in the editor and the node and remote panels](/images/studio/overview.png)
-*Inspect page: flow editor, live monitor, inspector tabs (Node, Tree, Selector, State, Network) and the remote. The header
+*Inspect page (monitor picture is a placeholder frame): flow editor, live monitor, inspector tabs (Node, Tree, Selector, State, Network) and the remote. The header
 shows the model and the lease badge.*
 
 ## Start and stop
@@ -52,7 +52,11 @@ queued), and never preempts. While another session holds the device, device rout
 The header badge shows who holds the device.
 
 ![Header badge and banner saying the device is in use by another session, with Take over when free](/images/studio/device-held.png)
-*Another session holds the device. The banner offers **Take over when free**. In this capture an edit made in the State
+*Another session holds the device (monitor picture is a placeholder frame). The banner offers **Take over when free**, and the
+State tab switches to its read-only held view with the notice "Device is held by another session". An edit sent after the
+hand-over is refused with HTTP 423 and nothing is written (the inspector sets "Device is held elsewhere; edit not sent."
+but the held view then replaces the panel, so that line may not stay on screen). The header badge can lag: it updates on
+the next poll, so it may still read "Studio holding" or already read "Studio released" while the banner shows the other holder. Note the values in the read-only held view: `name` is configured as masked in this setup, yet it shows in clear there, so Studio's configured masking is not applied to that view (observed in this capture); treat it as unredacted.*
 tab after the hand-over was refused with "Device is held elsewhere; edit not sent." and nothing was written. The header
 badge still reads "Studio holding" because it updates on the next poll; that lag is visible in the capture.*
 
@@ -66,7 +70,7 @@ Studio masks on top of the agent's own masking, behind a banner, and makes expor
 instrumented build the tab says no layers were published; see [Instrumented builds](/guide/instrument).
 
 ![State tab showing the global and scene layers, with a masked name and token](/images/studio/state-inspector.png)
-*State tab, read from the scripted stand-in app. `name` and `token` are masked.*
+*State tab, read from the scripted stand-in app (monitor picture is a placeholder frame). `name` and `token` are masked.*
 
 ### Editing
 
@@ -79,7 +83,7 @@ adds the edit to the open flow, and **+** on a leaf adds an `assertState`. Regis
 command as `cmd.sent` and the app's replies as `cmd.ack`.
 
 ![State tab after editing theme to light, with a reflected chip and a setState step button](/images/studio/state-edit.png)
-*An edit of `theme` acked through to **reflected**; a snapshot was saved with **save**.*
+*An edit of `theme` acked through to **reflected** (monitor picture is a placeholder frame); a snapshot was saved with **save**.*
 
 Snapshots (save, restore, delete, diff, export, import) are capped at 64 KB each, 20 kept. The history list shows each
 edit and restore with its ack phase. The action log, time travel and "save as spec fixture" routes are described in
