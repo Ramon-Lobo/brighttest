@@ -1,5 +1,7 @@
 # Quick start
 
+Adding brighttest to an existing app or starting a new one? See [Adopting brighttest](./adopting.md).
+
 ## Requirements
 
 - **Node.js** 22+ (the whole toolchain is Node-based; the brs-node simulator requires Node 22+).

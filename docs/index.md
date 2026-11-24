@@ -30,6 +30,14 @@ features:
     details: The exact same .spec.bs runs headless and on-device — including @SGNode node suites headless.
   - title: On-device E2E
     details: Deterministic UI tests on a real Roku — launch, drive the D-pad, type, and assert on the live SceneGraph. YAML flows, focus path-finding, screenshots &amp; video.
+  - title: Studio
+    details: A local web app on a device — live SceneGraph, remote, flow authoring with a step trace, app state and profiling.
+  - title: Instrumented builds
+    details: A debug-only package built without editing your source, for app-state flows and network fixtures, with a release gate.
+  - title: Shared devices
+    details: A per-device lease so terminals, worktrees, agents and CI jobs queue for a Roku instead of colliding.
+  - title: Built for AI agents
+    details: An assessment command, agent skills with safety rules, and an MCP server. Start with the adoption guide.
 ---
 
 ## What is brighttest?
@@ -44,6 +52,9 @@ npx brighttest                                              # headless (no devic
 npx brighttest --coverage --lcov coverage/lcov.info        # headless + coverage (no device)
 npx brighttest --device --host <roku-ip> --password <dev-pw>          # on real hardware (fidelity)
 ```
+
+Adding brighttest to an existing app, or starting a new one? Follow **[Adopting brighttest](/guide/adopting)**.
+For AI coding agents, see **[Agent skills](/guide/agent-skills)** and the **[MCP server](/guide/mcp)**.
 
 New to testing on Roku? Start with the **[Writing tests guide](/writing-tests/)** — it assumes no prior
 experience with any of these tools.

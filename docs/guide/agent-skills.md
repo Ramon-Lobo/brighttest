@@ -19,7 +19,7 @@ plus `references/`), and the content is authored once and adapted to whichever a
 | `debugging-failing-tests` | Reading the output, isolating causes, `--cross-check` fidelity, `globalFields` seeding, and testing the Task/API layer. |
 | `testing-app-state` | Reading, setting, snapshotting and asserting app state (`m.global`, scene fields, registry) with `__bt_state`, `assertState`, and the state flow steps. |
 | `mocking-network-and-store` | Faking what the app talks to in headless specs: BTNet rules and faults, HAR record and replay, `csfake` roChannelStore fixtures and the `BTMedia_*` Video/Audio driver, and what none of them prove about a device. |
-| `using-brighttest-mcp` | Driving a real Roku through the `brighttest mcp` server: the eight tools, the per-call device lease, budgets, and typed errors. |
+| `using-brighttest-mcp` | Driving a real Roku through the `brighttest mcp` server: the ten tools, the per-call device lease, budgets, and typed errors. |
 | `using-a-roku-device-safely` | Before any command that touches a real Roku: the device lease, exit codes 75, 77 and 78, doctor, ECP Permissive, ports, keepalive and the 10-minute stall, secrets, and what an agent must never do. |
 | `using-brighttest-studio` | Using `brighttest studio` in the browser: live SceneGraph, remote, flow runs with a step trace, and the Profile page. |
 | `writing-e2e-flows` | Authoring/running on-device UI flows (`*.e2e.yaml`): the inspect → write → run workflow, steps, selectors (`id` not `testId`), focus navigation, `record`/`stamp`, multi-device sharding, and CI. |
@@ -72,8 +72,9 @@ The four bundled agents, each preloaded with the skills it needs:
 | `device-debugger` | Leased, bounded investigation on a real Roku. Needs a `BRIGHTTEST_AGENT` name and reports NOT VERIFIED when no device is reachable. | `using-a-roku-device-safely`, `using-brighttest-mcp`, `debugging-failing-tests` |
 | `test-author` | Writes Rooibos specs, e2e flows, fixtures and csfake mocks, and proves each new test can fail. Headless unless given a lease name and purpose. | `writing-rooibos-tests`, `writing-e2e-flows`, `mocking-network-and-store` |
 
-Copilot gets skills and the instructions block only. There are no agent definitions for Copilot or any other
-non-Claude target in this release.
+All four bundled agents are written for Claude only (`hosts: [claude]`). Copilot gets skills and the instructions
+block; it would also get `.github/agents/<name>.agent.md` for any definition that lists `copilot` in `hosts`, but none
+do in this release. No other target gets agent files.
 
 New to brighttest on an existing app? Start with the [adoption guide](./adopting.md).
 
