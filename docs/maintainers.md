@@ -615,6 +615,13 @@ transitively (the two forks, `brighterscript` and `jszip`). Docs tooling (`vitep
 and aren't shipped. For local development use `file:` linking and run `npm install` inside `brighttest/`
 once so its `node_modules` is populated.
 
+Changelog first. Every release needs a curated section in `docs/changelog.md`, and `npm version` and `npm publish` refuse to continue without one:
+
+1. `node scripts/changelog.js draft --prs > draft.md` prints a draft from the conventional commits between the latest tag and `HEAD`. It is raw material, never paste it as is.
+2. Curate: move the useful lines into `## Unreleased` in `docs/changelog.md`, rewrite them for users, keep the breaking and security lines already there, and add upgrade notes. Aim for 10 to 30 lines on a normal release.
+3. Commit it (`docs(changelog): ...`), then run `npm run skills:manifest` and `npm version <level>` as below. The `version` script runs `node scripts/changelog.js stamp`, which turns Unreleased into the new release section and leaves a fresh empty Unreleased; it aborts before any commit or tag when Unreleased has no entries. The stamped file is staged into the release commit. The `prepublishOnly` script runs `check --version` so a version with no entry cannot be published.
+4. After pushing the tag (optional, owner-gated): `node scripts/changelog.js notes vX.Y.Z > notes.md`, then `gh release create vX.Y.Z --notes-file notes.md --verify-tag`.
+
 Release flow: `skills/facts.json` carries `cliVersion`, so `npm version` alone leaves it stale. Run `npm run skills:manifest` after any version bump, dependency range change, CLI flag/subcommand/help change or lease/instrument default change, and commit the result (`brighttest skills --check` fails on drift). Bump with `npm version <patch|minor|major>` (commits + tags `vX.Y.Z` on `main`; regenerate and commit facts before it, or amend the release commit before tagging), push the
 branch **and the tag**, then `npm publish --access public`. The npm account has **2FA enabled**, so publish
 prompts for a one-time password — pass it with `--otp=<code>` (it can't be automated interactively; use an
