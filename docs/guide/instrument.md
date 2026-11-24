@@ -278,6 +278,8 @@ with HTTP 599 and a hint body, and records a `net.error` of kind `unmatched`. `p
 `instrument.net.unmatched`, then `passthrough` when recording, then `fail` once any rule config (a fixture file) is loaded, and
 `passthrough` otherwise. Any other value exits 2 (`--net-unmatched must be "fail" or "passthrough"`).
 
+Studio's Network tab reads `instrument.net` `upstreamHosts`, `unmatched` and `redact` the same way. In Studio `record` is off and `fixtures` are not loaded, and a bad value is shown as the panel message (see the Network panel in [e2e](../e2e/index.md)).
+
 The flag does not change the exit code by itself: the app sees the 599, so a spec that depends on the call fails in the
 usual way. At the end of the run the failing requests are printed, up to 20, and the rest are in the NDJSON file:
 
