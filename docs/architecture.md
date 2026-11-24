@@ -102,7 +102,7 @@ More in [Headless vs device](/writing-tests/headless-vs-device).
 
 ## Beyond the test lanes: instrument, hub and assess
 
-Three parts sit beside the test lanes. They share the same bsc build, the device lease and the `brighttest.json` config.
+Three parts sit beside the test lanes. They read the same `brighttest.json`; instrument and the hub also use the bsc build and the device lease.
 
 - **Instrument** (`brighttest instrument build|verify|census`, `lib/instrument/`). A bsc plugin rewrites a **staged copy** of
   the app (Scene `init` bootstrap, `setUrl` / `getUrl` routing, an optional state agent) and the build writes a

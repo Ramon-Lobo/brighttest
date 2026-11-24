@@ -1,8 +1,8 @@
-# legacy-app (FX-LEGACY)
+# legacy-app
 
 A deliberately conventional, plain-BrightScript channel with no brighttest conventions, written from scratch
-to stress instrumentation the way long-lived apps do. Invented content only. Fixture for hand-off packs
-(TP-INS, TP-STA, TP-NET, TP-ROB).
+to stress instrumentation the way long-lived apps do. Invented content only. Fixture for instrumentation,
+state, network and robustness checks.
 
 ## What it contains
 

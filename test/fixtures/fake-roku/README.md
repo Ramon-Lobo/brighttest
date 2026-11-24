@@ -4,7 +4,7 @@ Zero-dependency scripted stub Roku for device-free tests. Placeholder identifier
 `FAKE-SERIAL-0001`, IP `192.0.2.10`, dev password `rokudev-test`). Loopback by default.
 
 ```sh
-node test/fixtures/fake-roku/server.js --scenario healthy --installer-port 80 --log fake.jsonl
+node test/fixtures/fake-roku/server.js --scenario healthy --log fake.jsonl
 node test/fixtures/fake-roku/server.js --list
 ```
 
@@ -27,7 +27,7 @@ Port 0 picks a free port.
 `--fault-path <path> [--fault-status N]` (default 500; `/keyup/*` is a prefix glob), `--agent-text <file>`.
 
 `--hub http://127.0.0.1:<port>` (module option `hub`; module option `env` overrides the environment for tests):
-FIX-07 fetch through the hub. On start, on `launch/dev` and on `keypress/Info` the stub does one GET of
+Fetch through the hub. On start, on `launch/dev` and on `keypress/Info` the stub does one GET of
 `/bt/<token>/net/;http://fixture.invalid/fixture/netbody` against the hub, the token read from the
 `BRIGHTTEST_HUB_TOKEN` environment variable (name from `HUB_TOKEN_ENV`). The body, cut to 200 characters, is
 `Label netBody` in the tree (placeholder `netbody: pending` before the first answer). Any hub error, a missing
@@ -51,11 +51,11 @@ Active app is `dev`; `keypress/Home` switches to Roku, `launch/dev` switches bac
 
 ## Scenarios
 
-Run `--list`. Added by FIX-06: `console-slow` (700 ms per console write), `keypress-home-500` (only
+Run `--list`. Also: `console-slow` (700 ms per console write), `keypress-home-500` (only
 `keypress/Home` -> 500), `keyup-fails` (`keyup/*` -> 503), `rooibos-pass` / `rooibos-fail` (Rooibos transcript on
 8085 after a successful install, replayed to later connections), `focus-grid`, `installer-500`, `late-node`.
 `sgnodes-fails`: every `/query/sgnodes/*` answers a `FAILED` body; `/query/app-ui` still serves the scenario tree
-(no parent links), so the ROB-10 fallback source can be exercised.
+(no parent links), so the app-ui fallback source can be exercised.
 `sgnodes-hangs`: every `/query/sgnodes/*` request is accepted and never answered (the client timeout fires);
 `/query/app-ui` still serves the tree.
 

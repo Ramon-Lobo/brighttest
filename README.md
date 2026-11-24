@@ -100,7 +100,7 @@ coverage report also fails the run so CI never silently loses coverage.
 
 ```bash
 npx brighttest assess [dir]                      # read-only readiness report (no device, no network, writes nothing)
-npx brighttest init [--brownfield | --greenfield]  # scaffold brighttest.json, a first spec, .gitignore entries
+npx brighttest init [--brownfield | --greenfield]  # scaffold brighttest.json and .gitignore entries (plain and --greenfield also add a first spec)
 npx brighttest instrument census                 # static scan: scenes, tasks, setUrl sites, registry sections
 npx brighttest instrument build [--strict]       # debug-only package; never ship it
 npx brighttest instrument verify <zip|dir>       # release gate: exit 3 when instrumentation is found

@@ -1,7 +1,7 @@
 # Injected runtime notes
 
 The files under `source/` are concatenated into the staged `source/bt/BT_runtime.brs` and ship to the device (the staged copy has full-line comments and blank lines stripped), so
-long explanations live here instead of in the BrightScript (ADR 0020, STA-S-T9). This file is never staged: the plugin
+long explanations live here instead of in the BrightScript. This file is never staged: the plugin
 copies named runtime files only.
 
 ## Write path (BT_write.brs)
@@ -11,7 +11,7 @@ copies named runtime files only.
     a context { global, scene, cfg, state } so the same code runs headless (brs-cli) and on a device.
     
     Allow-list (design D8): ping, get, set, merge, snapshot, restore, registry.read, registry.write, callFunc, subscribe.
-    focus focuses the node `args.node.id` (NODE_NOT_FOUND otherwise). dispatch is allowed hub-side; its BTStore op is STA-S-T11 (the app-side route is the dispatch wrap below, STA-S-T10). Anything else answers
+    focus focuses the node `args.node.id` (NODE_NOT_FOUND otherwise). dispatch is allowed hub-side; its BTStore op is not built yet (the app-side route is the dispatch wrap below). Anything else answers
     "op not allowed". Writes are type-checked (a string into an integer field is refused, the app keeps running), never go
     below a node reference, and registry writes are limited to the configured registrySections and flushed. There is no op
     for the file system and none that deletes registry data. callFunc runs only names listed in the config's callFuncAllow.
@@ -66,7 +66,7 @@ copies named runtime files only.
     "auto" means the build did not bake a host, so the build stays inactive (identity).
     CreateObject("roUrlTransfer") returns invalid on the render thread on some firmware [DV fw 16.0.4], so a BT_url call
     from a Scene init before any Task has run gets a failed hello (identity, retried after 30 s) instead of a crash.
-    The build reports hand-written BT_url calls that run on the render thread as the informational net-render-thread kind (NET-BTURL-RT).
+    The build reports hand-written BT_url calls that run on the render thread as the informational net-render-thread kind.
 
 ## `m` layer (btop/BT_mOp.brs)
 
@@ -86,7 +86,7 @@ copies named runtime files only.
 - The `get` on the m, scene, global and node layers redacts when any segment of the path is a secret key, or any prefix matches a redact pattern in dotted form (`m.list.0`) or `[i]` form (`m.list[0]`, numeric segments). The registry layer (`get` on `registry.<section>` and `registry.<section>.<key>`, and the `registry.read` op) honours the same rules through `BT_wRedSeg`, matching the section and key segments in dotted and `[i]` form. Key reads (`registry.read`, `get <section>.<key>`) parse a JSON-container value (starts with `{` or `[`) and mask it with the published-doc rules, then re-serialize it: keys come back sorted, floats and big integers can lose precision, non-ASCII text is escaped, and a client that reads, edits and writes a value back would store the lossy text and any `<redacted:...>` placeholders. Other values are returned as stored, so a `redact.paths` pattern deeper than the key does not apply to them. Section reads (`get registry.<section>`) mask the same way, including a section named by an exact pattern or with a secret-like name. Matching reads `[i]` as `.i` on both the path and the pattern, case-insensitively, so `list[0]`, `list.0` and `list.*` / `list[*]` all match array elements (a masked element becomes `<redacted:i>`); `*` alone matches nothing. `BT_wRedSeg` does one dotted lookup per segment. A literal `[` or `]` in an object key is matched in its dotted form, which errs toward masking.
 - `BT_wClampStep` decides the `agent.rate` event: it fires once when clamping starts and only after a hub session is live (a clamp that starts before hello is held and reported after), then re-arms when the clamp ends.
 
-## Wrap and task hooks (BT_write.brs, STA-S-T10)
+## Wrap and task hooks (BT_write.brs)
 
     Both hooks are emitted by the plugin (lib/instrument/wrap.js) around functions the config names; the runtime only holds
     the three helpers. The original function is renamed `__bt_orig_<name>` on its own line and a wrapper with the original
