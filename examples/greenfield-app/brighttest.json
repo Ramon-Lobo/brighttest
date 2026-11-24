@@ -3,5 +3,8 @@
   "sourceGlobs": ["manifest", "images/**/*", "source/**/*", "!source/main.brs", "components/**/*"],
   "testsFilePattern": "**/*.spec.bs",
   "stagingDir": ".brighttest",
-  "diagnosticFilters": [1140]
+  "diagnosticFilters": [1140],
+  "instrument": {
+    "state": { "dispatch": ["dispatch"] }
+  }
 }
