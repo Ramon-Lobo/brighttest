@@ -304,6 +304,24 @@ and the agent's reason is in the message (`setState: BAD_PATH: no element 7 (ack
 A path with a missing segment is not a separate state code. In an `ops:` batch every path is checked first and
 nothing is applied if one fails; the message names it as `ops[N]`.
 
+### Snapshot and restore in flows
+
+`snapshot: name` stores the `global`, `scene` and `registry` layers. To bring a node's fields back too, list the node
+ids:
+
+```yaml
+- snapshot: { name: fresh_home, nodes: [tierLabel, homePanel] }
+- setState: { layer: node, node: { id: tierLabel }, path: text, value: "Tier: premium" }
+- restore: fresh_home
+```
+
+`nodes` is a non-empty list of node id strings (repeats are dropped). Only the listed nodes are saved: a node written by
+an earlier `setState` with `layer: node` is not added for you. `restore` writes the saved node fields back, best
+effort, like the other layers. A listed node that is not in the scene when the snapshot is taken is left out; a saved
+node that is gone at restore time is reported in the restore's `skipped` list (`node.<id>: node not found`) and does
+not fail the step. The 64 KB snapshot limit still applies: a snapshot over it fails with `STATE_TOO_LARGE`, nothing is
+truncated. `restore` takes only `name`.
+
 ### Where the code shows up
 
 A failed state step prints its code first on the failure line, for example

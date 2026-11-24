@@ -66,6 +66,8 @@ steps:
   A step can override with its own `ack:` and `timeout:` (seconds).
 - `snapshot` and `restore` names are letters, digits, `_`, `-`, `.`. Snapshots are per flow and dropped when the
   flow ends; the hub keeps at most 20 per run. Restoring an unknown name fails with `STATE_SNAPSHOT_NOT_FOUND`.
+- To cover node fields, use `snapshot: { name: x, nodes: [id1, id2] }` (non-empty list of node id strings; repeats
+  dropped). `restore` then writes them back; `restore` itself takes no `nodes`.
 - `callFunc` passes at most one argument, and only names listed in `instrument.state.callable` run. The flow
   fails at start if a name is missing from that list, and you must rebuild after adding one.
 

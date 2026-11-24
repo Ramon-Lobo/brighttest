@@ -72,6 +72,8 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
   suite) instead of a generic deploy or device error ([CI integration](./guide/ci.md)).
 - **Skills:** `skills install` migrates older flattened installs to the current layout (see upgrade notes).
 - **Headless lane:** warns when it meets a Task component.
+- **E2E:** the `snapshot` step takes `nodes`, a list of node ids, so `restore` can write node fields back
+  ([flows](./e2e/flows.md), [app state](./e2e/app-state.md)).
 
 ### Fixes
 - **E2E:** focus navigation keeps pressing through a keyboard-style control whose cursor moves inside one focused

@@ -71,6 +71,11 @@ describe('state steps: parse', () => {
     ['setState: { layer: global, path: a, value: 1, ack: soon }', /ack must be one of/],
     ['setState: { layer: registry, path: onlysection, value: 1 }', /<section>\.<key>/],
     ['snapshot: "bad name"', /name must be/],
+    ['snapshot: { name: s, nodes: [] }', /nodes must be a non-empty list/],
+    ['snapshot: { name: s, nodes: tierLabel }', /nodes must be a non-empty list/],
+    ['snapshot: { name: s, nodes: [a, ""] }', /nodes must be a non-empty list/],
+    ['snapshot: { name: s, nodes: [a, 3] }', /nodes must be a non-empty list/],
+    ['restore: { name: s, nodes: [a] }', /unknown key "nodes"/],
     ['callFunc: { node: { id: x }, fn: "bad name" }', /fn must be a function name/],
     ['callFunc: { node: { id: x }, fn: bt_a, args: 3 }', /args must be a list/],
     ['waitForAgent: { bogus: 1 }', /unknown key "bogus"/],
@@ -119,6 +124,16 @@ describe('state steps: run', () => {
     expect(sent[1]).toMatchObject({ op: 'restore', args: { name: 'fresh', layers: { global: { n: 1 } } } })
     await expect(ss.execStep(flow.steps[2], ctx)).rejects.toMatchObject({ code: 'STATE_SNAPSHOT_NOT_FOUND' })
     expect(sent).toHaveLength(2)
+  })
+  it('snapshot with nodes de-duplicates them and sends args.nodes; without nodes the command is unchanged', async () => {
+    const flow = flowOf(BASE + '  - snapshot: { name: a, nodes: [tierLabel, panel, tierLabel] }\n  - snapshot: b\n')
+    expect(flow.steps[0].nodes).toEqual(['tierLabel', 'panel'])
+    await setup(flow)
+    agent(() => ({ result: { layers: { global: {} } } }))
+    await ss.execStep(flow.steps[0], ctx)
+    await ss.execStep(flow.steps[1], ctx)
+    expect(sent[0]).toMatchObject({ op: 'snapshot', args: { name: 'a', nodes: ['tierLabel', 'panel'] } })
+    expect(sent[1].args).toEqual({ name: 'b' })
   })
   it('callFunc sends node, fn and args and shows the returned value', async () => {
     const flow = flowOf(BASE + '  - callFunc: { node: { id: p }, fn: bt_reset, args: [1] }\n')
