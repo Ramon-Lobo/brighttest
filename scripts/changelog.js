@@ -67,7 +67,8 @@ function parseLog(raw) {
 
 function scrub(text) {
   let t = text;
-  t = t.replace(/\s*\((?:review|lint|ci)\s+fix(?:es)?\)\s*$/i, '');
+  t = t.replace(/\s*\(?\b(?:review|lint|ci)\s+fix(?:es)?\b\)?:?/gi, '');
+  t = t.replace(/\s*\(?\bADR[ -]?\d+(?:\s+amendment(?:\s*\([a-z0-9]\))?)?\)?:?/gi, '');
   t = t.replace(/\s*\[?\b[A-Z]{2,}-[A-Z]?\d+\b\]?:?/g, '');
   t = t.replace(/\s*\(?\b(?:[TM]\d+(?:\/[TM]\d+)*)\b\)?:?/g, '');
   t = t.replace(/\s*\(?\bPhase \d+\w*\b\)?:?/gi, '');
@@ -108,15 +109,15 @@ function foldSeries(entries) {
   const groups = [];
   const byKey = new Map();
   for (const e of entries) {
-    const keys = [phraseKey(e)];
-    if (e.files.length === 1) keys.push(e.section + '|file|' + e.files[0]);
-    let g = keys.map((k) => byKey.get(k)).find(Boolean);
+    // Fold only when the leading phrase matches (same section and scope); sharing one file is not enough.
+    const key = phraseKey(e);
+    let g = byKey.get(key);
     if (!g) {
       g = { section: e.section, area: e.area, items: [] };
       groups.push(g);
+      byKey.set(key, g);
     }
     g.items.push(e);
-    for (const k of keys) if (!byKey.has(k)) byKey.set(k, g);
   }
   return groups;
 }
@@ -178,7 +179,11 @@ function draft(opts, run, cwd) {
   if (!from) throw new Error('no v* tag found; pass --from <ref>');
   const to = opts.to || 'HEAD';
   const log = run('git', ['log', '--no-merges', '--reverse', '--name-only', '--format=%x1e%H%x1f%s%x1f%b%x1f', `${from}..${to}`], { cwd });
-  if (log.status !== 0) throw new Error(`git log failed: ${(log.stderr || '').trim()}`);
+  if (log.status !== 0) {
+    const ex = new Error(`bad ref: git log ${from}..${to} failed (${(log.stderr || '').trim() || 'unknown ref'}); check --from/--to`);
+    ex.code = 'BADREF';
+    throw ex;
+  }
   const commits = parseLog(log.stdout);
 
   const existsCache = new Map();
@@ -359,7 +364,7 @@ function check(text, opts) {
 }
 
 // ---- stamp ----
-function stampText(text, version, date, compareBase) {
+function stampText(text, version, date, compareBase, firstRef) {
   const v = version.replace(/^v/, '');
   if (!VER_RE.test(v)) throw new Error(`bad version: ${version}`);
   const { sections } = splitSections(text);
@@ -376,7 +381,7 @@ function stampText(text, version, date, compareBase) {
   while (body.length && !body[body.length - 1].trim()) body.pop();
   while (body.length && !body[0].trim()) body.shift();
   const out = [`## v${v} - ${date} {#${anchorOf(v)}}`, ''].concat(body);
-  if (prev && compareBase) out.push('', `[Full diff](${compareBase}/compare/v${prev}...v${v})`);
+  if (compareBase && (prev || firstRef)) out.push('', `[Full diff](${compareBase}/compare/${prev ? 'v' + prev : firstRef}...v${v})`);
   const lines = text.split('\n');
   const before = lines.slice(0, un.start);
   const nextStart = sections[sections.indexOf(un) + 1] ? sections[sections.indexOf(un) + 1].start : lines.length;
@@ -401,13 +406,12 @@ function sliceText(text, upto, treeDir) {
     return sv && cmpVer(sv, v) <= 0;
   });
   const docsDir = path.join(treeDir, 'docs');
-  const linkRe = /(^|[^!])\[([^\]]*)\]\(([^)\s]+)\)/g;
-  const fix = (line) => line.replace(linkRe, (all, pre, label, target) => {
+  const linkRe = /(?<!!)\[([^\]]*)\]\(([^)\s]+)\)/g;
+  const fix = (line) => line.replace(linkRe, (all, label, target) => {
     if (/^[a-z][a-z0-9+.-]*:/i.test(target) || target.startsWith('#')) return all;
     const file = target.split('#')[0].split('?')[0];
     if (!/\.md$/.test(file)) return all;
-    const abs = file.startsWith('/') ? path.join(docsDir, file) : path.join(docsDir, file);
-    return fs.existsSync(abs) ? all : pre + label;
+    return fs.existsSync(path.join(docsDir, file)) ? all : label;
   });
   const out = head.map(fix);
   for (const s of keep) out.push(s.heading, ...s.lines.map(fix));
@@ -459,6 +463,7 @@ function main(argv, env) {
   const err = (s) => e.stderr(s.endsWith('\n') ? s : s + '\n');
   const cmd = argv[0];
   let opts;
+  const usage2 = (msg) => { err(`${msg}\n${USAGE}`); return 2; };
   try {
     const rest = argv.slice(1);
     switch (cmd) {
@@ -475,6 +480,9 @@ function main(argv, env) {
   }
 
   if (cmd === 'draft') {
+    for (const k of ['from', 'to']) {
+      if (opts[k] !== undefined && (opts[k].startsWith('-') || !opts[k])) return usage2(`--${k} must be a ref and must not start with "-": ${opts[k]}`);
+    }
     try {
       const r = draft(opts, e.run, e.cwd);
       out(r.text);
@@ -482,7 +490,7 @@ function main(argv, env) {
       return 0;
     } catch (ex) {
       err(ex.message);
-      return ex.message.startsWith('no v* tag') ? 2 : 1;
+      return ex.code === 'BADREF' || ex.message.startsWith('no v* tag') ? 2 : 1;
     }
   }
 
@@ -512,8 +520,16 @@ function main(argv, env) {
   if (cmd === 'stamp') {
     const version = opts.version || e.env.npm_package_version;
     if (!version) { err('stamp needs --version X.Y.Z (or npm_package_version)'); return 2; }
+    const date = opts.date || e.today();
+    const dm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+    const dt = dm && new Date(Date.UTC(+dm[1], +dm[2] - 1, +dm[3]));
+    if (!dm || dt.getUTCFullYear() !== +dm[1] || dt.getUTCMonth() !== +dm[2] - 1 || dt.getUTCDate() !== +dm[3]) {
+      return usage2(`--date must be a real date as YYYY-MM-DD: ${date}`);
+    }
     try {
-      const next = stampText(text, version, opts.date || e.today(), compareBaseOf(text, e.run, e.root));
+      const fr = e.run('git', ['rev-list', '--max-parents=0', 'HEAD'], { cwd: e.root });
+      const firstRef = fr.status === 0 ? (fr.stdout || '').trim().split('\n')[0].slice(0, 12) : '';
+      const next = stampText(text, version, date, compareBaseOf(text, e.run, e.root), firstRef || null);
       fs.writeFileSync(file, next);
       out(`changelog: stamped v${version.replace(/^v/, '')}`);
       return 0;
