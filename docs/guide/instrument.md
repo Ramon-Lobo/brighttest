@@ -190,6 +190,12 @@ Current limitations (the full design is not implemented yet):
 
 ### What counts for strict
 
+`strict` is **off** by default; `--strict` / `--no-strict` override it per run. The CI recipe turns it on:
+
+```yaml
+- run: npx brighttest instrument build --strict --out .brighttest/debug.bt-instrumented.zip   # exit 4 = policy, exit 1 = broken build
+```
+
 | Report entry (`kind`) | Fails strict |
 |---|---|
 | `excluded-candidate` in a file **you** excluded | yes |
@@ -227,12 +233,6 @@ and unknown sites are rewritten; excluded ones are left alone and reported as th
 - `setUrl` in an **inline CDATA** `<script>` is invisible to brighterscript, so it is neither rewritten nor reported by the
   build; only the census lists it. An inline-CDATA **Scene** is reported as `inline-cdata-scene` (fails strict) and is not
   bootstrapped.
-
-`strict` is **off** by default; `--strict` / `--no-strict` override it per run. The CI recipe turns it on:
-
-```yaml
-- run: npx brighttest instrument build --strict --out .brighttest/debug.bt-instrumented.zip   # exit 4 = policy, exit 1 = broken build
-```
 
 ### Media URLs
 
