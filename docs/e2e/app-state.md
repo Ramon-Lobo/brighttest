@@ -108,7 +108,9 @@ values and tells you how many. Registry values are edited as a whole `<section>.
 
 The read-only State view (shown while the hub is held, absent or connecting), the node list in `/api/tree` and the
 saved run traces are masked the same way, and so are traces saved by an earlier version when Studio loads or serves
-them. Published text that cannot be masked (not JSON, or not the expected shape) is replaced by `<redacted:text>`.
+them. The failure message of an `assertState` step can still contain the asserted value (tracked separately). Published
+text that cannot be masked (not JSON, or not the expected shape) is replaced by `<redacted:text>` in the node list.
+Invalid `__bt_state` JSON shows as no state plus the error `invalid JSON`; parse errors no longer quote the input.
 For `__bt_state`, `instrument.state.redact.paths` match from the state root with no layer prefix (for example
 `user.name`, not `global.user.name`).
 
