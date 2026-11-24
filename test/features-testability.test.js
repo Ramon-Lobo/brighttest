@@ -610,3 +610,175 @@ describe('launch arguments (E3) and Eval', () => {
     expect(g.uncertainty.counts.eval).toBe(1)
   })
 })
+
+describe('scope, purity and rule details', () => {
+  const rec = (g, id) => node(g, id).testability
+  const pureMap = (g, rel) => Object.fromEntries(node(g, `file:${rel}`).functions.map((f) => [f.name, f]))
+  it('a component scope includes the files its scripts import, transitively', async () => {
+    const g = await mk({
+      'components/C.xml': xml('C', 'Group', '', ['C.bs']),
+      'components/C.bs': ['import "mid.bs"', 'sub init()', '  Mid_fn()', '  Deep_fn()', 'end sub'],
+      'components/mid.bs': ['import "deep.bs"', 'sub Mid_fn()', 'end sub'],
+      'components/deep.bs': ['sub Deep_fn()', 'end sub'],
+    })
+    expect(edges(g, 'calls', 'components/C.bs:3')[0]).toMatchObject({ conf: 'name', to: 'file:components/mid.bs', scopes: ['C'] })
+    expect(edges(g, 'calls', 'components/C.bs:4')[0]).toMatchObject({ conf: 'name', to: 'file:components/deep.bs' })
+    expect(node(g, 'file:components/deep.bs').scope).toEqual(['C'])
+  })
+  it('registry use, a capital M, callFunc and new make a function impure', async () => {
+    const g = await mk({
+      'source/x.bs': ['function Reg()', '  return CreateObject("roRegistrySection", "s")', 'end function',
+        'function Reg2()', '  return CreateObject("roRegistry")', 'end function',
+        'function CapM()', '  return M.count', 'end function',
+        'function Cf(n as object)', '  return n.callFunc("go")', 'end function',
+        'function Mk()', '  return new Foo()', 'end function',
+        'class Foo', 'end class'],
+    })
+    const f = pureMap(g, 'source/x.bs')
+    expect(f.Reg.why).toEqual(['CreateObject roRegistrySection'])
+    expect(f.Reg2.why).toEqual(['CreateObject roRegistry'])
+    expect(f.CapM.why).toEqual(['uses m.'])
+    expect(f.Cf.why).toEqual(['method callFunc'])
+    expect(f.Mk.why).toContain('new Foo')
+  })
+  it('a call to a name defined twice is impure when any candidate is impure and pure when all are pure', async () => {
+    const g = await mk({
+      'components/C.xml': xml('C', 'Group', '', ['a.brs', 'b.brs', 'c.brs']),
+      'components/a.brs': ['function Dup()', '  return 1', 'end function', 'function Both()', '  return Twin()', 'end function', 'function Twin()', '  return 1', 'end function'],
+      'components/b.brs': ['function Dup()', '  return m.x', 'end function', 'function Twin()', '  return 2', 'end function'],
+      'components/c.brs': ['function Caller()', '  return Dup()', 'end function', 'function Fine()', '  return Twin()', 'end function'],
+    })
+    expect(pureMap(g, 'components/c.brs').Caller).toMatchObject({ pure: false, why: ['calls impure Dup'] })
+    expect(pureMap(g, 'components/c.brs').Fine.pure).toBe(true)
+  })
+  it('the clock flag reaches callers through the graph', async () => {
+    const g = await mk({ 'source/x.brs': ['function Now()', '  return UpTime(0)', 'end function', 'function Via()', '  return Now()', 'end function'] })
+    expect(pureMap(g, 'source/x.brs').Via).toMatchObject({ pure: true, clock: true })
+    expect(rec(g, 'file:source/x.brs').primary).toMatchObject({ class: 'headless-unit', rule: 'U2' })
+  })
+  it('T1: a Task with a pure function is headless-unit, one without is headless-scene', async () => {
+    const g = await mk({
+      'components/A.xml': xml('A', 'Task', '', ['A.brs']), 'components/A.brs': ['function Pure(x)', '  return x', 'end function'],
+      'components/B.xml': xml('B', 'Task', '', ['B.brs']), 'components/B.brs': ['sub init()', '  print m.x', 'end sub'],
+    })
+    expect(rec(g, 'comp:A').primary).toMatchObject({ class: 'headless-unit', rule: 'T1', at: 'components/A.xml' })
+    expect(rec(g, 'comp:B').primary).toMatchObject({ class: 'headless-scene', rule: 'T1' })
+  })
+  it('X1: an unknown child or base type lifts a unit-class Task to headless-scene, and the rule stays T1', async () => {
+    const g = await mk({
+      'components/A.xml': xml('A', 'Task', '<children>\n    <Labell id="a" />\n  </children>', ['A.brs']), 'components/A.brs': ['function Pure(x)', '  return x', 'end function'],
+      'components/B.xml': xml('B', 'Task', '', ['B.brs']), 'components/B.brs': ['function Pure(x)', '  return x', 'end function'],
+    })
+    expect(rec(g, 'comp:A').primary).toMatchObject({ class: 'headless-scene', rule: 'T1' })
+    expect(rec(g, 'comp:B').primary.class).toBe('headless-unit')
+  })
+  it('D3 covers roAppInfo and roInput; roInput also records E3; Audio needs media; Animation needs wall-clock', async () => {
+    const g = await mk({
+      'source/ai.brs': ['function Info()', '  return CreateObject("roAppInfo")', 'end function'],
+      'source/in.brs': ['function Inp()', '  return CreateObject("roInput")', 'end function'],
+      'components/M.xml': xml('M', 'Group', '<children>\n    <Audio id="a" />\n    <Animation id="n" />\n  </children>'),
+    })
+    expect(rec(g, 'file:source/ai.brs').alsoNeeds).toEqual([{ class: 'device', aspect: 'platform-values', rule: 'D3', at: 'source/ai.brs:2' }])
+    expect(rec(g, 'file:source/in.brs').alsoNeeds).toEqual([{ class: 'device', aspect: 'platform-values', rule: 'D3', at: 'source/in.brs:2' }, { class: 'e2e', aspect: 'launch-params', rule: 'E3', at: 'source/in.brs:2' }].sort((a, b) => 0))
+    expect(rec(g, 'comp:M').primary).toMatchObject({ rule: 'F5', at: 'components/M.xml:4' })
+    expect(rec(g, 'comp:M').alsoNeeds).toContainEqual({ class: 'device', aspect: 'wall-clock', rule: 'D1', at: 'components/M.xml:5' })
+  })
+  it('S2: only unseeded fields (compared case-insensitively) add a device need', async () => {
+    const g = await mk({
+      'brighttest.json': JSON.stringify({ globalFields: { Token: 'x' } }),
+      'components/Main.xml': xml('Main', 'Scene', '<interface><field id="x" type="string" /></interface>', ['Main.brs']),
+      'components/Main.brs': ['sub later()', '  print m.global.late', 'end sub', 'sub init()', '  print m.global.TOKEN', '  print m.global.other', 'end sub'],
+    })
+    expect(rec(g, 'comp:Main').alsoNeeds.filter((a) => a.rule === 'S2')).toEqual([{ class: 'device', aspect: 'unseeded-global', rule: 'S2', at: 'components/Main.brs:6' }]) // not TOKEN (seeded), not a read outside init
+    expect(rec(g, 'comp:Main').primary.needs).toContainEqual({ need: 'state', rule: 'S2', at: 'components/Main.brs:5' })
+  })
+  it('D7: a component with an F2 site and a task-timing need never gets device as its primary class', async () => {
+    const g = await mk({
+      'components/T.xml': xml('T', 'Task', '', ['T.brs']),
+      'components/T.brs': ['sub init(cls as string)', '  u = CreateObject(cls)', '  print m.global.zz', 'end sub'],
+    })
+    expect(rec(g, 'comp:T').alsoNeeds.map((a) => a.rule).sort()).toEqual(['F2', 'T1'])
+    expect(rec(g, 'comp:T').primary.class).not.toBe('device')
+  })
+  it('callFunc names and the m.top receiver match case-insensitively', async () => {
+    const g = await mk({
+      'components/W.xml': xml('W', 'Group', '<interface><function name="Run" /></interface>'),
+      'components/Main.xml': xml('Main', 'Scene', '', ['Main.brs']),
+      'components/Main.brs': ['sub init(n as object)', '  n.callFunc("RUN")', '  M.TOP.observeField("a", "cb")', '  m.q = M.Top.findNode("x")', 'end sub'],
+    })
+    expect(edges(g, 'callfunc', 'components/Main.brs:2')[0]).toMatchObject({ conf: 'name', to: 'comp:W' })
+    expect(edges(g, 'observes', 'components/Main.brs:3')[0]).toMatchObject({ conf: 'name', to: 'comp:Main' })
+  })
+  it('the same unresolved call seen from two scopes is one uncertainty item and one edge with both scopes', async () => {
+    const g = await mk({
+      'components/Shared.brs': ['sub Go()', '  Nowhere()', 'end sub'],
+      'components/A.xml': xml('A', 'Group', '', ['Shared.brs']),
+      'components/B.xml': xml('B', 'Group', '', ['Shared.brs']),
+    })
+    expect(items(g, 'unresolved-call')).toHaveLength(1)
+    expect(edges(g, 'calls', 'components/Shared.brs:2')).toEqual([expect.objectContaining({ scopes: ['A', 'B'] })])
+  })
+  it('classify drops a repeated uncertainty entry', () => {
+    const nodes = [{ id: 'comp:T', kind: 'component', file: 'T.xml', isTask: false, builtinRoot: 'Group' }, { id: 'file:T.brs', kind: 'file', lang: 'brs', functions: [{ name: 'a', line: 1, pure: false }] }]
+    const notCovered = [{ file: 'T.brs', line: 2, reason: 'dynamic' }, { file: 'T.brs', line: 2, reason: 'dynamic' }]
+    const out = classify({ nodes, edges: [], sites: new Map(), compFiles: new Map([['comp:T', { xml: 'T.xml', files: ['T.brs'] }]]), notCovered })
+    expect(out.get('comp:T').uncertainty).toEqual([{ rule: 'F2', at: 'T.brs:2', detail: 'dynamic' }])
+  })
+  it('callSitesResolvedPct counts a site as resolved only when every outcome is, and ambiguous or unresolved ones are not', async () => {
+    const g = await mk({
+      'source/a.brs': ['sub A()', '  Known()', '  Known()', '  Nope()', '  Dup()', 'end sub', 'sub Known()', 'end sub'],
+      'source/d1.brs': ['sub Dup()', 'end sub'],
+      'source/d2.brs': ['sub Dup()', 'end sub'],
+    })
+    expect(g.resolution.callSitesResolvedPct).toBe(50)
+    const h = await mk({ 'source/a.brs': ['sub A()', '  Known()', 'end sub', 'sub Known()', 'end sub'] })
+    expect(h.resolution.callSitesResolvedPct).toBe(100)
+  })
+})
+
+describe('remaining rule and purity edges', () => {
+  it('computePurity: a call with no candidate is impure, and an impure function carries no clock flag', () => {
+    const r = computePurity(new Map([
+      ['a', { why: [], clock: false, calls: [{ name: 'X', ids: [] }] }],
+      ['b', { why: ['uses m.'], clock: true, calls: [] }],
+    ]))
+    expect(r.get('a')).toMatchObject({ pure: false, why: ['calls impure X'] })
+    expect(r.get('b')).toMatchObject({ pure: false, clock: false })
+  })
+  it('F3 is a scene note only: a Task with net fixtures does not get it', async () => {
+    const g = await mk({
+      'components/T.xml': xml('T', 'Task', '', ['T.brs']),
+      'components/T.brs': ['sub init()', '  u = CreateObject("roUrlTransfer")', '  u.setUrl("https://example.invalid")', 'end sub'],
+    })
+    expect(node(g, 'comp:T').testability.primary.needs.map((n) => n.rule)).toEqual(['F1'])
+    expect(node(g, 'comp:T').testability.notes.map((n) => n.rule)).not.toContain('F3')
+  })
+  it('observeField: the nearest findNode assignment before the call decides the receiver', async () => {
+    const g = await mk({
+      'components/A.xml': xml('A', 'Group', ''), 'components/B.xml': xml('B', 'Group', ''),
+      'components/Main.xml': xml('Main', 'Scene', '<children>\n    <A id="a" />\n    <B id="b" />\n  </children>', ['Main.brs']),
+      'components/Main.brs': ['sub init()', '  r = m.top.findNode("a")', '  r.observeField("x", "cb")', '  r = m.top.findNode("b")', '  r.observeField("y", "cb")', 'end sub'],
+    })
+    expect(edges(g, 'observes', 'components/Main.brs:3')[0].to).toBe('comp:A')
+    expect(edges(g, 'observes', 'components/Main.brs:5')[0].to).toBe('comp:B')
+  })
+  it('an ambiguous call seen as two different candidate sets in two scopes is one uncertainty item', async () => {
+    const g = await mk({
+      'components/shared.brs': ['sub Go()', '  Dup()', 'end sub'],
+      'components/d1.brs': ['sub Dup()', 'end sub'], 'components/d2.brs': ['sub Dup()', 'end sub'], 'components/d3.brs': ['sub Dup()', 'end sub'],
+      'components/A.xml': xml('A', 'Group', '', ['shared.brs', 'd1.brs', 'd2.brs']),
+      'components/B.xml': xml('B', 'Group', '', ['shared.brs', 'd1.brs', 'd3.brs']),
+    })
+    expect(edges(g, 'calls', 'components/shared.brs:2').length).toBeGreaterThan(0)
+    expect(items(g, 'ambiguous-call')).toHaveLength(1)
+    expect(g.uncertainty.counts['ambiguous-call']).toBe(1)
+  })
+  it('a source file scripted by a component adds none of its sites to the component record', async () => {
+    const g = await mk({
+      'source/lib.brs': ['sub Reg()', '  r = CreateObject("roRegistrySection", "s")', 'end sub'],
+      'components/C.xml': xml('C', 'Group', '', ['pkg:/source/lib.brs']),
+    })
+    expect(node(g, 'comp:C').testability.primary.needs).toEqual([])
+    expect(node(g, 'file:source/lib.brs').testability.primary.needs.map((n) => n.rule)).toEqual(['F6'])
+  })
+})
