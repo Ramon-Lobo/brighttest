@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { palette, relLoc, lineSplitter, parseSummary, laneFailures, treeFailures, failureMessages, makeReporter } from '../lib/reporter.js'
+import { palette, relLoc, lineSplitter, parseSummary, laneFailures, treeFailures, treeCases, droppedCases, failureMessages, makeReporter } from '../lib/reporter.js'
 
 describe('palette', () => {
   it('wraps strings in ANSI codes when enabled', () => {
@@ -210,5 +210,37 @@ describe('laneFailures report-tree guard', () => {
     expect(laneFailures(summary(0, 0, 0, 0), 0).failed).toBe(0)
     expect(laneFailures('|--Suite\n|  |--t : IGNORE\n' + summary(1, 0, 0, 0), 0).failed).toBe(0)
     expect(treeFailures('no tree here')).toEqual([])
+  })
+})
+
+// An @async case in an @SGNode suite that never calls m.done(): Rooibos stops running the suite, prints `Total: 0 /
+// RESULT: Success`, and lists every case as PASS in the tree even though the later ones never ran.
+describe('droppedCases (async timeout in a node suite)', () => {
+  const tree = (names) => names.map((n) => `  | |--${n} : ....................PASS (0ms)\n  |   |--Test : file:///p/a.spec.bs:1`).join('\n')
+  const end = (n) => `<<<< END It: ${n} (PASS) <<<<<<<<<<`
+  const stopped = [
+    '>>>>>> It: a>>>>>>', end('a'), '>>>>>> It: b>>>>>>', end('b'), '>>>>>> It: slow>>>>>>',
+    ' [START TEST REPORT]', '  |-g1', tree(['a', 'b', 'slow', 'c', 'd']),
+    ' Total: 0', '   Passed: 0', '   Crashed: 0', '   Failed: 0', '   Ignored: 0', ' RESULT: Success', ' [END TEST REPORT]',
+  ].join('\n')
+
+  it('parses every test line of the report tree, not group or Test lines', () => {
+    expect(treeCases(stopped).map((t) => t.name)).toEqual(['a', 'b', 'slow', 'c', 'd'])
+  })
+
+  it('returns the unfinished case and the cases after it, each with a reason', () => {
+    const d = droppedCases(stopped)
+    expect(d.map((x) => x.name)).toEqual(['slow', 'c', 'd'])
+    expect(d[0].reason).toMatch(/m\.done\(\)/)
+    expect(d[1].reason).toMatch(/stopped at "slow"/)
+  })
+
+  it('counts them as failures so the lane cannot pass', () => {
+    expect(laneFailures(stopped, 0).failed).toBe(3)
+  })
+
+  it('returns nothing when the summary total matches the tree', () => {
+    const ok = stopped.replace(' Total: 0', ' Total: 5').replace('   Passed: 0', '   Passed: 5')
+    expect(droppedCases(ok)).toEqual([])
   })
 })

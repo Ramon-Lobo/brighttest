@@ -94,6 +94,10 @@ function _()
 end function
 ```
 
+An `@async` case must call `m.done()` before its timeout. If it never does, Rooibos stops running the rest of
+the node suite and (wrongly) reports `Total: 0 ... Success`. brighttest does not trust that report: it lists the
+unfinished case and every case that never ran as failures, with the reason, and exits non-zero.
+
 ## Keep node tests rare — extract the logic
 
 The best way to test node behavior is to have **very little logic in the node**. Push decisions into pure

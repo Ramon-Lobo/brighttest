@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Widget.bs is auto-linked by brighttest's autoImportComponentScript compiler option. -->
+<component name="Widget" extends="Group">
+  <interface>
+    <field id="count" type="integer" value="0" onChange="onCount" />
+    <field id="doubled" type="integer" value="0" />
+  </interface>
+</component>
