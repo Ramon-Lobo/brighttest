@@ -584,3 +584,26 @@ branch **and the tag**, then `npm publish --access public`. The npm account has 
 prompts for a one-time password — pass it with `--otp=<code>` (it can't be automated interactively; use an
 automation token for unattended CI releases). `npm pack --dry-run` before publishing to confirm the tarball
 contents. `v0.3.0` was the first release carrying the e2e lane.
+
+### Publishing the docs site
+
+The docs site holds several versions side by side. `scripts/docs-site.js` rebuilds all of them from git on every
+deploy: the latest release at the site root (and again at its own `/vX.Y/` path, so pinned links keep working), every
+other kept minor at `/vX.Y/` (built from its highest patch tag), and `main` at `/next/` (unreleased).
+
+- `node scripts/docs-site.js plan` prints the selection as JSON (and a Markdown table to `$GITHUB_STEP_SUMMARY` when
+  set). It reads the `v*.*.*` tags, ignores prereleases, and applies `docs/.vitepress/versions.config.json`:
+  `floor` (lowest minor published), `exclude` (minors to drop, for example a release whose docs build is broken) and
+  `keep` (maximum number of release minors).
+- `node scripts/docs-site.js build --out <dir>` builds each version in a temporary git worktree under the system
+  temp dir (`npm ci --ignore-scripts` for tags, `vitepress build --base <path>` into its own temp dir), copies the
+  theme overlay from `main` into tags that lack one, assembles the tree root first, and writes `versions.json` last.
+  Nothing is written inside the repo except `--out`. Useful flags: `--only <version|next>`, `--base-prefix`,
+  `--dry-run`, `--keep-temp`.
+- A release tag that fails to build is skipped and listed under `skipped` in `versions.json`; a failure of `main` or
+  of the latest release makes the build exit non-zero.
+- `lastUpdated` needs full git history, so CI must check out with `fetch-depth: 0` (the script warns on a shallow
+  clone but still builds).
+
+Release flow: pushing the `vX.Y.Z` tag redeploys the site and the root moves to the new release; there is no extra
+step. To retire or hide a minor, add it to `exclude` (or lower `keep`) and redeploy.

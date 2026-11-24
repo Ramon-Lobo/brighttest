@@ -1,0 +1,225 @@
+import { describe, test, expect } from 'vitest'
+import { createRequire } from 'module'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import { spawnSync } from 'node:child_process'
+
+const require = createRequire(import.meta.url)
+const ds = require('../scripts/docs-site')
+const SCRIPT = path.resolve(__dirname, '../scripts/docs-site.js')
+const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'docs-site-test-'))
+
+describe('plan', () => {
+  const tags = ['v0.3.0', 'v0.6.0', 'v0.7.0', 'v0.7.2', 'v0.7.1', 'v0.8.0-rc.1', 'v0.9.0', 'foo', 'v1.0', 'v0.8.1']
+
+  test('one entry per minor from its highest patch, floor applied, prereleases ignored', () => {
+    const p = ds.plan(tags, { floor: '0.7', keep: 4 })
+    expect(p.releases.map((r) => r.tag)).toEqual(['v0.9.0', 'v0.8.1', 'v0.7.2'])
+    expect(p.latest).toBe('0.9')
+  })
+
+  test('latest at root and at its own path; others at vX.Y; next at /next/', () => {
+    const p = ds.plan(tags, { floor: '0.7' }, '/brighttest/')
+    const key = p.builds.map((b) => `${b.id}:${b.base}`)
+    expect(key).toContain('0.9:/brighttest/')
+    expect(key).toContain('0.9:/brighttest/v0.9/')
+    expect(key).toContain('0.8:/brighttest/v0.8/')
+    expect(key).toContain('next:/brighttest/next/')
+    expect(p.releases[0]).toMatchObject({ path: '/brighttest/', alias: '/brighttest/v0.9/' })
+    expect(p.next).toEqual({ ref: 'main', path: '/brighttest/next/' })
+  })
+
+  test('exclude and keep', () => {
+    expect(ds.plan(tags, { floor: '0.7', exclude: ['0.9'] }).latest).toBe('0.8')
+    expect(ds.plan(tags, { floor: '0.3', keep: 2 }).releases.map((r) => r.id)).toEqual(['0.9', '0.8'])
+  })
+
+  test('first slice: only v0.7.0 gives next + root + v0.7', () => {
+    const p = ds.plan(['v0.3.0', 'v0.4.0', 'v0.5.0', 'v0.6.0', 'v0.7.0'], { floor: '0.7', exclude: [], keep: 4 })
+    expect(p.builds.map((b) => b.base)).toEqual(['/brighttest/', '/brighttest/next/', '/brighttest/v0.7/'])
+  })
+
+  test('no tags: no latest', () => {
+    expect(ds.plan([], { floor: '0.7' }).latest).toBeNull()
+  })
+
+  test('base prefix is normalised', () => {
+    expect(ds.plan(['v0.7.0'], {}, 'docs').basePrefix).toBe('/docs/')
+  })
+})
+
+describe('versions.json', () => {
+  const p = ds.plan(['v0.7.0', 'v0.6.0'], { floor: '0.6' })
+  const okAll = p.builds.map((b) => ({ build: b, ok: true }))
+
+  test('schema 1 shape', () => {
+    const v = ds.versionsJson(p, okAll, { generated: 'T', nextSha: 'abc1234' })
+    expect(v).toEqual({
+      schema: 1,
+      generated: 'T',
+      latest: '0.7',
+      versions: [
+        { id: 'next', label: 'next (unreleased)', path: '/brighttest/next/', ref: 'main', sha: 'abc1234' },
+        { id: '0.7', label: 'v0.7 (latest)', path: '/brighttest/', alias: '/brighttest/v0.7/', tag: 'v0.7.0' },
+        { id: '0.6', label: 'v0.6', path: '/brighttest/v0.6/', tag: 'v0.6.0' },
+      ],
+      skipped: [],
+    })
+  })
+
+  test('failed tag is skipped and reported; failure policy', () => {
+    const res = p.builds.map((b) => (b.id === '0.6' ? { build: b, ok: false, error: 'boom' } : { build: b, ok: true }))
+    const v = ds.versionsJson(p, res, { generated: 'T' })
+    expect(v.versions.map((x) => x.id)).toEqual(['next', '0.7'])
+    expect(v.skipped).toEqual([{ id: '0.6', ref: 'v0.6.0', reason: 'boom' }])
+    expect(ds.fatalFailures(p, res)).toHaveLength(0)
+    const bad = p.builds.map((b) => (b.id === '0.7' ? { build: b, ok: false, error: 'x' } : { build: b, ok: true }))
+    expect(ds.fatalFailures(p, bad).length).toBeGreaterThan(0)
+    const noNext = p.builds.map((b) => (b.id === 'next' ? { build: b, ok: false, error: 'x' } : { build: b, ok: true }))
+    expect(ds.fatalFailures(p, noNext)).toHaveLength(1)
+  })
+})
+
+describe('ordering and F1 guard', () => {
+  test('root is ordered first', () => {
+    const p = ds.plan(['v0.7.0', 'v0.6.0'], { floor: '0.6' })
+    expect(ds.orderBuilds(p.builds)[0].rel).toBe('')
+  })
+
+  test('builds never target the output dir; each gets its own outDir', () => {
+    const args = ds.buildArgs({ base: '/brighttest/' }, '/tmp/x/out-root')
+    expect(args).toEqual(['build', 'docs', '--base', '/brighttest/', '--outDir', '/tmp/x/out-root'])
+  })
+
+  test('assembling root cannot clobber other versions, whatever the input order', () => {
+    const mk = (name, rel) => {
+      const d = tmp()
+      fs.writeFileSync(path.join(d, 'index.html'), name)
+      return { build: { rel }, dir: d }
+    }
+    const items = [mk('next', 'next'), mk('v07', 'v0.7'), mk('root', '')]
+    const out = path.join(tmp(), 'site')
+    ds.assemble(out, items)
+    expect(fs.readFileSync(path.join(out, 'index.html'), 'utf8')).toBe('root')
+    expect(fs.readFileSync(path.join(out, 'next', 'index.html'), 'utf8')).toBe('next')
+    expect(fs.readFileSync(path.join(out, 'v0.7', 'index.html'), 'utf8')).toBe('v07')
+  })
+
+  test('refuses to overwrite a path already placed', () => {
+    const d = tmp()
+    expect(() => ds.assemble(path.join(tmp(), 's'), [{ build: { rel: 'next' }, dir: d }, { build: { rel: 'next' }, dir: d }])).toThrow(/refusing/)
+  })
+})
+
+describe('summary and base', () => {
+  test('markdown lists each build', () => {
+    const p = ds.plan(['v0.7.0'], {})
+    const md = ds.summaryMarkdown(p)
+    expect(md).toContain('| next |')
+    expect(md).toContain('`/brighttest/v0.7/`')
+  })
+  test('base prefix from env wins', () => {
+    expect(ds.defaultBase('/nonexistent', { BRIGHTTEST_DOCS_BASE: '/x/' })).toBe('/x/')
+    expect(ds.defaultBase('/nonexistent', {})).toBe('/brighttest/')
+  })
+})
+
+// A tiny git repo with a fake vitepress that, like the real one, empties --outDir first.
+describe('real script path on a fixture repo', () => {
+  const git = (cwd, ...a) => {
+    const r = spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...a], { cwd, encoding: 'utf8' })
+    if (r.status !== 0) throw new Error(r.stderr)
+    return r.stdout
+  }
+  function fixture({ breakTag } = {}) {
+    const repo = tmp()
+    git(repo, 'init', '-q', '-b', 'main')
+    fs.mkdirSync(path.join(repo, 'docs/.vitepress/theme'), { recursive: true })
+    fs.writeFileSync(path.join(repo, 'docs/.vitepress/versions.config.json'), JSON.stringify({ floor: '0.6', keep: 4 }))
+    fs.writeFileSync(path.join(repo, 'docs/index.md'), 'v1')
+    git(repo, 'add', '-A'); git(repo, 'commit', '-qm', 'one')
+    git(repo, 'tag', 'v0.6.0')
+    fs.writeFileSync(path.join(repo, 'docs/index.md'), breakTag ? 'BREAK' : 'v2')
+    git(repo, 'add', '-A'); git(repo, 'commit', '-qm', 'two')
+    git(repo, 'tag', 'v0.7.0')
+    fs.writeFileSync(path.join(repo, 'docs/.vitepress/theme/index.ts'), 'export default {}')
+    fs.writeFileSync(path.join(repo, 'docs/index.md'), 'main')
+    git(repo, 'add', '-A'); git(repo, 'commit', '-qm', 'three')
+    const bin = path.join(tmp(), 'vp.js')
+    fs.writeFileSync(bin, `#!/usr/bin/env node
+const fs = require('fs'), path = require('path')
+const a = process.argv, base = a[a.indexOf('--base') + 1], out = a[a.indexOf('--outDir') + 1]
+const md = fs.readFileSync('docs/index.md', 'utf8')
+if (md === 'BREAK') { console.error('boom'); process.exit(1) }
+fs.rmSync(out, { recursive: true, force: true }); fs.mkdirSync(out, { recursive: true })
+const theme = fs.existsSync('docs/.vitepress/theme/index.ts')
+fs.writeFileSync(path.join(out, 'index.html'), [md, base, process.env.BRIGHTTEST_DOCS_CHANNEL, 'theme=' + theme].join('|'))
+`)
+    fs.chmodSync(bin, 0o755)
+    return { repo, bin }
+  }
+  const runScript = (repo, bin, out, extra = []) =>
+    spawnSync('node', [SCRIPT, 'build', '--repo', repo, '--out', out, '--no-install', '--vitepress-bin', bin, '--next-ref', 'main', ...extra], { encoding: 'utf8' })
+  const read = (...p) => fs.readFileSync(path.join(...p), 'utf8')
+
+  test('builds root, alias, older minor and next without clobbering; versions.json last; worktrees removed', () => {
+    const { repo, bin } = fixture()
+    const out = path.join(tmp(), 'site')
+    const r = runScript(repo, bin, out)
+    expect(r.status).toBe(0)
+    expect(read(out, 'index.html')).toBe('v2|/brighttest/|release|theme=true')
+    expect(read(out, 'v0.7/index.html')).toBe('v2|/brighttest/v0.7/|release|theme=true')
+    expect(read(out, 'v0.6/index.html')).toBe('v1|/brighttest/v0.6/|release|theme=true')
+    expect(read(out, 'next/index.html')).toBe('main|/brighttest/next/|next|theme=true')
+    const v = JSON.parse(read(out, 'versions.json'))
+    expect(v.versions.map((x) => x.id)).toEqual(['next', '0.7', '0.6'])
+    expect(v.skipped).toEqual([])
+    expect(git(repo, 'worktree', 'list').trim().split('\n')).toHaveLength(1)
+  })
+
+  test('a broken older tag is skipped, exit 0; a broken latest fails', () => {
+    const ok = fixture()
+    // break v0.6 only: rewrite its tag content
+    git(ok.repo, 'checkout', '-q', 'v0.6.0')
+    fs.writeFileSync(path.join(ok.repo, 'docs/index.md'), 'BREAK')
+    git(ok.repo, 'commit', '-qam', 'break'); git(ok.repo, 'tag', '-f', 'v0.6.0'); git(ok.repo, 'checkout', '-q', 'main')
+    const out = path.join(tmp(), 'site')
+    const r = runScript(ok.repo, ok.bin, out)
+    expect(r.status).toBe(0)
+    const v = JSON.parse(read(out, 'versions.json'))
+    expect(v.skipped.map((s) => s.id)).toEqual(['0.6'])
+    expect(fs.existsSync(path.join(out, 'v0.6'))).toBe(false)
+
+    const bad = fixture({ breakTag: true })
+    const r2 = runScript(bad.repo, bad.bin, path.join(tmp(), 'site'))
+    expect(r2.status).toBe(1)
+    expect(git(bad.repo, 'worktree', 'list').trim().split('\n')).toHaveLength(1)
+  })
+
+  test('--only and --dry-run', () => {
+    const { repo, bin } = fixture()
+    const out = path.join(tmp(), 'site')
+    expect(runScript(repo, bin, out, ['--dry-run']).status).toBe(0)
+    expect(fs.existsSync(out)).toBe(false)
+    expect(runScript(repo, bin, out, ['--only', 'next']).status).toBe(0)
+    expect(fs.readdirSync(out).sort()).toEqual(['next', 'versions.json'])
+  })
+
+  test('missing theme overlay only warns', () => {
+    const { repo, bin } = fixture()
+    git(repo, 'rm', '-rq', 'docs/.vitepress/theme'); git(repo, 'commit', '-qm', 'rm theme')
+    const r = runScript(repo, bin, path.join(tmp(), 'site'))
+    expect(r.status).toBe(0)
+    expect(r.stderr).toMatch(/no theme overlay/)
+  })
+
+  test('plan subcommand prints JSON and writes the step summary', () => {
+    const { repo } = fixture()
+    const sum = path.join(tmp(), 'sum.md')
+    const r = spawnSync('node', [SCRIPT, 'plan', '--repo', repo], { encoding: 'utf8', env: { ...process.env, GITHUB_STEP_SUMMARY: sum } })
+    expect(r.status).toBe(0)
+    expect(JSON.parse(r.stdout).latest).toBe('0.7')
+    expect(fs.readFileSync(sum, 'utf8')).toContain('Docs site build plan')
+  })
+})
