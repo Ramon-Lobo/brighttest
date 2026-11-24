@@ -508,3 +508,73 @@ describe('purity: function values, closures and the built-in allow-list', () => 
     expect(f.Caller.pure).toBe(true)
   })
 })
+
+describe('files without a pure function', () => {
+  const primary = (g, rel) => node(g, `file:${rel}`).testability.primary
+  it('a source file with only impure functions has no unit class and no rule', async () => {
+    const g = await mk({ 'source/loop.brs': ['sub Run()', '  print m.count', 'end sub'] })
+    expect(primary(g, 'source/loop.brs')).toMatchObject({ class: 'unknown', rule: null })
+  })
+  it('a source file that creates a screen or a scene node is headless-scene', async () => {
+    const g = await mk({
+      'source/main.brs': ['sub Main()', '  s = CreateObject("roSGScreen")', '  print m.x', 'end sub'],
+      'source/mk.brs': ['sub Make()', '  n = CreateObject("roSGNode", "Group")', '  print m.x', 'end sub'],
+    })
+    expect(primary(g, 'source/main.brs')).toMatchObject({ class: 'headless-scene', rule: null })
+    expect(primary(g, 'source/mk.brs')).toMatchObject({ class: 'headless-scene', rule: null })
+  })
+  it('a component script with no pure function stays headless-scene, and needs still lift an unknown file', async () => {
+    const g = await mk({
+      'components/C.xml': xml('C', 'Group', '', ['C.brs']),
+      'components/C.brs': ['sub init()', '  print m.x', 'end sub'],
+      'source/store.brs': ['sub Open()', '  st = CreateObject("roChannelStore")', '  print m.x', 'end sub'],
+    })
+    expect(primary(g, 'components/C.brs')).toMatchObject({ class: 'headless-scene', rule: null })
+    expect(primary(g, 'source/store.brs')).toMatchObject({ class: 'headless-fixtures', rule: 'F4' })
+  })
+})
+
+describe('scripts that no scope covers', () => {
+  it('a call in an orphan script is resolved against its imports or reported, never dropped', async () => {
+    const g = await mk({
+      'components/orphan.brs': ['sub Go()', '  Missing_one()', '  Known()', 'end sub', 'sub Known()', 'end sub', 'function Impure()', '  return Missing_two()', 'end function'],
+    })
+    expect(edges(g, 'calls', 'components/orphan.brs:2')[0]).toMatchObject({ conf: 'unresolved', detail: 'Missing_one', scopes: ['components/orphan.brs'] })
+    expect(edges(g, 'calls', 'components/orphan.brs:3')[0]).toMatchObject({ conf: 'name', to: 'file:components/orphan.brs' })
+    expect(items(g, 'unresolved-call').map((i) => i.at)).toEqual(['components/orphan.brs:2', 'components/orphan.brs:8'])
+    expect(fn(g, 'file:components/orphan.brs', 'Impure').pure).toBe(false)
+    expect(g.resolution.callSitesResolvedPct).toBe(33)
+  })
+  it('an orphan script sees the files it imports', async () => {
+    const g = await mk({
+      'components/o.bs': ['import "lib.bs"', 'sub Go()', '  Lib_fn()', 'end sub'],
+      'components/lib.bs': ['sub Lib_fn()', 'end sub'],
+    })
+    expect(edges(g, 'calls', 'components/o.bs:3')[0]).toMatchObject({ conf: 'name', to: 'file:components/lib.bs' })
+  })
+})
+
+describe('name lookup details', () => {
+  it('observeField receivers match their findNode assignment case-insensitively', async () => {
+    const g = await mk({
+      'components/Home.xml': xml('Home', 'Group', ''),
+      'components/Main.xml': xml('Main', 'Scene', '<children>\n    <Home id="home" />\n  </children>', ['Main.brs']),
+      'components/Main.brs': ['sub init()', '  m.Home = m.top.findNode("home")', '  M.HOME.observeField("a", "cb")', '  w = CreateObject("roSGNode", "Group")', '  W.observeField("b", "cb")', 'end sub'],
+    })
+    expect(edges(g, 'observes', 'components/Main.brs:3')[0]).toMatchObject({ to: 'comp:Home', conf: 'name' })
+    expect(edges(g, 'observes', 'components/Main.brs:5')[0].detail).toContain('CreateObject')
+  })
+  it('a namespace-relative name in an inherited file beats a nearer plain definition', async () => {
+    const g = await mk({
+      'components/Base.xml': xml('Base', 'Group', '', ['Base.bs']),
+      'components/Base.bs': ['namespace N', '  function Fmt()', '    return 1', '  end function', '  function Use()', '    return Fmt()', '  end function', 'end namespace'],
+      'components/Kid.xml': xml('Kid', 'Base', '', ['Kid.bs']),
+      'components/Kid.bs': ['function Fmt()', '  return 2', 'end function'],
+    })
+    // from Base's own scope the call is N.Fmt; the Kid scope sees both levels and must keep N.Fmt first
+    const e = edges(g, 'calls', 'components/Base.bs:6')
+    expect(e.map((x) => x.to)).toEqual(['file:components/Base.bs'])
+    expect(e.every((x) => x.conf === 'name')).toBe(true)
+    expect(e[0].scopes).toEqual(['Base', 'Kid'])
+  })
+})
