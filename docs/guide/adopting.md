@@ -24,8 +24,12 @@ no device, and instrumentation works without editing the app.
 ```sh
 npm install --save-dev brighttest
 npx brighttest init                 # existing app: brighttest.json, a first spec, git-ignore entries
+npx brighttest init --brownfield    # existing app you will not edit: runs the census, writes the instrument block
 npx brighttest init --greenfield    # new app: also copies the BTStore and BTHttp templates
 ```
+
+`--brownfield` and `--greenfield` cannot be combined. See `brighttest init --help` and
+[Instrumented builds](./instrument.md) for what `--brownfield` writes.
 
 `init` creates `brighttest.json`; check that it matches your `bsconfig.json`. See [Quick start](./getting-started.md) for the details.
 
@@ -35,8 +39,10 @@ If your team uses an AI agent, install the skills too:
 npx brighttest skills install
 ```
 
-This detects the agents in your project, writes the skills and the always-on safety rules, and, for Claude Code,
-the four subagent definitions. The optional `--with-hook` and `--with-mcp` flags are described in
+This detects the agents in your project, writes the skills (including `adopting-brighttest`, the router an agent
+should load first, and `adopting-brighttest-brownfield` or `-greenfield` for the chosen path) and the always-on safety
+rules, and, for Claude Code, the four subagent definitions (`adoption-assessor`, `test-author`, `ci-integrator`,
+`device-debugger`). The optional `--with-hook` and `--with-mcp` flags are described in
 [Agent skills](./agent-skills.md).
 
 ## 3. Instrument (when you need app state or flows)

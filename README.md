@@ -63,6 +63,19 @@ It is a thin orchestrator over a proven stack, not a new BrightScript engine:
 - **On-device E2E** — a deterministic UI-testing lane (`brighttest e2e`) that drives a real Roku via ECP:
   YAML flows, D-pad focus path-finding, text entry, `id`/text/subtype selectors, per-step screenshots and
   session video, plus `inspect`/`record`/`stamp` authoring tools and multi-device + deep-link matrix runs.
+- **Studio** — `brighttest studio` opens a local web app on a device: live SceneGraph, remote, flow authoring and
+  runs with a step trace, an app-state inspector and a Profile page; see [On-device E2E](docs/e2e/index.md).
+- **Instrumented builds and app state** — `brighttest instrument build` makes a debug-only package without editing
+  your source, so flows can read, set and assert app state; `instrument verify` is the release gate. See
+  [Instrumented builds](docs/guide/instrument.md).
+- **Network and store fixtures, headless** — a fault model for HTTP, HAR record and replay, `roChannelStore`
+  fixtures and a Video/Audio state driver; see [Network fault model](docs/guide/net-faults.md) and
+  [roChannelStore fixtures](docs/guide/store-fixtures.md). None of it runs on a device.
+- **Shared devices** — a per-device lease so terminals, worktrees, agents and CI jobs queue instead of colliding;
+  see [Sharing a device](docs/guide/device-lease.md).
+- **Agent support** — `brighttest assess` (read-only project assessment), `brighttest mcp` (MCP server for a
+  device) and `brighttest skills install` (agent skills, safety rules and four Claude subagent definitions); start
+  with [Adopting brighttest](docs/guide/adopting.md).
 
 ## Requirements
 
