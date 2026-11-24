@@ -82,6 +82,24 @@ included). Like the other assertions it polls until it matches or the step timeo
 - assertState: { path: watchlist.0.id, contains: steel }
 ```
 
+### Hiding values in failure messages (redaction)
+
+By default a failed `assertState` prints the app's actual value (`got "..."`), which is what a person at the
+keyboard wants. When an agent drives the run and its output lands in traces or a transcript, switch redaction on.
+The value is then replaced by `<redacted:key>` in the failure message and the step detail when the path has a
+sensitive segment (`token`, `secret`, `password`, `session`, `auth`, `cookie`) or sits under a mask in
+`instrument.state.redact.paths` (`*` matches one segment). A value that only contains such keys is scrubbed
+inside. Turn it on with any of these (first one set wins, highest first):
+
+| Setting | Where |
+| --- | --- |
+| runner option `redactState` | the CLI flag, when wired (see the changelog) |
+| `BRIGHTTEST_REDACT_STATE=1` | environment |
+| `config: { redactState: true }` | the flow file |
+| `"redactState": true` | `brighttest.json` |
+
+`false`/`0`/`off` at a higher level turns it off again. Traces saved before this setting existed are not changed.
+
 ### Instrumented apps: layers and the agent node
 
 An app instrumented with the brighttest agent publishes its state in a hidden node with id
