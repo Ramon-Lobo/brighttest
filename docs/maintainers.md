@@ -6,38 +6,43 @@ For anyone hacking on brighttest itself. It's a small orchestration layer — no
 
 ```
 brighttest/
-├── bin/cli.js               # arg parsing, lane dispatch, exit code (flag lanes + `skills`/`init`/`e2e` subcommands)
+├── bin/cli.js               # arg parsing, lane dispatch, exit code (flag lanes + subcommands: e2e, instrument (incl. `instrument build --sideload`), device, devices, studio, mcp, doctor, assess, net, skills, init)
 ├── lib/
-│   ├── config.js            # load brighttest.json; generate per-lane bsconfig
-│   ├── headless.js          # build (SceneGraph off) → drive on brs-node → parse → JUnit
+│   ├── config.js            # load brighttest.json; generate per-lane bsconfig (adds the instrument plugin for headless net)
+│   ├── headless.js          # build (SceneGraph off) → drive on brs-node (async child, in-process hub) → parse → JUnit
 │   ├── coverage-headless.js # build (coverage on) → stock Rooibos on brs-node → LCOV + node tests
-│   ├── device.js            # build (coverage on) → stock Rooibos CLI → scrape LCOV
+│   ├── device.js            # build (coverage on) → stock Rooibos CLI under the lease → scrape LCOV
 │   ├── cross-check.js       # run headless + device, diff the overlap for fidelity
+│   ├── reporter.js          # shared console/JUnit reporter; laneFailures/treeFailures (results fail closed)
 │   ├── e2e/                 # the on-device UI test lane (see "E2E lane" below)
-│   ├── instrument/          # `brighttest instrument` (build/census/verify/sideload), the bsc plugin (plugin.js, receiver.js,
-│   │                        #   rewrite-net.js), runtime/ (BT_* device code), the LAN hub + net proxy/rules, greenfield/ templates
-│   ├── studio/              # `brighttest studio` server (ECP, sgdebug, perf, Perfetto); client in studio/web (Svelte)
-│   ├── device-lease.js      # device lease (+ device-command.js, device-hook.js, devices.js): `brighttest device`
-│   ├── mcp/                 # `brighttest mcp` stdio server (server.js, tools.js, net-window.js)
+│   ├── instrument/          # `brighttest instrument` (build [--sideload]/census/verify), the bsc plugin (plugin.js, receiver.js,
+│   │                        #   rewrite-net.js, wrap.js), runtime/ (BT_* device code), the hub + net proxy/rules, greenfield/ templates
+│   ├── mcp/                 # `brighttest mcp` stdio server (server.js, tools.js, net-window.js: session lease)
+│   ├── spec-api/            # BrightScript helpers staged into spec builds on demand (BTState fixtures, BTMedia)
+│   ├── studio/              # `brighttest studio` server (ECP, sgdebug, perf, Perfetto worker); client in studio/web (Svelte)
+│   ├── device-lease.js      # device lease (+ device-command.js, device-hook.js, device-keepalive.js, devices.js): `brighttest device`
 │   ├── doctor.js            # `brighttest doctor` capability check, hub bind check and opt-in hub reach probe; the e2e preflight
-│   ├── assess.js            # `brighttest assess` read-only project report (uses instrument/census.js)
-│   ├── engines.js           # brs-node / rooibos resolution (+ engine-caps.js, `doctor --engines`)
-│   ├── init.js, skills.js   # `brighttest init`, `brighttest skills`
-│   ├── reporter.js          # shared console/JUnit reporter
+│   ├── assess.js            # `brighttest assess` read-only project report (reads through the census safe-read helper)
+│   ├── engines.js           # brs-node / rooibos resolution (+ engine-caps.js, engine-run.js, `doctor --engines`)
+│   ├── init.js, skills.js   # `brighttest init`, `brighttest skills` (install/update/export/list/uninstall, `--check` gate)
 │   └── tools.js             # resolve dependency bins / plugin path regardless of hoisting
 ├── brs/headless_runner.brs  # the headless Rooibos driver (runs on the simulator)
 ├── docs/                    # this VitePress site (not published to npm)
 ├── experiments/             # spike scripts + device FINDINGS (not shipped) — see "E2E lane"
-├── design/                  # RFC/design notes, e.g. design/e2e-lane.md (not shipped)
-├── skills/                  # agent skills (shipped) + manifest.json, facts.json (`npm run skills:manifest`; `skills --check` gates claims against facts; the size gate grandfathers `writing-rooibos-tests/references/examples.md` (226 lines, over the 200 limit) until it is split, then drop `REF_LINES_GRANDFATHERED`)
-├── scripts/                 # check-denylist, skills manifest, audit gate, docs-screenshots (Studio images for docs/guide/studio.md; needs Chrome; not shipped)
+├── design/                  # older RFC notes kept in the repo: e2e-lane.md, studio.md (not shipped)
+├── skills/                  # agent skills (shipped) + _always-on/safety.md, manifest.json, facts.json (`npm run skills:manifest`; `skills --check` gates claims against facts; the size gate grandfathers `writing-rooibos-tests/references/examples.md` (226 lines, over the 200 limit) until it is split, then drop `REF_LINES_GRANDFATHERED`)
+├── scripts/                 # check-denylist, skills manifest + facts, audit gate, adopt-eval harness, docs-screenshots (Studio images for docs/guide/studio.md; needs Chrome; not shipped)
 ├── examples/                # sample-app, streaming-app, device-channel, greenfield-app, greenfield-skeleton, legacy-app,
 │                            #   bsconfig-plugin-app, store-fixtures-app (not shipped; see docs/guide/examples.md)
 └── package.json             # deps: @ramonlobo/brs-node, @ramonlobo/rooibos-roku, brighterscript, jszip
 ```
 
-Only `bin`, `brs`, `skills`, `lib/*.js`, `lib/e2e`, `lib/instrument`, `lib/studio/*.js`, `lib/studio/public`, `README.md` and `LICENSE` are in the `files` array (`test/package-files.test.js` checks that every relative `require` under `bin/` and `lib/` is in the pack), so
-`docs/`, `experiments/`, `design/`, `examples/`, and `test/` **do not ship to npm** — they're repo-only.
+Only `bin`, `brs`, `skills`, `lib/*.js`, `lib/e2e`, `lib/instrument`, `lib/mcp`, `lib/spec-api`, `lib/studio/*.js`,
+`lib/studio/public`, `README.md` and `LICENSE` are in the `files` array (`test/package-files.test.js` checks that every
+relative `require` under `bin/` and `lib/` is in the pack), so `docs/`, `experiments/`, `design/`, `examples/`,
+`scripts/` and `test/` **do not ship to npm** — they're repo-only. Design working notes, research and decision records
+are kept outside the repository; the reasoning that matters to contributors is summarised in
+[Design decisions](/decisions-summary).
 
 ## Delivery model
 
@@ -52,7 +57,10 @@ A plain `npm i -D brighttest` pulls both from npm — there is **no vendoring, n
 postinstall step**. To change engine or framework behavior, edit the corresponding fork
 ([Ramon-Lobo/brs-engine](https://github.com/Ramon-Lobo/brs-engine),
 [Ramon-Lobo/rooibos](https://github.com/Ramon-Lobo/rooibos)), bump its version and publish, then bump the
-dependency here. The eventual goal is to upstream these fixes and depend on the stock packages.
+dependency here. The forks are being rebuilt as short, documented patch queues on exact upstream tags, so each can be
+rebased and each patch offered upstream on its own; until those releases are published, brighttest depends on the
+earlier fork releases. brighttest already resolves patched or stock engines, and `doctor --engines` says which it
+found. The eventual goal is to upstream these fixes and depend on the stock packages.
 
 ::: warning Historical sections below
 The sections on `patch-package` and vendored `brs-node` bundles describe the **pre-publication** model.
@@ -114,8 +122,13 @@ flowchart TD
 
 ## Device lane (`device.js`)
 
-- Without `--lcov`: `spawnSync(rooibos, …, { stdio: 'inherit' })` — stream through.
-- With `--lcov`: capture output, echo it, then `extractLcov(output)`:
+- The rooibos CLI runs as an **async child under the lease** (`lease.spawn`, in its own process group and recorded in
+  the lease, so a crash of brighttest never leaves it running unaccounted for). Never `spawnSync`: the lease heartbeat
+  and deadline timers must keep running.
+- Output is streamed line by line through the shared reporter (`makeReporter` + `lineSplitter`) and kept for parsing;
+  failures are counted with `laneFailures` (streamed cases, summary, report tree).
+- With `--lcov`: LCOV comes from the console through `extractLcov(output)`, or from `--coverage-dir` (below) when the
+  console has none:
   - accumulate `TN:/SF:/DA:\d+,\d+/LF:\d+/LH:\d+` into a record until `end_of_record`;
   - drop records whose `SF:` path matches `(^|/)rooibos/` (framework-injected);
   - join and write to the `--lcov` path.
@@ -128,7 +141,7 @@ flowchart TD
   reads "run aborted: no device output for Ns (idle watchdog)"; the `Brightscript Debugger>` prompt reads "run aborted by
   runtime error in `<suite>`" (suite from the last streamed suite header). Known limit: a stock-rooibos `@async` test that
   never calls done prints `[Rooibos Result]: PASS` after about 5 s, which the lane cannot tell from a real pass (the
-  device is not silent); catching it needs the ROO-02 idle flag in the fork. When the rooibos CLI supports
+  device is not silent); catching it needs an opt-in idle flag in the rooibos fork. When the rooibos CLI supports
   `--coverage-dir` (`supportsFlag` in `engines.js`: stamp `flags`, else rooibos >= 5.17.0), `--lcov` also passes
   `--coverage-dir=<staging>/device/coverage`; console lcov is preferred, and `<dir>/lcov.info` (run through
   `extractLcov`) is read only when the console yields nothing.
@@ -156,6 +169,8 @@ core `fs`/`path`/`crypto` + global `fetch`. User-facing docs are under [E2E](/e2
 | `reset.js` | device reset to a known state before a run |
 | `appstate.js` | read an app's self-published state snapshot from a node's `text` attribute |
 | `net-steps.js` | net fault/fixture flow steps (rules from `lib/instrument/net-rules.js`) |
+| `state-steps.js` | `waitForAgent`/`setState`/`snapshot`/`restore`/`callFunc` flow steps through the hub |
+| `hub-events.js` | per-run hub events file (NDJSON); agent event data allow-listed to `id`, `seq`, `op`, `ok`, `error`, `phase` |
 | `logs.js` | telnet `:8085` log capture for a run |
 | `lint.js` | static flow lint (warnings only) |
 | `assert-builder.js` | turns a live node into ready-to-paste flow assertions (`e2e inspect`) |
@@ -201,6 +216,71 @@ this lane should know them:
   [sample app](https://github.com/Ramon-Lobo/brighttest/tree/main/examples/sample-app) and its README,
   which encode these constraints as working patterns and are the place to extend as the lane grows.
 
+## Instrumentation internals (`lib/instrument/`)
+
+User docs: [Instrument](/guide/instrument). The pieces, in data-flow order:
+
+| Module | Role |
+|---|---|
+| `census.js` | What the plugin will touch; also the **safe-read helper** used by `assess` (`O_NOFOLLOW`, fd dev/ino vs `lstat`, size cap, refusal reasons, never `.env`/keys/certs, effective root from `rootDir`) |
+| `build.js` | One fresh bsc `Program` per build on a staged copy; writes the package to a temp path and moves it to `--out` only after every gate passed |
+| `plugin.js` | The single bsc plugin: Scene bootstrap, `BT_Agent` injection, `BT_op` on components, net call-site rewrite, dispatch/Task wraps, report kinds (strict ones fail with `--strict`) |
+| `rewrite-net.js`, `receiver.js` | `setUrl(x)` → `setUrl(BT_url(x))`, `getUrl()` → `BT_unurl(getUrl())`; receiver classification (confirmed / likely / unknown / excluded) |
+| `wrap.js` | Renames a config-named function to `__bt_orig_<name>` and appends a wrapper with the original name and defaults |
+| `runtime/` | The injected BrightScript (staged with full-line comments and blank lines stripped; explanations live in `runtime/README.md`) |
+| `verify.js` | Release gate: exit 3 when a package carries any marker |
+| `sideload.js` | Installs under the lease through the dev installer; the password is never printed |
+| `hub.js`, `state-ops.js`, `events.js` | The hub: routes under `/bt/<token>/`, peer and token checks, long-poll command channel, state command machine, 64 KB limits |
+| `net-proxy.js`, `net-rules.js`, `net-ctl.js`, `net-headless.js`, `net-convert.js` | Mock / sequence / fault / passthrough / record, rule matching and redaction, the `BTNet_*` control API, the headless session, HAR to rules |
+
+Rules a change here must keep:
+
+- **Plugin order.** The instrument plugin runs **after** the Rooibos coverage processor (`assertPluginOrder()`), or the
+  Scene `init` wrapper hides a line from coverage. Do not "fix" this by delegating the walk.
+- **Same-line rewrites.** Rewrites reuse the original range and add no newline, so line numbers in crashes and coverage
+  stay true.
+- **Fail closed with a report.** Anything the plugin cannot rewrite safely is reported (`wrap-target-unknown`,
+  `net-render-thread`, inline CDATA Scenes) rather than guessed.
+- **Size budget.** A test builds the real package and holds `source/bt` + `components/bt` to at most 1,500 lines and
+  60,000 bytes. Put explanations in `runtime/README.md`, not in shipped code.
+- **Redaction on every read layer.** New layers or ops route through the same redaction lookup (`BT_wRedSeg`) so
+  secret-looking keys and `redact.paths` are masked on the agent's `get` and snapshot reads before data leaves the app.
+  Action-log payloads are masked by key name on the device and by `redact.paths` on the host. Studio's `raw=1` views and
+  a fixture saved with `raw: true` skip the host-side masking by design (the agent's own masking still applies).
+- **Hub refusals give no oracle.** Wrong peer, wrong token or unknown route: empty 404. Lost lease: 423. The hub runs
+  in-process, so never `spawnSync` a child that talks to it.
+- **The hub address has one source** (`instrument.hub.host`/`port`, default this machine's LAN IPv4 and 8790), read by
+  both the build and the run; `auto` is never baked.
+
+## Device lease internals (`lib/device-lease.js`)
+
+User docs: [Device lease](/guide/device-lease). Lock files under `~/.brighttest/leases/<key>/` (override
+`BRIGHTTEST_LEASE_DIR`): `holder.json` (created with `link()`, so readers never see a partial file), FIFO tickets in
+`queue/`, and a `reclaim.lock/` mkdir mutex around every delete of `holder.json`. Interface:
+`acquire`/`release`/`withLease`/`status`, so a broker could implement the same contract later.
+
+- Command leases record the holder PID; a dead PID is reclaimed. Session leases record `pid: null` and expire on
+  `sessionIdle` or `sessionMax`; a token re-enters without queueing.
+- Hygiene (Home ×2, `deviceLease.hygiene`, `--no-hygiene`) runs on acquire for `e2e run`, `device with` and
+  `device lock` only (`acquireForLane({ hygiene: true })`). The Rooibos device lane presses Home once before deploy;
+  Studio, MCP, `e2e inspect`/`record`, `device reset` and sideload pass `hygiene: false` or never ask for it.
+- Re-entry skips hygiene; `e2e/run.js` runs it when it starts a hub under a re-entrant lease.
+- `lib/mcp/net-window.js` holds one session lease for the MCP net window, re-enters it for device tools, checks it
+  periodically and closes a margin before the record could expire.
+- `device-keepalive.js` allows only `Fwd`, default 240 s, minimum 60 s, and stops after three failures in a row.
+- `device-hook.js` is a syntactic guard: any internal failure allows (a broken guard must not brick a session).
+- Exit codes 75 (busy/timeout), 77 (lost/expired), 78 (lease directory) are exported and gated in `skills/facts.json`.
+
+## Skills and the facts gate (`lib/skills.js`)
+
+`npm run skills:manifest` regenerates `skills/manifest.json` and `skills/facts.json` (CLI version, subcommands, flags,
+exit codes, defaults, skill and agent lists). `brighttest skills --check` fails on facts drift and on skill text that
+contradicts the facts (Node claims, skill lists, subcommands in shell fences, exit codes, defaults, banned claims, size).
+The installer validates manifest entries and refs, refuses path escapes, writes atomically, manages a marked safety block
+in the agent's always-on file, migrates retired skills, and merges the guard hook and MCP entry only with
+`--with-hook` / `--with-mcp`. Run the manifest script after any change to skills, the version, a dependency range, a
+CLI flag or help text, or a lease or instrument default.
+
 ## Rooibos coupling & upgrade risk
 
 The headless driver depends on Rooibos's compiled shape: the `RuntimeConfig` suite map, `suite.groupsData`,
@@ -210,6 +290,11 @@ across current Rooibos 5.x but are **internal**, not a public API. When bumping 
 1. Run the headless lane against a known suite and confirm counts match the device lane.
 2. If the suite metadata shape changed, update `headless_runner.brs`.
 3. If the LCOV console format changed, update `extractLcov` in `device.js`.
+4. If the summary or report-tree format changed, update `parseSummary`, `treeFailures` and `laneFailures` in
+   `reporter.js`. The run fails when any of streamed cases, summary failed+crashed, or report-tree FAIL/CRASH entries
+   is non-zero (the largest of the three, never the sum); `treeFailures` also matches names that Rooibos truncates to
+   fit its column. This guards against framework paths that drop a crash from the summary; the real fix for such a path
+   belongs in the fork.
 
 ## `@SGNode` headless patch {#sgnode-headless-patch}
 
