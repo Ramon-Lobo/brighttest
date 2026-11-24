@@ -205,7 +205,8 @@ describe('@async cases in an @SGNode suite are never silently dropped', () => {
   })
 
   it('fails loudly, naming each case that did not run, when an @async case never calls m.done()', () => {
-    const res = runCli(makeProject('async-node'))
+    const dir = makeProject('async-node')
+    const res = runCli(dir, ['--junit', 'reports/junit.xml'])
     expect(res.status).not.toBe(0)
     // 5 ran and passed; the timed-out case + the 7 after it are reported failed: 13 counted in all.
     expect(res.output).toContain('5 passed, 8 failed')
@@ -213,6 +214,43 @@ describe('@async cases in an @SGNode suite are never silently dropped', () => {
     for (const n of ['async never done', 'sync 6', 'sync 7', 'sync 8', 'async done 1', 'async done 4']) {
       expect(res.output).toContain(`✗ ${n}`)
     }
-    expect(res.output).toMatch(/m\.done\(\)/)
+    // The case the suite stopped in is the one named "started but never finished"; the others "never ran".
+    expect(res.output).toMatch(/✗ async never done\n\s+started but never finished/)
+    expect(res.output).toMatch(/✗ sync 6\n\s+never ran: the suite stopped at "async never done"/)
+    expect(res.output).not.toMatch(/✗ sync [1-5]\n/)
+    // JUnit: every failure has an element, and the counts agree.
+    const xml = readFile(dir, 'reports/junit.xml')
+    expect(xml).toContain('tests="13" failures="8"')
+    expect(xml.match(/<failure>/g)).toHaveLength(8)
+    expect(xml).toMatch(/<testcase name="async never done"><failure>started but never finished/)
+    expect(xml).toMatch(/<testcase name="async done 4"><failure>never ran/)
+  })
+
+  it('still fails when another suite full of @ignore\'d tests hides the missing cases from the totals', () => {
+    const dir = makeProject('async-node')
+    const ignored = Array.from({ length: 14 }, (_, i) => `    @ignore\n    @it("ign ${i + 1}")\n    function _()\n      m.assertTrue(true)\n    end function\n`).join('\n')
+    fs.writeFileSync(path.join(dir, 'source', 'tests', 'Plain.spec.bs'),
+      `namespace tests\n  @suite("Plain")\n  class PlainTests extends rooibos.BaseTestSuite\n    @describe("p")\n    @it("p1")\n    function _()\n      m.assertTrue(true)\n    end function\n\n${ignored}\n  end class\nend namespace\n`)
+    const res = runCli(dir, ['--junit', 'reports/junit.xml'])
+    expect(res.status).not.toBe(0)
+    expect(res.output).toMatch(/✗ async never done\n\s+started but never finished/)
+    expect(res.output).toContain('✗ async done 4')
+    expect(readFile(dir, 'reports/junit.xml')).toMatch(/<testcase name="async never done"><failure>started but never finished/)
+  })
+
+  it('does not blame a passing long-named or @params case before the stall', () => {
+    const dir = makeProject('async-node')
+    const f = spec(dir)
+    const long = 'sync 2 has a rather long descriptive name that exceeds the widths rooibos allows'
+    fs.writeFileSync(f, fs.readFileSync(f, 'utf8').replace(
+      '@it("sync 2")\n    function _()',
+      `@it("${long}")\n    @params(1, 2)\n    @params(3, 4)\n    function _(a, b)`).replace(
+      '@it("sync 3")', `@it("${long} again")\n    function _()\n      m.assertTrue(true)\n    end function\n\n    @it("sync 3")`))
+    const res = runCli(dir)
+    expect(res.status).not.toBe(0)
+    expect(res.output).toMatch(/✗ async never done\n\s+started but never finished/)
+    expect(res.output).not.toMatch(/✗ sync 2/)
+    expect(res.output).not.toMatch(/✗ \[[13],[24]\]/)
+    expect(res.output).not.toMatch(/✗ sync [135]\n/)
   })
 })

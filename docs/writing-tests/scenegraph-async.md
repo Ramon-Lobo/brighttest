@@ -95,8 +95,22 @@ end function
 ```
 
 An `@async` case must call `m.done()` before its timeout. If it never does, Rooibos stops running the rest of
-the node suite and (wrongly) reports `Total: 0 ... Success`. brighttest does not trust that report: it lists the
-unfinished case and every case that never ran as failures, with the reason, and exits non-zero.
+the node suite and (wrongly) reports `Total: 0 ... Success`. brighttest does not trust that report. It compares
+Rooibos's report tree with the `It:` / `END It:` markers it streamed, and exits non-zero when:
+
+- a case started but never finished (it is named "started but never finished"), or
+- the report tree lists more cases than Rooibos counted in its `Total`.
+
+Every case listed as PASS in the tree that never streamed an end marker is reported as failed ("never ran").
+Long names (Rooibos truncates them) and `@params` cases are matched by name prefix and by position.
+
+What is not detected:
+
+- A case you marked `@ignore` inside the stalled node suite, before the stall, is indistinguishable from a
+  dropped case and is reported as failed.
+- A stall where `Total` is at or above the tree size (for example, other suites' `@ignore`d tests inflate it)
+  is only caught if the unfinished case streamed its `It:` start marker.
+- Two different cases whose names share their first 40 characters can be matched to each other's end marker.
 
 ## Keep node tests rare — extract the logic
 
