@@ -78,7 +78,7 @@ when their values are not objects, so app data never reaches the file. No file i
 ## Studio
 
 `brighttest studio --host <roku-ip>` opens a local web app (default `http://localhost:8700`) that mirrors a
-running Roku. Its pages:
+running Roku (see the [Studio guide](/guide/studio) for flags, the security model and the State inspector). Its pages:
 
 - **Inspect** — live screenshot with a node overlay, and Node / Tree / Selector / State tabs next to a
   remote pad (D-pad, Select, Back, Home, text).
