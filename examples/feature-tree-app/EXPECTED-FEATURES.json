@@ -16,7 +16,7 @@
     },
     {
       "id": "details", "name": "Details", "kind": "screen", "risk": "low",
-      "summary": "Shows one title and hosts the player.",
+      "summary": "Shows one title and hosts the player and the entitlement gate.",
       "coreFiles": ["components/details/DetailsScreen.brs"],
       "members": ["file:components/details/DetailsScreen.xml", "file:components/details/DetailsScreen.brs", "comp:DetailsScreen"]
     },
@@ -33,10 +33,16 @@
       "members": ["file:components/settings/SettingsScreen.xml", "file:components/settings/SettingsScreen.brs", "comp:SettingsScreen"]
     },
     {
+      "id": "entitlement", "name": "Entitlement", "kind": "service", "risk": "high",
+      "summary": "Checks the user's purchases through roChannelStore. Needs a store fixture to test headless.",
+      "coreFiles": ["components/entitlement/EntitlementGate.brs"],
+      "members": ["file:components/entitlement/EntitlementGate.xml", "file:components/entitlement/EntitlementGate.brs", "comp:EntitlementGate"]
+    },
+    {
       "id": "api-service", "name": "Content API", "kind": "service", "risk": "medium",
-      "summary": "Task that fetches the home content over HTTP.",
-      "coreFiles": ["components/services/ApiTask.brs"],
-      "members": ["file:components/services/ApiTask.xml", "file:components/services/ApiTask.brs", "comp:ApiTask"]
+      "summary": "Task that fetches the home content over HTTP, and the pure ContentParser that turns the response into items.",
+      "coreFiles": ["components/services/ApiTask.brs", "components/services/ContentParser.brs"],
+      "members": ["file:components/services/ApiTask.xml", "file:components/services/ApiTask.brs", "file:components/services/ContentParser.brs", "comp:ApiTask"]
     },
     {
       "id": "shared-lib", "name": "Shared library", "kind": "shared", "risk": "low",

@@ -5,7 +5,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { runCli, cleanupTemp } from './helpers.js'
 
-// ADOPT-TREE-FX: the feature-tree-app fixture runs headless through the real CLI (no device). It is copied to a
+// The feature-tree-app fixture runs headless through the real CLI (no device). It is copied to a
 // temp dir so no staging output lands in the repo. Slow, so it is here and not in test/features-fixtures.test.js.
 const APP = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'examples', 'feature-tree-app')
 const tmp = []

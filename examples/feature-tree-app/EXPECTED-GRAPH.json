@@ -15,6 +15,7 @@
     { "id": "comp:Badge", "kind": "component", "file": "components/widgets/Badge.xml", "extends": "Group", "isScene": false, "isTask": false, "interface": { "fields": [ { "id": "text", "type": "string", "onChange": "onText" } ], "functions": [] }, "children": [ { "tag": "Label", "id": "badgeLabel" } ] },
     { "id": "comp:LibLoader", "kind": "component", "file": "components/widgets/LibLoader.xml", "extends": "Group", "isScene": false, "isTask": false, "children": [ { "tag": "ComponentLibrary", "id": "extlib" } ] },
     { "id": "comp:InlineBanner", "kind": "component", "file": "components/widgets/InlineBanner.xml", "extends": "Group", "isScene": false, "isTask": false, "inlineCdata": true, "children": [] },
+    { "id": "comp:EntitlementGate", "kind": "component", "file": "components/entitlement/EntitlementGate.xml", "extends": "Group", "isScene": false, "isTask": false, "interface": { "fields": [], "functions": [ "hasEntitlement" ] }, "children": [] },
 
     { "id": "file:manifest", "kind": "file", "lang": "manifest", "spec": false, "vendor": false },
     { "id": "file:source/main.brs", "kind": "file", "lang": "brs", "spec": false, "vendor": false, "scope": ["source"], "functions": [ { "name": "Main", "line": 1 } ] },
@@ -38,6 +39,9 @@
     { "id": "file:components/settings/SettingsScreen.brs", "kind": "file", "lang": "brs", "spec": false, "vendor": false, "scope": ["SettingsScreen"], "functions": [ { "name": "init", "line": 1 }, { "name": "refresh", "line": 6 } ], "facts": { "registry": ["settings"] } },
     { "id": "file:components/services/ApiTask.xml", "kind": "file", "lang": "xml", "spec": false, "vendor": false },
     { "id": "file:components/services/ApiTask.brs", "kind": "file", "lang": "brs", "spec": false, "vendor": false, "scope": ["ApiTask"], "functions": [ { "name": "init", "line": 1 }, { "name": "fetchHome", "line": 5 } ], "facts": { "network": true, "platformObjects": ["roUrlTransfer"] } },
+    { "id": "file:components/services/ContentParser.brs", "kind": "file", "lang": "brs", "spec": false, "vendor": false, "scope": ["ApiTask"], "functions": [ { "name": "Content_parse", "line": 1, "pure": true } ] },
+    { "id": "file:components/entitlement/EntitlementGate.xml", "kind": "file", "lang": "xml", "spec": false, "vendor": false },
+    { "id": "file:components/entitlement/EntitlementGate.brs", "kind": "file", "lang": "brs", "spec": false, "vendor": false, "scope": ["EntitlementGate"], "functions": [ { "name": "init", "line": 1 }, { "name": "hasEntitlement", "line": 7 } ], "facts": { "platformObjects": ["roChannelStore"] }, "note": "roChannelStore: store fixtures, testability rule F4" },
     { "id": "file:components/widgets/Badge.xml", "kind": "file", "lang": "xml", "spec": false, "vendor": false },
     { "id": "file:components/widgets/Badge.brs", "kind": "file", "lang": "brs", "spec": false, "vendor": false, "scope": ["Badge"], "functions": [ { "name": "init", "line": 1 }, { "name": "onText", "line": 5 } ] },
     { "id": "file:components/widgets/LibLoader.xml", "kind": "file", "lang": "xml", "spec": false, "vendor": false },
@@ -66,6 +70,7 @@
     { "from": "comp:Badge", "to": "builtin:Group", "kind": "extends", "conf": "builtin", "at": "components/widgets/Badge.xml:2" },
     { "from": "comp:LibLoader", "to": "builtin:Group", "kind": "extends", "conf": "builtin", "at": "components/widgets/LibLoader.xml:2" },
     { "from": "comp:InlineBanner", "to": "builtin:Group", "kind": "extends", "conf": "builtin", "at": "components/widgets/InlineBanner.xml:2" },
+    { "from": "comp:EntitlementGate", "to": "builtin:Group", "kind": "extends", "conf": "builtin", "at": "components/entitlement/EntitlementGate.xml:2" },
 
     { "from": "file:components/shell/MainScene.xml", "to": "file:components/shell/MainScene.brs", "kind": "script", "conf": "exact", "at": "components/shell/MainScene.xml:3" },
     { "from": "file:components/shell/MainScene.xml", "to": "file:source/lib/Logger.brs", "kind": "script", "conf": "exact", "at": "components/shell/MainScene.xml:4" },
@@ -79,6 +84,8 @@
     { "from": "file:components/settings/SettingsScreen.xml", "to": "file:components/settings/SettingsScreen.brs", "kind": "script", "conf": "exact", "at": "components/settings/SettingsScreen.xml:6" },
     { "from": "file:components/services/ApiTask.xml", "to": "file:components/services/ApiTask.brs", "kind": "script", "conf": "exact", "at": "components/services/ApiTask.xml:6" },
     { "from": "file:components/services/ApiTask.xml", "to": "file:source/lib/Config.brs", "kind": "script", "conf": "exact", "at": "components/services/ApiTask.xml:7" },
+    { "from": "file:components/services/ApiTask.xml", "to": "file:components/services/ContentParser.brs", "kind": "script", "conf": "exact", "at": "components/services/ApiTask.xml:8" },
+    { "from": "file:components/entitlement/EntitlementGate.xml", "to": "file:components/entitlement/EntitlementGate.brs", "kind": "script", "conf": "exact", "at": "components/entitlement/EntitlementGate.xml:6" },
     { "from": "file:components/widgets/Badge.xml", "to": "file:components/widgets/Badge.brs", "kind": "script", "conf": "exact", "at": "components/widgets/Badge.xml:6" },
 
     { "from": "file:source/lib/Greeting.bs", "to": "file:source/lib/StringUtils.brs", "kind": "import", "conf": "exact", "at": "source/lib/Greeting.bs:1" },
@@ -91,6 +98,7 @@
     { "from": "comp:PosterCard", "to": "builtin:Label", "kind": "child", "conf": "builtin", "at": "components/home/PosterCard.xml:8" },
     { "from": "comp:DetailsScreen", "to": "builtin:Label", "kind": "child", "conf": "builtin", "at": "components/details/DetailsScreen.xml:10" },
     { "from": "comp:DetailsScreen", "to": "comp:PlayerScreen", "kind": "child", "conf": "name", "at": "components/details/DetailsScreen.xml:11" },
+    { "from": "comp:DetailsScreen", "to": "comp:EntitlementGate", "kind": "child", "conf": "name", "at": "components/details/DetailsScreen.xml:12" },
     { "from": "comp:PlayerScreen", "to": "builtin:Video", "kind": "child", "conf": "builtin", "at": "components/player/PlayerScreen.xml:9" },
     { "from": "comp:SettingsScreen", "to": "builtin:Label", "kind": "child", "conf": "builtin", "at": "components/settings/SettingsScreen.xml:8" },
     { "from": "comp:Badge", "to": "builtin:Label", "kind": "child", "conf": "builtin", "at": "components/widgets/Badge.xml:8" },
@@ -105,7 +113,7 @@
     { "from": "file:components/shell/MainScene.brs", "to": "global:analyticsCount", "kind": "global-write", "conf": "exact", "at": "components/shell/MainScene.brs:2", "detail": "addFields" },
     { "from": "file:components/shell/MainScene.brs", "to": "global:analyticsCount", "kind": "global-write", "conf": "exact", "at": "components/shell/MainScene.brs:24" },
     { "from": "file:components/shell/MainScene.brs", "to": "global:analyticsCount", "kind": "global-read", "conf": "exact", "at": "components/shell/MainScene.brs:24" },
-    { "from": "file:source/lib/Logger.brs", "to": "global:analyticsCount", "kind": "global-read", "conf": "exact", "at": "source/lib/Logger.brs:6", "count": 2 },
+    { "from": "file:source/lib/Logger.brs", "to": "global:analyticsCount", "kind": "global-read", "conf": "exact", "at": "source/lib/Logger.brs:6" },
     { "from": "file:source/lib/Logger.brs", "to": "global:analyticsCount", "kind": "global-write", "conf": "exact", "at": "source/lib/Logger.brs:7" },
     { "from": "file:source/lib/Logger.brs", "to": "global:analyticsCount", "kind": "global-read", "conf": "exact", "at": "source/lib/Logger.brs:7" },
 
@@ -116,6 +124,7 @@
     { "from": "file:components/shell/MainScene.brs", "to": "file:source/lib/Logger.brs", "kind": "calls", "conf": "name", "at": "components/shell/MainScene.brs:14", "scopes": ["MainScene"], "detail": "Log_info" },
     { "from": "file:components/details/DetailsScreen.brs", "to": "file:source/lib/Config.brs", "kind": "calls", "conf": "name", "at": "components/details/DetailsScreen.brs:6", "scopes": ["DetailsScreen"], "detail": "Config_resumeKey" },
     { "from": "file:components/services/ApiTask.brs", "to": "file:source/lib/Config.brs", "kind": "calls", "conf": "name", "at": "components/services/ApiTask.brs:7", "scopes": ["ApiTask"], "detail": "Config_apiBase" },
+    { "from": "file:components/services/ApiTask.brs", "to": "file:components/services/ContentParser.brs", "kind": "calls", "conf": "name", "at": "components/services/ApiTask.brs:8", "scopes": ["ApiTask"], "detail": "Content_parse" },
     { "from": "file:components/player/PlayerScreen.brs", "to": "file:components/player/resume.brs", "kind": "calls", "conf": "name", "at": "components/player/PlayerScreen.brs:6", "scopes": ["PlayerScreen"], "detail": "Resume_clamp" },
     { "from": "file:components/player/PlayerScreen.brs", "to": "file:components/player/PlayerScreen.brs", "kind": "calls", "conf": "name", "at": "components/player/PlayerScreen.brs:11", "scopes": ["PlayerScreen"], "detail": "seek" },
     { "from": "file:source/lib/Greeting.bs", "to": "file:source/lib/StringUtils.brs", "kind": "calls", "conf": "name", "at": "source/lib/Greeting.bs:4", "scopes": ["source"], "detail": "Str_title" },
@@ -130,7 +139,7 @@
     { "from": "file:source/tests/StringUtils.spec.bs", "to": "file:source/lib/StringUtils.brs", "kind": "spec-covers", "conf": "name", "at": "source/tests/StringUtils.spec.bs:9", "detail": "Str_trim" },
     { "from": "file:source/tests/StringUtils.spec.bs", "to": "file:source/lib/StringUtils.brs", "kind": "spec-covers", "conf": "name", "at": "source/tests/StringUtils.spec.bs:16", "detail": "Str_title" }
   ],
-  "resolution": { "edgesTotal": 62, "byConf": { "exact": 21, "name": 19, "builtin": 19, "ambiguous": 1, "dynamic": 1, "unresolved": 1 } },
+  "resolution": { "edgesTotal": 67, "byConf": { "exact": 23, "name": 21, "builtin": 20, "ambiguous": 1, "dynamic": 1, "unresolved": 1 } },
   "uncertainty": {
     "counts": { "dynamic-createobject": 1, "ambiguous-callfunc": 1, "dynamic-observe": 1, "component-library": 1, "inline-cdata": 1, "bs-const-branch": 1 },
     "items": [
@@ -146,7 +155,7 @@
     "entry": "comp:MainScene",
     "cycles": [],
     "shared": ["file:source/lib/StringUtils.brs", "file:source/lib/Config.brs"],
-    "unreached": ["comp:DetailsScreen", "comp:SettingsScreen", "comp:PlayerScreen", "comp:Badge", "comp:InlineBanner", "file:source/lib/Greeting.bs"],
-    "unreachedWhy": "DetailsScreen and SettingsScreen are created only through a dynamic CreateObject; PlayerScreen is reached only through DetailsScreen; Badge, InlineBanner and Greeting have no inbound edge from the entry"
+    "unreached": ["comp:DetailsScreen", "comp:SettingsScreen", "comp:PlayerScreen", "comp:Badge", "comp:InlineBanner", "comp:EntitlementGate", "file:source/lib/Greeting.bs"],
+    "unreachedWhy": "DetailsScreen and SettingsScreen are created only through a dynamic CreateObject; PlayerScreen and EntitlementGate are reached only through DetailsScreen; Badge, InlineBanner and Greeting have no inbound edge from the entry"
   }
 }

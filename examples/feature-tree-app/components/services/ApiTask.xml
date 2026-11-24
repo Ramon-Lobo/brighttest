@@ -5,4 +5,5 @@
   </interface>
   <script type="text/brightscript" uri="ApiTask.brs" />
   <script type="text/brightscript" uri="pkg:/source/lib/Config.brs" />
+  <script type="text/brightscript" uri="ContentParser.brs" />
 </component>
