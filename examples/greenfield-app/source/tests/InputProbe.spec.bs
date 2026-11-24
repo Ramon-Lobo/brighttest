@@ -1,0 +1,76 @@
+namespace tests
+  @suite("InputProbe helper (pure)")
+  class InputProbeTests extends rooibos.BaseTestSuite
+
+    @describe("InputProbe_append")
+
+    @it("starts from an empty log without a separator")
+    function _()
+      m.assertEqual(InputProbe_append("", "a01", 1800), "a01")
+    end function
+
+    @it("appends in order, comma separated")
+    function _()
+      log = ""
+      for each id in ["a01", "a02", "a03"]
+        log = InputProbe_append(log, id, 1800)
+      end for
+      m.assertEqual(log, "a01,a02,a03")
+    end function
+
+    @it("keeps duplicates and out-of-order ids as received")
+    function _()
+      log = InputProbe_append(InputProbe_append(InputProbe_append("", "b02", 1800), "b01", 1800), "b02", 1800)
+      m.assertEqual(log, "b02,b01,b02")
+    end function
+
+    @it("fits exactly at the cap")
+    function _()
+      m.assertEqual(InputProbe_append("a01,a02", "a03", 11), "a01,a02,a03")
+    end function
+
+    @it("freezes with |full when the next id would pass the cap")
+    function _()
+      m.assertEqual(InputProbe_append("a01,a02", "a03", 10), "a01,a02|full")
+    end function
+
+    @it("ignores appends once full")
+    function _()
+      m.assertEqual(InputProbe_append("a01,a02|full", "a03", 1800), "a01,a02|full")
+    end function
+
+    @it("never exceeds the serializer cap when filled to 1800")
+    function _()
+      log = ""
+      for i = 1 to 1000
+        log = InputProbe_append(log, "a" + i.toStr(), 1800)
+      end for
+      m.assertTrue(Len(log) <= 1805)
+      m.assertEqual(Right(log, 5), "|full")
+    end function
+
+    @it("holds 66 probe ids well under the cap")
+    function _()
+      log = ""
+      for each p in ["a", "b", "c"]
+        for i = 1 to 22
+          n = i.toStr()
+          if i < 10 then n = "0" + n
+          log = InputProbe_append(log, p + n, 1800)
+        end for
+      end for
+      m.assertEqual(Len(log), 263)
+      m.assertEqual(Left(log, 7), "a01,a02")
+    end function
+
+    @describe("Config_isInputProbe")
+
+    @it("is off by default and on for inputprobe=1")
+    function _()
+      m.assertFalse(Config_isInputProbe({}))
+      m.assertFalse(Config_isInputProbe({ inputprobe: "0" }))
+      m.assertTrue(Config_isInputProbe({ inputprobe: "1" }))
+    end function
+
+  end class
+end namespace

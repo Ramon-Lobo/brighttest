@@ -15,6 +15,12 @@ fixture for network, state, robustness, MCP and engine checks.
 - `AppStore`: a `BTStore` (`source/brighttest/BTStore.brs`) with slices `user` and `nav`, and `dispatch(action)`,
   which routes to `BTStore_dispatch`. `EffectsTask` persists one preference to registry section `greenfield`.
 - Periodic mode: launch with `periodic=true` to GET `/home` every 10 s.
+- Input-order probe (opt-in): launch with `inputprobe=1` (off by default; without it `m.global` gains nothing).
+  `MainScene` then adds string fields `m.global.inputProbe` (written by the commands under test) and
+  `m.global.inputProbeLog` (written only by the fixture). It observes `inputProbe` and appends each event's own value,
+  comma-separated, via `InputProbe_append` (`source/lib/InputProbe.brs`). The log stops at 1,800 chars and ends with
+  `|full` (under the 2,048-char serializer cap). Ids: `a01..a22` (220 ms), `b01..b22` (100 ms), `c01..c22` (50 ms),
+  no reset between rates. Used by TP-STA-25 step 2.
 - `Badge` sets `Label.forceUpperCase` (non-device behaviour).
 
 ## Run
