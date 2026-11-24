@@ -6,6 +6,10 @@ sub Main(args as dynamic)
     scene.baseUrl = Config_baseUrl(args)
     scene.periodic = Config_isPeriodic(args)
     scene.inputProbe = Config_isInputProbe(args)
+    if Config_isNetSecrets(args)
+        m.global.addField("btNetSecrets", "boolean", false)
+        m.global.btNetSecrets = true
+    end if
     scene.ready = true
     screen.show()
     while true

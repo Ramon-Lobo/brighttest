@@ -52,4 +52,17 @@ sub execute()
         end if
     end if
     m.top.result = result
+    if m.top.id = "hero" and m.global.hasField("btNetSecrets") and m.global.btNetSecrets = true then sendSecretsProbe()
+end sub
+
+' netsecrets=1 only: one extra GET with dummy credential-looking header and query values (see Config_netSecretsRequest).
+sub sendSecretsProbe()
+    probe = Config_netSecretsRequest()
+    xfer = CreateObject("roUrlTransfer")
+    xfer.setUrl(Http_join(m.top.baseUrl, probe.path))
+    xfer.setHeaders(probe.headers)
+    port = CreateObject("roMessagePort")
+    xfer.setMessagePort(port)
+    xfer.asyncGetToString()
+    wait(10000, port)
 end sub

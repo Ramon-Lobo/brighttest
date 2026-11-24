@@ -15,6 +15,10 @@ fixture for network, state, robustness, MCP and engine checks.
 - `AppStore`: a `BTStore` (`source/brighttest/BTStore.brs`) with slices `user` and `nav`, and `dispatch(action)`,
   which routes to `BTStore_dispatch`. `EffectsTask` persists one preference to registry section `greenfield`.
 - Periodic mode: launch with `periodic=true` to GET `/home` every 10 s.
+- Net-secrets probe (opt-in): launch with `netsecrets=1` (off by default; without it every request is unchanged).
+  After the hero `GET /home`, `HttpTask` sends one extra `GET <base>/echo?token=abc&access_token=def&sig=ghi` with header
+  `Authorization: Bearer test-not-secret`. Header and query only, no JSON body key. All values are dummies, not real
+  credentials; they exist so a redaction check can grep captures for `test-not-secret`, `abc`, `def` and `ghi`.
 - Input-order probe (opt-in): launch with `inputprobe=1` (off by default; without it `m.global` gains nothing).
   `MainScene` then adds string fields `m.global.inputProbe` (written by the commands under test) and
   `m.global.inputProbeLog` (written only by the fixture). It observes `inputProbe` and appends each event's own value,

@@ -11,4 +11,5 @@
   </interface>
   <script type="text/brightscript" uri="HttpTask.brs" />
   <script type="text/brightscript" uri="pkg:/source/lib/Http.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/Config.brs" />
 </component>
