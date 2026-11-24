@@ -45,6 +45,7 @@ export default withMermaid({
           { text: 'Overview', link: '/' },
           { text: 'Motivation & decisions', link: '/motivation' },
           { text: 'Architecture', link: '/architecture' },
+          { text: 'Design decisions', link: '/decisions-summary' },
         ],
       },
       {
