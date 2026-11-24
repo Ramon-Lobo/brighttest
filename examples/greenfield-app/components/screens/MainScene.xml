@@ -4,9 +4,11 @@
     <field id="baseUrl" type="string" value="http://127.0.0.1:8787" />
     <field id="ready" type="boolean" value="false" onChange="onReady" />
     <field id="periodic" type="boolean" value="false" onChange="onPeriodic" />
+    <field id="inputProbe" type="boolean" value="false" onChange="onInputProbeEnable" />
   </interface>
   <script type="text/brightscript" uri="MainScene.brs" />
   <script type="text/brightscript" uri="pkg:/source/lib/Format.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/InputProbe.brs" />
   <children>
     <!-- Only the active screen is parented here, so assertVisible/assertGone are exact. -->
     <Group id="stage" />

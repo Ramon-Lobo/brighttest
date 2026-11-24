@@ -14,3 +14,8 @@ end function
 function Config_isPeriodic(args as object) as boolean
     return type(args) = "roAssociativeArray" and args.periodic = "true"
 end function
+
+' Input-order probe: launch parameter inputprobe=1 enables m.global.inputProbe / inputProbeLog (off by default).
+function Config_isInputProbe(args as object) as boolean
+    return type(args) = "roAssociativeArray" and args.inputprobe = "1"
+end function

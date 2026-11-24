@@ -5,6 +5,7 @@ sub Main(args as dynamic)
     scene = screen.CreateScene("MainScene")
     scene.baseUrl = Config_baseUrl(args)
     scene.periodic = Config_isPeriodic(args)
+    scene.inputProbe = Config_isInputProbe(args)
     scene.ready = true
     screen.show()
     while true

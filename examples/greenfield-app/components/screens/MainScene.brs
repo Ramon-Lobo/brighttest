@@ -22,6 +22,22 @@ sub onPeriodic()
     end if
 end sub
 
+' Opt-in /input order probe (inputprobe=1). Adds the global fields only when enabled, so default snapshots are unchanged.
+sub onInputProbeEnable()
+    if not m.top.inputProbe or m.probeOn = true then return
+    m.probeOn = true
+    m.global.addFields({ inputProbe: "", inputProbeLog: "" })
+    m.global.observeField("inputProbe", "onInputProbe")
+end sub
+
+' Append the event's own value (not a field re-read) so coalesced writes cannot hide ordering.
+sub onInputProbe(msg as object)
+    id = msg.getData()
+    if type(id) <> "roString" and type(id) <> "String" then return
+    if id = "" then return
+    m.global.inputProbeLog = InputProbe_append(m.global.inputProbeLog, id, 1800)
+end sub
+
 sub onTick()
     request("periodic", { mode: "getAsync", path: "/home" })
 end sub
