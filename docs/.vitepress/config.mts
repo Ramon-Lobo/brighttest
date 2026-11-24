@@ -14,6 +14,14 @@ export default withMermaid({
   // to '/' if you deploy to a user/org site (<user>.github.io) or a custom domain.
   base: '/brighttest/',
 
+  // The unreleased (main) build is published under /next/ and must not be indexed; releases are.
+  // The docs site build sets BRIGHTTEST_DOCS_CHANNEL=next for that build only.
+  transformHead() {
+    return process.env.BRIGHTTEST_DOCS_CHANNEL === 'next'
+      ? [['meta', { name: 'robots', content: 'noindex' }]]
+      : []
+  },
+
   // Shiki has no 'brightscript' grammar; VB is the closest for keywords like function/sub/if/then/end.
   markdown: {
     languageAlias: { brightscript: 'vb' },
