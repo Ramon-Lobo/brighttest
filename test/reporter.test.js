@@ -240,7 +240,90 @@ describe('droppedCases (async timeout in a node suite)', () => {
   })
 
   it('returns nothing when the summary total matches the tree', () => {
-    const ok = stopped.replace(' Total: 0', ' Total: 5').replace('   Passed: 0', '   Passed: 5')
+    const ok = stopped.replace(' Total: 0', ' Total: 5').replace('   Passed: 0', '   Passed: 5').replace('>>>>>> It: slow>>>>>>', '>>>>>> It: slow>>>>>>\n' + [end('slow'), end('c'), end('d')].join('\n'))
     expect(droppedCases(ok)).toEqual([])
+  })
+
+  it('ignores a PASS case that streamed an END marker even when other suites ran (status skip)', () => {
+    const withFail = stopped.replace('| |--slow : ....................PASS (0ms)', '| |--slow : ....................FAIL (0ms)')
+    expect(droppedCases(withFail).map((x) => x.name)).toEqual(['c', 'd'])
+  })
+
+  it('does not double count a duplicated case name: each END marker consumes one tree entry', () => {
+    const dup = [
+      '>>>>>> It: same>>>>', end('same'), '>>>>>> It: same>>>>',
+      ' [START TEST REPORT]', tree(['same', 'same', 'x']), ' Total: 9', ' RESULT: Success',
+    ].join('\n')
+    expect(droppedCases(dup).map((x) => x.name)).toEqual(['same', 'x'])
+  })
+
+  it('opens the gate on an unfinished It: marker even when ignored tests lift Total to the tree size', () => {
+    const lifted = stopped.replace(' Total: 0', ' Total: 20').replace('   Ignored: 0', '   Ignored: 17')
+    expect(droppedCases(lifted).map((x) => x.name)).toEqual(['slow', 'c', 'd'])
+    expect(laneFailures(lifted, 0).failed).toBe(3)
+  })
+
+  it('returns nothing without a summary (null-summary guard)', () => {
+    expect(droppedCases(stopped.replace(' Total: 0', ' Nope: 0'))).toEqual([])
+    expect(droppedCases('')).toEqual([])
+  })
+
+  it('does not report a started-and-ended case as open when its END has no status', () => {
+    const t = 'a'.repeat(66)
+    const out = [
+      `>>>>>> It: ${t}>>>>`, `<<<< END It: ${t.slice(0, 56)}...<<`, '>>>>>> It: b>>>>', end('b'),
+      ' [START TEST REPORT]', tree([t.slice(0, 49), 'b']), ' Total: 2', ' RESULT: Success',
+    ].join('\n')
+    expect(droppedCases(out)).toEqual([])
+  })
+
+  it('names the true stalled case when a 66-character name before it was truncated', () => {
+    const t = 'a'.repeat(66)
+    const out = [
+      `>>>>>> It: ${t}>>>>`, `<<<< END It: ${t.slice(0, 56)}...<<`, '>>>>>> It: slow>>>>',
+      ' [START TEST REPORT]', tree([t.slice(0, 49), 'slow', 'after']), ' Total: 0', ' RESULT: Success',
+    ].join('\n')
+    const d = droppedCases(out)
+    expect(d.map((x) => x.name)).toEqual(['slow', 'after'])
+    expect(d[0].reason).toMatch(/started but never finished/)
+    expect(d[1].reason).toMatch(/stopped at "slow"/)
+  })
+
+  it('does not match a short name as the prefix of a longer one', () => {
+    const out = [
+      '>>>>>> It: sync 10>>>>', end('sync 10'), '>>>>>> It: slow>>>>',
+      ' [START TEST REPORT]', tree(['sync 1', 'sync 10', 'slow']), ' Total: 0', ' RESULT: Success',
+    ].join('\n')
+    expect(droppedCases(out).map((x) => x.name)).toEqual(['sync 1', 'slow'])
+  })
+
+  it('matches @params cases by position: streamed `params 0` ends cover tree `[1,2]` entries', () => {
+    const out = [
+      '>>>>>> It: params 0>>>>', end('params 0'), '>>>>>> It: params 1>>>>', end('params 1'),
+      '>>>>>> It: slow>>>>',
+      ' [START TEST REPORT]', tree(['[1,2]', '[3,4]', 'slow', '[5,6]']), ' Total: 0', ' RESULT: Success',
+    ].join('\n')
+    const d = droppedCases(out)
+    expect(d.map((x) => x.name)).toEqual(['slow', '[5,6]'])
+    expect(d[0].reason).toMatch(/started but never finished/)
+  })
+
+  it('names a stalled @params case as the stop point', () => {
+    const out = [
+      '>>>>>> It: params 0>>>>', end('params 0'), '>>>>>> It: params 1>>>>',
+      ' [START TEST REPORT]', tree(['[1,2]', '[3,4]', 'after']), ' Total: 0', ' RESULT: Success',
+    ].join('\n')
+    const d = droppedCases(out)
+    expect(d.map((x) => x.name)).toEqual(['[3,4]', 'after'])
+    expect(d[0].reason).toMatch(/started but never finished/)
+  })
+
+  it('strips ANSI colour from the report tree', () => {
+    const colored = stopped.split('\n').map((l) => `\x1b[32m${l}\x1b[39m`).join('\n')
+    expect(treeCases(colored).map((t) => t.name)).toEqual(['a', 'b', 'slow', 'c', 'd'])
+  })
+
+  it('adds the dropped count to the streamed failures rather than taking the larger', () => {
+    expect(laneFailures(stopped, 2).failed).toBe(5)
   })
 })
