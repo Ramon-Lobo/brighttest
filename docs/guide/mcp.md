@@ -105,10 +105,10 @@ requests use JSON-RPC errors instead (`-32602` for bad arguments or an unknown t
 | `FLOW_BUDGET_EXHAUSTED` | The session's 10 flow-run cap is used up. |
 | `FLOW_FAILED` | A step failed; the data holds the per-step summary and `failedStep`. A flow skipped by `requires:` is not an error: the result carries `skipped`. |
 | `NET_FAILED` | The net window or session hub could not start (for example the hub port is in use) or the proxy errored. |
-| `NET_BAD_FILTER` | `net_requests` got a filter the proxy rejects (an out-of-range `status` or `limit` is a `-32602` error). |
+| `NET_BAD_FILTER` | `net_requests` got a filter the proxy rejects (an out-of-range `status` or `limit` is a `-32602` error). Defensive; not expected once schema validation passed. |
 | `NET_PATTERN_TOO_COMPLEX` | A URL glob has more than 8 `*` (a glob over 256 characters is a `-32602` error). |
 | `NET_OUTPUT_TOO_LARGE` | The request list is over 128 KB; narrow the filters. |
-| `NET_RULE_INVALID` | `net_mock` got an invalid rule (for example a lowercase method, or both `body` and `json`). |
+| `NET_RULE_INVALID` | `net_mock` got an invalid rule (for example a method with non-letters such as `G-T`, or both `body` and `json`). |
 | `NET_RULE_BUDGET_EXHAUSTED` | The session already has 100 `net_mock` rules. |
 
 A typed code raised by the flow or state layer inside `run_flow`, `inspect_tree` or `app_state` is passed through as is
@@ -118,9 +118,10 @@ A typed code raised by the flow or state layer inside `run_flow`, `inspect_tree`
 
 ## Safety limits
 
-- **Lease, per call.** Outside a net window (see above), each device-touching call (`press`, `navigate_to`, `inspect_tree`, `screenshot`, `app_state`,
-  `run_flow`) takes the [device lease](./device-lease) when it starts and releases it when it ends (`net_requests` and `net_mock` always run inside a net window and open one if none is open), also on error and
-  on timeout. Nothing is held between calls, so a human or another agent can use the device in between. If another
+- **Lease, per call.** Each device-touching call (`press`, `navigate_to`, `inspect_tree`, `screenshot`, `app_state`,
+  `run_flow`) takes the [device lease](./device-lease) when it starts and releases it when it ends, also on error and
+  on timeout (outside a net window; `net_requests` and `net_mock` always run inside a net window and open one if none is
+  open). Nothing is held between calls, so a human or another agent can use the device in between. If another
   party holds it, the call fails at once with `DEVICE_BUSY` and sends no request. A lost lease becomes a `LEASE_LOST`
   tool error; the server never exits because of the lease. `list_devices` and `device_doctor` are read-only and take
   no lease.
