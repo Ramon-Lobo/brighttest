@@ -10,6 +10,7 @@
   import HierarchyTree from './lib/HierarchyTree.svelte';
   import SelectorPlayground from './lib/SelectorPlayground.svelte';
   import StateInspector from './lib/StateInspector.svelte';
+  import ActionLog from './lib/ActionLog.svelte';
   import Network from './lib/Network.svelte';
   import ContextMenu from './lib/ContextMenu.svelte';
   import Runs from './lib/pages/Runs.svelte';
@@ -309,6 +310,7 @@
                   <button class:on={tab === 'tree'} onclick={() => (tab = 'tree')}>Tree</button>
                   <button class:on={tab === 'selector'} onclick={() => (tab = 'selector')}>Selector</button>
                   <button class:on={tab === 'state'} onclick={() => (tab = 'state')}>State</button>
+                  <button class:on={tab === 'actions'} onclick={() => (tab = 'actions')}>Actions</button>
                   <button class:on={tab === 'net'} onclick={() => (tab = 'net')}>Network</button>
                 </div>
                 <div class="panelbody">
@@ -318,6 +320,8 @@
                     <HierarchyTree />
                   {:else if tab === 'selector'}
                     <SelectorPlayground onadd={addStep} />
+                  {:else if tab === 'actions'}
+                    <ActionLog />
                   {:else if tab === 'net'}
                     <Network onadd={addStep} />
                   {:else}
