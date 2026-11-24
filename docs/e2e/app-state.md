@@ -129,8 +129,13 @@ saved run traces are masked the same way, and so are traces saved by an earlier 
 them. The failure message of an `assertState` step can still contain the asserted value (tracked separately). Published
 text that cannot be masked (not JSON, or not the expected shape) is replaced by `<redacted:text>` in the node list.
 Invalid `__bt_state` JSON shows as no state plus the error `invalid JSON`; parse errors no longer quote the input.
-For `__bt_state`, `instrument.state.redact.paths` match from the state root with no layer prefix (for example
+For the legacy `__bt_state` published state, `instrument.state.redact.paths` match from the state root with no layer prefix (for example
 `user.name`, not `global.user.name`).
+
+Mask paths (`instrument.state.redact.paths`) are written against the agent state snapshot, so the first segment is the
+layer name (`global`, `scene`, `focus`, `registry`), as in `global.user.email`. A leading `layers.` is also accepted.
+Segments match ignoring case, `*` matches one segment, and an array element is written `list[0]` or `list.0`
+(`global.cart.items[1].price`). A masked element shows as `<redacted:1>`.
 
 `layer` selects one layer; `path` is then relative to it. Without `layer`, the first segment of `path`
 is the layer name.
