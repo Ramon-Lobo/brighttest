@@ -318,6 +318,27 @@ describe('droppedCases (async timeout in a node suite)', () => {
     expect(d[0].reason).toMatch(/started but never finished/)
   })
 
+  it('names the actually stalled case when an @ignore\'d case sits before it', () => {
+    const out = [
+      '>>>>>> It: b>>>>', end('b'), '>>>>>> It: slow>>>>',
+      ' [START TEST REPORT]', tree(['ignored', 'b', 'slow', 'after']), ' Total: 0', ' RESULT: Success',
+    ].join('\n')
+    const d = droppedCases(out)
+    expect(d.map((x) => x.name)).toEqual(['ignored', 'slow', 'after'])
+    expect(d.filter((x) => /started but never finished/.test(x.reason)).map((x) => x.name)).toEqual(['slow'])
+    expect(d[0].reason).toMatch(/stopped at "slow".*@ignore/)
+  })
+
+  it('does not claim a stalled case when the open one is not in the tree', () => {
+    const out = [
+      '>>>>>> It: mystery>>>>',
+      ' [START TEST REPORT]', tree(['x', 'y']), ' Total: 0', ' RESULT: Success',
+    ].join('\n')
+    const d = droppedCases(out)
+    expect(d.map((x) => x.name)).toEqual(['x', 'y'])
+    expect(d.some((x) => /started but never finished/.test(x.reason))).toBe(false)
+  })
+
   it('strips ANSI colour from the report tree', () => {
     const colored = stopped.split('\n').map((l) => `\x1b[32m${l}\x1b[39m`).join('\n')
     expect(treeCases(colored).map((t) => t.name)).toEqual(['a', 'b', 'slow', 'c', 'd'])
