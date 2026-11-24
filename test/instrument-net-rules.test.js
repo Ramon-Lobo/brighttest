@@ -242,7 +242,7 @@ describe('bodyKeys scope, depth, BOM, base64 and validation', () => {
       }
     }
     const out = R.makeRedactor({ bodyKeys: ['token'] }).body(deep(10000, true), 'application/json');
-    expect(out).not.toContain('d1');
+    expect(out).toBe('<redacted:body>');
     const e = { startedDateTime: 1, time: 1, method: 'POST', url: 'https://h.test/x', reqHeaders: { 'content-type': 'application/json' }, reqBody: Buffer.from(deep(10000, true)), status: 200, resHeaders: { 'content-type': 'application/json' }, resBody: Buffer.from(deep(10000, true)), timings: {} };
     const har = R.buildHar([e], { redact: { bodyKeys: ['token'], jsonPaths: ['$.x'] } });
     expect(JSON.stringify(har)).not.toContain('d1');
