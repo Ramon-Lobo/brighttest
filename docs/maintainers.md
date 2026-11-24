@@ -18,6 +18,7 @@ brighttest/
 │   │                        #   rewrite-net.js), runtime/ (BT_* device code), the LAN hub + net proxy/rules, greenfield/ templates
 │   ├── studio/              # `brighttest studio` server (ECP, sgdebug, perf, Perfetto); client in studio/web (Svelte)
 │   ├── device-lease.js      # device lease (+ device-command.js, device-hook.js, devices.js): `brighttest device`
+│   ├── mcp/                 # `brighttest mcp` stdio server (server.js, tools.js, net-window.js)
 │   ├── doctor.js            # `brighttest doctor` capability check, hub bind check and opt-in hub reach probe; the e2e preflight
 │   ├── assess.js            # `brighttest assess` read-only project report (uses instrument/census.js)
 │   ├── engines.js           # brs-node / rooibos resolution (+ engine-caps.js, `doctor --engines`)

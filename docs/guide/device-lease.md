@@ -133,8 +133,7 @@ npx brighttest device unlock --lease "$TOKEN"
 - `device lock` on a device you already hold through `BRIGHTTEST_LEASE` exits 2 instead of queueing behind
   yourself. Unlock first.
 - A command under the token does not press Home itself (only `device lock` did, once). `e2e run` is the exception
-  when it starts the instrument hub (state or net steps, or the hub is on through `--lan-hub` or `net` in the
-  config): it presses Home twice once at the start of the run, so an app left running by an earlier run restarts
+  when it starts the instrument hub (state or net steps, or `net` is set in the config, which turns the hub on): it presses Home twice once at the start of the run, so an app left running by an earlier run restarts
   and says hello to the new hub. Without that, a plain launch is ignored by a running channel and state steps
   fail with `STATE_NOT_INSTRUMENTED`. `--no-hygiene` or `deviceLease.hygiene: "none"` skips it. This applies to any
   re-entrant lease: `device with -- brighttest e2e run` takes a command lease (the parent presses Home), and the
