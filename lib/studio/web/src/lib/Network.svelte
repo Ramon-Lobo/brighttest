@@ -1,6 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import { api } from './api.js';
+  import { noHubMessage, selectedRow, canMock } from './net-state.js';
 
   // Network panel (NET-N-T10). Live rows come from the hub event stream (/api/bt/stream, redacted); the list is
   // reconciled from /api/net/requests. Raw values (headers, query secrets, bodies) load only after "show secrets".
@@ -8,7 +9,9 @@
 
   const MAX_ROWS = 500;
   let rows = $state([]);        // { id, method, host, path, status, ms, source, rule, bytes, error, headers, body }
-  let selected = $state(null);
+  let selectedId = $state(null);
+  const selected = $derived(selectedRow(rows, selectedId));
+  let noHub = $state('');
   let filter = $state('');
   let raw = $state(false);
   let msg = $state('');
@@ -42,7 +45,7 @@
     try {
       const r = await fetch('/api/net/rules');
       if (r.status === 423) { state = 'locked'; return false; }
-      if (r.status === 503) { state = 'none'; return false; }
+      if (r.status === 503) { noHub = noHubMessage(await r.json().catch(() => null)); state = 'none'; return false; }
       return r.ok;
     } catch { state = 'down'; return false; }
   }
@@ -68,9 +71,8 @@
   async function toggleRaw() {
     raw = !raw;
     await reload();
-    if (!raw && selected) selected = rows.find((r) => r.id === selected.id) || null;
   }
-  function clear() { rows = []; selected = null; }
+  function clear() { rows = []; selectedId = null; }
 
   async function mockThis(r) {
     const d = await api.netMockThis(r.id);
@@ -101,7 +103,7 @@
 </script>
 
 {#if state === 'none'}
-  <p class="empty">No instrument hub is running in this Studio session, so there is no network traffic to show.</p>
+  <p class="empty">{noHub}</p>
 {:else if state === 'locked'}
   <p class="empty err">Studio does not hold the device lease. <button class="lnk" onclick={connect}>Retry</button></p>
 {:else}
@@ -127,7 +129,7 @@
       <thead><tr><th>method</th><th>status</th><th>host / path</th><th>size</th><th>ms</th><th>source</th><th>rule</th></tr></thead>
       <tbody>
         {#each shown as r (r.id)}
-          <tr class:sel={selected && selected.id === r.id} onclick={() => (selected = r)}>
+          <tr class:sel={selectedId === r.id} onclick={() => (selectedId = r.id)}>
             <td>{r.method}</td>
             <td class={cls(r)}>{r.error ? r.error : r.status ?? '...'}</td>
             <td class="path" title={r.host + r.path}>{r.host}{r.path}</td>
@@ -143,8 +145,8 @@
   {#if selected}
     <div class="detail">
       <div class="acts">
-        <button onclick={() => mockThis(selected)} disabled={selected.bytes == null} title={selected.bytes == null ? 'No completed exchange to mock (unmatched, refused or failed request)' : 'Add a mockHttp step from this response'}>Mock this</button>
-        <button onclick={() => copyRule(selected)}>Copy as rule JSON</button>
+        <button onclick={() => mockThis(selected)} disabled={!canMock(selected)} title={!canMock(selected) ? 'No completed exchange to mock (unmatched, refused or failed request)' : 'Add a mockHttp step from this response'}>Mock this</button>
+        <button onclick={() => copyRule(selected)} disabled={!canMock(selected)} title={!canMock(selected) ? 'No completed exchange to copy (unmatched, refused or failed request)' : 'Copy the rule JSON for this response'}>Copy as rule JSON</button>
         <button onclick={() => blockRule(selected)}>Block (503)</button>
         <button onclick={clearRules}>Clear live rules</button>
       </div>
@@ -169,6 +171,7 @@
   .f { flex: 1; background: #10131c; border: 1px solid var(--color-line); border-radius: 6px; color: inherit; font-family: var(--font-mono); font-size: 12px; padding: 3px 7px; }
   button, .btn { background: #10131c; border: 1px solid var(--color-line); border-radius: 6px; cursor: pointer; color: #b7c0ff; font-family: var(--font-mono); font-size: 12px; padding: 3px 8px; text-decoration: none; }
   button:hover, .btn:hover { border-color: var(--color-violet); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
   button.on { border-color: var(--color-amber); color: var(--color-amber); }
   .lnk { border: none; background: none; text-decoration: underline; padding: 0; }
   table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 12px; }
