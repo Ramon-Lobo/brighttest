@@ -21,12 +21,50 @@ export default withMermaid({
 
   themeConfig: {
     nav: [
-      { text: 'Home', link: '/' },
-      { text: 'Quick start', link: '/guide/getting-started' },
+      {
+        text: 'Start',
+        items: [
+          { text: 'Quick start', link: '/guide/getting-started' },
+          { text: 'CLI reference', link: '/guide/cli-reference' },
+          { text: 'Example apps', link: '/guide/examples' },
+          { text: 'Troubleshooting & how it works', link: '/guide/troubleshooting' },
+        ],
+      },
       { text: 'Writing tests', link: '/writing-tests/' },
-      { text: 'E2E (device)', link: '/e2e/' },
-      { text: 'CI', link: '/guide/ci' },
-      { text: 'Contributing', link: '/contributing' },
+      {
+        text: 'Adopting',
+        items: [
+          { text: 'Adopting brighttest', link: '/guide/adopting' },
+          { text: 'Assess a project', link: '/guide/assess' },
+          { text: 'Agent skills', link: '/guide/agent-skills' },
+          { text: 'Agent surface (MCP)', link: '/guide/mcp' },
+        ],
+      },
+      {
+        text: 'Network',
+        items: [
+          { text: 'Network recipe', link: '/guide/network-recipe' },
+          { text: 'Network fault model', link: '/guide/net-faults' },
+          { text: 'HTTP fixtures in specs', link: '/writing-tests/http-fixtures' },
+          { text: 'roChannelStore fixtures', link: '/guide/store-fixtures' },
+        ],
+      },
+      {
+        text: 'Instrument & Studio',
+        items: [
+          { text: 'Instrumented builds', link: '/guide/instrument' },
+          { text: 'Studio', link: '/guide/studio' },
+        ],
+      },
+      { text: 'E2E', link: '/e2e/' },
+      {
+        text: 'CI',
+        items: [
+          { text: 'CI integration', link: '/guide/ci' },
+          { text: 'Device shelf (CI)', link: '/guide/ci-device-shelf' },
+          { text: 'Sharing a device (lease)', link: '/guide/device-lease' },
+        ],
+      },
     ],
 
     socialLinks: [
