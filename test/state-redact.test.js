@@ -93,6 +93,18 @@ describe('redaction details', () => {
     const e = await fail({ path: 'authToken', exists: false }, mk({ opts: { redactState: true } }))
     expect(e.message).toMatch(/exists false/)
   })
+  it('a ctx built like makeCtx or MCP (flow config on, no ctx.redactState passed in) redacts a subflow', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-redact-'))
+    try {
+      fs.writeFileSync(path.join(dir, 'sub.e2e.yaml'), 'steps:\n  - assertState: { layer: global, path: authToken, equals: nope }\n')
+      const flow = { file: path.join(dir, 'parent.e2e.yaml'), config: { redactState: true }, steps: [] }
+      const cfg = {}
+      const ctx = mk({ cfg, opts: {}, flow, redactState: redactStateOn({ cfg, opts: {}, flow }, {}) })
+      const e = await execStep({ op: 'runFlow', file: 'sub.e2e.yaml' }, ctx).catch((x) => x)
+      expect(e.message).toMatch(/<redacted:authToken>/)
+      expect(e.message).not.toMatch(/hunter2/)
+    } finally { fs.rmSync(dir, { recursive: true, force: true }) }
+  })
   it('a subflow inherits the setting and cannot turn it off', async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-redact-'))
     try {

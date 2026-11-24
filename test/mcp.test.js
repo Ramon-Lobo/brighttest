@@ -329,6 +329,39 @@ describe('run_flow nested runFlow confinement', () => {
   }, 60000)
 })
 
+describe('run_flow state redaction', () => {
+  const agentText = JSON.stringify({ v: 1, seq: 1, snapshot: { layers: { global: { authToken: 'hunter2-live', user: { pin: '4321' }, channel: 'Open Cinema' } } }, truncated: [] })
+  const setup = (cfgJson, flowCfg = '') => {
+    const cwd = tmpdir('bt-mcp-red-')
+    fs.mkdirSync(path.join(cwd, 'flows'))
+    if (cfgJson) fs.writeFileSync(path.join(cwd, 'brighttest.json'), JSON.stringify(cfgJson))
+    const step = (p) => `  - assertState: { layer: global, path: ${p}, equals: nope }\n`
+    fs.writeFileSync(path.join(cwd, 'flows', 'sub.e2e.yaml'), `steps:\n${step('authToken')}`)
+    fs.writeFileSync(path.join(cwd, 'flows', 'pin.e2e.yaml'), `steps:\n${step('user.pin')}`)
+    fs.writeFileSync(path.join(cwd, 'flows', 'top.e2e.yaml'), `appId: dev\n${flowCfg}steps:\n  - runFlow: { file: sub.e2e.yaml }\n`)
+    fs.writeFileSync(path.join(cwd, 'flows', 'toppin.e2e.yaml'), `appId: dev\n${flowCfg}steps:\n  - runFlow: { file: pin.e2e.yaml }\n`)
+    return ready('healthy', { cwd, stub: { agentText }, env: { BRIGHTTEST_REDACT_STATE: '' }, limits: { pressGapMs: 0, maxFlowRunsPerSession: 20 } })
+  }
+  it('off by default: a subflow assertState shows the real value', async () => {
+    const { c } = await setup(null)
+    expect(JSON.stringify(await c.tool('run_flow', { path: 'flows/top.e2e.yaml' }))).toContain('hunter2-live')
+  })
+  it('flow config redactState hides a subflow value', async () => {
+    const { c } = await setup(null, 'config: { redactState: true }\n')
+    const t = JSON.stringify(await c.tool('run_flow', { path: 'flows/top.e2e.yaml' }))
+    expect(t).toContain('redacted:authToken')
+    expect(t).not.toContain('hunter2')
+  })
+  it('brighttest.json redactState and instrument.state.redact.paths masks apply on the MCP path', async () => {
+    const { c } = await setup({ redactState: true, instrument: { state: { redact: { paths: ['global.user.pin'] } } } })
+    const t = JSON.stringify(await c.tool('run_flow', { path: 'flows/top.e2e.yaml' }))
+    expect(t).not.toContain('hunter2')
+    const p = JSON.stringify(await c.tool('run_flow', { path: 'flows/toppin.e2e.yaml' }))
+    expect(p).toContain('redacted:pin')
+    expect(p).not.toContain('4321')
+  })
+})
+
 describe('protocol hygiene', () => {
   it('never answers a notification, ignores client responses, rejects object ids', async () => {
     const c = startMcp({})
