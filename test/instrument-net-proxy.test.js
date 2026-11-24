@@ -294,6 +294,10 @@ describe('SSRF guard table (TP-NET-06)', () => {
 });
 
 describe('record to HAR with redaction (TP-NET-07 hub part)', () => {
+  it('rejects a bad redact.bodyKeys at proxy start', () => {
+    expect(() => createNetProxy({ redact: { bodyKeys: 'token' } })).toThrow(/redact\.bodyKeys must be an array of strings/);
+    expect(() => createNetProxy({ redact: { bodyKeys: [null] } })).toThrow(/redact\.bodyKeys must be an array of strings/);
+  });
   it('refuses to record without upstreamHosts', () => {
     expect(() => createNetProxy({ record: true })).toThrow(/upstreamHosts/);
   });
