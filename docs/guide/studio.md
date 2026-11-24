@@ -27,8 +27,8 @@ Stop it with Ctrl-C. The server listens on `127.0.0.1` only. Flags (from `bright
 
 | Flag | Meaning |
 | --- | --- |
-| `--host <ip>` | Roku IP (or `ROKU_HOST`). Without a host, Studio starts with no device and you pick one on the Devices page. |
-| `--password <pw>` | Roku dev password (or `ROKU_PASSWORD`); needed for screenshots. |
+| `--host <ip>` | Roku IP (or `ROKU_HOST`). Without one, Studio uses the only cached device; with several cached devices it refuses to guess and exits; with none it starts with no device and you pick one on the Devices page. |
+| `--password <pw>` | Roku dev password (or `ROKU_PASSWORD`, `.env`, or the device cache); Studio refuses to start for a host with no known password. |
 | `--port <n>` | Local port, default 8700. Without `--port`, a busy 8700 falls back to the first free port of 8701-8709 and prints it; an explicit busy port fails. |
 | `--app <id>` | Channel to launch and drive (default `dev`). |
 | `--flows-dir <dir>` | Where flows (`*.e2e.yaml`) are read and written (default `./flows`). |
@@ -56,9 +56,10 @@ The header badge shows who holds the device.
 State tab switches to its read-only held view with the notice "Device is held by another session". An edit sent after the
 hand-over is refused with HTTP 423 and nothing is written (the inspector sets "Device is held elsewhere; edit not sent."
 but the held view then replaces the panel, so that line may not stay on screen). The header badge can lag: it updates on
-the next poll, so it may still read "Studio holding" or already read "Studio released" while the banner shows the other holder. Note the values in the read-only held view: `name` is configured as masked in this setup, yet it shows in clear there, so Studio's configured masking is not applied to that view (observed in this capture); treat it as unredacted.*
-tab after the hand-over was refused with "Device is held elsewhere; edit not sent." and nothing was written. The header
-badge still reads "Studio holding" because it updates on the next poll; that lag is visible in the capture.*
+the next poll, so it may still read "Studio holding" or already read "Studio released" while the banner shows the other holder.*
+
+<!-- remove when held-view masking fix merges -->
+Known issue: the read-only view (shown while the device is held elsewhere, or when no hub is running) does not apply Studio's configured masking (`instrument.state.redact.paths`); only the agent's own masking applies there. In this capture `name` is configured as masked yet shows in clear.
 
 ## State inspector
 
@@ -66,7 +67,9 @@ The **State** tab on the Inspect page reads the instrumented app's `__bt_agent` 
 tree walk) and shows its layers: `global`, `scene` and `registry`, each marked **truncated** if the agent had to cut
 it. The values shown are redacted by default: the agent masks secret-looking keys as `<redacted:key>`, and Studio adds
 the built-in key names plus `instrument.state.redact.paths` from `brighttest.json`. **show raw** reveals only what
-Studio masks on top of the agent's own masking, behind a banner, and makes exports unredacted. Without an
+Studio masks on top of the agent's own masking, behind a banner, and makes exports unredacted. <!-- remove when held-view masking fix merges -->
+This applies to the live view only: the read-only view (device held elsewhere, or no hub running) does not apply
+`instrument.state.redact.paths`, only the agent's own masking (known issue). Without an
 instrumented build the tab says no layers were published; see [Instrumented builds](/guide/instrument).
 
 ![State tab showing the global and scene layers, with a masked name and token](/images/studio/state-inspector.png)
@@ -97,7 +100,7 @@ edit and restore with its ack phase. The action log, time travel and "save as sp
 | 503 `NO_HUB` | No instrument hub (no device host, or no valid `BRIGHTTEST_HUB_TOKEN`); the panel falls back to read only. |
 | 409 `STATE_NOT_INSTRUMENTED` | No `agent.hello` yet: the build is not instrumented or has not reached the hub. |
 | 400 `REDACTED_VALUE` | The value is a mask marker, not a real value. |
-| 413 `STATE_TOO_LARGE`, 409 `STORE_FULL` | Body or snapshot over 64 KB, or 20 snapshots already stored. |
+| 413 `STATE_TOO_LARGE`, 409 `STORE_FULL` | Request body over 256 KB or state payload over 64 KB, or 20 snapshots already stored. |
 | 502/`ACK_TIMEOUT` | The app did not ack in time (12 s wait on the synchronous routes). |
 
 ## Profile page
