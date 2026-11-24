@@ -2,7 +2,7 @@
 'use strict'
 // Multi-version docs site build.
 //
-//   node scripts/docs-site.js plan  [--tags v0.7.0,v0.6.0] [--json]
+//   node scripts/docs-site.js plan  [--tags v0.7.0,v0.6.0]
 //   node scripts/docs-site.js build --out <dir> [--only <version|next>] [--base-prefix /brighttest/]
 //                                   [--keep-temp] [--dry-run]
 //
@@ -14,6 +14,11 @@
 // then copied into --out, root first. versions.json is written last. Temporary git worktrees live under
 // os.tmpdir() and are removed on success, error and SIGINT/SIGTERM. Nothing is written inside the repo
 // working tree except --out. CI must check out with full history (fetch-depth 0): lastUpdated needs it.
+//
+// The theme overlay (docs/.vitepress/theme) is copied from the CHECKED-OUT WORKING TREE of --repo, not from
+// `main`: uncommitted theme edits are what old tags get. Run it from a clean checkout of main in CI.
+// POSIX only (signal handling and the fixture tests assume it). Env: BRIGHTTEST_DOCS_BASE overrides the base
+// prefix (otherwise read from docs/.vitepress/config.mts, then /brighttest/); --base-prefix beats both.
 //
 // Testing hooks: --repo <dir>, --next-ref <ref>, --no-install, --vitepress-bin <path>.
 
@@ -50,9 +55,24 @@ function normBase(p) {
 // tags + config -> plan. Prereleases and non-semver tags are ignored.
 function plan(tags, config = {}, basePrefix = DEFAULT_BASE) {
   const base = normBase(basePrefix)
-  const floor = config.floor ? parseMinor(config.floor) : null
-  const exclude = new Set((config.exclude || []).map((e) => (parseMinor(e) || {}).id).filter(Boolean))
-  const keep = Number.isInteger(config.keep) && config.keep > 0 ? config.keep : Infinity
+  const bad = (field, value) => new Error(`invalid versions.config.json ${field}: ${JSON.stringify(value)}`)
+  let floor = null
+  if (config.floor !== undefined && config.floor !== null && config.floor !== '') {
+    floor = parseMinor(config.floor)
+    if (!floor) throw bad('floor', config.floor)
+  }
+  if (config.exclude !== undefined && !Array.isArray(config.exclude)) throw bad('exclude', config.exclude)
+  const exclude = new Set()
+  for (const e of config.exclude || []) {
+    const m = parseMinor(e)
+    if (!m) throw bad('exclude', e)
+    exclude.add(m.id)
+  }
+  let keep = Infinity
+  if (config.keep !== undefined && config.keep !== null) {
+    if (!Number.isInteger(config.keep) || config.keep < 1) throw bad('keep', config.keep)
+    keep = config.keep
+  }
 
   const bestByMinor = new Map()
   for (const t of tags) {
@@ -97,6 +117,11 @@ function orderBuilds(builds) {
   return [...builds].sort((a, b) => (a.rel === '') === (b.rel === '') ? a.rel.localeCompare(b.rel) : a.rel === '' ? -1 : 1)
 }
 
+// First line only, temp paths scrubbed: versions.json is published.
+function shortReason(err) {
+  return String(err || '').split('\n')[0].replace(/\S*docs-site-\S*/g, '<tmp>').trim()
+}
+
 function versionsJson(p, results, { generated, nextSha } = {}) {
   const ok = (id, rel) => results.some((r) => r.ok && r.build.id === id && r.build.rel === rel)
   const versions = []
@@ -116,7 +141,7 @@ function versionsJson(p, results, { generated, nextSha } = {}) {
   for (const res of results) {
     if (res.ok) continue
     const id = res.build.id
-    if (!skipped.some((s) => s.id === id)) skipped.push({ id, ref: res.build.tag || res.build.ref, reason: res.error })
+    if (!skipped.some((s) => s.id === id)) skipped.push({ id, ref: res.build.tag || res.build.ref, reason: shortReason(res.error) })
   }
   return {
     schema: 1,
@@ -150,7 +175,8 @@ function fatalFailures(p, results) {
 // Layer built dirs into `out`, root first. Refuses to overwrite a path another build placed.
 function assemble(out, items) {
   fs.mkdirSync(out, { recursive: true })
-  const ordered = [...items].sort((a, b) => (a.build.rel === '') === (b.build.rel === '') ? a.build.rel.localeCompare(b.build.rel) : a.build.rel === '' ? -1 : 1)
+  const rank = new Map(orderBuilds(items.map((i) => i.build)).map((b, i) => [b, i]))
+  const ordered = [...items].sort((a, b) => rank.get(a.build) - rank.get(b.build))
   for (const it of ordered) {
     const rel = it.build.rel
     const dest = rel ? path.join(out, rel) : out
@@ -163,7 +189,7 @@ function summaryMarkdown(p, results) {
   const lines = ['## Docs site build plan', '', `Latest release: ${p.latest ? 'v' + p.latest : '(none)'}`, '', '| Version | Source | Path | Status |', '|---|---|---|---|']
   for (const b of p.builds) {
     const r = results && results.find((x) => x.build === b)
-    const status = !results ? 'planned' : r ? (r.ok ? `built (${r.seconds}s)` : `FAILED: ${r.error}`) : 'not run'
+    const status = !results ? 'planned' : r ? (r.ok ? `built (${r.seconds}s)` : `FAILED: ${String(r.error).replace(/\r?\n/g, ' ').replace(/\|/g, '\\|')}`) : 'not run'
     lines.push(`| ${b.id}${b.latest ? ' (latest)' : ''} | ${b.tag || b.ref} | \`${b.base}\` | ${status} |`)
   }
   return lines.join('\n') + '\n'
@@ -177,9 +203,24 @@ function git(repo, args) {
   return r.stdout.trim()
 }
 
+let activeChild = null
+
+// Kill the running child (if any) and wait briefly for it to close.
+function killActive() {
+  const c = activeChild
+  if (!c || c.exitCode !== null || c.signalCode !== null) return Promise.resolve()
+  return new Promise((resolve) => {
+    const hard = setTimeout(() => { try { c.kill('SIGKILL') } catch {} }, 2000)
+    const done = setTimeout(resolve, 3000)
+    c.once('close', () => { clearTimeout(hard); clearTimeout(done); resolve() })
+    try { c.kill('SIGTERM') } catch { resolve() }
+  })
+}
+
 function run(cmd, args, opts = {}) {
   return new Promise((resolve) => {
     const child = spawn(cmd, args, { cwd: opts.cwd, env: opts.env || process.env, stdio: ['ignore', 'pipe', 'pipe'] })
+    activeChild = child
     let tail = ''
     const keep = (d) => { tail = (tail + d).slice(-4000) }
     child.stdout.on('data', keep)
@@ -227,11 +268,18 @@ function listTags(repo, override) {
 function say(msg) { process.stderr.write(msg + '\n') }
 
 function resolveNextRef(repo, explicit) {
-  if (explicit) return explicit
-  for (const ref of ['origin/main', 'main', 'HEAD']) {
-    if (spawnSync('git', ['rev-parse', '--verify', '--quiet', ref], { cwd: repo }).status === 0) return ref
+  let ref = null
+  if (explicit) {
+    if (String(explicit).startsWith('-')) throw new Error(`invalid --next-ref: ${explicit}`)
+    ref = explicit
+  } else {
+    for (const r of ['origin/main', 'main', 'HEAD']) {
+      if (spawnSync('git', ['rev-parse', '--verify', '--quiet', r], { cwd: repo }).status === 0) { ref = r; break }
+    }
   }
-  return 'HEAD'
+  ref = ref || 'HEAD'
+  say(`next: building ${ref}`)
+  return ref
 }
 
 // ---------- commands ----------
@@ -288,7 +336,9 @@ async function cmdBuild(o) {
     if (!o['keep-temp']) fs.rmSync(tmpRoot, { recursive: true, force: true })
     else say(`kept temp dir ${tmpRoot}`)
   }
-  for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { cleanup(); process.exit(130) })
+  for (const [sig, code] of [['SIGINT', 130], ['SIGTERM', 143]]) {
+    process.on(sig, () => { killActive().then(() => { cleanup(); process.exit(code) }) })
+  }
 
   const results = []
   let nextSha

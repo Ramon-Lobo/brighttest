@@ -599,7 +599,11 @@ other kept minor at `/vX.Y/` (built from its highest patch tag), and `main` at `
   temp dir (`npm ci --ignore-scripts` for tags, `vitepress build --base <path>` into its own temp dir), copies the
   theme overlay from `main` into tags that lack one, assembles the tree root first, and writes `versions.json` last.
   Nothing is written inside the repo except `--out`. Useful flags: `--only <version|next>`, `--base-prefix`,
-  `--dry-run`, `--keep-temp`.
+  `--dry-run`, `--keep-temp`. The base prefix comes from `--base-prefix`, else `BRIGHTTEST_DOCS_BASE`, else the
+  `base` in `docs/.vitepress/config.mts`, else `/brighttest/`.
+- The theme overlay is copied from the **checked-out working tree** (not from `main`), so run the build from a clean
+  checkout. SIGINT/SIGTERM kill the running npm/vitepress child and remove the temp worktrees (exit 130/143).
+  The script and its tests are POSIX only (Linux/macOS; the tests are skipped on Windows).
 - A release tag that fails to build is skipped and listed under `skipped` in `versions.json`; a failure of `main` or
   of the latest release makes the build exit non-zero.
 - `lastUpdated` needs full git history, so CI must check out with `fetch-depth: 0` (the script warns on a shallow
