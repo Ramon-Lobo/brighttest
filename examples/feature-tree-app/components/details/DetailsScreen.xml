@@ -9,5 +9,6 @@
   <children>
     <Label id="heading" />
     <PlayerScreen id="player" />
+    <EntitlementGate id="gate" />
   </children>
 </component>

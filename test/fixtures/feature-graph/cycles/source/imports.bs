@@ -1,0 +1,8 @@
+import "pkg:/source/missing.brs"
+
+sub Uses_missing(node as object, fname as string, key as string)
+    Undefined_fn()
+    node.callFunc(fname)
+    node.callFunc("no_such_fn")
+    print m.global[key]
+end sub

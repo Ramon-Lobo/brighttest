@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="DiamondRight" extends="Group">
+  <script type="text/brightscript" uri="Diamond.brs" />
+  <script type="text/brightscript" uri="pkg:/source/util.brs" />
+  <children>
+    <DiamondBottom id="bottom" />
+  </children>
+</component>

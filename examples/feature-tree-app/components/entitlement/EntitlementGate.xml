@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="EntitlementGate" extends="Group">
+  <interface>
+    <function name="hasEntitlement" />
+  </interface>
+  <script type="text/brightscript" uri="EntitlementGate.brs" />
+</component>

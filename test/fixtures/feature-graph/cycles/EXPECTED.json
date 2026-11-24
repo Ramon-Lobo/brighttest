@@ -4,11 +4,41 @@
   "selfExtends": ["comp:Loop"],
   "fileCallCycles": [ ["file:source/ping.brs", "file:source/pong.brs", "file:source/pang.brs"] ],
   "ambiguousCalls": [
-    { "name": "Dup_name", "scope": "source", "candidates": ["file:source/dup1.brs", "file:source/dup2.brs"], "ambiguousIn": ["source"], "notAmbiguousIn": ["CycleA", "CycleB"] }
+    { "name": "Dup_name", "scope": "source", "at": "source/main.brs:3", "candidates": ["file:source/dup1.brs", "file:source/dup2.brs"], "ambiguousIn": ["source"], "notAmbiguousIn": ["CycleA", "CycleB"] }
   ],
   "unresolvedScripts": [ { "at": "components/b/CycleB.xml:8", "uri": "Missing.brs" } ],
+  "unresolvedImports": [ { "at": "source/imports.bs:1", "uri": "pkg:/source/missing.brs" } ],
+  "unresolvedCalls": [ { "at": "source/imports.bs:4", "name": "Undefined_fn", "scope": "source" } ],
+  "dynamicCallfuncs": [ { "at": "source/imports.bs:5", "token": "callFunc(fname)" } ],
+  "unresolvedCallfuncs": [ { "at": "source/imports.bs:6", "name": "no_such_fn" } ],
+  "dynamicGlobals": [ { "at": "source/imports.bs:7", "token": "m.global[key]" } ],
   "parseErrors": ["source/broken.brs"],
   "neverOpened": ["source/secret.key"],
+  "symlinks": [ { "link": "source/link.brs", "target": "secret.key", "createdBy": "test/features-fixtures.test.js (temp copy) and the graph builder integration test" } ],
   "callfuncCycle": [ { "at": "components/a/CycleA.brs:3", "target": "pong" }, { "at": "components/b/CycleB.brs:3", "target": "ping" } ],
-  "uncertaintyKinds": ["ambiguous-call", "unresolved-script", "parse-error", "not-read"]
+  "diamond": {
+    "top": "comp:DiamondTop", "left": "comp:DiamondLeft", "right": "comp:DiamondRight", "bottom": "comp:DiamondBottom",
+    "edges": [
+      { "from": "comp:DiamondTop", "to": "comp:DiamondLeft", "at": "components/diamond/DiamondTop.xml:6", "tag": "DiamondLeft" },
+      { "from": "comp:DiamondTop", "to": "comp:DiamondRight", "at": "components/diamond/DiamondTop.xml:7", "tag": "DiamondRight" },
+      { "from": "comp:DiamondLeft", "to": "comp:DiamondBottom", "at": "components/diamond/DiamondLeft.xml:6", "tag": "DiamondBottom" },
+      { "from": "comp:DiamondRight", "to": "comp:DiamondBottom", "at": "components/diamond/DiamondRight.xml:6", "tag": "DiamondBottom" }
+    ]
+  },
+  "sharedUtility": {
+    "file": "file:source/util.brs",
+    "usedBy": ["comp:DiamondTop", "comp:DiamondLeft", "comp:DiamondRight", "comp:DiamondBottom"],
+    "scriptAt": { "comp:DiamondTop": "components/diamond/DiamondTop.xml:4", "comp:DiamondLeft": "components/diamond/DiamondLeft.xml:4", "comp:DiamondRight": "components/diamond/DiamondRight.xml:4", "comp:DiamondBottom": "components/diamond/DiamondBottom.xml:4" },
+    "call": { "at": "components/diamond/Diamond.brs:2", "name": "Util_fmt", "from": "file:components/diamond/Diamond.brs" }
+  },
+  "hostile": [
+    { "at": "components/hostile/Fish&Chips.xml:2", "contains": "name=\"Fish&amp;Chips\"", "decoded": "Fish&Chips", "what": "component name" },
+    { "at": "components/hostile/Fish&Chips.xml:4", "contains": "name=\"a&lt;b&quot;c\"", "decoded": "a<b\"c", "what": "interface function name" },
+    { "at": "components/hostile/Fish&Chips.xml:5", "contains": "id=\"q&quot;&lt;\"", "decoded": "q\"<", "what": "interface field id" },
+    { "at": "components/hostile/Fish&Chips.xml:7", "contains": "uri=\"Fish&amp;Chips.brs\"", "decoded": "Fish&Chips.brs", "what": "script uri (file name with an ampersand)" },
+    { "at": "components/hostile/Fish&Chips.xml:9", "contains": "text=\"&lt;script&gt;alert(1)&lt;/script&gt;\"", "decoded": "<script>alert(1)</script>", "what": "child text attribute" },
+    { "at": "components/hostile/Fish&Chips.brs:1", "contains": "</script>", "decoded": "</script>", "what": "comment text that closes a script tag" }
+  ],
+  "uncertaintyKinds": ["ambiguous-call", "unresolved-script", "unresolved-import", "unresolved-call", "dynamic-callfunc", "dynamic-global", "parse-error", "not-read"],
+  "absent": { "truncated": "needs the file cap to be hit, covered by the scale run", "eval": "no eval here", "inline-cdata, component-library, bs-const-branch, dynamic-createobject, dynamic-observe": "covered by examples/feature-tree-app" }
 }

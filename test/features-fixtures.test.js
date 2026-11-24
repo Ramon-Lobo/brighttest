@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-// ADOPT-TREE-FX: shape checks for the hand-written feature tree ground truth (design: brownfield-feature-tree 3.3, 3.4).
+// Shape and content checks for the hand-written feature tree ground truth and the cycles fixture.
 // The headless run of the fixture lives in test/integration/features-fixtures.test.js.
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const APP = path.join(ROOT, 'examples', 'feature-tree-app')
@@ -17,6 +18,56 @@ const CONFS = ['exact', 'name', 'ambiguous', 'dynamic', 'unresolved', 'builtin']
 const FEATURE_KINDS = ['app-shell', 'screen', 'flow', 'service', 'widget', 'shared', 'platform', 'vendor']
 const RISKS = ['low', 'medium', 'high']
 const PATHS = ['leaf-first', 'screen-first']
+
+// Kind-specific content checks. Returns a list of problems, so the mutation tests below can prove it catches errors.
+const CONF_BY_KIND = {
+  extends: ['builtin'], script: ['exact'], import: ['exact'], registry: ['exact'], 'global-read': ['exact'], 'global-write': ['exact'],
+  child: ['name', 'builtin'], creates: ['name', 'dynamic'], 'runs-task': ['name'], entry: ['name'],
+  calls: ['name'], callfunc: ['ambiguous', 'unresolved'], observes: ['name', 'builtin', 'unresolved'], 'spec-covers': ['name'],
+}
+const lineAt = (root, at) => {
+  const i = at.lastIndexOf(':')
+  return (fs.readFileSync(path.join(root, at.slice(0, i)), 'utf8').split('\n')[Number(at.slice(i + 1)) - 1] || '')
+}
+// Resolve a script uri or import path, written in the file `fromRel`, to a root-relative path.
+const resolveUri = (uri, fromRel) => (uri.startsWith('pkg:/') ? uri.slice('pkg:/'.length) : path.posix.join(path.posix.dirname(fromRel), uri))
+const compName = (id) => id.slice('comp:'.length)
+
+function checkEdges(g, root) {
+  const bad = []
+  const fileNode = new Map(g.nodes.filter((n) => n.kind === 'file').map((n) => [n.id, n]))
+  for (const e of g.edges) {
+    const where = `${e.kind} ${e.from} -> ${e.to} at ${e.at}`
+    const fail = (why) => bad.push(`${where}: ${why}`)
+    const text = lineAt(root, e.at)
+    const has = (tok) => { if (!text.includes(tok)) fail(`line "${text.trim()}" lacks "${tok}"`) }
+    if (!CONF_BY_KIND[e.kind].includes(e.conf)) fail(`conf ${e.conf} not allowed for ${e.kind}`)
+    if ((e.conf === 'builtin') !== Boolean(e.to && e.to.startsWith('builtin:'))) fail('conf builtin must go with a builtin target')
+    if (e.kind === 'extends') has(`extends="${e.to.slice('builtin:'.length)}"`)
+    else if (e.kind === 'script' || e.kind === 'import') {
+      const m = e.kind === 'script' ? /uri="([^"]+)"/.exec(text) : /import\s+"([^"]+)"/.exec(text)
+      const fromRel = e.from.slice('file:'.length)
+      if (!m) fail(`no ${e.kind === 'script' ? 'uri' : 'import path'} on the line`)
+      else if ('file:' + resolveUri(m[1], fromRel) !== e.to) fail(`${m[1]} resolves to ${resolveUri(m[1], fromRel)}`)
+      if (e.kind === 'import') has('import')
+    } else if (e.kind === 'child') has('<' + (e.to.startsWith('comp:') ? compName(e.to) : e.to.slice('builtin:'.length)))
+    else if (e.kind === 'creates') { has('CreateObject('); if (e.to) has(`"${compName(e.to)}"`) }
+    else if (e.kind === 'runs-task') { has('control'); has('RUN') }
+    else if (e.kind === 'entry') has(`CreateScene("${compName(e.to)}")`)
+    else if (e.kind === 'global-read' || e.kind === 'global-write') has(e.to.slice('global:'.length))
+    else if (e.kind === 'registry') has('roRegistrySection')
+    else if (e.kind === 'calls') {
+      has(e.detail + '(')
+      if (!fileNode.get(e.to).functions.some((f) => f.name === e.detail)) fail(`target does not define ${e.detail}`)
+    } else if (e.kind === 'callfunc') { has('callFunc('); has(`"${e.detail.split(':')[0]}"`) }
+    else if (e.kind === 'observes') has('observeField(')
+    else if (e.kind === 'spec-covers') {
+      if (e.to.startsWith('comp:')) has(`@SGNode("${compName(e.to)}")`)
+      else has(e.detail + '(')
+    }
+  }
+  return bad
+}
 
 describe('feature-tree-app EXPECTED-GRAPH.json', () => {
   const g = readJson(path.join(APP, 'EXPECTED-GRAPH.json'))
@@ -47,6 +98,44 @@ describe('feature-tree-app EXPECTED-GRAPH.json', () => {
       else expect(ids.has(e.to)).toBe(true)
       if (e.conf === 'ambiguous') expect(e.candidates.length).toBeGreaterThan(1)
     }
+  })
+
+  it('every edge "at" line holds a token of its kind, a script or import target resolves from its uri, and conf fits the kind', () => {
+    expect(checkEdges(g, APP)).toEqual([])
+  })
+
+  describe('the edge check catches a wrong ground truth (mutations of a copy)', () => {
+    const clone = () => JSON.parse(JSON.stringify(g))
+    const find = (c, kind, to) => c.edges.find((e) => e.kind === kind && e.to === to)
+
+    it('fails when an edge line is moved', () => {
+      const c = clone()
+      const e = find(c, 'script', 'file:source/lib/Logger.brs')
+      e.at = e.at.replace(/:\d+$/, ':5')
+      expect(checkEdges(c, APP).length).toBeGreaterThan(0)
+    })
+
+    it('fails when an edge is retargeted', () => {
+      const c = clone()
+      find(c, 'script', 'file:source/lib/Logger.brs').to = 'file:source/lib/Config.brs'
+      expect(checkEdges(c, APP).length).toBeGreaterThan(0)
+      const c2 = clone()
+      find(c2, 'child', 'comp:HomeScreen').to = 'comp:PosterCard'
+      expect(checkEdges(c2, APP).length).toBeGreaterThan(0)
+    })
+
+    it('fails when two conf values are swapped', () => {
+      const c = clone()
+      const a = find(c, 'script', 'file:source/lib/Logger.brs')
+      const b = find(c, 'child', 'comp:HomeScreen')
+      ;[a.conf, b.conf] = [b.conf, a.conf]
+      expect(checkEdges(c, APP).length).toBeGreaterThan(0)
+      const c2 = clone()
+      const o1 = find(c2, 'observes', 'comp:HomeScreen')
+      const o2 = find(c2, 'observes', 'builtin:Timer')
+      ;[o1.conf, o2.conf] = [o2.conf, o1.conf]
+      expect(checkEdges(c2, APP).length).toBeGreaterThan(0)
+    })
   })
 
   it('covers every edge kind the fixture is meant to exercise', () => {
@@ -121,7 +210,7 @@ describe('feature-tree-app EXPECTED-FEATURES.json', () => {
     }
   })
 
-  it('every file node is in exactly one feature, members exist, and a component sits with its XML file (V3, V4)', () => {
+  it('every file node is in exactly one feature, members exist, and a component sits with its XML file', () => {
     const ids = new Set(g.nodes.map((n) => n.id))
     const owner = new Map()
     for (const x of f.features) {
@@ -165,6 +254,58 @@ describe('feature-graph cycles fixture', () => {
     const [rel, line] = u.at.split(':')
     expect(read(rel).split('\n')[Number(line) - 1]).toContain(u.uri)
     expect(fs.existsSync(path.join(CYCLES, 'components', 'b', u.uri))).toBe(false)
+  })
+
+  it('the ambiguous call, unresolved import and call, dynamic and unresolved callfunc and dynamic global are on their lines', () => {
+    const read = (r) => lineAt(CYCLES, r)
+    for (const a of e.ambiguousCalls) expect(read(a.at)).toContain(a.name + '(')
+    for (const u of e.unresolvedImports) {
+      expect(read(u.at)).toContain(`import "${u.uri}"`)
+      expect(fs.existsSync(path.join(CYCLES, resolveUri(u.uri, u.at.split(':')[0])))).toBe(false)
+    }
+    for (const u of e.unresolvedCalls) expect(read(u.at)).toContain(u.name + '(')
+    for (const u of e.dynamicCallfuncs) expect(read(u.at)).toContain(u.token)
+    for (const u of e.unresolvedCallfuncs) expect(read(u.at)).toContain(`callFunc("${u.name}")`)
+    for (const u of e.dynamicGlobals) expect(read(u.at)).toContain(u.token)
+    const everyDeclared = fs.readdirSync(path.join(CYCLES, 'components'), { recursive: true }).filter((f) => f.endsWith('.xml'))
+      .map((f) => fs.readFileSync(path.join(CYCLES, 'components', f), 'utf8')).join('\n')
+    expect(everyDeclared).not.toContain(`function name="${e.unresolvedCallfuncs[0].name}"`)
+    expect(fs.readFileSync(path.join(CYCLES, e.unresolvedCalls[0].at.split(':')[0]), 'utf8')).not.toContain('function ' + e.unresolvedCalls[0].name)
+  })
+
+  it('the diamond has no cycle and the utility is scripted by four components and called from the shared file', () => {
+    const d = e.diamond
+    for (const x of d.edges) expect(lineAt(CYCLES, x.at)).toContain('<' + x.tag + ' ')
+    expect(d.edges.filter((x) => x.to === d.bottom).map((x) => x.from).sort()).toEqual([d.left, d.right].sort())
+    expect(d.edges.filter((x) => x.from === d.top).map((x) => x.to).sort()).toEqual([d.left, d.right].sort())
+    const u = e.sharedUtility
+    expect(u.usedBy.length).toBe(4)
+    for (const c of u.usedBy) {
+      const line = lineAt(CYCLES, u.scriptAt[c])
+      expect(line).toContain('uri="pkg:/' + u.file.slice('file:'.length) + '"')
+      expect(fs.readFileSync(path.join(CYCLES, 'components', 'diamond', compName(c) + '.xml'), 'utf8')).toContain(`name="${compName(c)}"`)
+    }
+    expect(lineAt(CYCLES, u.call.at)).toContain(u.call.name + '(')
+    expect(fs.readFileSync(path.join(CYCLES, u.file.slice('file:'.length)), 'utf8')).toContain('function ' + u.call.name)
+  })
+
+  it('the hostile names are present escaped in the sources', () => {
+    expect(e.hostile.length).toBeGreaterThanOrEqual(5)
+    for (const h of e.hostile) expect(lineAt(CYCLES, h.at)).toContain(h.contains)
+    expect(fs.existsSync(path.join(CYCLES, 'components', 'hostile', 'Fish&Chips.brs'))).toBe(true)
+  })
+
+  it('the symlink named in EXPECTED.json can be created in a temp copy and points at the secret file', () => {
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-cyc-'))
+    try {
+      fs.cpSync(CYCLES, d, { recursive: true })
+      for (const s of e.symlinks) {
+        expect(fs.existsSync(path.join(CYCLES, s.link))).toBe(false)
+        fs.symlinkSync(s.target, path.join(d, s.link))
+        expect(fs.lstatSync(path.join(d, s.link)).isSymbolicLink()).toBe(true)
+        expect(fs.realpathSync(path.join(d, s.link))).toBe(fs.realpathSync(path.join(d, e.neverOpened[0])))
+      }
+    } finally { fs.rmSync(d, { recursive: true, force: true }) }
   })
 
   it('the call cycle is closed (Ping -> Pong -> Pang -> Ping)', () => {

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="Fish&amp;Chips" extends="Group">
+  <interface>
+    <function name="a&lt;b&quot;c" />
+    <field id="q&quot;&lt;" type="string" />
+  </interface>
+  <script type="text/brightscript" uri="Fish&amp;Chips.brs" />
+  <children>
+    <Label id="x&quot;y" text="&lt;script&gt;alert(1)&lt;/script&gt;" />
+  </children>
+</component>
