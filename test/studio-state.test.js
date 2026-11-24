@@ -330,3 +330,18 @@ describe('diff redaction', () => {
     expect((await req('GET', '/api/state/diff?a=a&b=b&raw=1')).json.diff.find((o) => o.path === 'user.nickname').value).toBe('Amy')
   })
 })
+
+describe('GET /api/tree (read-only State view source)', () => {
+  it('masks the agent layers with the built-in key names and the configured paths, like /api/state', async () => {
+    publish({ global: { user: { tier: 'free', token: 'tok-secret', nickname: 'Zed' } }, registry: { prefs: { cardlast4: '4242', a: 1 } } })
+    const r = await req('GET', '/api/tree')
+    expect(r.status).toBe(200)
+    const L = r.json.agent.layers
+    expect(L.global.state.user.tier).toBe('free')
+    expect(L.global.state.user.token).toBe('<redacted:token>')
+    expect(L.global.state.user.nickname).toBe('<redacted:nickname>')
+    expect(L.registry.state.prefs.cardlast4).toBe('<redacted:cardlast4>')
+    expect(L.registry.state.prefs.a).toBe(1)
+    expect(r.text).not.toMatch(/tok-secret|Zed|4242/)
+  })
+})
