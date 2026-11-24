@@ -107,7 +107,7 @@ describe('draft: dropping and mapping', () => {
 })
 
 describe('draft: series, scrub, deps, prs', () => {
-  it('folds a series by phrase and by single file, keeping subjects in a comment', () => {
+  it('folds a series by phrase only, keeping subjects in a comment', () => {
     const log = logOf([
       { hash: 'e1', subject: 'feat(studio): capture reliability part one', files: ['lib/a.js'] },
       { hash: 'e2', subject: 'feat(studio): capture reliability part two', files: ['lib/b.js'] },
@@ -117,7 +117,8 @@ describe('draft: series, scrub, deps, prs', () => {
     ])
     const t = draft(mockRun({ log }))
     expect(t).toMatch(/Capture reliability part one \(2 related changes\)\n  <!-- series: feat\(studio\): capture reliability part one \| feat\(studio\): capture reliability part two -->/)
-    expect(t).toMatch(/Unrelated words here \(2 related changes\)/)
+    expect(t).toMatch(/Unrelated words here\n/)
+    expect(t).toMatch(/Another thing\n/)
     expect(t).toMatch(/- \*\*Studio:\*\* Lone\n/)
   })
 
@@ -127,6 +128,15 @@ describe('draft: series, scrub, deps, prs', () => {
     expect(cl.scrub('Phase 3a startup gate')).toBe('Startup gate')
     expect(cl.scrub('support CAP-X12 engine')).toBe('Support engine')
     expect(cl.scrub('plain words')).toBe('Plain words')
+  })
+
+  it('scrubs ADR numbers and review fixes anywhere', () => {
+    expect(cl.scrub('tighten gate per ADR 0019 amendment (d)')).toBe('Tighten gate per')
+    expect(cl.scrub('tighten gate (ADR 0019)')).toBe('Tighten gate')
+    expect(cl.scrub('review fixes: tighten gate')).toBe('Tighten gate')
+    expect(cl.scrub('tighten review fixes in gate')).toBe('Tighten in gate')
+    const log = logOf([{ hash: 'r1', subject: 'feat(studio): gate per ADR 0019 amendment (d) review fixes', files: ['lib/a.js'] }])
+    expect(draft(mockRun({ log }))).not.toMatch(/ADR \d|review fix/)
   })
 
   it('writes dependency and engine lines', () => {
@@ -252,6 +262,24 @@ describe('stamp', () => {
     expect(cl.check(out, { version: '0.3.0' })).toEqual([])
     expect(cl.splitSections(out).sections[0].lines.join('').trim()).toBe('')
   })
+  it('first release with no earlier section still gets a compare link and passes check', () => {
+    const first = '# Changelog\n\n## Unreleased {#unreleased}\n\n### Features\n- **CLI:** first.\n'
+    const out = cl.stampText(first, '0.1.0', '2026-03-01', base, 'abc123def456')
+    expect(out).toContain('compare/abc123def456...v0.1.0')
+    expect(cl.check(out, { version: '0.1.0' })).toEqual([])
+  })
+  it('CLI: rejects a bad --date (exit 2)', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cl-date-'))
+    try {
+      const file = path.join(dir, 'changelog.md')
+      fs.writeFileSync(file, withUnreleased)
+      const env = { run: mockRun(), cwd: dir, root: dir, stdout() {}, stderr() {}, env: {} }
+      for (const d of ['2026-3-1', 'tomorrow', '2026-02-31']) {
+        expect(cl.main(['stamp', '--version', '0.3.0', '--date', d, '--file', file], env)).toBe(2)
+      }
+      expect(cl.main(['stamp', '--version', '0.3.0', '--date', '2026-03-01', '--file', file], env)).toBe(0)
+    } finally { fs.rmSync(dir, { recursive: true, force: true }) }
+  })
   it('CLI: refuses empty (exit 1), reads npm_package_version, writes the file', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cl-stamp-'))
     try {
@@ -294,6 +322,11 @@ describe('slice', () => {
     expect(out).toContain('{#v0-1-0}')
     expect(out).toContain('(#upgrade-0-2-0)')
   })
+  it('de-links back-to-back links independently', () => {
+    const t = '# C\n\n## v0.1.0 - 2026-01-01 {#v0-1-0}\n\n[a](./guide/a.md)[b](./gone.md) ![i](./gone.md)\n'
+    const out = cl.sliceText(t, 'v0.1.0', tree)
+    expect(out).toContain('[a](./guide/a.md)b ![i](./gone.md)')
+  })
   it('CLI writes --out', () => {
     const file = path.join(tree, 'in.md'), outFile = path.join(tree, 'out', 'c.md')
     fs.writeFileSync(file, GOOD)
@@ -327,6 +360,14 @@ describe('notes and CLI', () => {
     expect(cl.main(['check', '--nope'], env)).toBe(2)
     expect(cl.main(['check', '--file', path.join(dir, 'none.md')], env)).toBe(2)
     expect(errs.join('')).toMatch(/changelog not found/)
+  })
+  it('draft: option-like refs exit 2, a bad ref exits 2 with a message', () => {
+    expect(cl.main(['draft', '--from', '--output=x'], env)).toBe(2)
+    expect(cl.main(['draft', '--from', 'v0.1.0', '--to', '-x'], env)).toBe(2)
+    env.run = () => ({ status: 128, stdout: '', stderr: 'fatal: bad revision' })
+    errs.length = 0
+    expect(cl.main(['draft', '--from', 'nope', '--to', 'HEAD'], env)).toBe(2)
+    expect(errs.join('')).toMatch(/bad ref/)
   })
   it('check exit 0 clean and 1 with findings; --tags uses git tags', () => {
     expect(cl.main(['check', '--tags', '--file', file], env)).toBe(0)
