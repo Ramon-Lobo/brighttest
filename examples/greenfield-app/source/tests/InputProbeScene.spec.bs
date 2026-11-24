@@ -1,0 +1,19 @@
+namespace tests
+  ' Drives a real MainScene: the probe observer must log every delivery, including back-to-back duplicates.
+  @suite("InputProbe in MainScene")
+  @SGNode("MainScene")
+  class InputProbeSceneTests extends rooibos.BaseTestSuite
+
+    @describe("onInputProbe")
+
+    @it("logs each write in order, keeps duplicates, skips empty ids")
+    function _()
+      m.top.inputProbe = true
+      for each id in ["a01", "a02", "a02", "", "a03"]
+        m.global.inputProbe = id
+      end for
+      m.assertEqual(m.global.inputProbeLog, "a01,a02,a02,a03")
+    end function
+
+  end class
+end namespace

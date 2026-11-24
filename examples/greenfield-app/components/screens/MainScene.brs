@@ -3,6 +3,7 @@ sub init()
     m.store = CreateObject("roSGNode", "AppStore")
     m.global.observeField("btState_user", "onState")
     m.current = ""
+    m.probeOn = false
     m.pending = {}
     showScreen("HomeScreen", "")
 end sub
@@ -26,7 +27,9 @@ end sub
 sub onInputProbeEnable()
     if not m.top.inputProbe or m.probeOn = true then return
     m.probeOn = true
-    m.global.addFields({ inputProbe: "", inputProbeLog: "" })
+    ' alwaysNotify on inputProbe so a repeated identical value still fires the observer.
+    m.global.addField("inputProbe", "string", true)
+    m.global.addField("inputProbeLog", "string", false)
     m.global.observeField("inputProbe", "onInputProbe")
 end sub
 
