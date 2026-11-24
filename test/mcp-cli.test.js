@@ -11,6 +11,7 @@ describe('brighttest mcp (CLI)', () => {
     const r = spawnSync('node', [cli, 'mcp', '--help'], { encoding: 'utf8', timeout: 20000 })
     expect(r.status).toBe(0)
     for (const t of ['list_devices', 'device_doctor', 'inspect_tree', 'press', 'navigate_to', 'screenshot', 'app_state', 'run_flow', 'net_requests', 'net_mock']) expect(r.stdout).toContain(t)
+    expect(r.stdout).toContain('net window')
   })
   it('rejects arguments with exit 2', () => {
     expect(spawnSync('node', [cli, 'mcp', '--host', 'x'], { encoding: 'utf8', timeout: 20000 }).status).toBe(2)

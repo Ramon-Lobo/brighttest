@@ -19,7 +19,7 @@ brighttest device <action>       the device lease
 ```
 
 Durations (`--wait`, `--max`, `--expect`, `--idle`) are `90s`, `10m`, `1h` or plain milliseconds. Flags accept
-`--flag value` and `--flag=value` unless noted. Most of what is verified on hardware is stated on the page of the
+`--flag value`. Most value flags also accept `--flag=value`. The exceptions are `--config`/`-c` and `--pass` (main lane), the lease flags of `instrument` (`--wait`, `--max`, `--expect`, `--as`, `--purpose`), and `--pass` for `e2e` and `studio`: use the space form for these. Most of what is verified on hardware is stated on the page of the
 feature; nothing on this page is a claim of device verification.
 
 ## Test lanes: `brighttest [flags]`
@@ -39,7 +39,7 @@ feature; nothing on this page is a claim of device verification.
 | `--coverage` | Headless coverage run |
 | `--cross-check` | Headless vs device diff |
 | `--no-sgnode` | Skip `@SGNode` suites |
-| `--host <ip>` | Device IP. Else `ROKU_HOST`, else the device cache. Several cached devices and none chosen is an error, not a guess |
+| `--host <ip>` (also `ip:pw`) | Device IP. Else `ROKU_HOST`, a project `.env`, then the device cache. Several cached devices and none chosen is an error, not a guess |
 | `--password <pw>` (`--pass`) | Dev password. Else `ROKU_PASSWORD`, the device cache |
 | `--lcov [path]` | Write LCOV (default `coverage/lcov.info`); headless `--coverage` and device lanes |
 | `--junit <path>` | Write JUnit XML (headless lanes) |
@@ -54,12 +54,11 @@ feature; nothing on this page is a claim of device verification.
 | `-v`, `--version` / `-h`, `--help` | Print the version / help and exit 0 |
 
 Exit codes: `0` all tests passed, `1` a failure (including a crashed test, a device run with no result line, a
-timeout or idle abort), `2` usage, config or engine-resolution error, and the lease codes `75`, `77`, `78`
+timeout or idle abort), `2` usage or engine-resolution error (an unreadable `brighttest.json` currently exits 1), and the lease codes `75`, `77`, `78`
 ([device lease](/guide/device-lease#exit-codes)). The engine build is chosen by `BRIGHTTEST_ENGINES`
 (`auto|patched|stock|<package>`) or `engines` in `brighttest.json`; the environment wins.
 
-Device-lane header: the device lane prints `building, deploying to <host> · <model> · firmware <version> (build <n>)…`
-when the model and firmware are known, never the serial number.
+Device-lane header: the device lane prints `building, deploying to <host>, and running…` and never prints the serial number.
 
 ## `brighttest init`
 
@@ -144,7 +143,7 @@ e2e stamp <src> -o <d> copy a project, injecting ids onto un-annotated nodes
 |---|---|---|
 | `--host <ip[:pw][,…]>` | all device actions | Device(s) or `ROKU_HOST`. Several hosts shard the flows across devices in parallel; `ip:pw` gives a per-device password |
 | `--ecp-port <n>` | all | ECP port (or `ROKU_ECP_PORT`, default 8060), for stubs and fakes |
-| `--password <pw>` | all | Dev password (or `ROKU_PASSWORD`); screenshots need it |
+| `--password <pw>` (`--pass`) | all | Dev password (or `ROKU_PASSWORD`); screenshots need it |
 | `--app <id>` | run, inspect, record | Channel to launch (default `dev`; also the flow's `appId`) |
 | `--content-id <a,b,…>` | run | Deep-link matrix: each flow once per content id |
 | `--media-type <t>` | run | Media type paired with `--content-id` |
@@ -164,7 +163,7 @@ e2e stamp <src> -o <d> copy a project, injecting ids onto un-annotated nodes
 | `--no-lease` | device actions | Skip the lease (warns, audited; not for agents) |
 
 Unknown flags to `e2e` are ignored without a message, so check spelling. Exit codes for `run`: `0` all passed, `1` a flow
-failed (also `--fail-on-skip` with a skip, or no flow ran), `2` usage or device-setup error, `75` the lease wait timed out.
+failed (also `--fail-on-skip` with a skip, or no flow ran), `2` usage or device-setup error, `75`, `77`, `78` the [device lease exit codes](/guide/device-lease#exit-codes).
 `lint` exits 0 with warnings. See the [flow reference](/e2e/flows), [authoring](/e2e/authoring) and
 [scaling and CI](/e2e/scaling).
 
@@ -174,8 +173,8 @@ failed (also `--fail-on-skip` with a skip, or no flow ran), `2` usage or device-
 studio --host <ip> [--password <pw>] [--port 8700] [--app dev] [--flows-dir flows] [--open]
 ```
 
-`--host` (or `ROKU_HOST`), `--password` (or `ROKU_PASSWORD`), `--port <n>` (default 8700; without it the first free of
-8701-8709 is used, an explicit busy port fails), `--app <id>` (default `dev`), `--flows-dir <dir>` (default `./flows`),
+`--host` (or `ROKU_HOST`), `--password` (`--pass`, or `ROKU_PASSWORD`), `--port <n>` (default 8700; if busy and `--port` was not given, the first free of
+8701-8709; an explicit busy `--port` fails), `--app <id>` (default `dev`), `--flows-dir <dir>` (default `./flows`),
 `-o`, `--open` (open the browser). Studio takes the [device lease](/guide/device-lease#studio) while you use it.
 
 ## `brighttest net convert`
@@ -190,7 +189,7 @@ redacted. Exit 1 for an unreadable or non-HAR input. See [network faults](/guide
 ## `brighttest assess`
 
 ```text
-assess [<dir>] [--json] [--out <dir>] [-c <config>]
+assess [<dir>] [--json] [--out <dir>] [-c|--config <config>]
 ```
 
 Read-only, offline assessment of a project (default: the current directory). `--json` prints the
@@ -245,6 +244,7 @@ device log [--host <h>] [--tail <n>] [--json]
 
 | Flag | Meaning |
 |---|---|
+| `--password <pw>` (`--pass`) | (`with`, `lock`, `reset`) dev password, else `ROKU_PASSWORD` or the cache |
 | `--host <ip[:pw]>` | Device (else `ROKU_HOST`, the cached device). The child of `with` gets `ROKU_HOST`, `ROKU_PASSWORD`, `BRIGHTTEST_LEASE` |
 | `--as <agent>`, `--purpose <text>` | Holder label and purpose (`BRIGHTTEST_AGENT`, `BRIGHTTEST_PURPOSE`) |
 | `--wait <dur>` | Queue time (`BRIGHTTEST_LEASE_WAIT`, default 30m; `0` = fail if busy) |
@@ -277,6 +277,7 @@ every 30 s (details in the lease guide). `device reset` is described in [Resetti
 | `BRIGHTTEST_LEASE_WAIT` | lease | Default queue time |
 | `BRIGHTTEST_LEASE_DIR` | lease | Lease directory (default `~/.brighttest/leases`) |
 | `BRIGHTTEST_LEASE` | lease | A held lease token (session or inherited from `device with`) |
+| `BRIGHTTEST_HOOK_TIMEOUT_MS` | `device hook` | Hook time budget in ms (default 4000) |
 | `BRIGHTTEST_NO_LEASE=1` | lease | Same as `--no-lease`; never for agents |
 | `BRIGHTTEST_LEASE_NO_FOREGROUND_CHECK=1` | lease | Turn off the foreground advisory |
 | `BRIGHTTEST_ENGINES` | all lanes | `auto`, `patched`, `stock` or a package name; wins over config |

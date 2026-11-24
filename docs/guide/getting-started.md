@@ -104,7 +104,7 @@ the rule format is in [HTTP fixtures](/writing-tests/http-fixtures).
 
 ## Exit codes
 
-`0` on success, `1` on any failure, `2` on a usage, config or engine error. A device run with no result line, a
+`0` on success, `1` on any failure, `2` on a usage or engine-resolution error (an unreadable `brighttest.json` currently exits 1). A device run with no result line, a
 crashed test, a timeout or an idle abort is a failure too. A device run that cannot get the device in time exits `75`
 (see [Sharing a device](/guide/device-lease#exit-codes)). With `--lcov`, a **missing** coverage report also
 fails the run, so CI never silently loses coverage.

@@ -531,7 +531,7 @@ When no hub is reachable, a host can still send a command through the device's E
 it through the same op allow-list as the hub path.
 
 - **Token.** Every chunk carries `tk=<token>`, the per-build hub token baked at build time (see
-  [the hub token](#the-hub-token---net-and-brighttest-hub-token)). The agent compares it in constant time and drops a
+  [the hub token](#the-hub-token-net-and-brighttest-hub-token)). The agent compares it in constant time and drops a
   chunk with a wrong or missing token silently: no ack, no state. `tk` is the secret hub token itself, sent in the clear in
   the request line, so an app must never log or forward unknown `roInput` or deep-link keys (the debug console on port
   8085 is readable on the LAN). The mailbox works only with a `--net` build and `BRIGHTTEST_HUB_TOKEN` set: a build
