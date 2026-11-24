@@ -123,8 +123,9 @@ brighttest doctor --host <ip>            # firmware, ECP mode, developer mode, w
 brighttest doctor --host <ip> --json     # the same as JSON: model, softwareVersion, build, ecpSettingMode, developerEnabled, videoMode, deviceClass, checks[] (id, ok, fix); no serial
 ```
 
-It reads `query/device-info` only: no password, no lease, no keypresses. Exit 0 when every check passes, 1
-when a check fails or the device does not answer. The serial number is hidden unless you pass `--show-serial`. Some firmware (16.0.4, for one) reports no `video-mode`, so doctor falls back to `ui-resolution` and prints `video mode: <value> (ui-resolution; no video-mode)`; JSON output carries `videoModeSource`.
+`--host` falls back to `ROKU_HOST`; with neither, doctor exits 2 (`--ecp-port <n>` changes the ECP port, for example for a
+[stub device](/maintainers#device-free-tests-fake-roku-and-fake-origin)). By default it reads `query/device-info` only: no password, no lease, no keypresses (the opt-in hub probe below is the one
+exception). Exit 0 when every check passes, 1 when a check fails or the device does not answer, 2 on a usage error. The serial number is hidden unless you pass `--show-serial`. Some firmware (16.0.4, for one) reports no `video-mode`, so doctor falls back to `ui-resolution` and prints `video mode: <value> (ui-resolution; no video-mode)`; JSON output carries `videoModeSource`.
 The two fixable states are **Limited** ECP (Settings → System → Advanced system settings → Control by mobile
 apps → Network access → Permissive) and **developer mode disabled** (enable it with the remote sequence the
 fix text prints).

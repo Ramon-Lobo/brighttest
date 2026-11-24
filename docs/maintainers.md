@@ -14,10 +14,12 @@ brighttest/
 │   ├── device.js            # build (coverage on) → stock Rooibos CLI → scrape LCOV
 │   ├── cross-check.js       # run headless + device, diff the overlap for fidelity
 │   ├── e2e/                 # the on-device UI test lane (see "E2E lane" below)
-│   ├── instrument/          # `brighttest instrument` (build/census/verify/sideload) + the net fault plugin, hub and proxy
+│   ├── instrument/          # `brighttest instrument` (build/census/verify/sideload), the bsc plugin (plugin.js, receiver.js,
+│   │                        #   rewrite-net.js), runtime/ (BT_* device code), the LAN hub + net proxy/rules, greenfield/ templates
 │   ├── studio/              # `brighttest studio` server (ECP, sgdebug, perf, Perfetto); client in studio/web (Svelte)
 │   ├── device-lease.js      # device lease (+ device-command.js, device-hook.js, devices.js): `brighttest device`
-│   ├── doctor.js            # `brighttest doctor` capability check and the e2e preflight
+│   ├── doctor.js            # `brighttest doctor` capability check, hub bind check and opt-in hub reach probe; the e2e preflight
+│   ├── assess.js            # `brighttest assess` read-only project report (uses instrument/census.js)
 │   ├── engines.js           # brs-node / rooibos resolution (+ engine-caps.js, `doctor --engines`)
 │   ├── init.js, skills.js   # `brighttest init`, `brighttest skills`
 │   ├── reporter.js          # shared console/JUnit reporter
@@ -28,7 +30,8 @@ brighttest/
 ├── design/                  # RFC/design notes, e.g. design/e2e-lane.md (not shipped)
 ├── skills/                  # agent skills (shipped) + manifest.json, facts.json (`npm run skills:manifest`; `skills --check` gates claims against facts; the size gate grandfathers `writing-rooibos-tests/references/examples.md` (226 lines, over the 200 limit) until it is split, then drop `REF_LINES_GRANDFATHERED`)
 ├── scripts/                 # check-denylist, skills manifest, audit gate, docs-screenshots (Studio images for docs/guide/studio.md; needs Chrome; not shipped)
-├── examples/                # sample-app (every lane), greenfield-app, legacy-app, device-channel, streaming-app (not shipped)
+├── examples/                # sample-app, streaming-app, device-channel, greenfield-app, greenfield-skeleton, legacy-app,
+│                            #   bsconfig-plugin-app, store-fixtures-app (not shipped; see docs/guide/examples.md)
 └── package.json             # deps: @ramonlobo/brs-node, @ramonlobo/rooibos-roku, brighterscript, jszip
 ```
 
@@ -413,6 +416,42 @@ If the patch ever needs to be backed out, here are the fallbacks, in order of pr
 - **Option C — accept device-only node tests.** The pre-patch behavior: skip `@SGNode` in `--coverage`,
   run them only on `--device`. `config.js` used to exclude node specs from the headless-coverage build via
   `findNodeSpecs()` negation globs — that's the code to restore. Simplest, but loses headless node testing.
+
+## Device-free tests: fake-roku and fake-origin {#device-free-tests-fake-roku-and-fake-origin}
+
+Two zero-dependency stubs under `test/fixtures/` let the integration tests (and a person at a terminal) exercise the device
+lanes with no Roku. Both use placeholder identifiers only and bind to loopback by default. They are repo-only fixtures: they
+do not ship to npm and no test run should treat them as device evidence.
+
+**`test/fixtures/fake-roku/`** is a scripted stub Roku (ECP, dev installer, the 8080 console and the 8085 debug log).
+
+```sh
+node test/fixtures/fake-roku/server.js --list                       # scenario names
+node test/fixtures/fake-roku/server.js --scenario healthy --installer-port 80 --log fake.jsonl
+node bin/cli.js doctor --host 127.0.0.1 --ecp-port 8060             # point brighttest at it
+node bin/cli.js e2e run test/fixtures/fake-roku/flows/fake-smoke.e2e.yaml --host 127.0.0.1 \
+  --ecp-port 8060 --password rokudev-test --screenshots-mode off
+```
+
+- Scenarios (`--list`): `healthy`, the ECP faults (`latency-200ms`, `5xx-once`, `5xx-always`, `reset-once`, `stall`, `401`,
+  `403`, `404`), device states (`limited`, `dev-disabled`, `unreachable`, `halted-app`, `never-leaves-home`), launch and
+  install behaviour (`home-bounce`, `launch-404-after-sideload`, `installer-page`, `installer-500`, `crash-mid-flow`,
+  `debugger-crash`, `replay-then-live`, `console-slow`), tree shapes (`osd-facade`, `system-dialog-root`, `large-tree-3k`,
+  `large-tree-6k`, `focus-grid`, `late-node`), scenegraph query failures (`sgnodes-fails`, `sgnodes-hangs`, `cold-stall`)
+  and Rooibos transcripts (`rooibos-pass`, `rooibos-fail`).
+- Ports: ECP 8060, installer 8090 (a real device uses 80), console 8080, debug 8085; `--ecp-port`, `--installer-port`,
+  `--console-port`, `--debug-port` override them and port 0 picks a free one. Point brighttest at a non-default ECP port with
+  `--ecp-port` or `ROKU_ECP_PORT`.
+- `--hub http://127.0.0.1:<port>`: on start, on `launch/dev` and on a `keypress/Info`, the stub fetches one URL through a
+  brighttest hub, reading the token from `BRIGHTTEST_HUB_TOKEN`, and shows the body in a `Label netBody` (`netbody: error`
+  on any failure). It never prints the token.
+- The module API (`createFakeRoku`) and the full flag list, request-log format and tree contract are in
+  `test/fixtures/fake-roku/README.md`; tests are in `test/fake-roku.test.js`.
+
+**`test/fixtures/fake-origin/server.js`** is a fake HTTP origin (default `127.0.0.1:8787`; `--host`, `--port`, `--log`) with
+`/home`, `/catalog`, `/search`, `/auth`, `/track`, `/echo`, and failure endpoints (`/slow?ms=`, `/stall`, `/reset`,
+`/redirect`, `/large?kb=`, `/sse`). It redacts `Authorization` in its request log. The greenfield example app expects it at its default base
+URL (`http://127.0.0.1:8787`).
 
 ## Deny-list check (`scripts/check-denylist.js`)
 

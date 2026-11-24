@@ -41,10 +41,11 @@ An agent can add a rule without a file through the MCP tool `net_mock` (see the 
 
 ## 3. Make it fail
 
-Change the rule to a fault, or add one next to it:
+Change the rule to a fault, or add one next to it. Put `holdMs` inside the `fault` object (or write `kind` and `holdMs`
+flat on the rule); with `"fault": "timeout"` alone the hold time stays at its default of 120000 ms:
 
 ```json
-[{ "url": "**/catalog", "fault": "timeout", "holdMs": 5000 }]
+[{ "url": "**/catalog", "fault": { "kind": "timeout", "holdMs": 5000 } }]
 ```
 
 `reset`, `timeout` and `status` are described in the [fault model](/guide/net-faults), including the device failure
