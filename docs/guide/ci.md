@@ -16,7 +16,11 @@ flowchart LR
 
 ## Exit codes & reports
 
-- `brighttest` exits non-zero on any test failure — fail the job on it.
+All flags and exit codes are in the [CLI reference](/guide/cli-reference).
+
+- `brighttest` exits non-zero on any test failure (`1`), on a usage or config error (`2`), and with `75`, `77` or `78` for
+  [device lease](/guide/device-lease#exit-codes) problems — fail the job on it. A device run that prints no result line, or
+  goes silent past `--idle-timeout`, is a failure.
 - `--junit <path>` writes a JUnit XML report for test-result UIs.
 - `--lcov [path]` writes an LCOV file for coverage services (Coveralls/Codecov) or `genhtml`. It works on
   the **headless `--coverage` lane** (no device) and on the device lane.

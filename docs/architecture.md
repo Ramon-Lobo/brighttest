@@ -70,6 +70,11 @@ sequenceDiagram
    runner on hardware. Results + coverage come back over the network; `--lcov` writes `lcov.info` locally.
 3. The device lane is the fidelity reference — it runs everything, including behavior tied to real
    wall-clock timing that the simulator only approximates.
+4. The device is a leased resource: the lane takes the per-device [lease](/guide/device-lease) around build,
+   sideload and run, and queues behind other holders (exit 75 on a wait timeout). An idle watchdog
+   (`--idle-timeout`, default 120 s) and the overall `--timeout` fail a run that goes silent or never ends. A run
+   with no `[Rooibos Result]` line is a failure, and a crashed test counts as a failure in the device and
+   cross-check lanes. Every flag is listed in the [CLI reference](/guide/cli-reference).
 
 ### Cross-check — `--cross-check`
 

@@ -51,6 +51,7 @@ export default withMermaid({
         text: 'Using brighttest',
         items: [
           { text: 'Quick start', link: '/guide/getting-started' },
+          { text: 'CLI reference', link: '/guide/cli-reference' },
           { text: 'CI integration', link: '/guide/ci' },
           { text: 'Device shelf (CI)', link: '/guide/ci-device-shelf' },
           { text: 'Sharing a device (lease)', link: '/guide/device-lease' },
