@@ -900,7 +900,7 @@ describe('the unknown primary class', () => {
     expect(x.primary).toEqual({ class: 'unknown', rule: null, needs: [] })
     expect(x.evidence).toBe('none')
     expect(x.alsoNeeds).toEqual([])
-    expect(x.notes).toContainEqual({ rule: null, text: 'not classified: the agent or a human must classify it' })
+    expect(x.notes).toContainEqual({ rule: null, text: 'not classified: no rule fired; the agent or a human must classify it' })
   })
   it('a D3-only file stays unknown and keeps its alsoNeeds', async () => {
     const g = await mk({ 'source/info.brs': ['function Model() as string', '  di = CreateObject("roDeviceInfo")', '  return di.GetModel()', 'end function'] })
