@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="SettingsScreen" extends="Group">
+  <interface>
+    <function name="refresh" />
+  </interface>
+  <script type="text/brightscript" uri="SettingsScreen.brs" />
+  <children>
+    <Label id="settingsTitle" />
+  </children>
+</component>

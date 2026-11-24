@@ -1,0 +1,56 @@
+{
+  "schema": "brighttest-feature-tree/v1",
+  "provenance": { "author": "hand-written", "createdFrom": "EXPECTED-GRAPH.json" },
+  "features": [
+    {
+      "id": "app-shell", "name": "App shell", "kind": "app-shell", "risk": "medium",
+      "summary": "Entry point, root scene, the global analytics counter, the periodic timer and the library loader.",
+      "coreFiles": ["source/main.brs", "components/shell/MainScene.brs"],
+      "members": ["file:manifest", "file:source/main.brs", "file:components/shell/MainScene.xml", "file:components/shell/MainScene.brs", "file:components/widgets/LibLoader.xml", "comp:MainScene", "comp:LibLoader"]
+    },
+    {
+      "id": "home", "name": "Home", "kind": "screen", "risk": "low",
+      "summary": "Landing screen with a poster card. Raises a selection that the shell turns into a details or settings screen.",
+      "coreFiles": ["components/home/HomeScreen.brs"],
+      "members": ["file:components/home/HomeScreen.xml", "file:components/home/HomeScreen.brs", "file:components/home/PosterCard.xml", "comp:HomeScreen", "comp:PosterCard"]
+    },
+    {
+      "id": "details", "name": "Details", "kind": "screen", "risk": "low",
+      "summary": "Shows one title and hosts the player.",
+      "coreFiles": ["components/details/DetailsScreen.brs"],
+      "members": ["file:components/details/DetailsScreen.xml", "file:components/details/DetailsScreen.brs", "comp:DetailsScreen"]
+    },
+    {
+      "id": "player", "name": "Video player", "kind": "screen", "risk": "high",
+      "summary": "Video playback with a right-key seek handler. The resume math is plain functions in resume.brs.",
+      "coreFiles": ["components/player/PlayerScreen.brs", "components/player/resume.brs"],
+      "members": ["file:components/player/PlayerScreen.xml", "file:components/player/PlayerScreen.brs", "file:components/player/resume.brs", "comp:PlayerScreen"]
+    },
+    {
+      "id": "settings", "name": "Settings", "kind": "screen", "risk": "medium",
+      "summary": "Reads and writes the profile in the settings registry section.",
+      "coreFiles": ["components/settings/SettingsScreen.brs"],
+      "members": ["file:components/settings/SettingsScreen.xml", "file:components/settings/SettingsScreen.brs", "comp:SettingsScreen"]
+    },
+    {
+      "id": "api-service", "name": "Content API", "kind": "service", "risk": "medium",
+      "summary": "Task that fetches the home content over HTTP.",
+      "coreFiles": ["components/services/ApiTask.brs"],
+      "members": ["file:components/services/ApiTask.xml", "file:components/services/ApiTask.brs", "comp:ApiTask"]
+    },
+    {
+      "id": "shared-lib", "name": "Shared library", "kind": "shared", "risk": "low",
+      "summary": "String helpers, configuration, logging and greeting, used from several scopes.",
+      "coreFiles": ["source/lib/StringUtils.brs", "source/lib/Config.brs", "source/lib/Logger.brs"],
+      "members": ["file:source/lib/StringUtils.brs", "file:source/lib/Config.brs", "file:source/lib/Logger.brs", "file:source/lib/Greeting.bs", "file:source/tests/StringUtils.spec.bs"]
+    },
+    {
+      "id": "widgets", "name": "Widgets", "kind": "widget", "risk": "low",
+      "summary": "Badge and an inline banner that are not reachable from the entry.",
+      "coreFiles": ["components/widgets/Badge.brs"],
+      "members": ["file:components/widgets/Badge.xml", "file:components/widgets/Badge.brs", "file:components/widgets/InlineBanner.xml", "file:source/tests/Badge.spec.bs", "comp:Badge", "comp:InlineBanner"]
+    }
+  ],
+  "ignored": [],
+  "paths": { "recommended": "leaf-first", "reason": "shared string, config and logging helpers have a spec for strings only and every screen depends on them" }
+}

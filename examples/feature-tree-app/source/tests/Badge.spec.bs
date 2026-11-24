@@ -1,0 +1,16 @@
+namespace tests
+  @suite("Badge component")
+  @SGNode("Badge")
+  class BadgeTests extends rooibos.BaseTestSuite
+
+    @describe("text")
+
+    @it("passes the text through to its label")
+    function _()
+      m.top.text = "new"
+      label = m.top.findNode("badgeLabel")
+      m.assertEqual(label.text, "new")
+    end function
+
+  end class
+end namespace

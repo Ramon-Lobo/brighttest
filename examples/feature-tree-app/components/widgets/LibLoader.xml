@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="LibLoader" extends="Group">
+  <children>
+    <ComponentLibrary id="extlib" uri="https://example.com/feature-probe-lib.zip" />
+  </children>
+</component>

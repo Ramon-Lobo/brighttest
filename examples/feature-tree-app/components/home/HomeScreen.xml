@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="HomeScreen" extends="Group">
+  <interface>
+    <field id="selected" type="string" alwaysNotify="true" />
+  </interface>
+  <script type="text/brightscript" uri="HomeScreen.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/StringUtils.brs" />
+  <children>
+    <PosterCard id="card" />
+  </children>
+</component>

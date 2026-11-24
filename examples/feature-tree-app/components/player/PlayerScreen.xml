@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="PlayerScreen" extends="Group">
+  <interface>
+    <function name="seek" />
+  </interface>
+  <script type="text/brightscript" uri="PlayerScreen.brs" />
+  <script type="text/brightscript" uri="resume.brs" />
+  <children>
+    <Video id="video" />
+  </children>
+</component>

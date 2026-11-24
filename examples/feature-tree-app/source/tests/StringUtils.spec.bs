@@ -1,0 +1,20 @@
+namespace tests
+  @suite("StringUtils (pure functions, headless-unit)")
+  class StringUtilsTests extends rooibos.BaseTestSuite
+
+    @describe("Str_trim")
+
+    @it("removes leading and trailing spaces")
+    function _()
+      m.assertEqual(Str_trim("  hi  "), "hi")
+    end function
+
+    @describe("Str_title")
+
+    @it("capitalizes the first letter only")
+    function _()
+      m.assertEqual(Str_title("hELLO"), "Hello")
+    end function
+
+  end class
+end namespace
