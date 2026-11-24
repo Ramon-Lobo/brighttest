@@ -1,11 +1,14 @@
 import { describe, it, expect } from 'vitest'
 import { createRequire } from 'node:module'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
 import { parseFlow } from '../lib/e2e/flow.js'
 const require = createRequire(import.meta.url)
 const { execStep } = require('../lib/e2e/run')
 const { redactStateOn, makeShown } = require('../lib/e2e/appstate')
 
-// STA-MASK-F1: assertState failure text and step detail hide app values when redaction is on (off by default).
+// assertState failure text and step detail hide app values when redaction is on (off by default).
 const agentXml = (layers) => {
   const doc = JSON.stringify({ v: 1, seq: 1, snapshot: { layers }, truncated: [] }).replace(/"/g, '&quot;')
   return `<sgnodes><All_Nodes><Default name="" /><Scene name="root"><Label name="__bt_agent" text="${doc}" /></Scene></All_Nodes><status>OK</status></sgnodes>`
@@ -61,4 +64,52 @@ describe('redaction switch', () => {
     expect(() => parseFlow('config: { redactState: maybe }\nsteps:\n  - home\n')).toThrow(/redactState must be true or false/)
   })
   it('off: plain JSON', () => { expect(makeShown(false)('global', 'token', 'x')).toBe('"x"') })
+})
+
+describe('redaction details', () => {
+  it('mask matching ignores case, also for a parent object', async () => {
+    const cfg = { instrument: { state: { redact: { paths: ['global.user.PIN'] } } } }
+    const c = mk({ cfg, opts: { redactState: true } })
+    expect((await fail({ path: 'user.pin', equals: '0' }, c)).message).toMatch(/got "<redacted:pin>"/)
+    const obj = (await fail({ path: 'user', deepEquals: { a: 1 } }, c)).message
+    expect(obj).not.toMatch(/4321/)
+    const cfg2 = { instrument: { state: { redact: { paths: ['GLOBAL.USER.prefs.Theme'] } } } }
+    expect((await fail({ path: 'user', deepEquals: { a: 1 } }, mk({ cfg: cfg2, opts: { redactState: true } }))).message).not.toMatch(/dark/)
+  })
+  it('switch: unrecognised non-empty is on; recognised false, empty and unset are off or fall through', () => {
+    const on = (v) => redactStateOn({ opts: { redactState: v } }, {})
+    for (const v of ['maybe', 'garbage', 'TRUE', ' On ', 'enabled', 2, {}]) expect(on(v)).toBe(true)
+    for (const v of ['false', 'FALSE', ' off ', 'No', '0', 0, false]) expect(on(v)).toBe(false)
+    expect(redactStateOn({ opts: { redactState: '  ' }, cfg: { redactState: 'yes' } }, {})).toBe(true)
+    expect(redactStateOn({ cfg: { redactState: 'Off' } }, {})).toBe(false)
+    expect(redactStateOn({ cfg: { redactState: 'tru' } }, {})).toBe(true)
+    expect(redactStateOn({}, { BRIGHTTEST_REDACT_STATE: 'wat' })).toBe(true)
+  })
+  it('passwd, apikey and api_key are sensitive', () => {
+    const s = makeShown(true)
+    for (const k of ['passwd', 'apiKey', 'API_KEY']) expect(s('global', k, 'v')).toBe(`"<redacted:${k}>"`)
+  })
+  it('exists mode shows the expected boolean as-is', async () => {
+    const e = await fail({ path: 'authToken', exists: false }, mk({ opts: { redactState: true } }))
+    expect(e.message).toMatch(/exists false/)
+  })
+  it('a subflow inherits the setting and cannot turn it off', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-redact-'))
+    try {
+      const sub = (cfg) => `${cfg}steps:\n  - assertState: { layer: global, path: authToken, equals: nope }\n`
+      fs.writeFileSync(path.join(dir, 'plain.e2e.yaml'), sub(''))
+      fs.writeFileSync(path.join(dir, 'off.e2e.yaml'), sub('config: { redactState: false }\n'))
+      const parent = (cfg) => mk({ cfg, flow: { file: path.join(dir, 'parent.e2e.yaml'), config: {}, steps: [] }, redactState: true })
+      for (const f of ['plain', 'off']) {
+        const e = await execStep({ op: 'runFlow', file: `${f}.e2e.yaml` }, parent({})).catch((x) => x)
+        expect(e.message).toMatch(/<redacted:authToken>/)
+        expect(e.message).not.toMatch(/hunter2/)
+      }
+      const live = await execStep({ op: 'runFlow', file: 'off.e2e.yaml' }, { ...parent({}), redactState: false }).catch((x) => x)
+      expect(live.message).toMatch(/hunter2-live/)
+      fs.writeFileSync(path.join(dir, 'on.e2e.yaml'), sub('config: { redactState: true }\n'))
+      const e2 = await execStep({ op: 'runFlow', file: 'on.e2e.yaml' }, { ...parent({}), redactState: false }).catch((x) => x)
+      expect(e2.message).not.toMatch(/hunter2/)
+    } finally { fs.rmSync(dir, { recursive: true, force: true }) }
+  })
 })
