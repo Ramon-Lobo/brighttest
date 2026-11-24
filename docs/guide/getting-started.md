@@ -88,6 +88,20 @@ Add scripts to `package.json`:
 }
 ```
 
+## Adopting an existing app
+
+Run `npx brighttest assess` first: it is read-only and offline, and it recommends `brownfield` (an app you will not edit)
+or `greenfield` (a new app built with brighttest in mind). Then `npx brighttest init --brownfield` or
+`npx brighttest init --greenfield` sets the project up (plain `init` is the scaffold described above). Both are covered in
+[Assess a project](./assess) and [Instrumented builds](./instrument#brownfield-setup-init-brownfield). A device check before a
+device run: `npx brighttest doctor --host <ip>` ([Troubleshooting](./troubleshooting#brighttest-doctor-is-the-device-ready)).
+
+## Network fixtures in a headless run
+
+`--net-record [file]` and `--net-unmatched <fail|passthrough>` apply to the headless lanes only (with `--device` or
+`--cross-check` they exit 2). They are described in [Instrumented builds](./instrument#headless-network-fixtures-flags-config-and-run-records);
+the rule format is in [HTTP fixtures](/writing-tests/http-fixtures).
+
 ## Exit codes
 
 `0` on success, non-zero on any failure — CI-ready. With `--lcov`, a **missing** coverage report also
@@ -111,6 +125,17 @@ brighttest --cross-check --host <ip> --password <pw>              Diff headless 
       --lcov [path]     Write LCOV (device or --coverage; default: coverage/lcov.info)
       --junit <path>    Write a JUnit XML report (headless / --coverage)
       --timeout <sec>   Watchdog (default: headless 300s, device 900s)
+      --net-record [file]       Headless: record passthrough traffic to a HAR (needs instrument.net.upstreamHosts)
+      --net-unmatched <policy>  Headless: fail (HTTP 599) or passthrough for requests no net rule matches
   -c, --config <path>   Path to brighttest.json (default: ./brighttest.json)
   -h, --help            Show help
+
+brighttest init [--brownfield | --greenfield] [--force]           Scaffold a project (see: init --help)
+brighttest assess [<dir>] [--json] [--out <dir>]                  Read-only project assessment
+brighttest instrument build|verify|census                         Debug-only instrumented package (see: instrument --help)
+brighttest doctor [--host <ip>] [--json] | --engines              Device or engine capability check
+brighttest net convert <file.har> [-o <rules.json>]               HAR to net rules
 ```
+
+The device-lease flags (`--wait`, `--as`, `--purpose`, `--device any`) are in
+[Sharing a device](./device-lease); run `brighttest --help` for the full list (including `--idle-timeout`).

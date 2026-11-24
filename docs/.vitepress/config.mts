@@ -60,6 +60,7 @@ export default withMermaid({
           { text: 'Network recipe', link: '/guide/network-recipe' },
           { text: 'Studio', link: '/guide/studio' },
           { text: 'Assess a project', link: '/guide/assess' },
+          { text: 'Example apps', link: '/guide/examples' },
           { text: 'Agent skills', link: '/guide/agent-skills' },
           { text: 'Agent surface (MCP)', link: '/guide/mcp' },
           { text: 'Troubleshooting & how it works', link: '/guide/troubleshooting' },

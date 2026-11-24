@@ -99,3 +99,22 @@ flowchart LR
 Design guideline: keep business logic in pure functions so most tests are trivially headless; the few
 tests that genuinely need real hardware timing get marked `@deviceOnly` and skipped on the fast lanes.
 More in [Headless vs device](/writing-tests/headless-vs-device).
+
+## Beyond the test lanes: instrument, hub and assess
+
+Three parts sit beside the test lanes. They share the same bsc build, the device lease and the `brighttest.json` config.
+
+- **Instrument** (`brighttest instrument build|verify|census`, `lib/instrument/`). A bsc plugin rewrites a **staged copy** of
+  the app (Scene `init` bootstrap, `setUrl` / `getUrl` routing, an optional state agent) and the build writes a
+  debug-only package. `instrument verify` is the release gate that finds the markers; `census` is a static scan that
+  changes nothing. See [Instrumented builds](/guide/instrument).
+- **Hub and proxy** (`lib/instrument/hub.js`, `net-proxy.js`). On the headless lanes an in-process proxy answers the app's
+  `roUrlTransfer` traffic from mock rules and fixtures (`BTNet_*`, `instrument.net.fixtures`, `--net-record`,
+  `--net-unmatched`) and injects faults ([fault model](/guide/net-faults)). For a real device the same proxy sits behind a LAN
+  hub that `e2e run` (and the MCP net tools) start only while the device lease is held; it answers only the leased device and
+  needs the build's hub token. `brighttest doctor` can prove the device reaches it.
+- **Assess and init** (`lib/assess.js`, `lib/init.js`). `brighttest assess` is a read-only, offline report that picks a path
+  (`brownfield`, `greenfield` or `not-a-roku-app`); `init --brownfield` and `init --greenfield` set the project up for it. See
+  [Assess a project](/guide/assess).
+
+None of these are needed for the default `brighttest` run, which is unchanged unless you opt in.

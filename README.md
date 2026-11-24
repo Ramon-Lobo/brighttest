@@ -57,6 +57,9 @@ It is a thin orchestrator over a proven stack, not a new BrightScript engine:
   and coverage lanes.
 - **HTTP fixtures, headless** — mock, fault and record `roUrlTransfer` calls from config rules or per test
   with `BTNet_mock` / `BTNet_requests`; see [HTTP fixtures](docs/writing-tests/http-fixtures.md).
+- **Adopt an existing app** — `brighttest assess` (read-only report), `brighttest init --brownfield` /
+  `--greenfield`, and `brighttest instrument build|verify|census` for a debug-only instrumented package with a
+  release gate; see [Instrumented builds](docs/guide/instrument.md) and [Assess a project](docs/guide/assess.md).
 - **On-device E2E** — a deterministic UI-testing lane (`brighttest e2e`) that drives a real Roku via ECP:
   YAML flows, D-pad focus path-finding, text entry, `id`/text/subtype selectors, per-step screenshots and
   session video, plus `inspect`/`record`/`stamp` authoring tools and multi-device + deep-link matrix runs.
@@ -92,6 +95,18 @@ worktree, agent or CI job uses it (`npx brighttest device status` shows who; see
 
 The command exits non-zero on any test failure, so it drops straight into CI. With `--lcov`, a missing
 coverage report also fails the run so CI never silently loses coverage.
+
+### Other commands
+
+```bash
+npx brighttest assess [dir]                      # read-only readiness report (no device, no network, writes nothing)
+npx brighttest init [--brownfield | --greenfield]  # scaffold brighttest.json, a first spec, .gitignore entries
+npx brighttest instrument census                 # static scan: scenes, tasks, setUrl sites, registry sections
+npx brighttest instrument build [--strict]       # debug-only package; never ship it
+npx brighttest instrument verify <zip|dir>       # release gate: exit 3 when instrumentation is found
+npx brighttest doctor --host <ip>                # device capability check with the exact fix for each failure
+npx brighttest net convert <file.har>            # turn a recorded HAR into net rules
+```
 
 ### The run modes
 
@@ -241,10 +256,13 @@ npm run docs:build    # static site → docs/.vitepress/dist
 
 Highlights: [Getting started](docs/guide/getting-started.md) ·
 [Writing tests](docs/writing-tests/index.md) · [Headless vs device](docs/writing-tests/headless-vs-device.md) ·
-[On-device E2E](docs/e2e/index.md) · [CI](docs/guide/ci.md) · [Troubleshooting](docs/guide/troubleshooting.md).
+[On-device E2E](docs/e2e/index.md) · [CI](docs/guide/ci.md) · [Troubleshooting](docs/guide/troubleshooting.md) ·
+[Instrumented builds](docs/guide/instrument.md) · [Assess](docs/guide/assess.md) ·
+[Network faults](docs/guide/net-faults.md) · [Examples](docs/guide/examples.md).
 
 A runnable [example project](examples/sample-app/) exercises every lane (unit, `@SGNode`, coverage,
-device, and E2E flows) end to end.
+device, and E2E flows) end to end. The other sample apps (greenfield, legacy, roChannelStore fixtures, ...) are listed
+in the [examples guide](docs/guide/examples.md).
 
 ## Agent surface (MCP)
 

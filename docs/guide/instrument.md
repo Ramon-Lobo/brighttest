@@ -85,14 +85,19 @@ npx brighttest instrument verify build/store.zip      # a zip or an unpacked dir
 
 Exit **0** when the package is clean, **3** when any instrumentation marker is found (the markers and their paths are
 printed to stderr), **2** on a missing or unreadable input. Run it in CI on the package you are about to publish.
-`BT_AGENT=false` and the greenfield libraries are not markers.
+`BT_AGENT=false` and the greenfield libraries (`BTStore`, `BTHttp`) are not markers.
+
+The markers are, by `kind`: `manifest-key` (a `bt_instrumented` key in `manifest`), `bs-const` (`BT_AGENT=true` in
+`bs_const`), `runtime-file` (any file under `source/bt/` or `components/bt/`), `component-xml` (`BT_Agent` in a component
+XML) and `string` (`__bt_agent` or `__bt_boot` in a `.brs`, `.bs` or `.xml` file). Exit 2 covers a path that does not
+exist, a file that is not a readable zip, and a missing argument.
 
 ## `BT_op` and the `m` layer
 
 The build adds a `BT_op` function to the root of every instrumented component chain, so the agent can read and write
 a component's own `m` (`layer: m` in `setState`; see [App state](../e2e/app-state.md)). Components that extend an
-instrumented one inherit it, so no duplicate-function diagnostic appears. `BT_op` is on by default and has no flag. A
-user function named `BT_op` fails the build (`BT9001`).
+instrumented one inherit it, so no duplicate-function diagnostic appears. `BT_op` is on by default; `"instrument": {
+"op": false }` turns it off. A user function named `BT_op` fails the build (`BT9001`).
 
 ## Census: `instrument census`
 
@@ -141,6 +146,8 @@ Scene and Task components include the files with a script tag:
 <script type="text/brightscript" uri="pkg:/source/brighttest/BTHttp.brs" />
 ```
 
+`examples/greenfield-app/` is a worked example of the result (see [Example apps](./examples)).
+
 Re-running is safe: existing files are kept. `--force` refreshes only the two templates; it never overwrites
 `brighttest.json` or `source/tests/Example.spec.bs`. It cannot be combined with `--brownfield`.
 
@@ -153,22 +160,58 @@ Current limitations (the full design is not implemented yet):
 
 ## Configuration
 
-`brighttest.json`, all optional:
+`brighttest.json`, all optional. This block shows every top-level key of `instrument` with its default:
 
 ```json
 {
   "instrument": {
     "strict": false,
-    "exclude": ["source/vendor/**"],
+    "exclude": [],
     "net": true,
     "scene": true,
     "op": true,
-    "hub": { "host": "auto", "port": 8790 }
+    "hub": { "port": 8790 },
+    "state": {}
   }
 }
 ```
 
-`instrument.exclude` is the canonical way to exclude files from instrumentation. A top-level `instrumentExclude` array still works as a deprecated alias: the config loader merges it into `instrument.exclude` (deduplicated), so the build and `instrument census` always see the same list.
+| Key | Meaning | Default |
+|---|---|---|
+| `strict` | A "could not instrument" entry fails the build (exit 4). `--strict` / `--no-strict` override it per run. | `false` |
+| `exclude` | Globs of files the plugin leaves alone (relative to `rootDir`). The default exclusions (Rooibos, `roku_modules`, vendor, specs) apply on top. | `[]` |
+| `net` | `true` or `false` turns the `setUrl` / `getUrl` rewrite on or off. An object configures it: `unknown`, `receivers` (see below), plus the headless net keys `fixtures`, `unmatched`, `upstreamHosts`, `redact`, `observe`. Any other type is `BT9005`. | `true` |
+| `scene` | Bootstrap every non-excluded Scene `init` and ship the state agent. `false` also drops the agent components. | `true` |
+| `op` | Add the `BT_op` function to instrumented component chains (the `m` layer). | `true` |
+| `hub` | `host` and `port` the device dials. Unset `host` uses this machine's LAN address (the literal `"auto"` is rejected). `port` is an integer 1 to 65535. | LAN address, `8790` |
+| `state` | State agent settings: `registrySections`, `redact.paths`, `caps`, `publish.maxBytes`, `publish.intervalMs`, `callable`, `dispatch`, `tasks`. See [App state](../e2e/app-state.md) and "How the agent applies a write" below. A bad value fails the build (exit 1) with a message naming the key. | `{}` |
+
+`instrument.exclude` is the only spelling to use. A top-level `instrumentExclude` array is a deprecated alias that the config loader still merges into `instrument.exclude` (deduplicated), and `brighttest assess` lists it under `deprecatedKeys`; do not write it in new configs.
+
+### `setUrl` and `getUrl` rewrites
+
+The plugin rewrites `setUrl(url)` (one argument) and `getUrl()` calls so the URL goes through the hub. The member name is
+the gate; the receiver is then classified from static evidence in the same function or file as `confirmed`
+(the receiver is assigned from `CreateObject("roUrlTransfer")`), `likely` (declared `as roUrlTransfer`, or a name such as
+`xfer`, `transfer`, `http`, `req`, `request`), `unknown` or `excluded` (a receiver of another type). Confirmed, likely
+and unknown sites are rewritten; excluded ones are left alone and reported as the informational `net-receiver-excluded`.
+`getUrl` follows the `setUrl` of the same receiver in the same function. Two settings tune this:
+
+```json
+{ "instrument": { "net": { "unknown": "report", "receivers": { "allow": ["**/api.brs#client"], "deny": ["m.cache*"] } } } }
+```
+
+- `unknown`: `"rewrite"` (default) rewrites unknown receivers; `"report"` skips them and records `net-receiver-unknown`
+  (this fails strict).
+- `receivers.allow` / `receivers.deny`: arrays of `<receiver glob>` or `<file glob>#<receiver glob>`. Receiver text is
+  matched lower-case. An allow match overrides `excluded`; deny wins over allow. In a file glob `*` does not cross `/`, so
+  write `**/name.brs#x` to match below a folder.
+- Not rewritten, and reported: an indexed member call (`x["setUrl"](url)`, kinds `indexed-seturl` / `indexed-geturl`) and a
+  `getUrl()` used as a bare statement, whose result is discarded (`bare-geturl`); these fail strict. `callFunc("setUrl", url)` is
+  informational (`callfunc-seturl`).
+- `setUrl` in an **inline CDATA** `<script>` is invisible to brighterscript, so it is neither rewritten nor reported by the
+  build; only the census lists it. An inline-CDATA **Scene** is reported as `inline-cdata-scene` (fails strict) and is not
+  bootstrapped.
 
 `strict` is **off** by default; `--strict` / `--no-strict` override it per run. The CI recipe turns it on:
 

@@ -58,8 +58,9 @@ alias. When `-c` points outside the project, `brighttest.config.file` is `null`,
 ## Report sections
 
 Host, project, bsconfig, manifest, engines, census, CI, `.gitignore`, devices, recommendation. In the JSON
-(`schema: "brighttest-assess/v1"`) these are `host`, `project` (including `bsconfig` and `manifestKeys`),
-`brighttest` (config and `engines`), `census`, `ci`, `gitignore`, `devices`, `secrets`, `risky` and `recommendation`.
+(`schema: "brighttest-assess/v1"`) the top-level keys are `schema`, `cliVersion`, `root`, `host`, `project` (including
+`bsconfig` and `manifestKeys`), `brighttest` (config and `engines`), `census`, `secrets`, `risky`, `scans`, `ci`,
+`gitignore`, `devices`, `recommendation` (`path`, `editPermission`, `blockers`, `nextSteps`, `unknowns`) and `scan`.
 
 - `recommendation.path`: `not-a-roku-app` without a manifest; `greenfield` with a manifest, fewer than 5 components and
   no spec files; otherwise `brownfield`.
