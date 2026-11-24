@@ -13,7 +13,7 @@ header comes from the fake. They show the layout and the messages, not device be
 :::
 
 ![Studio Inspect page connected to a device, with a flow open in the editor and the node and remote panels](/images/studio/overview.png)
-*Inspect page (monitor picture is a placeholder frame): flow editor, live monitor, inspector tabs (Node, Tree, Selector, State, Network) and the remote. The header
+*Inspect page (monitor picture is a placeholder frame): flow editor, live monitor, inspector tabs (Node, Tree, Selector, State, Actions, Network) and the remote. The header
 shows the model and the lease badge.*
 
 ## Start and stop
@@ -87,6 +87,14 @@ command as `cmd.sent` and the app's replies as `cmd.ack`.
 Snapshots (save, restore, delete, diff, export, import) are capped at 64 KB each, 20 kept. The history list shows each
 edit and restore with its ack phase. The action log, time travel and "save as spec fixture" routes are described in
 [Instrumented builds](/guide/instrument) and [State fixtures](/writing-tests/state-fixtures).
+
+### Actions tab
+
+The **Actions** tab lists the app's `state.action` log (seq, type, hash before and after) and refreshes every 2 s. **Travel** on a
+row restores the state recorded at that entry. The 202 reply carries a note that is shown as-is: it restores the recorded state
+only, and the effects of later actions (network, registry, tasks) are not undone. An entry with no recorded snapshot answers
+409 `NO_SNAPSHOT`. Recording a snapshot is route-only: Studio has no record control. The tab shows a message, and no rows, when
+there is no hub, the device is held elsewhere, or the routes are unreachable.
 
 ### Refusals you may see
 

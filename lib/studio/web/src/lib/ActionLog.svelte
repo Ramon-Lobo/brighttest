@@ -1,7 +1,7 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
   import { api } from './api.js';
-  import { rowOf, travelOutcome } from './actionlog.js';
+  import { rowOf, travelOutcome, createPoller } from './actionlog.js';
 
   // Action log and time travel (STA23-F2). Lists the app's state.action events (GET /api/state/actions) and, per entry,
   // a Travel button that POSTs the existing travel action. Travel restores the recorded state only; the server's note
@@ -11,18 +11,13 @@
   let msg = $state('');
   let err = $state(false);
   let busy = $state(null);
-  let timer = null, alive = true;
-
-  async function load() {
-    try {
-      const r = await api.stateActions();
-      if (!alive) return;
-      if (r.status === 423) st = 'locked';
-      else if (r.status === 503) st = 'none';
-      else if (r.ok) { st = 'live'; rows = (r.actions || []).map(rowOf); }
-      else st = 'down';
-    } catch { if (alive) st = 'down'; }
-  }
+  const poller = createPoller(() => api.stateActions(), (r, failed) => {
+    if (failed) { st = 'down'; rows = []; return; }
+    if (r.status === 423) { st = 'locked'; rows = []; }
+    else if (r.status === 503) { st = 'none'; rows = []; }
+    else if (r.ok) { st = 'live'; rows = (r.actions || []).map(rowOf); }
+    else { st = 'down'; rows = []; }
+  });
   async function travel(entry) {
     busy = entry;
     try {
@@ -30,10 +25,10 @@
       msg = `entry ${entry}: ${o.text}`; err = o.bad;
     } catch { msg = `entry ${entry}: request failed`; err = true; }
     busy = null;
-    load();
+    poller.now();
   }
-  onMount(() => { load(); timer = setInterval(load, 2000); });
-  onDestroy(() => { alive = false; clearInterval(timer); });
+  onMount(() => poller.start());
+  onDestroy(() => poller.stop());
 </script>
 
 {#if st === 'none'}
