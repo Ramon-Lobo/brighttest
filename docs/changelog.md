@@ -13,6 +13,8 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
   summary. [Upgrade notes](#upgrade-0-8-0)
 - **Reporting:** the run fails when Rooibos's final test report has a CRASH or FAIL entry that the totals missed.
   [Upgrade notes](#upgrade-0-8-0)
+- **Reporting:** a run where an `@async` case inside an `@SGNode` suite never finishes, so the later cases are dropped, used
+  to exit 0 with fewer cases counted. It now fails and lists the dropped cases. [Upgrade notes](#upgrade-0-8-0)
 - **Studio:** with several cached devices and no `--host`, `brighttest studio` now refuses to start instead of
   connecting to the last device used. It also needs a dev password whenever it connects to a device, including with an
   explicit `--host`. [Upgrade notes](#upgrade-0-8-0)
@@ -80,6 +82,8 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
   crashed; they used to count as passes. See [CI integration](./guide/ci.md).
 - If a run now fails on a CRASH or FAIL entry in Rooibos's final test report (for example a crash in an `@SGNode`
   `beforeEach`) while the totals said Success, fix that spec.
+- If a run now fails because an `@async` case in an `@SGNode` suite never finished, make that case call `m.done()` before
+  its timeout. See [SceneGraph async tests](./writing-tests/scenegraph-async.md).
 - Studio: pass `--host <ip>` (or set `ROKU_HOST`) when several devices are cached, and give the dev password with
   `--password` or `ROKU_PASSWORD`. `brighttest devices` finds Rokus on your network (SSDP) and saves the dev password
   so Studio can connect without `--host`.
