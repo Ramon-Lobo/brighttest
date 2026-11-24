@@ -470,3 +470,41 @@ describe('F5 and D1 follow the base type', () => {
     expect(node(g, 'file:components/Host.brs').facts).toMatchObject({ platformObjects: ['Video'], timers: true })
   })
 })
+
+describe('purity: function values, closures and the built-in allow-list', () => {
+  const pureOf = async (body, extra) => {
+    const g = await mk({ 'source/x.brs': [...body, ...(extra || [])] })
+    return Object.fromEntries(node(g, 'file:source/x.brs').functions.map((f) => [f.name, f]))
+  }
+  it('a call through a local variable or a parameter makes the function impure', async () => {
+    const f = await pureOf(['function Bad()', '  return 1', 'end function', 'function ViaLocal()', '  f = Bad', '  return f()', 'end function', 'function ViaParam(cb as function)', '  return cb()', 'end function'])
+    expect(f.ViaLocal).toMatchObject({ pure: false })
+    expect(f.ViaLocal.why).toContain('calls a function value')
+    expect(f.ViaParam.why).toContain('calls a function value')
+    expect(f.Bad.pure).toBe(true)
+  })
+  it('an anonymous function inside a named function attributes its body to the named function', async () => {
+    const f = await pureOf(['function Outer()', '  inner = function()', '    return m.count', '  end function', '  return 1', 'end function', 'function Fine()', '  g = function(a)', '    return a', '  end function', '  return 2', 'end function'])
+    expect(f.Outer.why).toContain('uses m.')
+    expect(f.Fine.pure).toBe(true)
+  })
+  it('a call inside an anonymous function counts for the enclosing function', async () => {
+    const f = await pureOf(['function Outer()', '  inner = function()', '    Sleep(1)', '  end function', '  return 1', 'end function'])
+    expect(f.Outer.pure).toBe(false)
+  })
+  it('built-ins outside the allow-list are impure: random, files, drive, reboot, ads, translation, last-run errors', async () => {
+    const names = ['Rnd(5)', 'DeleteDirectory("tmp:/a")', 'FormatDrive("ext1:/", "EXT3")', 'RebootSystem()', 'Roku_Ads()', 'Tr("x")', 'GetLastRunCompileError()', 'GetLastRunRuntimeError()', 'Eval("1")', 'Run("x")', 'GetGlobalAA()']
+    const src = names.flatMap((c, i) => [`function F${i}()`, `  return ${c}`, 'end function'])
+    const f = await pureOf(src)
+    names.forEach((c, i) => { expect(f[`F${i}`].pure, c).toBe(false); expect(f[`F${i}`].why, c).toEqual([`calls ${c.split('(')[0]}`]) })
+  })
+  it('allow-listed built-ins keep a function pure, and UpTime only marks the clock', async () => {
+    const f = await pureOf(['function A(s as string)', '  return UCase(s) + Left(s, 1) + Str(Len(s)) + Substitute("{0}", s) + FormatJson({}) + Abs(-1).toStr()', 'end function', 'function B()', '  return UpTime(0)', 'end function'])
+    expect(f.A.pure).toBe(true)
+    expect(f.B).toMatchObject({ pure: true, clock: true })
+  })
+  it('a user function with a built-in name resolves to the user function', async () => {
+    const f = await pureOf(['function Rnd(n as integer)', '  return n', 'end function', 'function Caller()', '  return Rnd(3)', 'end function'])
+    expect(f.Caller.pure).toBe(true)
+  })
+})
