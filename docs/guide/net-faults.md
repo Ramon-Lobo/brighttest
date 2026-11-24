@@ -6,7 +6,7 @@ rest of the network fixtures, see [Network fixtures](/writing-tests/http-fixture
 
 Device codes come from the device verification run on a Roku Ultra (firmware 16.0.4), using the async
 `roUrlEvent` path. Anything that run did not measure is marked **not verified on device**. Device checks of the
-fault kinds themselves (TP-NET-27) are still open, and the headless column below describes the hub's behavior, not a
+fault kinds themselves have not been done, and the headless column below describes the hub's behavior, not a
 measured engine result.
 
 ## Fault kinds
@@ -82,4 +82,4 @@ own timer, as described above.
 - Codes for `status` faults with a body the app did not ask to retain, and for a `timeout` fault with `partialBytes`
   set to `0`. The device run measured a 500/404 with `RetainBodyOnError(true)` and a stall with a partial body.
 - Headless engine response codes for `reset` and `timeout`.
-- Every fault kind end to end through the hub on hardware (TP-NET-27).
+- Every fault kind end to end through the hub on hardware.
