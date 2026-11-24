@@ -18,7 +18,9 @@ const DEFERRED = {
   'file:components/player/PlayerScreen.brs': { platformObjects: ['Video'] }, // a component-child platform class, not a CreateObject
   'file:components/shell/MainScene.brs': { timers: true }, // Timer-node detection comes with scope resolution
 }
-const ek = (e) => [e.kind, e.from, e.to, e.conf, e.at].join('|')
+// built-in ids are lower-case in the graph; EXPECTED-GRAPH.json keeps the source casing, so compare case-insensitively on those
+const bid = (id) => (typeof id === 'string' && id.startsWith('builtin:') ? id.toLowerCase() : id)
+const ek = (e) => [e.kind, e.from, bid(e.to), e.conf, e.at].join('|')
 
 let app; let cyc; let expected
 beforeAll(async () => {
@@ -36,7 +38,7 @@ describe('feature graph: ground truth', () => {
     expect(app.uncertainty.blindSpots.length).toBeGreaterThan(0)
   })
   it('matches the node ids of EXPECTED-GRAPH.json', () => {
-    expect(app.nodes.map((n) => n.id).sort()).toEqual(expected.nodes.map((n) => n.id).sort())
+    expect(app.nodes.map((n) => n.id).sort()).toEqual(expected.nodes.map((n) => bid(n.id)).sort())
   })
   it('matches the structural edges of EXPECTED-GRAPH.json exactly', () => {
     const want = expected.edges.filter((e) => STRUCTURAL.includes(e.kind)).map(ek).sort()
@@ -72,7 +74,7 @@ describe('feature graph: ground truth', () => {
 
 describe('feature graph: one case per edge kind', () => {
   it('extends: builtin and component targets', () => {
-    expect(find(app, 'extends', 'components/shell/MainScene.xml:2')[0]).toMatchObject({ to: 'builtin:Scene', conf: 'builtin' })
+    expect(find(app, 'extends', 'components/shell/MainScene.xml:2')[0]).toMatchObject({ to: 'builtin:scene', conf: 'builtin' })
     expect(find(cyc, 'extends', 'components/loop/Loop.xml:2')[0]).toMatchObject({ from: 'comp:Loop', to: 'comp:Loop', conf: 'exact' })
   })
   it('extends: a component that extends another component is exact, and its builtinRoot is the end of the chain', async () => {
@@ -83,7 +85,7 @@ describe('feature graph: one case per edge kind', () => {
       fs.writeFileSync(path.join(tmp, 'components', 'Base.xml'), '<component name="Base" extends="Group"></component>\n')
       fs.writeFileSync(path.join(tmp, 'components', 'Kid.xml'), '<component name="Kid" extends="Base"></component>\n')
       const g = await buildGraph(tmp)
-      expect(find(g, 'extends').map(ek).sort()).toEqual(['extends|comp:Base|builtin:Group|builtin|components/Base.xml:1', 'extends|comp:Kid|comp:Base|exact|components/Kid.xml:1'])
+      expect(find(g, 'extends').map(ek).sort()).toEqual(['extends|comp:Base|builtin:group|builtin|components/Base.xml:1', 'extends|comp:Kid|comp:Base|exact|components/Kid.xml:1'])
       expect(g.nodes.find((n) => n.id === 'comp:Kid').builtinRoot).toBe('Group')
     } finally { fs.rmSync(tmp, { recursive: true, force: true }) }
   })
@@ -99,7 +101,7 @@ describe('feature graph: one case per edge kind', () => {
   })
   it('child: component and builtin', () => {
     expect(find(app, 'child', 'components/shell/MainScene.xml:7')[0]).toMatchObject({ to: 'comp:HomeScreen', conf: 'name' })
-    expect(find(app, 'child', 'components/shell/MainScene.xml:8')[0]).toMatchObject({ to: 'builtin:Timer', conf: 'builtin' })
+    expect(find(app, 'child', 'components/shell/MainScene.xml:8')[0]).toMatchObject({ to: 'builtin:timer', conf: 'builtin' })
   })
   it('creates: literal createChild, literal and dynamic CreateObject', () => {
     expect(find(cyc, 'creates', 'components/a/CycleA.brs:2')[0]).toMatchObject({ to: 'comp:CycleB', conf: 'name' })
@@ -246,7 +248,7 @@ describe('feature graph: literals, parsing cost and caps', () => {
     await census.census(APP, { onFile: (pkg, ctx) => { if (ctx.kind !== 'xml') seen.push(collectBrs(pkg, ctx.text, ctx)) } })
     expect(seen.length).toBeGreaterThan(0)
     for (const d of seen) expect(JSON.parse(JSON.stringify(d))).toEqual(d)
-    expect(seen.some((d) => d.creates.some((c) => typeof c.fn === 'string' && c.fn.includes('@')))).toBe(true)
+    expect(seen.some((d) => d.creates.some((c) => typeof c.fn === 'string' && /^\w+@\d+$/.test(c.fn)))).toBe(true)
   })
   it('parseXml stays linear: 20000 script tags parse in well under a second', () => {
     const xml = '<component name="Big" extends="Group">\n' + '<script uri="a.brs"></script>\n'.repeat(20000) + '</component>\n'
@@ -270,6 +272,81 @@ describe('feature graph: literals, parsing cost and caps', () => {
       expect(g.uncertainty.items.filter((i) => i.kind === 'unresolved-script')).toHaveLength(1)
       expect(g.uncertainty.total).toBe(2101)
     } finally { fs.rmSync(tmp, { recursive: true, force: true }) }
+  })
+})
+
+describe('feature graph: runs-task targeting, keys, builtin ids, ambiguity', () => {
+  const build = async (files) => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-graph-'))
+    try {
+      for (const [rel, text] of Object.entries(files)) { fs.mkdirSync(path.dirname(path.join(tmp, rel)), { recursive: true }); fs.writeFileSync(path.join(tmp, rel), text) }
+      return await buildGraph(tmp)
+    } finally { fs.rmSync(tmp, { recursive: true, force: true }) }
+  }
+  const taskXml = (n) => `<component name="${n}" extends="Task">\n</component>\n`
+  const runs = (g) => find(g, 'runs-task').map((e) => `${e.to}@${e.at}`)
+
+  it('a run on an unresolved receiver emits nothing, and the next receiver maps to its own Task', async () => {
+    const g = await build({
+      'components/T.xml': taskXml('T'),
+      'components/Host.xml': '<component name="Host" extends="Group">\n<script uri="Host.brs" />\n</component>\n',
+      'components/Host.brs': 'sub init()\n  t = CreateObject("roSGNode", "NoSuchTask")\n  t.control = "run"\n  r = CreateObject("roSGNode", "T")\n  r.control = "RUN"\nend sub\n',
+    })
+    expect(runs(g)).toEqual(['comp:T@components/Host.brs:5'])
+  })
+  it('a run on a receiver created as a non-Task app component emits nothing', async () => {
+    const g = await build({
+      'components/T.xml': taskXml('T'),
+      'components/Plain.xml': '<component name="Plain" extends="Group">\n</component>\n',
+      'components/Host.xml': '<component name="Host" extends="Group">\n<script uri="Host.brs" />\n</component>\n',
+      'components/Host.brs': 'sub init()\n  t = CreateObject("roSGNode", "T")\n  p = CreateObject("roSGNode", "Plain")\n  p.control = "run"\nend sub\n',
+    })
+    expect(runs(g)).toEqual([])
+  })
+  it('a Task created in one function and run in another gives no edge', async () => {
+    const g = await build({
+      'components/T.xml': taskXml('T'),
+      'components/Host.xml': '<component name="Host" extends="Group">\n<script uri="Host.brs" />\n</component>\n',
+      'components/Host.brs': 'sub f1()\n  t = CreateObject("roSGNode", "T")\nend sub\nsub f2()\n  t.control = "run"\nend sub\n',
+    })
+    expect(runs(g)).toEqual([])
+  })
+  it('two Tasks with different receivers in one function: each run maps to its own Task', async () => {
+    const g = await build({
+      'components/A.xml': taskXml('A'),
+      'components/B.xml': taskXml('B'),
+      'components/Host.xml': '<component name="Host" extends="Group">\n<script uri="Host.brs" />\n</component>\n',
+      'components/Host.brs': 'sub init()\n  a = CreateObject("roSGNode", "A")\n  b = CreateObject("roSGNode", "B")\n  b.control = "run"\n  a.control = "run"\nend sub\n',
+    })
+    expect(runs(g)).toEqual(['comp:A@components/Host.brs:5', 'comp:B@components/Host.brs:4'].sort())
+  })
+  it('two same-named functions in one file get different keys that carry the real name and line', async () => {
+    const seen = []
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-graph-'))
+    try {
+      fs.mkdirSync(path.join(tmp, 'source'))
+      fs.writeFileSync(path.join(tmp, 'source', 'a.brs'), 'sub dup()\n  a = CreateObject("roSGNode", "X")\nend sub\n\nsub dup()\n  b = CreateObject("roSGNode", "Y")\nend sub\n')
+      await census.census(tmp, { onFile: (pkg, ctx) => { if (ctx.kind !== 'xml') seen.push(collectBrs(pkg, ctx.text, ctx)) } })
+    } finally { fs.rmSync(tmp, { recursive: true, force: true }) }
+    const fns = seen[0].creates.map((c) => c.fn)
+    expect(fns).toEqual(['dup@1', 'dup@5'])
+  })
+  it('one spec call name defined in two non-spec files is ambiguous with sorted candidates', async () => {
+    const g = await build({
+      'source/a.brs': 'function Shared()\n  return 1\nend function\n',
+      'source/b.brs': 'function Shared()\n  return 2\nend function\n',
+      'source/tests/x.spec.brs': 'sub t()\n  v = Shared()\nend sub\n',
+    })
+    const e = find(g, 'spec-covers', 'source/tests/x.spec.brs:2')
+    expect(e).toHaveLength(1)
+    expect(e[0]).toMatchObject({ to: null, conf: 'ambiguous', detail: 'Shared', candidates: ['file:source/a.brs', 'file:source/b.brs'] })
+  })
+  it('built-in node ids are one lower-case id regardless of source casing', async () => {
+    const g = await build({
+      'components/Real.xml': '<component name="Real" extends="Group">\n<children>\n<Label id="a" />\n<label id="b" />\n<LABEL id="c" />\n</children>\n</component>\n',
+    })
+    expect(g.nodes.filter((n) => n.kind === 'builtin').map((n) => n.id)).toEqual(['builtin:group', 'builtin:label'])
+    expect(find(g, 'child').map((e) => e.to)).toEqual(['builtin:label', 'builtin:label', 'builtin:label'])
   })
 })
 
