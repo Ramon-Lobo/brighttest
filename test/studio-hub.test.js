@@ -26,7 +26,7 @@ function get(p) {
   })
 }
 
-async function boot(env, instrumentExtra = {}) {
+async function boot(env, instrumentExtra = {}, loadedCfg = null) {
   started = []; logs = []
   const log = createEventLog({ sessionId: 'fake' })
   const c = { n: 0 }
@@ -34,7 +34,7 @@ async function boot(env, instrumentExtra = {}) {
   stopsOf.set(fakeHub, c)
   const startLanHub = async (o) => { started.push(o); return fakeHub }
   server = await studio.start({
-    host: '127.0.0.1', password: 'rokudev-test', port: 0, rootDir: dir, cfg: { instrument: { hub: { host: '10.0.0.5', port: 8791 }, ...instrumentExtra }, rootDir: dir },
+    host: '127.0.0.1', password: 'rokudev-test', port: 0, rootDir: dir, cfg: loadedCfg || { instrument: { hub: { host: '10.0.0.5', port: 8791 }, ...instrumentExtra }, rootDir: dir },
     hubOpts: { startLanHub, env },
     leaseOpts: { acquireOpts: { dir, timers: false, identity: {} }, tickMs: 20, log: (s) => logs.push(s) },
   })
@@ -127,5 +127,45 @@ describe('studio hub lifecycle', () => {
     const r = await get('/api/net/rules')
     expect(r.status).toBe(503)
     expect(r.text + logs.join('\n')).not.toContain(TOKEN)
+  })
+})
+
+describe('studio hub applies instrument.net.redact from a loaded brighttest.json', () => {
+  const { loadConfig } = require('../lib/config.js')
+  const { targetFromPath } = require('../lib/instrument/net-proxy.js')
+  const cfgWith = (netBlock) => {
+    fs.writeFileSync(path.join(dir, 'brighttest.json'), JSON.stringify({ instrument: { hub: { host: '10.0.0.5', port: 8791 }, net: netBlock } }))
+    return loadConfig(dir)
+  }
+  const send = (proxy) => new Promise((resolve) => {
+    proxy.ruleSet.add({ id: 'login', url: 'https://api.example.test/login*', status: 200, headers: { 'content-type': 'application/json' }, json: { token: 'SECRET-TEST-VALUE', name: 'keep-me' } })
+    const srv = http.createServer((req, res) => { proxy.handle(req, res, targetFromPath('/bt/t/net/;https://api.example.test/login')).catch(() => res.destroy()) })
+    srv.listen(0, '127.0.0.1', () => {
+      const rq = http.request({ host: '127.0.0.1', port: srv.address().port, method: 'POST', path: '/', headers: { 'content-type': 'application/json' } }, (res) => { res.resume(); res.on('end', () => srv.close(resolve)) })
+      rq.end(JSON.stringify({ token: 'SECRET-TEST-VALUE', name: 'keep-me' }))
+    })
+  })
+
+  it('masks a body field in the request list, Mock this and the HAR, but not with ?raw=1', async () => {
+    await boot({ BRIGHTTEST_HUB_TOKEN: TOKEN }, {}, cfgWith({ redact: { bodyKeys: ['token'] } }))
+    await get('/api/net/rules')
+    await send(started[0].netProxy)
+    const id = (await get('/api/net/requests?raw=1')).json.requests[0].id
+    for (const p of ['/api/net/requests', `/api/net/mock-this?id=${id}`, '/api/net/har']) {
+      const r = await get(p)
+      expect(r.status).toBe(200)
+      expect(r.text).not.toContain('SECRET-TEST-VALUE')
+      expect(r.text).toContain('keep-me')
+    }
+    expect((await get('/api/net/requests?raw=1')).text).toContain('SECRET-TEST-VALUE')
+  })
+
+  it('reports a bad bodyKeys from the documented key as a net config error (503), not the lease message', async () => {
+    await boot({ BRIGHTTEST_HUB_TOKEN: TOKEN }, {}, cfgWith({ redact: { bodyKeys: 'token' } }))
+    const r = await get('/api/net/rules')
+    expect(r.status).toBe(503)
+    expect(r.json.error).toMatch(/net config: .*bodyKeys must be an array of strings/)
+    expect(r.json.error).not.toMatch(/while Studio holds the device lease/)
+    expect(started).toHaveLength(0)
   })
 })
