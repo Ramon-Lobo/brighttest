@@ -337,6 +337,22 @@ describe('record to HAR with redaction (TP-NET-07 hub part)', () => {
     expect(JSON.stringify(conv.rules)).not.toMatch(/REDACTED-TEST-VALUE/);
     expect(JSON.stringify(conv.rules)).toContain('keep-me');
   });
+  it('masks echoed body keys in the HAR only when the config lists them in bodyKeys', async () => {
+    const sent = '{"token":"REDACTED-TEST-VALUE-T","nested":{"password":"REDACTED-TEST-VALUE-P"},"name":"keep-me"}';
+    const o = await origin();
+    const run = async (redact) => {
+      const h = await harness({ upstreamHosts: [`127.0.0.1:${o.port}`], unmatched: 'passthrough', record: true, redact });
+      await request(`${h.base}${o.url}/echo`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: sent });
+      return JSON.stringify(h.proxy.har());
+    };
+    const off = await run({});
+    expect(off).toMatch(/REDACTED-TEST-VALUE-T/);
+    expect(off).toMatch(/REDACTED-TEST-VALUE-P/);
+    const on = await run({ bodyKeys: ['token', 'password'] });
+    expect(on).not.toMatch(/REDACTED-TEST-VALUE/);
+    expect(on).toContain('keep-me');
+    expect(on).toContain('<redacted:token>');
+  });
   it('warns when redaction is off and an Authorization would be written', async () => {
     const o = await origin();
     const warns = [];
