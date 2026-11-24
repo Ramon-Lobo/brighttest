@@ -320,6 +320,24 @@ describe('feature graph: runs-task targeting, keys, builtin ids, ambiguity', () 
     })
     expect(runs(g)).toEqual(['comp:A@components/Host.brs:5', 'comp:B@components/Host.brs:4'].sort())
   })
+  it('a run receiver matches its create case-insensitively: A.control with creates a and b gives one edge to A only', async () => {
+    const g = await build({
+      'components/A.xml': taskXml('A'),
+      'components/B.xml': taskXml('B'),
+      'components/Host.xml': '<component name="Host" extends="Group">\n<script uri="Host.brs" />\n</component>\n',
+      'components/Host.brs': 'sub init()\n  a = CreateObject("roSGNode", "A")\n  b = CreateObject("roSGNode", "B")\n  A.control = "run"\nend sub\n',
+    })
+    expect(runs(g)).toEqual(['comp:A@components/Host.brs:4'])
+  })
+  it('a receiver that matches no create in the function falls back to every Task created there', async () => {
+    const g = await build({
+      'components/A.xml': taskXml('A'),
+      'components/B.xml': taskXml('B'),
+      'components/Host.xml': '<component name="Host" extends="Group">\n<script uri="Host.brs" />\n</component>\n',
+      'components/Host.brs': 'sub init()\n  a = CreateObject("roSGNode", "A")\n  b = CreateObject("roSGNode", "B")\n  m.other.control = "run"\nend sub\n',
+    })
+    expect(runs(g).sort()).toEqual(['comp:A@components/Host.brs:4', 'comp:B@components/Host.brs:4'])
+  })
   it('two same-named functions in one file get different keys that carry the real name and line', async () => {
     const seen = []
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-graph-'))
