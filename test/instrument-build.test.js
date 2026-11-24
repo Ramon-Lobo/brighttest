@@ -124,6 +124,26 @@ describe('instrument build: success path', () => {
     expect(fs.readdirSync(stage).filter((n) => n.startsWith('gen-'))).toEqual([])
   })
 
+  it('bakes opts.token and opts.hub (simulator target) into BT_config.brs (STA-S-T14a)', async () => {
+    const T = 'ab'.repeat(16)
+    const r = await run(src(), 'sim-opts', { token: T, hub: { host: '127.0.0.1', port: 45123 } })
+    expect(r.exitCode).toBe(0)
+    const t = await zipText(r.out, 'source/bt/BT_config.brs')
+    expect(t).toContain(`token: "${T}"`)
+    expect(t).toMatch(/127\.0\.0\.1/)
+    expect(t).toContain('45123')
+    expect(r.log.join('\n')).not.toContain(T)
+  })
+
+  it('fails the build on a non-32-hex opts.token and names the key (STA-S-T14a)', async () => {
+    for (const bad of ['xyz', 'AB'.repeat(16), 'ab'.repeat(15), 12345]) {
+      const r = await run(src(), 'sim-bad', { token: bad })
+      expect(r.exitCode).not.toBe(0)
+      expect(fs.existsSync(r.out)).toBe(false)
+      expect(r.log.join('\n')).toMatch(/opts\.token/)
+    }
+  })
+
   it('renders BT_config with hub, features and caps from the instrument block', () => {
     const t = renderBtConfig('0'.repeat(32), { hub: { host: '10.0.0.2', port: 9000 }, net: false, state: { caps: { depth: 3 } } })
     expect(t).toContain('hub: { host: "10.0.0.2", port: 9000 }')
