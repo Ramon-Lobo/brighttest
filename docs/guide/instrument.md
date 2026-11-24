@@ -184,9 +184,24 @@ Current limitations (the full design is not implemented yet):
 | `scene` | Bootstrap every non-excluded Scene `init` and ship the state agent. `false` also drops the agent components. | `true` |
 | `op` | Add the `BT_op` function to instrumented component chains (the `m` layer). | `true` |
 | `hub` | `host` and `port` the device dials. Unset `host` uses this machine's LAN address (the literal `"auto"` is rejected). `port` is an integer 1 to 65535. | LAN address, `8790` |
-| `state` | State agent settings: `registrySections`, `redact.paths`, `caps`, `publish.maxBytes`, `publish.intervalMs`, `callable`, `dispatch`, `tasks`. See [App state](../e2e/app-state.md) and "How the agent applies a write" below. A bad value fails the build (exit 1) with a message naming the key. | `{}` |
+| `state` | State agent settings: `registrySections`, `redact.paths`, `caps`, `publish.maxBytes`, `publish.intervalMs`, `callable`, `dispatch`, `tasks`. See [App state](../e2e/app-state.md) and "How the agent applies a write" below. A bad `redact`, `callable`, `dispatch`, `tasks` or `publish` value fails the build (exit 1) with a message naming the key; invalid `caps` values and `registrySections` entries fall back to defaults or are dropped. | `{}` |
 
 `instrument.exclude` is the only spelling to use. A top-level `instrumentExclude` array is a deprecated alias that the config loader still merges into `instrument.exclude` (deduplicated), and `brighttest assess` lists it under `deprecatedKeys`; do not write it in new configs.
+
+### What counts for strict
+
+| Report entry (`kind`) | Fails strict |
+|---|---|
+| `excluded-candidate` in a file **you** excluded | yes |
+| `excluded-candidate` in a default-excluded path (`source/rooibos/**`, `source/vendor/**`, `roku_modules/**`, specs, ...) | no, informational |
+| `empty-init`, `inline-cdata-scene`, `unknown-scene-subtype`, `init-in-excluded-file`, `init-shared-with-excluded-scene` (via import or via `extends`) | yes |
+| `indexed-seturl`, `indexed-geturl`, `bare-geturl`, `xml-parse-failed` | yes |
+| `net-receiver-unknown` (only emitted with `net.unknown: "report"`) | yes |
+| `wrap-target-unknown` (a `state.dispatch` or `state.tasks` name that matches nothing, or a dispatch function used as a value) | yes |
+| `rewritten-shared-with-excluded`, `net-receiver-excluded`, `callfunc-seturl`, `net-render-thread` | no, informational |
+| anything not listed | yes (fail closed) |
+
+`--verbose` lists the informational entries of a successful build.
 
 ### `setUrl` and `getUrl` rewrites
 
@@ -218,21 +233,6 @@ and unknown sites are rewritten; excluded ones are left alone and reported as th
 ```yaml
 - run: npx brighttest instrument build --strict --out .brighttest/debug.bt-instrumented.zip   # exit 4 = policy, exit 1 = broken build
 ```
-
-### What counts for strict
-
-| Report entry (`kind`) | Fails strict |
-|---|---|
-| `excluded-candidate` in a file **you** excluded | yes |
-| `excluded-candidate` in a default-excluded path (`source/rooibos/**`, `source/vendor/**`, `roku_modules/**`, specs, ...) | no, informational |
-| `empty-init`, `inline-cdata-scene`, `unknown-scene-subtype`, `init-in-excluded-file`, `init-shared-with-excluded-scene` (via import or via `extends`) | yes |
-| `indexed-seturl`, `indexed-geturl`, `bare-geturl`, `xml-parse-failed` | yes |
-| `net-receiver-unknown` (only emitted with `net.unknown: "report"`) | yes |
-| `wrap-target-unknown` (a `state.dispatch` or `state.tasks` name that matches nothing, or a dispatch function used as a value) | yes |
-| `rewritten-shared-with-excluded`, `net-receiver-excluded`, `callfunc-seturl`, `net-render-thread` | no, informational |
-| anything not listed | yes (fail closed) |
-
-`--verbose` lists the informational entries of a successful build.
 
 ### Media URLs
 
@@ -479,7 +479,7 @@ republished (only when the command asked for `ack: reflected`). A session mismat
   A wrapper that cannot be built is reported the same way and the function stays unwrapped.
   Hash limits: the hash is a CRC32 of the serialized global fields, so a change to a masked secret-looking key, or to
   content beyond the serializer caps (depth, array items, string length), does not change `hashBefore`/`hashAfter`. Its
-  cost (two global serializations per dispatch) was measured on a device (DQ-STA21): about 10 ms per dispatch with a
+  cost (two global serializations per dispatch) was measured on a device: about 10 ms per dispatch with a
   normal global, about 118 ms with 516 global fields. The hash covers `m.global` fields only: an app whose store state
   lives outside `m.global` (a scene or node `m`, module variables) shows equal `hashBefore` and `hashAfter` for every
   action. On a device the event keys arrive lowercased (`hashbefore`, `hashafter`); Studio accepts both spellings and

@@ -427,19 +427,19 @@ do not ship to npm and no test run should treat them as device evidence.
 
 ```sh
 node test/fixtures/fake-roku/server.js --list                       # scenario names
-node test/fixtures/fake-roku/server.js --scenario healthy --installer-port 80 --log fake.jsonl
+node test/fixtures/fake-roku/server.js --scenario healthy --log fake.jsonl
 node bin/cli.js doctor --host 127.0.0.1 --ecp-port 8060             # point brighttest at it
 node bin/cli.js e2e run test/fixtures/fake-roku/flows/fake-smoke.e2e.yaml --host 127.0.0.1 \
   --ecp-port 8060 --password rokudev-test --screenshots-mode off
 ```
 
-- Scenarios (`--list`): `healthy`, the ECP faults (`latency-200ms`, `5xx-once`, `5xx-always`, `reset-once`, `stall`, `401`,
+- Scenarios (`--list`; this is a summary, run it for the complete set, which also includes `keypress-home-500` and `keyup-fails`): `healthy`, the ECP faults (`latency-200ms`, `5xx-once`, `5xx-always`, `reset-once`, `stall`, `401`,
   `403`, `404`), device states (`limited`, `dev-disabled`, `unreachable`, `halted-app`, `never-leaves-home`), launch and
   install behaviour (`home-bounce`, `launch-404-after-sideload`, `installer-page`, `installer-500`, `crash-mid-flow`,
   `debugger-crash`, `replay-then-live`, `console-slow`), tree shapes (`osd-facade`, `system-dialog-root`, `large-tree-3k`,
   `large-tree-6k`, `focus-grid`, `late-node`), scenegraph query failures (`sgnodes-fails`, `sgnodes-hangs`, `cold-stall`)
   and Rooibos transcripts (`rooibos-pass`, `rooibos-fail`).
-- Ports: ECP 8060, installer 8090 (a real device uses 80), console 8080, debug 8085; `--ecp-port`, `--installer-port`,
+- Ports: ECP 8060, installer 8090 (`--installer-port 80` mimics a real device but needs root; the default 8090 is enough for doctor and `e2e run`), console 8080, debug 8085; `--ecp-port`, `--installer-port`,
   `--console-port`, `--debug-port` override them and port 0 picks a free one. Point brighttest at a non-default ECP port with
   `--ecp-port` or `ROKU_ECP_PORT`.
 - `--hub http://127.0.0.1:<port>`: on start, on `launch/dev` and on a `keypress/Info`, the stub fetches one URL through a

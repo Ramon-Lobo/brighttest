@@ -1,4 +1,4 @@
-# store-fixtures-app (COV-24)
+# store-fixtures-app
 
 A tiny generic example of an `roChannelStore` purchase flow tested headless against the engine's `fakeServer`
 fixtures. Invented product names only. See `docs/guide/store-fixtures.md` for the guide.

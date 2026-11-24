@@ -1,8 +1,8 @@
-# greenfield-app (FX-GREEN)
+# greenfield-app
 
 A small, generic Roku channel written the way brighttest recommends: an `id` on every interactive or
 asserted node, one store node, one networking Task, specs beside the code. Invented content only. It is the
-fixture for hand-off test packs (TP-NET, TP-STA, TP-ROB, TP-MCP, TP-ENG).
+fixture for network, state, robustness, MCP and engine checks.
 
 ## App
 
@@ -56,10 +56,10 @@ In a flow, `setState: { layer: global, path: btstate_user.tier, value: premium }
 
 | File | Used by |
 | --- | --- |
-| `home-to-details.e2e.yaml` (passes) | TP-ROB, TP-MCP |
+| `home-to-details.e2e.yaml` (passes) | robustness and MCP checks |
 | `missing-id.e2e.yaml` (fails on purpose) | failure-bundle cases |
-| `network.e2e.yaml` + `fixtures/net/*` | TP-NET |
-| `state.e2e.yaml` + `fixtures/state/premium.json` | TP-STA |
+| `network.e2e.yaml` + `fixtures/net/*` | network checks |
+| `state.e2e.yaml` + `fixtures/state/premium.json` | state checks |
 
 `fixtures/net/home.rules.json` is live: `network.e2e.yaml` loads it and it must stay correct. The
 `fixtures/state/premium.json` has the layered shape Studio saves (`{v, name, layers: {global, scene}}`), so a
