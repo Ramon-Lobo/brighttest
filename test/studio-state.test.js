@@ -367,6 +367,17 @@ describe('read-only published-state masking: fail closed', () => {
     expect(r.text).not.toMatch(SECRET)
     expect(JSON.parse(agentNode(r).text).meta).toEqual({ token: '<redacted:token>', ok: 1 })
   })
+  it('maskAgent and maskPublished apply element masks, .n, [*] and list.*', () => {
+    const { maskAgent, maskPublished } = studio._test
+    const L = { global: { state: { cart: { items: [{ p: 1 }, { p: 2 }] } } } }
+    expect(maskAgent({ layers: L }, ['global.cart.items[1]']).layers.global.state.cart.items).toEqual([{ p: 1 }, '<redacted:1>'])
+    expect(maskAgent({ layers: L }, ['global.cart.items.0']).layers.global.state.cart.items[0]).toBe('<redacted:0>')
+    expect(maskAgent({ layers: L }, ['global.cart.items[*]']).layers.global.state.cart.items).toEqual(['<redacted:0>', '<redacted:1>'])
+    expect(maskAgent({ layers: L }, ['global.cart.items.*']).layers.global.state.cart.items).toEqual(['<redacted:0>', '<redacted:1>'])
+    const pub = { present: true, state: { cart: { items: [{ p: 1 }, { p: 2 }] } }, error: null, raw: 'x' }
+    expect(maskPublished(pub, ['cart.items[1]']).state.cart.items).toEqual([{ p: 1 }, '<redacted:1>'])
+    expect(maskPublished(pub, ['cart.items.*']).state.cart.items).toEqual(['<redacted:0>', '<redacted:1>'])
+  })
   it('never returns raw text or quoted input for a __bt_state parse error or a scalar state (unit helpers)', () => {
     const { maskPublished } = studio._test
     const bad = maskPublished({ present: true, state: null, error: 'invalid JSON (Unexpected token L in JSON at position 0 LEAKME)', raw: 'LEAKME{' }, [])
