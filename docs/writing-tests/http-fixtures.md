@@ -60,7 +60,7 @@ a fixture. Config fixtures keep their declaration order.
       "fixtures": ["fixtures/net/*.rules.json", "fixtures/net/*.har"],
       "unmatched": "fail",
       "upstreamHosts": ["api.staging.example.com"],
-      "redact": { "headers": [], "query": [], "jsonPaths": ["$.user.email"] }
+      "redact": { "headers": [], "query": [], "jsonPaths": ["$.user.email"], "bodyKeys": [] }
     }
   }
 }
@@ -74,6 +74,7 @@ a fixture. Config fixtures keep their declaration order.
 - `upstreamHosts`: the only hosts a passthrough may reach (`host` or `host:port`). Private and loopback addresses are
   refused unless listed.
 - `redact`: removes secrets from the NDJSON and from recorded HARs. `jsonPaths` apply to JSON request bodies and to JSON response bodies, including a response that echoes the request (the paths are also tried on nested objects and on JSON held in a string value). Form-encoded bodies (`application/x-www-form-urlencoded`) are not touched by `jsonPaths`; they are redacted by field name through `redact.query` (the default names are included). Other non-JSON bodies are not changed.
+  - `bodyKeys` (opt-in, empty by default): key names to mask anywhere in a JSON request or response body, at any depth, in arrays, and inside JSON held in a string value (an echoed body). Matching is case-insensitive on the whole name after removing `_` and `-`, so `token` also matches `Token`, but not `tokens`. The whole value becomes the usual `<redacted:name>` placeholder. brighttest ships no default names: a body `token` or `password` is written as is until you list it, for example `"bodyKeys": ["token", "access_token", "password"]`. `jsonPaths` run first. Form-encoded bodies also mask a field whose name is listed in `bodyKeys`. The same list applies to Studio Mock this, the Studio HAR export and proxy recordings. `enabled: false` turns every kind of redaction off.
 
 The net server starts when the run needs it: a `--net-*` flag, an `instrument.net` block (or `"net": true`), or any
 spec that mentions `BTNet_`. Otherwise a headless run is unchanged.

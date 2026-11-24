@@ -158,6 +158,60 @@ describe('redaction', () => {
   });
 });
 
+describe('redaction by body key name (opt-in bodyKeys)', () => {
+  const json = (r, t, ct = 'application/json') => JSON.parse(r.body(t, ct));
+  const keys = R.makeRedactor({ bodyKeys: ['token', 'Access_Token', 'password'] });
+  it('masks nothing by name when bodyKeys is not set (empty default)', () => {
+    const none = R.makeRedactor({});
+    const t = '{"token":"dummy-1","password":"dummy-2","a":{"secret":"dummy-3"}}';
+    expect(none.body(t, 'application/json')).toBe(t);
+    expect(none.responseBody(t, 'application/json')).toBe(t);
+    expect(R.makeRedactor({ jsonPaths: ['$.x'] }).body(t, 'application/json')).toBe(t);
+  });
+  it('masks root, nested and array keys with the existing placeholder', () => {
+    const out = json(keys, '{"token":"d1","a":{"b":{"password":"d2"}},"list":[{"token":"d3"},{"n":1}],"keep":"v"}');
+    expect(out.token).toBe('<redacted:token>');
+    expect(out.a.b.password).toBe('<redacted:password>');
+    expect(out.list[0].token).toBe('<redacted:token>');
+    expect(out.list[1]).toEqual({ n: 1 });
+    expect(out.keep).toBe('v');
+  });
+  it('replaces the whole value, even an object', () => {
+    expect(json(keys, '{"token":{"a":1,"b":[2]}}').token).toBe('<redacted:token>');
+  });
+  it('matches case-insensitively and ignores _ and - in key and list', () => {
+    const out = json(keys, '{"accessToken":"d1","ACCESS-TOKEN":"d2","access_token":"d3","Password":"d4","tokens":"keep"}');
+    expect(out.accessToken).toBe('<redacted:accesstoken>');
+    expect(out['ACCESS-TOKEN']).toBe('<redacted:access-token>');
+    expect(out.access_token).toBe('<redacted:access_token>');
+    expect(out.Password).toBe('<redacted:password>');
+    expect(out.tokens).toBe('keep');
+  });
+  it('shares the walk for responses, including an echoed JSON string', () => {
+    const echoed = JSON.parse(keys.responseBody(JSON.stringify({ json: { token: 'd1' }, data: '{"password":"d2","k":"v"}' }), 'application/json'));
+    expect(echoed.json.token).toBe('<redacted:token>');
+    expect(JSON.parse(echoed.data)).toEqual({ password: '<redacted:password>', k: 'v' });
+  });
+  it('runs after jsonPaths and combines with them', () => {
+    const both = R.makeRedactor({ jsonPaths: ['$.user.email'], bodyKeys: ['token'] });
+    const out = json(both, '{"user":{"email":"a@b.c"},"token":"d1","n":1}');
+    expect(out).toEqual({ user: { email: '<redacted:email>' }, token: '<redacted:token>', n: 1 });
+  });
+  it('masks form fields named in bodyKeys as well as query names; leaves non-JSON alone', () => {
+    const f = keys.body('password=dummy&access_token=d&x=1&token=t', 'application/x-www-form-urlencoded');
+    expect(f).not.toMatch(/dummy|=d&|=t$/);
+    expect(f).toContain('x=1');
+    expect(R.makeRedactor({}).body('secret=abc&x=1', 'application/x-www-form-urlencoded')).toBe('secret=abc&x=1');
+    expect(keys.body('token: plain', 'text/plain')).toBe('token: plain');
+    expect(keys.body('{not json token', 'application/json')).toBe('{not json token');
+  });
+  it('enabled:false masks nothing', () => {
+    const t = '{"token":"d1"}';
+    expect(R.makeRedactor({ enabled: false, bodyKeys: ['token'] }).body(t, 'application/json')).toBe(t);
+    expect(R.makeRedactor({ enabled: false, bodyKeys: ['token'] }).responseBody(t, 'application/json')).toBe(t);
+  });
+});
+
 describe('HAR import/export', () => {
   const entries = [
     { startedDateTime: 1700000000000, time: 12, method: 'GET', url: 'https://h.test/auth?token=abc&n=1', reqHeaders: { Authorization: 'Bearer test-not-secret' }, reqBody: null, status: 200, resHeaders: { 'content-type': 'application/json', 'set-cookie': 'sid=zzz' }, resBody: Buffer.from('{"ok":true,"user":{"email":"a@b.c"}}'), timings: { blocked: 0, wait: 10, receive: 2 } },

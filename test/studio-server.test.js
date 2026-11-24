@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
 import { createRequire } from 'node:module';
 import http from 'node:http';
 import fs from 'node:fs';
@@ -317,5 +317,61 @@ describe('/api/perf/session fps', () => {
     const s = await sample();
     expect(s.fps).toBeNull();
     expect(typeof s.fpsReason).toBe('string');
+  });
+});
+
+// NET-REDACT-KEY: mock-this and the HAR route mask a body key by name only when the Studio net config lists it.
+describe('net body key redaction is opt-in (mock-this, HAR)', () => {
+  const { EventEmitter } = require('node:events');
+  const { createEventLog } = require('../lib/instrument/events.js');
+  const { startHarness, request } = require('./fixtures/net/harness.js');
+  const { createFakeRoku } = require('./fixtures/fake-roku/server.js');
+  let dir, fake, srv, sp, harness, prevPort;
+  const call = (p) => new Promise((resolve, reject) => {
+    http.get({ host: '127.0.0.1', port: sp, path: p }, (res) => {
+      let b = ''; res.on('data', (c) => (b += c)); res.on('end', () => resolve({ status: res.statusCode, text: b }));
+    }).on('error', reject);
+  });
+  const boot = async (redact) => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-studio-redact-'));
+    fake = createFakeRoku({ scenario: 'healthy', ecpPort: 0, installerPort: 0, consolePort: 0, debugPort: 0 });
+    const a = await fake.start();
+    prevPort = process.env.ROKU_ECP_PORT;
+    process.env.ROKU_ECP_PORT = String(a.ecpPort);
+    process.env.BRIGHTTEST_LEASE_DIR = dir;
+    const prevCache = process.env.BRIGHTTEST_CACHE;
+    process.env.BRIGHTTEST_CACHE = path.join(dir, 'devices.json');
+    const log = createEventLog({ sessionId: 'sess1' });
+    const bus = new EventEmitter();
+    harness = await startHarness({ emit: (kind, data) => bus.emit('event', log.push({ src: 'hub', kind, data })) });
+    srv = await studio.start({ host: '127.0.0.1', password: 'fake-pw', port: 0, rootDir: dir, net: { proxy: harness.proxy, events: bus, log, redact },
+      leaseOpts: { acquireOpts: { dir, timers: false, identity: {} }, tickMs: 20 } });
+    sp = srv.address().port;
+    process.env.BRIGHTTEST_CACHE = prevCache;
+    harness.proxy.ruleSet.add({ id: 'login', url: 'https://api.example.test/login*', status: 200, headers: { 'content-type': 'application/json' }, json: { token: 'REDACTED-TEST-VALUE', name: 'keep-me' } });
+    await request(harness.base + 'https://api.example.test/login');
+  };
+  afterEach(async () => {
+    srv.close(); await harness.stop(); await fake.stop();
+    if (prevPort === undefined) delete process.env.ROKU_ECP_PORT; else process.env.ROKU_ECP_PORT = prevPort;
+    delete process.env.BRIGHTTEST_LEASE_DIR;
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('does not mask a body token when bodyKeys is not configured', async () => {
+    await boot({});
+    expect((await call('/api/net/mock-this?id=r-1')).text).toContain('REDACTED-TEST-VALUE');
+    expect((await call('/api/net/har')).text).toContain('REDACTED-TEST-VALUE');
+  });
+  it('masks a body token in mock-this and the HAR when listed', async () => {
+    await boot({ bodyKeys: ['token'] });
+    const m = await call('/api/net/mock-this?id=r-1');
+    expect(m.status).toBe(200);
+    expect(m.text).not.toContain('REDACTED-TEST-VALUE');
+    expect(m.text).toContain('<redacted:token>');
+    expect(m.text).toContain('keep-me');
+    const h = await call('/api/net/har');
+    expect(h.text).not.toContain('REDACTED-TEST-VALUE');
+    expect(h.text).toContain('keep-me');
   });
 });
