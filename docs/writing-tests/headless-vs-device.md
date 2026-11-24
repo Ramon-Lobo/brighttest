@@ -54,6 +54,11 @@ scene), so use the default for the fast inner loop and `--coverage` when you wan
 tests — including in CI, with no hardware.
 :::
 
+On the device lane, a run that prints no `[Rooibos Result]` line is a failure, a crashed test counts as a failure,
+and the run aborts after `--idle-timeout` seconds without output (default 120) or `--timeout` (default 900). The device
+is leased, so a second run queues instead of replacing the first ([device lease](/guide/device-lease)). All flags:
+[CLI reference](/guide/cli-reference).
+
 ## Why the split exists
 
 - The **default** headless lane runs a lightweight driver on brs-node with SceneGraph disabled — fastest,

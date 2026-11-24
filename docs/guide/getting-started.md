@@ -104,38 +104,18 @@ the rule format is in [HTTP fixtures](/writing-tests/http-fixtures).
 
 ## Exit codes
 
-`0` on success, non-zero on any failure — CI-ready. With `--lcov`, a **missing** coverage report also
+`0` on success, `1` on any failure, `2` on a usage, config or engine error. A device run with no result line, a
+crashed test, a timeout or an idle abort is a failure too. A device run that cannot get the device in time exits `75`
+(see [Sharing a device](/guide/device-lease#exit-codes)). With `--lcov`, a **missing** coverage report also
 fails the run, so CI never silently loses coverage.
+
+## Sharing the device
+
+`--device` and `--cross-check` take a per-device [lease](/guide/device-lease) and queue behind other users of the
+same Roku (`--wait`, `--as`, `--purpose`; `--device any` picks from `deviceLease.pool`). A device run also stops when the
+device prints nothing for `--idle-timeout` seconds (default 120) or after `--timeout` (default 900).
 
 ## CLI reference
 
-```
-brighttest [--junit <path>] [--config <path>]                     Headless run (default); runs @SGNode too
-brighttest --no-sgnode                                            Headless run, skipping @SGNode (fastest)
-brighttest --coverage [--lcov [path]] [--junit <path>]            Headless run + coverage (no device)
-brighttest --device --host <ip> --password <pw> [--lcov [path]]   On-device run + coverage + node tests
-brighttest --cross-check --host <ip> --password <pw>              Diff headless vs device (fidelity)
-
-  -d, --device          Run on a Roku device (deploys + runs Rooibos, reports coverage)
-      --coverage        Headless coverage via the brs-node simulator (no device); writes LCOV
-      --no-sgnode       Skip @SGNode node suites; use the faster SceneGraph-off driver
-      --cross-check     Run every suite headless AND on device; fail on any divergence
-      --host <ip>       Roku device IP (device / cross-check mode)
-      --password <pw>   Roku developer password (device / cross-check mode)
-      --lcov [path]     Write LCOV (device or --coverage; default: coverage/lcov.info)
-      --junit <path>    Write a JUnit XML report (headless / --coverage)
-      --timeout <sec>   Watchdog (default: headless 300s, device 900s)
-      --net-record [file]       Headless: record passthrough traffic to a HAR (needs instrument.net.upstreamHosts)
-      --net-unmatched <policy>  Headless: fail (HTTP 599) or passthrough for requests no net rule matches
-  -c, --config <path>   Path to brighttest.json (default: ./brighttest.json)
-  -h, --help            Show help
-
-brighttest init [--brownfield | --greenfield] [--force]           Scaffold a project (see: init --help)
-brighttest assess [<dir>] [--json] [--out <dir>]                  Read-only project assessment
-brighttest instrument build|verify|census                         Debug-only instrumented package (see: instrument --help)
-brighttest doctor [--host <ip>] [--json] | --engines              Device or engine capability check
-brighttest net convert <file.har> [-o <rules.json>]               HAR to net rules
-```
-
-The device-lease flags (`--wait`, `--as`, `--purpose`, `--device any`) are in
-[Sharing a device](./device-lease); run `brighttest --help` for the full list (including `--idle-timeout`).
+Every lane flag and subcommand (`init`, `skills`, `instrument`, `e2e`, `studio`, `doctor`, `mcp`, `device`, ...) is
+listed in the [CLI reference](/guide/cli-reference); `npx brighttest --help` prints the same.

@@ -69,9 +69,52 @@ Both tools mask headers and query values with the defaults plus your `instrument
 Selectors use the same keys as flows: `id`, `subtype`, `text`, `textContains`, `uri`, `visible`, `focusable`,
 `focused`, `index`.
 
-Failures come back as a tool result with `isError: true` and a typed `code` (for example `DEVICE_BUSY`,
-`INVALID_KEY`, `KEY_NOT_ALLOWED` (a valid key that the server blocks, see Blocked keys), `PATH_REJECTED`, `PRESS_BUDGET_EXHAUSTED`, `TOOL_TIMEOUT`, `SCREENSHOT_NOT_FOREGROUND`,
-`STATE_NOT_PUBLISHED` (no state node at all), `STATE_UNREADABLE` (a state node is published but cannot be read)). Malformed requests use JSON-RPC errors (`-32602` for bad arguments or an unknown tool).
+## Error codes
+
+Failures come back as a tool result with `isError: true`, a typed `code` and a `message` (secrets scrubbed). Malformed
+requests use JSON-RPC errors instead (`-32602` for bad arguments or an unknown tool). The codes the server itself emits
+(`lib/mcp/server.js`, `lib/mcp/tools.js`):
+
+| Code | When |
+|---|---|
+| `NO_DEVICE` | No device is configured: none of `ROKU_HOST`, a project `.env` or the device cache gave one. |
+| `DEVICE_UNREACHABLE` | `device_doctor` could not reach the device (`checks` is in the error data). |
+| `DEVICE_BUSY` | Another brighttest session holds the device lease; no request was sent. Retry later. |
+| `LEASE_LOST` | The lease is no longer held (taken over, expired, or lost during a net window); the call is stopped. |
+| `LEASE_DIR_UNUSABLE` | The lease directory cannot be used (permissions, disk). |
+| `LEASE_FAILED` | Taking the lease failed for any other reason. |
+| `QUEUE_TIMEOUT` | The call waited over 30 s behind earlier calls of the session and was dropped before it ran. |
+| `TOOL_TIMEOUT` | The call exceeded its run budget (30 s, 120 s for `run_flow`) and was stopped. |
+| `SESSION_CLOSED` | The client closed the session (stdin) while the call was running. |
+| `ECP_TIMEOUT` | A device request timed out and no more specific code applied. |
+| `TOOL_FAILED` | Any other failure without a typed code. |
+| `INVALID_KEY` | `press` got a key that is not an ECP key name (the valid list is in the error data). |
+| `KEY_NOT_ALLOWED` | `press` got a valid key the server blocks (power and input-switch keys, see Blocked keys). |
+| `PRESS_BUDGET_EXHAUSTED` | The session's 500-press cap is used up (resets only with a new session). |
+| `INVALID_SELECTOR` | A `selector` is malformed (`inspect_tree`, `navigate_to`). |
+| `FOCUS_FAILED` | `navigate_to` could not move focus onto the target within its bound (keys pressed and last focus are in the data). |
+| `NO_DEV_PASSWORD` | `screenshot` needs the dev password and none is configured out of band. |
+| `SCREENSHOT_NOT_FOREGROUND` | `screenshot` was refused because the dev channel is not in front. |
+| `SCREENSHOT_TOO_LARGE` | The screenshot is over the 2 MB cap; nothing is truncated. |
+| `STATE_NOT_PUBLISHED` | `app_state` found no `__bt_agent` or `__bt_state` node (the build is not instrumented). |
+| `STATE_UNREADABLE` | A state node is published but cannot be read. |
+| `APP_STATE_TOO_LARGE` | The app state is over the 128 KB cap; nothing is truncated. |
+| `PATH_REJECTED` | `run_flow` path is absolute, has `..`, leaves the project through a symlink, is not `*.e2e.yaml` or `*.e2e.yml`, or the project root is unreadable. |
+| `FLOW_NOT_FOUND` | `run_flow` path does not exist. |
+| `FLOW_INVALID` | The flow file does not parse or fails validation. |
+| `FLOW_BUDGET_EXHAUSTED` | The session's 10 flow-run cap is used up. |
+| `FLOW_FAILED` | A step failed; the data holds the per-step summary and `failedStep`. A flow skipped by `requires:` is not an error: the result carries `skipped`. |
+| `NET_FAILED` | The net window or session hub could not start (for example the hub port is in use) or the proxy errored. |
+| `NET_BAD_FILTER` | `net_requests` got an invalid filter (`method`, `status`, `limit`). |
+| `NET_PATTERN_TOO_COMPLEX` | A URL glob is over 256 characters or has more than 8 `*`. |
+| `NET_OUTPUT_TOO_LARGE` | The request list is over 128 KB; narrow the filters. |
+| `NET_RULE_INVALID` | `net_mock` got an invalid rule (for example non-string header values). |
+| `NET_RULE_BUDGET_EXHAUSTED` | The session already has 100 `net_mock` rules. |
+
+A typed code raised by the flow or state layer inside `run_flow`, `inspect_tree` or `app_state` is passed through as is
+(for example `APP_CRASHED`, `TIMEOUT`, `STATE_*`, `TREE_NO_PARENT_LINKS`); see the flow reference and
+[troubleshooting](/guide/troubleshooting). `SCREENSHOT_NOT_FOREGROUND` and `TIMEOUT` come from those lower layers, not from
+`server.js`. This table was built from the code, not from a device run.
 
 ## Safety limits
 
