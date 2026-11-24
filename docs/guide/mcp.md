@@ -47,7 +47,7 @@ each request (method, path without the query, status and response bytes) and one
 never logged.
 
 The app and the session hub must share the hub token. Set `BRIGHTTEST_HUB_TOKEN` in the MCP server's environment to the
-same value you used for `instrument build --net` (see [the hub token](./instrument#the-hub-token---net-and-brighttest-hub-token)).
+same value you used for `instrument build --net` (see [the hub token](./instrument#the-hub-token-net-and-brighttest-hub-token)).
 Without it the hub starts but the app's requests are refused.
 
 Inside the window the other device tools reuse the window's lease instead of taking their own, and every device call
@@ -105,10 +105,10 @@ requests use JSON-RPC errors instead (`-32602` for bad arguments or an unknown t
 | `FLOW_BUDGET_EXHAUSTED` | The session's 10 flow-run cap is used up. |
 | `FLOW_FAILED` | A step failed; the data holds the per-step summary and `failedStep`. A flow skipped by `requires:` is not an error: the result carries `skipped`. |
 | `NET_FAILED` | The net window or session hub could not start (for example the hub port is in use) or the proxy errored. |
-| `NET_BAD_FILTER` | `net_requests` got an invalid filter (`method`, `status`, `limit`). |
-| `NET_PATTERN_TOO_COMPLEX` | A URL glob is over 256 characters or has more than 8 `*`. |
+| `NET_BAD_FILTER` | `net_requests` got a filter the proxy rejects (an out-of-range `status` or `limit` is a `-32602` error). |
+| `NET_PATTERN_TOO_COMPLEX` | A URL glob has more than 8 `*` (a glob over 256 characters is a `-32602` error). |
 | `NET_OUTPUT_TOO_LARGE` | The request list is over 128 KB; narrow the filters. |
-| `NET_RULE_INVALID` | `net_mock` got an invalid rule (for example non-string header values). |
+| `NET_RULE_INVALID` | `net_mock` got an invalid rule (for example a lowercase method, or both `body` and `json`). |
 | `NET_RULE_BUDGET_EXHAUSTED` | The session already has 100 `net_mock` rules. |
 
 A typed code raised by the flow or state layer inside `run_flow`, `inspect_tree` or `app_state` is passed through as is
@@ -119,7 +119,7 @@ A typed code raised by the flow or state layer inside `run_flow`, `inspect_tree`
 ## Safety limits
 
 - **Lease, per call.** Outside a net window (see above), each device-touching call (`press`, `navigate_to`, `inspect_tree`, `screenshot`, `app_state`,
-  `run_flow`, `net_requests`, `net_mock`) takes the [device lease](./device-lease) when it starts and releases it when it ends, also on error and
+  `run_flow`) takes the [device lease](./device-lease) when it starts and releases it when it ends (`net_requests` and `net_mock` always run inside a net window and open one if none is open), also on error and
   on timeout. Nothing is held between calls, so a human or another agent can use the device in between. If another
   party holds it, the call fails at once with `DEVICE_BUSY` and sends no request. A lost lease becomes a `LEASE_LOST`
   tool error; the server never exits because of the lease. `list_devices` and `device_doctor` are read-only and take

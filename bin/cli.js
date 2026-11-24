@@ -96,11 +96,14 @@ Usage: brighttest mcp
 
   Speaks newline-delimited JSON-RPC 2.0 on stdin/stdout (logs go to stderr). Tools (contract brighttest-mcp/v1):
   list_devices, device_doctor, inspect_tree, press, navigate_to, screenshot, app_state, run_flow, net_requests, net_mock
-  (the two net tools open a net window: one lease and a session hub for up to 10 idle minutes, see docs/guide/mcp.md).
+  (net_requests and net_mock open a net window, see https://ramon-lobo.github.io/brighttest/guide/mcp).
 
   The device comes only from the usual resolution chain (ROKU_HOST, ROKU_PASSWORD, project .env, device cache);
-  no tool takes a host, a password or an absolute path. Each device tool call takes the device lease for that call
-  only and releases it when the call ends (busy: DEVICE_BUSY at once). Per-session caps apply to presses and flow runs.
+  no tool takes a host, a password or an absolute path. Outside a net window each device tool call takes the device
+  lease for that call only and releases it when the call ends (busy: DEVICE_BUSY at once). The first net_requests or
+  net_mock call opens a net window: one lease held for the session, which the other device tools reuse, released after
+  10 minutes without a device call, at the session cap, on lease loss or at session end. Per-session caps apply to
+  presses and flow runs.
   Exit codes: 0 on a clean end of input, 1 on an internal error, 2 on a usage error.
 `;
 
