@@ -8,7 +8,7 @@ const nextUrl = ref<string | null>(null)
 onMounted(async () => {
   const root = siteRootOf(site.value.base)
   const rel = pagePathOf(window.location.pathname, site.value.base)
-  const url = `${root}next/${rel}`
+  const url = `${root}next/${rel.replace(/^\/+/, '')}`
   try {
     const r = await fetch(url, { method: 'HEAD' })
     // A static host can answer 200 with the 404 page; only trust ok statuses.
@@ -34,5 +34,6 @@ onMounted(async () => {
 .bt-nf-code { font-size: 64px; font-weight: 600; line-height: 1.2; margin: 0; }
 .bt-nf-title { font-size: 20px; font-weight: 700; letter-spacing: 2px; margin: 8px 0; }
 .bt-nf-home { display: inline-block; margin-top: 16px; font-weight: 500; }
+.bt-nf a { color: var(--vp-c-brand-1); text-decoration: underline; text-underline-offset: 2px; }
 .bt-nf { margin: 16px 0 0; padding: 10px 14px; border-radius: 8px; background: var(--vp-c-warning-soft); }
 </style>
