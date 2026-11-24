@@ -240,7 +240,7 @@ describe('observeField', () => {
   })
 })
 
-describe('bsc globalCallables feature detection (risk 7.1)', () => {
+describe('bsc globalCallables feature detection', () => {
   it('globalCallables: the supported brighterscript range is pinned', () => {
     const { version } = require('brighterscript/package.json')
     const range = require('../package.json').dependencies.brighterscript
@@ -576,5 +576,37 @@ describe('name lookup details', () => {
     expect(e.map((x) => x.to)).toEqual(['file:components/Base.bs'])
     expect(e.every((x) => x.conf === 'name')).toBe(true)
     expect(e[0].scopes).toEqual(['Base', 'Kid'])
+  })
+})
+
+describe('launch arguments (E3) and Eval', () => {
+  const e3 = (g) => node(g, 'entry:main').testability.alsoNeeds.filter((a) => a.rule === 'E3').map((a) => a.at)
+  const mainWith = (body) => mk({ 'source/main.brs': ['sub Main(args as dynamic)', '  s = CreateObject("roSGScreen")', '  s.CreateScene("S")', ...body, 'end sub'], 'components/S.xml': xml('S', 'Scene', '') })
+  it('a dotted read of the first parameter of Main is recorded', async () => {
+    expect(e3(await mainWith(['  id = args.contentId']))).toEqual(['source/main.brs:4'])
+  })
+  it('an indexed read args["key"] is recorded too', async () => {
+    expect(e3(await mainWith(['  id = args["contentId"]']))).toEqual(['source/main.brs:4'])
+  })
+  it('RunUserInterface(args) in any source file is recorded, and the first parameter name does not matter', async () => {
+    const g = await mk({
+      'source/main.brs': ['sub Main(args as dynamic)', '  s = CreateObject("roSGScreen")', '  s.CreateScene("S")', '  RunUserInterface(args)', 'end sub'],
+      'source/ui.brs': ['sub RunUserInterface(launch as dynamic)', '  z = other.field', '  y = launch["contentId"]', 'end sub'],
+      'components/S.xml': xml('S', 'Scene', ''),
+    })
+    expect(e3(g)).toEqual(['source/ui.brs:3']) // the earliest site is kept; other.field is not a launch argument
+  })
+  it('a read of some other function parameter is not a launch argument, and the record never gates the class', async () => {
+    const g = await mk({ 'source/main.brs': ['sub Main()', '  s = CreateObject("roSGScreen")', '  s.CreateScene("S")', 'end sub', 'sub Other(a as dynamic)', '  x = a.b', '  y = a["c"]', 'end sub'], 'components/S.xml': xml('S', 'Scene', '') })
+    expect(e3(g)).toEqual([])
+    expect(node(g, 'entry:main').testability.primary).toMatchObject({ class: 'e2e', rule: 'E2' })
+  })
+  it('an anonymous function inside Main does not replace the launch parameter', async () => {
+    expect(e3(await mainWith(['  f = function(z)', '    return z', '  end function', '  id = args.x']))).toEqual(['source/main.brs:7'])
+  })
+  it('Eval is an uncertainty item of kind eval at its line; a method named eval and a user eval-free file give none', async () => {
+    const g = await mk({ 'source/impure.brs': ['sub Run()', '  Eval("print 1")', '  o.eval()', 'end sub'], 'source/clean.brs': ['sub Fine()', 'end sub'] })
+    expect(items(g, 'eval')).toEqual([expect.objectContaining({ at: 'source/impure.brs:2' })])
+    expect(g.uncertainty.counts.eval).toBe(1)
   })
 })
