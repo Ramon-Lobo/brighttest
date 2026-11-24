@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 
 const require = createRequire(import.meta.url)
 const { buildGraph, hashGraph, loadBuiltinCallables } = require('../lib/features/graph')
-const { computePurity, classify } = require('../lib/features/testability')
+const { computePurity, classify, CLASS_ORDER, PRIMARY_CLASSES, classRank } = require('../lib/features/testability')
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const CYCLES = path.join(ROOT, 'test', 'fixtures', 'feature-graph', 'cycles')
@@ -520,8 +520,8 @@ describe('files without a pure function', () => {
       'source/main.brs': ['sub Main()', '  s = CreateObject("roSGScreen")', '  print m.x', 'end sub'],
       'source/mk.brs': ['sub Make()', '  n = CreateObject("roSGNode", "Group")', '  print m.x', 'end sub'],
     })
-    expect(primary(g, 'source/main.brs')).toMatchObject({ class: 'headless-scene', rule: null })
-    expect(primary(g, 'source/mk.brs')).toMatchObject({ class: 'headless-scene', rule: null })
+    expect(primary(g, 'source/main.brs')).toMatchObject({ class: 'headless-scene', rule: 'S0' })
+    expect(primary(g, 'source/mk.brs')).toMatchObject({ class: 'headless-scene', rule: 'S0' })
   })
   it('a component script with no pure function stays headless-scene, and needs still lift an unknown file', async () => {
     const g = await mk({
@@ -529,7 +529,7 @@ describe('files without a pure function', () => {
       'components/C.brs': ['sub init()', '  print m.x', 'end sub'],
       'source/store.brs': ['sub Open()', '  st = CreateObject("roChannelStore")', '  print m.x', 'end sub'],
     })
-    expect(primary(g, 'components/C.brs')).toMatchObject({ class: 'headless-scene', rule: null })
+    expect(primary(g, 'components/C.brs')).toMatchObject({ class: 'headless-scene', rule: 'S0' })
     expect(primary(g, 'source/store.brs')).toMatchObject({ class: 'headless-fixtures', rule: 'F4' })
   })
 })
@@ -880,5 +880,72 @@ describe('surviving mutants: nesting, base types, ancestors, owned edges, entry 
       'components/S.brs': ['sub RunUserInterface(args as dynamic)', '  x = args.a', 'end sub'],
     })
     expect(node(g, 'entry:main').testability.alsoNeeds.filter((a) => a.rule === 'E3')).toEqual([])
+  })
+})
+
+describe('the unknown primary class', () => {
+  const t = (g, id) => node(g, id).testability
+  it('classRank orders the five lanes then unknown, and throws on anything else', () => {
+    expect(CLASS_ORDER).toHaveLength(5)
+    expect(PRIMARY_CLASSES).toEqual([...CLASS_ORDER, 'unknown'])
+    expect(PRIMARY_CLASSES.map(classRank)).toEqual([0, 1, 2, 3, 4, 5])
+    for (const bad of ['', 'Unknown', 'headless', undefined, null]) expect(() => classRank(bad)).toThrow()
+  })
+  it('sorting by classRank puts unknown after e2e and after headless-unit', () => {
+    expect(['unknown', 'headless-unit', 'e2e'].sort((a, b) => classRank(a) - classRank(b))).toEqual(['headless-unit', 'e2e', 'unknown'])
+  })
+  it('a node with no firing rule is unknown with evidence none, a not-classified note and no needs', async () => {
+    const g = await mk({ 'source/impure.brs': ['sub Run()', '  print m.count', 'end sub'] })
+    const x = t(g, 'file:source/impure.brs')
+    expect(x.primary).toEqual({ class: 'unknown', rule: null, needs: [] })
+    expect(x.evidence).toBe('none')
+    expect(x.alsoNeeds).toEqual([])
+    expect(x.notes).toContainEqual({ rule: null, text: 'not classified: the agent or a human must classify it' })
+  })
+  it('a D3-only file stays unknown and keeps its alsoNeeds', async () => {
+    const g = await mk({ 'source/info.brs': ['function Model() as string', '  di = CreateObject("roDeviceInfo")', '  return di.GetModel()', 'end function'] })
+    const x = t(g, 'file:source/info.brs')
+    expect(x.primary.class).toBe('unknown')
+    expect(x.evidence).toBe('none')
+    expect(x.alsoNeeds).toContainEqual(expect.objectContaining({ rule: 'D3', at: 'source/info.brs:2' }))
+  })
+  it('a D1-only file stays unknown', async () => {
+    const g = await mk({ 'source/w.brs': ['sub Run()', '  p = CreateObject("roMessagePort")', '  wait(100, p)', 'end sub'] })
+    const x = t(g, 'file:source/w.brs')
+    expect(x.primary.class).toBe('unknown')
+    expect(x.alsoNeeds).toContainEqual(expect.objectContaining({ rule: 'D1' }))
+  })
+  it('an F4 need lifts an unknown file to headless-fixtures with rule F4 and evidence rule', async () => {
+    const g = await mk({ 'source/store.brs': ['sub Open()', '  st = CreateObject("roChannelStore")', '  print m.x', 'end sub'] })
+    const x = t(g, 'file:source/store.brs')
+    expect(x.primary).toMatchObject({ class: 'headless-fixtures', rule: 'F4' })
+    expect(x.evidence).toBe('rule')
+    expect(x.notes.some((n) => /not classified/.test(n.text))).toBe(false)
+  })
+  it('a file that creates a screen is headless-scene with rule S0 at the file, evidence rule', async () => {
+    const g = await mk({ 'source/main.brs': ['sub Main()', '  s = CreateObject("roSGScreen")', '  print m.x', 'end sub'] })
+    expect(t(g, 'file:source/main.brs').primary).toMatchObject({ class: 'headless-scene', rule: 'S0', at: 'source/main.brs' })
+    expect(t(g, 'file:source/main.brs').evidence).toBe('rule')
+  })
+  it('a component with no interface and no task has rule S0 at its file', async () => {
+    const g = await mk({ 'components/P.xml': xml('P', 'Group', '') })
+    expect(t(g, 'comp:P').primary).toMatchObject({ class: 'headless-scene', rule: 'S0', at: 'components/P.xml' })
+  })
+  it('every primary has a rule id or the class unknown, on a mixed project', async () => {
+    const g = await mk({
+      'source/a.brs': ['function A(x as integer)', '  return x + 1', 'end function'],
+      'source/impure.brs': ['sub Run()', '  print m.count', 'end sub'],
+      'source/main.brs': ['sub Main()', '  s = CreateObject("roSGScreen")', '  print m.x', 'end sub'],
+      'components/P.xml': xml('P', 'Group', ''),
+      'components/C.xml': xml('C', 'Group', '', ['C.brs']),
+      'components/C.brs': ['sub init()', '  print m.x', 'end sub'],
+    })
+    const all = g.nodes.filter((n) => n.testability)
+    expect(all.length).toBeGreaterThan(4)
+    for (const n of all) {
+      const p = n.testability.primary
+      expect(p.class === 'unknown' || (typeof p.rule === 'string' && p.rule.length > 0), n.id).toBe(true)
+      expect(n.testability.evidence).toBe(p.class === 'unknown' ? 'none' : 'rule')
+    }
   })
 })
