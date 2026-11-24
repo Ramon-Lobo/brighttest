@@ -27,6 +27,8 @@ beforeEach(async () => {
   const old = path.join(dir, '.brighttest', 'studio', 'runs', '5')
   fs.mkdirSync(old, { recursive: true })
   fs.writeFileSync(path.join(old, 'meta.json'), JSON.stringify({ id: 5, flow: 'x', startedAt: 1, ok: true, steps: [{ index: 0, op: 'press', status: 'pass', nodes: [{ id: '__bt_agent', text: '"LEAKME"', attrs: { text: 'LEAKME' } }], appState: { present: true, state: { token: 'LEAKME', a: { b: 'LEAKME' }, n: 1 }, error: null, raw: 'LEAKME' } }] }))
+  fs.mkdirSync(path.join(dir, '.brighttest', 'studio', 'runs', '6'), { recursive: true })
+  fs.writeFileSync(path.join(dir, '.brighttest', 'studio', 'runs', '6', 'meta.json'), JSON.stringify({ id: 6, flow: 'y' }))
   fake = createFakeRoku({ scenario: 'healthy', ecpPort: 0, installerPort: 0, consolePort: 0, debugPort: 0 })
   const a = await fake.start()
   prevPort = process.env.ROKU_ECP_PORT
@@ -61,9 +63,20 @@ describe('Studio masking without a handed-in net (cfg fallback)', () => {
     expect(stale.text).not.toMatch(LEAK)
     expect(stale.json.agent.layers.global.state.user.nickname).toBe('<redacted:nickname>')
   })
+  it('skips a meta.json without a steps array and masks each step field on its own', () => {
+    const { maskStep } = studio._test
+    const s = maskStep({ index: 0, nodes: [{ id: '__bt_agent', text: '"LEAKME"' }], appState: { present: true, state: { token: 'LEAKME' } } }, [])
+    expect(JSON.stringify(s)).not.toMatch(LEAK)
+    // a throwing nodes list nulls only nodes; appState stays masked
+    const bad = { get id() { throw new Error('boom') } }
+    const t = maskStep({ index: 1, nodes: [bad], appState: { present: true, state: { token: 'LEAKME', n: 1 } } }, [])
+    expect(t.nodes).toBeNull()
+    expect(t.appState.state).toEqual({ token: '<redacted:token>', n: 1 })
+  })
   it('serves and rewrites a pre-fix unmasked run trace masked', async () => {
     const r = await get('/api/runs/5')
     expect(r.status).toBe(200)
+    expect((await get('/api/runs/6')).status).toBe(404)
     expect(r.text).not.toMatch(LEAK)
     expect(r.json.steps[0].appState.state).toEqual({ token: '<redacted:token>', a: { b: '<redacted:b>' }, n: 1 })
     expect(r.json.steps[0].appState).not.toHaveProperty('raw')
