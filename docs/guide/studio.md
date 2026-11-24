@@ -65,7 +65,7 @@ tree walk) and shows its layers: `global`, `scene` and `registry`, each marked *
 it. The values shown are redacted by default: the agent masks secret-looking keys as `<redacted:key>`, and Studio adds
 the built-in key names plus `instrument.state.redact.paths` from `brighttest.json`. **show raw** reveals only what
 Studio masks on top of the agent's own masking, behind a banner, and makes exports unredacted.
-Studio masks published app state everywhere it shows it read-only, including the State view when the hub is held or absent, the node list and run traces, using the built-in sensitive key names plus `instrument.state.redact.paths`. Only the State panel's show-secrets toggle (`?raw=1`) reveals raw values. Unmaskable text is shown as `<redacted:text>`. The failure message of an `assertState` step can still contain the asserted value. Without an
+Studio masks published app state everywhere it shows it read-only, including the State view when the hub is held or absent, the node list and run traces, using the built-in sensitive key names plus `instrument.state.redact.paths`. Only the State panel's **show raw** toggle (`?raw=1`) reveals raw values. Unmaskable text is shown as `<redacted:text>` (a run step that cannot be masked is shown without its nodes or app state). The failure message of an `assertState` step can still contain the asserted value. Without an
 instrumented build the tab says no layers were published; see [Instrumented builds](/guide/instrument).
 
 ![State tab showing the global and scene layers, with a masked name and token](/images/studio/state-inspector.png)
