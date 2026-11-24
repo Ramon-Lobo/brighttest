@@ -267,6 +267,15 @@ describe('hub events, ring buffer and NDJSON', () => {
     expect(log.push({ kind: 'x' }).session).toBe('abc');
   });
 
+  it('redaction: path masks ignore case and accept [n] index syntax', () => {
+    const v = { layers: { global: { User: { Email: 'e' }, list: [{ a: 1 }, { a: 2 }] } } };
+    expect(redact(v, ['global.user.email']).layers.global.User.Email).toBe('<redacted:Email>');
+    const out = redact(v, ['global.list[1]']).layers.global.list;
+    expect(out[0]).toEqual({ a: 1 });
+    expect(out[1]).toBe('<redacted:1>');
+    expect(redact(v, ['Global.LIST[0].a']).layers.global.list[0].a).toBe('<redacted:a>');
+  });
+
   it('validators and session id safety', () => {
     expect(validateEvent({ kind: 'log' })).toBeNull();
     expect(validateEvent({ kind: '' })).toMatch(/kind/);
