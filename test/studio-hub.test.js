@@ -170,7 +170,7 @@ describe('studio hub applies instrument.net.redact from a loaded brighttest.json
   })
 })
 
-describe('studio hub reads instrument.net (NET-STUDIO-CFG)', () => {
+describe('studio hub reads instrument.net', () => {
   const { loadConfig } = require('../lib/config.js')
   const { targetFromPath } = require('../lib/instrument/net-proxy.js')
   const cfgWith = (netBlock) => {
