@@ -572,6 +572,20 @@ npm run docs:preview   # serve the built site
 Mermaid diagrams render via `vitepress-plugin-mermaid`. Content is plain Markdown; the sidebar/nav lives
 in `docs/.vitepress/config.mts`.
 
+### Version switcher theme
+
+`docs/.vitepress/theme/` extends the default theme with a version switcher (nav bar), a banner
+(unreleased or older release) and a 404 body that offers the same page under `/next/` when it exists
+there. At runtime the theme fetches `versions.json` from the site root (the build's base with its
+`next` or `vX.Y` segment removed), finds its own entry by matching `site.base`, and hides all of it
+when the file is missing or its `schema` is not `1`. `npm run docs:dev` and a plain `docs:build` have
+no `versions.json`, so the switcher and banner do not appear there. To preview them, build with
+`BRIGHTTEST_DOCS_CHANNEL=next npx vitepress build docs --base /brighttest/next/ --outDir <scratch>/next`,
+add a hand-written `versions.json` beside it in `<scratch>` and serve `<scratch>` under `/brighttest/`.
+Setting `BRIGHTTEST_DOCS_CHANNEL=next` also adds `<meta name="robots" content="noindex">` so only
+releases are indexed. The root 404 page cannot know which version path was requested, so it shows a
+neutral "Versions" label and no banner.
+
 ## Publishing
 
 `dependencies` (not devDependencies) list the runtime toolchain so a normal `npm i -D brighttest` pulls it
