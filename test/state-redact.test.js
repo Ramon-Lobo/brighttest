@@ -125,3 +125,29 @@ describe('redaction details', () => {
     } finally { fs.rmSync(dir, { recursive: true, force: true }) }
   })
 })
+
+describe('assertState redaction of array elements and index syntax', () => {
+  const cart = { items: [{ sku: 'a', price: 1 }, { sku: 'b', price: 2 }], 'odd[1]': 'lit' }
+  const run = (masks, layer, p, v) => makeShown(true, masks)(layer, p, v)
+  it('hides an element mask when a parent array or object is printed', () => {
+    for (const m of ['global.cart.items[1]', 'global.cart.items.1', 'GLOBAL.Cart.Items[1]']) {
+      const out = run([m], 'global', 'cart', cart)
+      expect(out).toContain('<redacted:1>')
+      expect(out).not.toContain('"b"')
+      expect(out).toContain('"a"')
+      const out2 = run([m], 'global', 'cart.items', cart.items)
+      expect(out2).toBe('[{"sku":"a","price":1},"<redacted:1>"]')
+    }
+  })
+  it('hides the element itself when its path is printed', () => {
+    expect(run(['global.cart.items[1]'], 'global', 'cart.items.1', cart.items[1])).toBe('"<redacted:1>"')
+    expect(run(['global.cart.items.1'], 'global', 'cart.items.1', cart.items[1])).toBe('"<redacted:1>"')
+  })
+  it('handles a field inside an element, [*], list.* and literal bracket keys', () => {
+    expect(run(['global.cart.items[0].sku'], 'global', 'cart', cart)).toContain('"sku":"<redacted:sku>"')
+    expect(run(['global.cart.items[*]'], 'global', 'cart.items', cart.items)).toBe('["<redacted:0>","<redacted:1>"]')
+    expect(run(['global.cart.items.*'], 'global', 'cart.items', cart.items)).toBe('["<redacted:0>","<redacted:1>"]')
+    expect(run(['global.cart.items[*].price'], 'global', 'cart', cart)).not.toMatch(/"price":\d/)
+    expect(run(['global.cart.odd[1]'], 'global', 'cart', cart)).toContain('"odd[1]":"<redacted:odd[1]>"')
+  })
+})

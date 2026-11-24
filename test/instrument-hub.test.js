@@ -276,6 +276,26 @@ describe('hub events, ring buffer and NDJSON', () => {
     expect(redact(v, ['Global.LIST[0].a']).layers.global.list[0].a).toBe('<redacted:a>');
   });
 
+  it('redaction: .n on an element, list.* on an array, [*] and literal bracket keys', () => {
+    const v = { layers: { global: { list: [{ a: 1 }, { a: 2 }], 'k[1]': 'lit' } } };
+    expect(redact(v, ['global.list.1']).layers.global.list).toEqual([{ a: 1 }, '<redacted:1>']);
+    expect(redact(v, ['global.list.*']).layers.global.list).toEqual(['<redacted:0>', '<redacted:1>']);
+    expect(redact(v, ['global.list[*]']).layers.global.list).toEqual(['<redacted:0>', '<redacted:1>']);
+    expect(redact(v, ['global.list[*].a']).layers.global.list).toEqual([{ a: '<redacted:a>' }, { a: '<redacted:a>' }]);
+    expect(redact({ a: { 'list[1]': 's', b: 1 } }, ['a.list[1]'])).toEqual({ a: { 'list[1]': '<redacted:list[1]>', b: 1 } });
+    expect(redact(v, ['global.k[1]']).layers.global['k[1]']).toBe('<redacted:k[1]>');
+  });
+
+  it('redaction: a 50k element array with many masks stays fast', () => {
+    const list = Array.from({ length: 50000 }, (_, i) => ({ id: i }));
+    const masks = Array.from({ length: 20 }, (_, i) => `global.list[${i}].id`);
+    const t = Date.now();
+    const out = redact({ layers: { global: { list } } }, masks).layers.global.list;
+    expect(out[3].id).toBe('<redacted:id>');
+    expect(out[30].id).toBe(30);
+    expect(Date.now() - t).toBeLessThan(5000);
+  });
+
   it('validators and session id safety', () => {
     expect(validateEvent({ kind: 'log' })).toBeNull();
     expect(validateEvent({ kind: '' })).toMatch(/kind/);
