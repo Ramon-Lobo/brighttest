@@ -144,6 +144,29 @@ describe('instrument build: success path', () => {
     }
   })
 
+  it('with net, the env token wins over opts.token; without it the build still needs a hub token (STA-S-T14a)', async () => {
+    const T = 'ab'.repeat(16); const E = 'cd'.repeat(16)
+    const hub = { host: '127.0.0.1', port: 45123 }
+    const ok = await run(src(), 'sim-net', { net: true, token: T, hub, env: { BRIGHTTEST_HUB_TOKEN: E } })
+    expect(ok.exitCode).toBe(0)
+    const t = await zipText(ok.out, 'source/bt/BT_config.brs')
+    expect(t).toContain(`token: "${E}"`)
+    expect(t).not.toContain(T)
+    const no = await run(src(), 'sim-net-noenv', { net: true, token: T, hub, env: {} })
+    expect(no.exitCode).toBe(1)
+    expect(fs.existsSync(no.out)).toBe(false)
+    expect(no.log.join('\n')).toMatch(/needs a hub token/)
+  })
+
+  it('fails the build on a bad opts.hub and names the key (STA-S-T14a)', async () => {
+    for (const hub of [{ host: '127.0.0.1', port: 0 }, { host: '127.0.0.1', port: 70000 }, { host: '  ', port: 8790 }, { host: '', port: 8790 }, { host: ' Auto ', port: 8790 }, { port: 8790 }]) {
+      const r = await run(src(), 'sim-bad-hub', { hub })
+      expect(r.exitCode).toBe(1)
+      expect(fs.existsSync(r.out)).toBe(false)
+      expect(r.log.join('\n')).toMatch(/opts\.hub/)
+    }
+  })
+
   it('renders BT_config with hub, features and caps from the instrument block', () => {
     const t = renderBtConfig('0'.repeat(32), { hub: { host: '10.0.0.2', port: 9000 }, net: false, state: { caps: { depth: 3 } } })
     expect(t).toContain('hub: { host: "10.0.0.2", port: 9000 }')
