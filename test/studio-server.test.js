@@ -320,7 +320,7 @@ describe('/api/perf/session fps', () => {
   });
 });
 
-// NET-REDACT-KEY: mock-this and the HAR route mask a body key by name only when the Studio net config lists it.
+// Mock-this and the HAR route mask a body key by name only when the Studio net config lists it.
 describe('net body key redaction is opt-in (mock-this, HAR)', () => {
   const { EventEmitter } = require('node:events');
   const { createEventLog } = require('../lib/instrument/events.js');
@@ -373,5 +373,32 @@ describe('net body key redaction is opt-in (mock-this, HAR)', () => {
     const h = await call('/api/net/har');
     expect(h.text).not.toContain('REDACTED-TEST-VALUE');
     expect(h.text).toContain('keep-me');
+  });
+  it('redacts a request body before truncating it to 64 KB (non-raw view)', async () => {
+    await boot({ bodyKeys: ['password'] });
+    const big = JSON.stringify({ password: 'REDACTED-TEST-VALUE-2', pad: 'x'.repeat(70 * 1024) });
+    harness.proxy.ruleSet.add({ id: 'post', url: 'https://api.example.test/post*', status: 200 });
+    await request(harness.base + 'https://api.example.test/post', { method: 'POST', headers: { 'content-type': 'application/json' }, body: big });
+    const list = JSON.parse((await call('/api/net/requests')).text).requests;
+    const mine = list.find((r) => r.url.includes('/post'));
+    expect(mine.bodyTruncated).toBe(true);
+    expect(mine.body.length).toBeLessThanOrEqual(64 * 1024);
+    expect(mine.body).not.toContain('REDACTED-TEST-VALUE-2');
+    const raw = JSON.parse((await call('/api/net/requests?raw=1')).text).requests.find((r) => r.url.includes('/post'));
+    expect(raw.body.length).toBeLessThanOrEqual(64 * 1024);
+  });
+  it('answers a bad bodyKeys with a clear error, not a TypeError', async () => {
+    await boot({});
+    srv.close();
+    // the route builds its redactor from the live net config
+    const bad = await studio.start({ host: '127.0.0.1', password: 'fake-pw', port: 0, rootDir: dir, net: { proxy: harness.proxy, events: new EventEmitter(), log: createEventLog({ sessionId: 's2' }), redact: { bodyKeys: 'token' } },
+      leaseOpts: { acquireOpts: { dir, timers: false, identity: {} }, tickMs: 20 } });
+    try {
+      const r = await new Promise((resolve, reject) => http.get({ host: '127.0.0.1', port: bad.address().port, path: '/api/net/requests' }, (res) => {
+        let b = ''; res.on('data', (c) => (b += c)); res.on('end', () => resolve({ status: res.statusCode, text: b }));
+      }).on('error', reject));
+      expect(r.status).toBe(400);
+      expect(r.text).toMatch(/redact\.bodyKeys must be an array of strings/);
+    } finally { bad.close(); srv = { close() {} }; }
   });
 });

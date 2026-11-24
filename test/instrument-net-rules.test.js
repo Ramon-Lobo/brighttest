@@ -212,6 +212,69 @@ describe('redaction by body key name (opt-in bodyKeys)', () => {
   });
 });
 
+describe('bodyKeys scope, depth, BOM, base64 and validation', () => {
+  const keys = R.makeRedactor({ bodyKeys: ['page', 'password', 'access_token'] });
+  it('does not touch URL query parameters (url, queryString, HAR url/queryString, rules from HAR)', () => {
+    const u = 'https://h.test/list?page=2&n=1';
+    expect(keys.url(u)).toBe(u);
+    expect(keys.queryString('page=2&n=1')).toBe('page=2&n=1');
+    const mk = (u2) => ({ startedDateTime: 1, time: 1, method: 'GET', url: u2, reqHeaders: {}, reqBody: null, status: 200, resHeaders: { 'content-type': 'application/json' }, resBody: Buffer.from('{"ok":1}'), timings: {} });
+    const withKeys = R.buildHar([mk(u)], { redact: { bodyKeys: ['page'] } });
+    const without = R.buildHar([mk(u)], { redact: {} });
+    expect(withKeys.log.entries[0].request.url).toBe(u);
+    expect(withKeys.log.entries[0].request.queryString).toEqual([{ name: 'page', value: '2' }, { name: 'n', value: '1' }]);
+    const har = R.buildHar([mk('https://h.test/list?page=1'), mk('https://h.test/list?page=2')], { redact: { bodyKeys: ['page'] } });
+    const rules = R.rulesFromHar(har);
+    expect(rules).toEqual(R.rulesFromHar(R.buildHar([mk('https://h.test/list?page=1'), mk('https://h.test/list?page=2')], { redact: {} })));
+    expect(rules.length).toBe(2);
+  });
+  it('masks form field names after normalisation', () => {
+    const f = keys.body('pass-word=dummy1&Access_Token=dummy2&n=1', 'application/x-www-form-urlencoded');
+    expect(f).not.toMatch(/dummy/);
+    expect(f).toContain('n=1');
+  });
+  const deep = (d, obj) => (obj ? '{"a":'.repeat(d) + '{"token":"d1"}' + '}'.repeat(d) : '['.repeat(d) + ']'.repeat(d));
+  it('does not throw on 10,000 levels of nesting (array and object, jsonPaths and bodyKeys)', () => {
+    for (const cfg of [{ jsonPaths: ['$.x'] }, { bodyKeys: ['token'] }]) {
+      const r = R.makeRedactor(cfg);
+      for (const t of [deep(10000, false), deep(10000, true)]) {
+        for (const f of ['body', 'responseBody']) expect(() => r[f](t, 'application/json')).not.toThrow();
+      }
+    }
+    const out = R.makeRedactor({ bodyKeys: ['token'] }).body(deep(10000, true), 'application/json');
+    expect(out).not.toContain('d1');
+    const e = { startedDateTime: 1, time: 1, method: 'POST', url: 'https://h.test/x', reqHeaders: { 'content-type': 'application/json' }, reqBody: Buffer.from(deep(10000, true)), status: 200, resHeaders: { 'content-type': 'application/json' }, resBody: Buffer.from(deep(10000, true)), timings: {} };
+    const har = R.buildHar([e], { redact: { bodyKeys: ['token'], jsonPaths: ['$.x'] } });
+    expect(JSON.stringify(har)).not.toContain('d1');
+  });
+  it('strips a leading BOM before parsing, also for JSON held in a string value', () => {
+    const bom = '﻿';
+    const r = R.makeRedactor({ bodyKeys: ['token'] });
+    expect(r.body(`${bom}{"token":"d1","n":1}`, 'application/json')).not.toContain('d1');
+    const wrapped = JSON.stringify({ echo: `${bom}{"token":"d2"}` });
+    expect(r.responseBody(wrapped, 'application/json')).not.toContain('d2');
+  });
+  it('redacts a JSON response saved as base64 under a non-text content-type', () => {
+    const e = { startedDateTime: 1, time: 1, method: 'GET', url: 'https://h.test/x', reqHeaders: {}, reqBody: null, status: 200, resHeaders: { 'content-type': 'application/octet-stream' }, resBody: Buffer.from('{"token":"d1","keep":"v"}'), timings: {} };
+    const c = (redact) => R.buildHar([e], { redact }).log.entries[0].response.content;
+    const on = c({ bodyKeys: ['token'] });
+    expect(on.encoding).toBe('base64');
+    const dec = Buffer.from(on.text, 'base64').toString();
+    expect(dec).not.toContain('d1');
+    expect(dec).toContain('keep');
+    expect(Buffer.from(c({}).text, 'base64').toString()).toContain('d1');
+    expect(Buffer.from(c({ jsonPaths: ['$.token'] }).text, 'base64').toString()).not.toContain('d1');
+  });
+  it('rejects a bad bodyKeys with a clear NetRuleError; empty array is off', () => {
+    for (const bad of ['token', 5, 0, true, false, '', {}, { a: 1 }, [null], [1], ['ok', {}], null]) {
+      expect(() => R.makeRedactor({ bodyKeys: bad }), JSON.stringify(bad)).toThrow(/redact\.bodyKeys must be an array of strings/);
+      try { R.makeRedactor({ bodyKeys: bad }); } catch (e) { expect(e.name).toBe('NetRuleError'); }
+    }
+    const off = R.makeRedactor({ bodyKeys: [] });
+    expect(off.body('{"token":"d1"}', 'application/json')).toBe('{"token":"d1"}');
+  });
+});
+
 describe('HAR import/export', () => {
   const entries = [
     { startedDateTime: 1700000000000, time: 12, method: 'GET', url: 'https://h.test/auth?token=abc&n=1', reqHeaders: { Authorization: 'Bearer test-not-secret' }, reqBody: null, status: 200, resHeaders: { 'content-type': 'application/json', 'set-cookie': 'sid=zzz' }, resBody: Buffer.from('{"ok":true,"user":{"email":"a@b.c"}}'), timings: { blocked: 0, wait: 10, receive: 2 } },
