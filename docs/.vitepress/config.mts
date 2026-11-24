@@ -58,6 +58,7 @@ export default withMermaid({
           { text: 'roChannelStore fixtures', link: '/guide/store-fixtures' },
           { text: 'Network fault model', link: '/guide/net-faults' },
           { text: 'Network recipe', link: '/guide/network-recipe' },
+          { text: 'Studio', link: '/guide/studio' },
           { text: 'Assess a project', link: '/guide/assess' },
           { text: 'Agent skills', link: '/guide/agent-skills' },
           { text: 'Agent surface (MCP)', link: '/guide/mcp' },

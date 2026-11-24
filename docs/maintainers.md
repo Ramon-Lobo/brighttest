@@ -27,7 +27,7 @@ brighttest/
 ├── experiments/             # spike scripts + device FINDINGS (not shipped) — see "E2E lane"
 ├── design/                  # RFC/design notes, e.g. design/e2e-lane.md (not shipped)
 ├── skills/                  # agent skills (shipped) + manifest.json, facts.json (`npm run skills:manifest`; `skills --check` gates claims against facts; the size gate grandfathers `writing-rooibos-tests/references/examples.md` (226 lines, over the 200 limit) until it is split, then drop `REF_LINES_GRANDFATHERED`)
-├── scripts/                 # check-denylist, skills manifest, audit gate (not shipped)
+├── scripts/                 # check-denylist, skills manifest, audit gate, docs-screenshots (Studio images for docs/guide/studio.md; needs Chrome; not shipped)
 ├── examples/                # sample-app (every lane), greenfield-app, legacy-app, device-channel, streaming-app (not shipped)
 └── package.json             # deps: @ramonlobo/brs-node, @ramonlobo/rooibos-roku, brighterscript, jszip
 ```
