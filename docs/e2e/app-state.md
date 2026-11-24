@@ -98,7 +98,7 @@ inside. Turn it on with any of these (first one set wins, highest first):
 | `config: { redactState: true }` | the flow file |
 | `"redactState": true` | `brighttest.json` |
 
-`false`, `0`, `no` or `off` at a higher level turns it off again; any other non-empty value (including a typo) turns it on. A subflow started with `runFlow` inherits the setting and can only turn it on, never off. Redaction covers `assertState` text only: it does not cover screenshots, log tails or `assertField` output.
+`false`, `0`, `no` or `off` at a higher level turns it off again; any other non-empty value (including a typo) turns it on. A subflow started with `runFlow` inherits the setting. A subflow whose own `config: { redactState: true }` is set turns it on for itself even when the runner option is false (the subflow's setting wins there), and a subflow can never turn it off once the parent flow has it on. Redaction covers `assertState` text only: it does not cover screenshots, log tails or `assertField` output.
 
 ### Instrumented apps: layers and the agent node
 
