@@ -247,6 +247,20 @@ names the full key, for example
 identifier of at most 64 characters (a namespaced `x.fn` is written `x_fn`), no duplicates ignoring case, at most 64
 names. The build writes them to the device config as `callFuncAllow`; anything else fails the build and names the key.
 
+### Action log (`state.action`)
+
+The agent logs a `state.action` event, with `hashBefore` and `hashAfter` of the global state, only for functions named
+in `instrument.state.dispatch` in `brighttest.json`. The list is empty by default, so an instrumented build with no
+list logs no actions, even when the app uses `BTStore`. Name the function the app calls to dispatch. The greenfield
+example's `AppStore.dispatch` is the entry point to its `BTStore`:
+
+```json
+"instrument": { "state": { "dispatch": ["dispatch"] } }
+```
+
+`examples/greenfield-app/brighttest.json` ships with this line. An unknown name is reported as `wrap-target-unknown`
+and fails the build under `instrument.strict`. See [Instrument](../guide/instrument.md) for what the wrapper does.
+
 ### The 256 KB limit
 
 The reader accepts at most **256 KB** (262,144 bytes) of published text, the largest size measured to
