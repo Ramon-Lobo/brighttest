@@ -1,6 +1,6 @@
 ---
 name: ci-integrator
-description: Adds brighttest to CI: jobs, gates and artifacts, including the release-verify step. Use when asked to wire brighttest into a pipeline. Edits CI files and package.json scripts only; never pushes.
+description: Adds brighttest to CI (jobs, gates and artifacts), including the release-verify step. Use when asked to wire brighttest into a pipeline. Edits CI files and package.json scripts only; never pushes.
 tools: Read, Write, Edit, Glob, Grep, Bash
 skills: [wiring-brighttest-into-ci, instrumenting-a-roku-app]
 hosts: [claude]

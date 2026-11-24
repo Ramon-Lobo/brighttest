@@ -48,10 +48,10 @@ The always-on safety rules (device lease, secrets, claims; under 6 KB per file) 
 Block targets get one managed block named `brighttest` holding the rules plus a short skill index, never full
 skill bodies. Pass `--no-safety` to skip it.
 
-### Subagent definitions (Claude target)
+### Subagent definitions
 
 For the `claude` target, `install` and `update` also write each shipped subagent definition to
-`.claude/agents/<name>.md`. Pass `--no-agents` to skip them. The `copilot` target writes `.github/agents/<name>.agent.md` (name, description, mapped `tools`) for definitions whose `hosts` include `copilot`; none of the shipped definitions do yet. Other targets get no agent files. A `--skill <name>` run
+`.claude/agents/<name>.md`. Pass `--no-agents` to skip them. Other targets get no agent files. A `--skill <name>` run
 does not touch agents.
 
 Every rendered file carries an ownership marker line (`<!-- brighttest agent:<name> v<version> ... -->`) right after
@@ -74,7 +74,7 @@ The four bundled agents, each preloaded with the skills it needs:
 
 All four bundled agents are written for Claude only (`hosts: [claude]`). Copilot gets skills and the instructions
 block; it would also get `.github/agents/<name>.agent.md` for any definition that lists `copilot` in `hosts`, but none
-do in this release. No other target gets agent files.
+do in this release. No other target gets agent files. (Copilot tool aliases are not yet verified on a Copilot install.)
 
 New to brighttest on an existing app? Start with the [adoption guide](./adopting.md).
 

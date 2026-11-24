@@ -1,6 +1,6 @@
 ---
 name: mocking-network-and-store
-description: Use when a headless brighttest spec needs to fake something outside the app: HTTP responses and faults (the BTNet_* functions, instrument.net fixtures, --net-record HAR record-and-replay, net convert), a roChannelStore purchase flow (csfake/*.xml with FakeServer), or SceneGraph Video/Audio playback states (BTMedia_*). Covers which fixture to start from, what each one can and cannot do, and that none of it runs on a device.
+description: Use when a headless brighttest spec needs to fake something outside the app — HTTP responses and faults (the BTNet_* functions, instrument.net fixtures, --net-record HAR record-and-replay, net convert), a roChannelStore purchase flow (csfake/*.xml with FakeServer), or SceneGraph Video/Audio playback states (BTMedia_*). Covers which fixture to start from, what each one can and cannot do, and that none of it runs on a device.
 triggers: BTNet_mock; BTNet_fault; BTNet_requests; instrument.net fixtures; net-record; net convert; HAR file; roChannelStore fixture; csfake; FakeServer; BTMedia_play; mock a Video node
 when-not-to-use: Do not use for the MCP net_mock and net_requests tools against a real device (use using-brighttest-mcp), for state inside a running app (use testing-app-state), for test doubles of your own BrightScript functions (use writing-rooibos-tests), or for the greenfield BTStore and BTHttp templates (use adopting-brighttest-greenfield). For where to start, use adopting-brighttest.
 license: MIT

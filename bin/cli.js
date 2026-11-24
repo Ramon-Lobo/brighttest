@@ -523,7 +523,7 @@ Options:
   --skills-dir <d>  (agentskills target) Skill folder root (default: .agents/skills)
   -o, --out <dir>   (export) Destination (default: ./brighttest-skills)
   --no-safety       (install, update) Skip the always-on safety block (default: written for every target)
-  --no-agents       (install, update, uninstall) Skip subagent definitions (default: .claude/agents/<name>.md for the claude target)
+  --no-agents       (install, update, uninstall) Skip subagent definitions (default: .claude/agents/<name>.md for claude; .github/agents/<name>.agent.md for definitions whose hosts include copilot)
   --with-hook       (install, claude target) Merge the device-lease guard hook into .claude/settings.json (never overwrites; invalid JSON is refused)
   --with-mcp        (install, claude target) Merge the brighttest MCP server into .mcp.json (never overwrites; invalid JSON is refused)
   --check           Compare skills/manifest.json with the skills/ tree (no writes); exit 1 on drift
