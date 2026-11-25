@@ -68,7 +68,7 @@ The four bundled agents, each preloaded with the skills it needs:
 
 | Agent | What it does | Skills it loads |
 |---|---|---|
-| `adoption-assessor` | Read-only assessment and feature map of an app: does brighttest fit, what state is it in, which path, which features to test first. Edits no app file (it writes only `tree.json` and the report in the features folder) and never touches a device. | `assessing-a-roku-app`, `adopting-brighttest`, `mapping-a-roku-app` |
+| `adoption-assessor` | Read-only assessment and feature map of an app: does brighttest fit, what state is it in, which path, which features to test first. Edits no app file (in the features folder it writes only `graph.json`, `tree.json`, `report.html` and that folder's `.gitignore`) and never touches a device. | `assessing-a-roku-app`, `adopting-brighttest`, `mapping-a-roku-app` |
 | `ci-integrator` | Adds brighttest to CI, including the release-verify step. Edits CI files and package.json scripts only; never pushes. | `wiring-brighttest-into-ci`, `instrumenting-a-roku-app` |
 | `device-debugger` | Leased, bounded investigation on a real Roku. Needs a `BRIGHTTEST_AGENT` name and reports NOT VERIFIED when no device is reachable. | `using-a-roku-device-safely`, `using-brighttest-mcp`, `debugging-failing-tests` |
 | `test-author` | Writes Rooibos specs, e2e flows, fixtures and csfake mocks, and proves each new test can fail. Headless unless given a lease name and purpose. | `writing-rooibos-tests`, `writing-e2e-flows`, `mocking-network-and-store` |

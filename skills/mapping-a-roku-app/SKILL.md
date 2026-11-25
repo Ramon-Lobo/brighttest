@@ -33,7 +33,7 @@ device-verified. Every class in the report is a prediction until a run proves it
    ```
 
    Read the summary: node and edge counts, the `unresolved:` line, uncertainty count, `scan` line. The tool writes
-   `graph.json` only; it writes no digest and no tree skeleton, and has no `--focus`.
+   `graph.json` and a self-ignoring `.gitignore` only; it writes no digest and no tree skeleton, and has no `--focus`.
 2. Read `graph.json` in slices, never whole on a big app (`references/grouping-and-naming.md`, "Reading the graph").
    Start with `uncertainty.blindSpots`, then the entry and component list, then edges by folder.
 3. Group files into features. Component XML `<interface>` first for naming, then at most 2 script files per feature

@@ -1,7 +1,7 @@
 # tree.json format (brighttest-feature-tree/v1)
 
 Evidence: fields, enums, caps and exit codes are the ones in `skills/facts.json` (`featureTree` block, generated from
-`lib/features/schema.js`), checked by `test/skills-facts.test.js`, and the rules match `features check --help`.
+`lib/features/schema.js`), checked by `test/skills-mapping.test.js`, and the rules match `features check --help`.
 Not device-verified.
 
 ## Shape

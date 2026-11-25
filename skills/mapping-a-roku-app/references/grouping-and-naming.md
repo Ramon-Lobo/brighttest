@@ -9,8 +9,8 @@ something the tool checks. Not device-verified.
 whole on a big app. Print slices with `node -e`, from the project root:
 
 ```sh
-node -e 'const g=require(process.argv[1]);console.log(g.nodes.length,"nodes",g.edges.length,"edges");console.log(JSON.stringify(g.uncertainty.blindSpots,null,1).slice(0,3000))' .brighttest/features/graph.json
-node -e 'const g=require(process.argv[1]);for(const n of g.nodes.filter(n=>n.kind==="component"))console.log(n.id,n.extends,n.file,n.testability&&n.testability.primary.class)' .brighttest/features/graph.json
+node -e 'const g=require(require('path').resolve(process.argv[1]));console.log(g.nodes.length,"nodes",g.edges.length,"edges");console.log(JSON.stringify(g.uncertainty.blindSpots,null,1).slice(0,3000))' .brighttest/features/graph.json
+node -e 'const g=require(require('path').resolve(process.argv[1]));for(const n of g.nodes.filter(n=>n.kind==="component"))console.log(n.id,n.extends,n.file,n.testability&&n.testability.primary.class)' .brighttest/features/graph.json
 ```
 
 Then edges for one folder (filter on `from` starting with `file:components/home`). Keep each print short. A
