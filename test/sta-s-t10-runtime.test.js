@@ -47,6 +47,15 @@ sub main()
     end for
     d2 = BT_dwDrain(g, "s1").split(Chr(10))
     print "Q2:" + FormatJson({ n: d2.count() - 1, first: ParseJson(d2[0]), last: ParseJson(d2[63]), second: ParseJson(d2[1]) })
+    g2 = CreateObject("roSGNode", "Node")
+    BT_dwEmit(g2, "nofield", { type: "x" }, h0)
+    print "N1:" + FormatJson({ survived: true, drain: BT_dwDrain(g2, "s1") = "" })
+    g.setField("__btEv", "{}")
+    BT_dwEmit(g, "bad1", invalid, h0)
+    g.setField("__btEv", "{" + Chr(34) + "q" + Chr(34) + ":5}")
+    BT_dwEmit(g, "bad2", invalid, h0)
+    g.setField("__btEv", "{" + Chr(34) + "q" + Chr(34) + ":5}")
+    print "N2:" + FormatJson({ n: BT_dwDrain(g, "s1").split(Chr(10)).count() - 1 })
     m.alpha = 1
     m.nested = { k: "v" }
     BT_taskSnap(g, "Poller", "entry", m)
@@ -112,10 +121,20 @@ describe('dispatch wrap runtime', () => {
   })
 })
 
+describe('dispatch wrap queue robustness', () => {
+  it('emitting on a node without the __btEv field does not crash (warning only, like before the queue)', () => {
+    expect(tag('N1:')).toEqual({ survived: true, drain: true })
+  })
+
+  it('a malformed queue ({} or {"q":5}) resets to an empty queue instead of crashing', () => {
+    expect(tag('N2:')).toEqual({ n: 0 })
+  })
+})
+
 describe('hash with a node in the global fields (H3)', () => {
   it('the hash still follows the state and no FormatJSON error is logged', () => {
     expect(out).not.toMatch(/FormatJSON/i)
-    expect(out).not.toMatch(/ERROR/)
+    expect(out.split('\n').filter((l) => /ERROR/.test(l) && !/nonexistent field "__btEv"/.test(l))).toEqual([]) // the one expected warning is the field-less emit (N1)
     const e = tag('E:').data
     expect(e.hashBefore).not.toBe(e.hashAfter)
     expect(e.hashBefore.length).toBeGreaterThan(0)

@@ -40,7 +40,7 @@ describe('greenfield example: action log config', () => {
     expect(store).toMatch(/BT_dwEmit\(m\.global, "dispatch", action, __bt_h\)/)
     let rt = ''
     for (const f of Object.values(z.files).filter((e) => /\.brs$/.test(e.name))) rt += await f.async('string')
-    expect(rt).toMatch(/dat = \{ source: "wrap:" \+ fn, hashBefore: hb, hashAfter: BT_dwHash\(g\) \}/)
+    expect(rt).toMatch(/d = \{ source: "wrap:" \+ fn, hashBefore: hb, hashAfter: BT_dwHash\(g\) \}/)
     expect(rt).toMatch(/g\.setField\("__btEv", FormatJson\(q\)\)/)
   })
 

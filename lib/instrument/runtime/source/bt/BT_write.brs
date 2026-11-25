@@ -551,24 +551,26 @@ function BT_dwHash(g as object) as string
 end function
 
 sub BT_dwEmit(g as object, fn as string, a as dynamic, hb as string)
-    dat = { source: "wrap:" + fn, hashBefore: hb, hashAfter: BT_dwHash(g) }
+    d = { source: "wrap:" + fn, hashBefore: hb, hashAfter: BT_dwHash(g) }
     if BT_wKind(a) = "object" then
-        dat.type = a.type
-        dat.payload = BT_serialize(a.payload, BT_capsFrom(BT_config()), "payload", 0, [], invalid)
+        d.type = a.type
+        d.payload = BT_serialize(a.payload, BT_capsFrom(BT_config()), "payload", 0, [], invalid)
     end if
     q = BT_dwQ(g)
-    q.q.push(dat)
+    q.q.push(d)
     while q.q.count() > 64
         q.q.shift()
-        q.d = q.d + 1
+        q.d += 1
     end while
     g.setField("__btEv", FormatJson(q))
 end sub
 
 function BT_dwQ(g as object) as object
+    s = g.__btEv
     q = invalid
-    if g.__btEv <> "" then q = ParseJson(g.__btEv)
-    if type(q) <> "roAssociativeArray" then q = { q: [], d: 0 }
+    if BT_wIsStr(s) and s <> "" then q = ParseJson(s)
+    if type(q) <> "roAssociativeArray" then q = {}
+    if type(q.q) <> "roArray" then q = { q: [], d: 0 }
     return q
 end function
 
@@ -576,17 +578,14 @@ end function
 ' `dropped` when the 64-entry queue overflowed since the last drain.
 function BT_dwDrain(g as object, session as string) as string
     q = BT_dwQ(g)
-    if q.q.count() = 0 then return ""
+    o = ""
+    if q.q.count() = 0 then return o
     g.setField("__btEv", "")
-    out = ""
+    if q.d > 0 then q.q[0].dropped = q.d
     for each e in q.q
-        if q.d > 0 then
-            e.dropped = q.d
-            q.d = 0
-        end if
-        out = out + FormatJson({ v: 1, kind: "state.action", session: session, data: e }) + Chr(10)
+        o += FormatJson({ v: 1, kind: "state.action", session: session, data: e }) + Chr(10)
     end for
-    return out
+    return o
 end function
 
 sub BT_taskSnap(g as object, name as string, ev as string, mm as object)
