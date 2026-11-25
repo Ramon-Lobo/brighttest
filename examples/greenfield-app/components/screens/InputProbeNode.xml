@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="InputProbeNode" extends="Node">
+  <interface>
+    <field id="enabled" type="boolean" value="false" onChange="onEnable" />
+  </interface>
+  <script type="text/brightscript" uri="InputProbeNode.brs" />
+  <script type="text/brightscript" uri="pkg:/source/lib/InputProbe.brs" />
+</component>
