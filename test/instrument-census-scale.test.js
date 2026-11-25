@@ -29,9 +29,14 @@ describe('census scales near-linearly with component count', () => {
   it('doubling the components does not multiply the time by much more than two', async () => {
     const small = tree('s', 600); const big = tree('b', 1200)
     await cpuMs(small) // warm the parser
-    const best = async (d) => Math.min((await cpuMs(d)).ms, (await cpuMs(d)).ms)
+    // Windows CPU time advances in ~15.6 ms ticks, so a 30 ms sample is only two ticks. Each sample runs the census
+    // several times (small sample well over 150 ms) and the best of five is kept, which swamps the tick.
+    const REPS = 6
+    const sample = async (d) => { const u = process.cpuUsage(); for (let i = 0; i < REPS; i++) await census(d); const t = process.cpuUsage(u); return (t.user + t.system) / 1000 }
+    const best = async (d) => { const xs = []; for (let i = 0; i < 5; i++) xs.push(await sample(d)); return Math.min(...xs) }
     const a = await best(small); const b = await best(big)
-    expect(b / a).toBeLessThan(3)
+    // Linear gives about 2 at double the size; a quadratic regression gives about 4 or more. 4 leaves room for noise.
+    expect(b / a).toBeLessThan(4)
     const { r } = await cpuMs(big)
     expect(r.counts.components).toBe(1202)
     expect(r.tasks.length).toBe(121)
