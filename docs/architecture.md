@@ -138,7 +138,8 @@ run fails on any divergence, so the headless lane stays a trustworthy proxy.
 Results fail closed. The lanes that use the Rooibos runner (the default lane when the project has `@SGNode` specs,
 `--coverage`, `--device` and `--cross-check`) fail the run when the streamed cases, the Rooibos summary or the Rooibos
 report tree show a failure or crash, taking the largest of the three. A summary that says "Success" while its own
-report tree shows a crash does not pass. The SceneGraph-off driver prints a `PASS`/`FAIL` line per test and a
+report tree shows a crash does not pass. The headless runner also counts a non-zero exit or a signal before the
+Shutdown marker, and fewer results than the summary's `Total`, as a crash. The SceneGraph-off driver prints a `PASS`/`FAIL` line per test and a
 `__RESULT__` total; brighttest counts those, and a run with no `__RESULT__` line fails.
 
 ## Why one spec works in every lane
