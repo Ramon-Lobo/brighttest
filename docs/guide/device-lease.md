@@ -60,8 +60,9 @@ npx brighttest device watch --host 192.168.1.50 --interval 5s --tail 20 --all
 
 `watch` is read-only. It lists every known device with its state (held, free, stale), holder, how long, the
 waiting line with estimates, and the recent runs with wait time, hold time and how each ended. It never takes,
-changes or cleans a lease and makes no network call (`--no-probe` is accepted for forward compatibility; the
-reachability column reads "not probed" until probing lands).
+changes or cleans a lease. Its one network call is a reachability probe: `GET /query/device-info` with a 1 second
+bound, at most once per device every 30 seconds, never a lease or a `device` command (`--once` and `--json` run one
+probe pass first). `--no-probe` makes no connection at all and the column reads "not probed".
 
 The interactive screen keeps Studio's look (alternate screen, the Studio palette in truecolor with 256 and 16 color
 fallbacks, `NO_COLOR` honoured). Keys: arrows or `j`/`k` move, `enter` or `tab` switch pane, `a` shows all keys,
