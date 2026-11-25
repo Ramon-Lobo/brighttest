@@ -329,8 +329,8 @@ set a policy. It refuses to start without `upstreamHosts` (exit 2, `net: net.rec
 [brighttest] net: recorded 3 request(s) to /path/to/project/.brighttest/net/2026-01-01T00-00-00-000Z.har
 ```
 
-Note: the record path is covered by tests against mock upstreams only. Recording against an upstream that requires a TLS
-client certificate has not been exercised, and no support for such upstreams is promised.
+Note: the record path is covered by tests against mock upstreams only. The record proxy does not present a TLS client
+certificate, so an upstream that requires one will reject the connection, and no support for such upstreams is promised.
 
 ### `--net-unmatched <fail|passthrough>`
 
