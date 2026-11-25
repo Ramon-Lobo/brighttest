@@ -226,7 +226,7 @@
       </dl>
     {/each}
   {:else}
-    <p class="empty err">{studio.device?.target === 'simulator' ? 'The simulator has no live layer view. Save a snapshot to read the state; edits made from the State panel still apply.' : info.agentReadFailed ? `Device read failed, retrying (${info.agentError}).` : info.agentError ? `Agent state is unreadable: ${info.agentError}` : 'No agent layers published by the app.'}</p>
+    <p class="empty err">{info.agentReadFailed ? (info.agentCode === 'SIM_NOT_CONNECTED' ? `${info.agentError}.` : studio.device?.target === 'simulator' ? `Simulator read failed, retrying (${info.agentError}).` : `Device read failed, retrying (${info.agentError}).`) : info.agentError ? `Agent state is unreadable: ${info.agentError}` : 'No agent layers published by the app.'}</p>
   {/if}
 
   {#if hubUp}

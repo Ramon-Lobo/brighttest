@@ -143,9 +143,14 @@ performance) answer 409 `SIMULATOR_TARGET`, and the Network panel needs a device
   path from its package, so it is not affected.
 - **Install step**: nothing extra to install; `npm i brs-node` only if it is missing from `node_modules`.
 - **Header badge**: instead of the device lease badge the header shows the engine and its
-  state, like `simulator · brs-node@2.7.1 (stock) · running`. The Screen mirror, Remote and Run controls say they need a device. The State tab has no live layer view in
-  this mode (the live read goes through the device); save a snapshot to read the state, and edits made from the State
-  panel (`/api/state/cmd`) still apply. Run is disabled (`/api/run` answers 409).
+  state, like `simulator · brs-node@2.7.1 (stock) · running`. The Screen mirror, Remote and Run controls say they need a device. The State tab shows live layers in
+  this mode: each refresh asks the app for a `snapshot` through the instrument hub (quiet: it is not logged, streamed
+  or listed, so refreshing never evicts the action log). Simulator layers cover global, scene, node and registry and
+  exclude `focus` (a device-only read). Before the app has said hello, or when the engine is `no-hello` or has exited,
+  `GET /api/state` answers 200 with `layers: null`, `agentReadFailed: true` and `agentCode: SIM_NOT_CONNECTED`
+  (`the simulator is not connected (state: <state>)`), and nothing is queued. A read that races a fresh app hello can
+  answer `CMD_FAILED` (the hello abandons open commands); the next refresh succeeds. Edits made from the State
+  panel (`/api/state/cmd`) apply as before. Run is disabled (`/api/run` answers 409).
 - **States** (also in `GET /api/device` as `state`): `starting` (engine launched), `settling` (the app said hello, Studio
   waits about 1.5 s for it to stay quiet), `running` (ready), `no hello from the app` (`no-hello`) and `engine exited`
   (`exited`). Hover the badge to read the last engine output.
