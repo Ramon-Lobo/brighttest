@@ -44,6 +44,7 @@ export default withMermaid({
         items: [
           { text: 'Adopting brighttest', link: '/guide/adopting' },
           { text: 'Assess a project', link: '/guide/assess' },
+          { text: 'Map the app', link: '/guide/feature-tree' },
           { text: 'Agent skills', link: '/guide/agent-skills' },
           { text: 'Agent surface (MCP)', link: '/guide/mcp' },
         ],
@@ -111,6 +112,7 @@ export default withMermaid({
         items: [
           { text: 'Adopting brighttest', link: '/guide/adopting' },
           { text: 'Assess a project', link: '/guide/assess' },
+          { text: 'Map the app', link: '/guide/feature-tree' },
           {
             text: 'Agents',
             collapsed: false,

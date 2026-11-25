@@ -145,6 +145,7 @@
     "e2e record",
     "e2e run",
     "e2e stamp",
+    "features graph",
     "init",
     "instrument build",
     "instrument census",
