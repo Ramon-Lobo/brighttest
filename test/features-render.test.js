@@ -410,6 +410,7 @@ describe('features render command', () => {
         nodeNull: (x) => { x.nodes.push(null) },
         edgeStr: (x) => { x.edges.push('x') },
         blind: (x) => { x.uncertainty.blindSpots = 5 },
+        bogus: (x) => { x.nodes.find((n) => n.testability).testability.primary.class = 'bogus' },
         needsStr: (x) => { x.nodes.find((n) => n.testability).testability.primary.needs = 'net' },
       }
       for (const [k, f] of Object.entries(variants)) {
@@ -427,5 +428,42 @@ describe('features render command', () => {
     g.uncertainty = { items: [null, 5, { kind: 'k', at: 'a.brs:1' }], counts: {}, blindSpots: [] }
     g.nodes.find((n) => n.testability).testability.alsoNeeds = {}
     expect(() => render.renderReport(skeleton, g, FIXED)).not.toThrow()
+  })
+
+  it('refuses --out inside source/ or components/ of any project, from any folder', async () => {
+    const a = project()
+    const c = project()
+    const elsewhere = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-render-else-'))
+    try {
+      await run(['graph'], a)
+      const graphFile = path.join(a, '.brighttest', 'features', 'graph.json')
+      const nested = path.join(a, 'nested', 'B'); fs.mkdirSync(path.dirname(nested), { recursive: true }); fs.cpSync(APP, nested, { recursive: true })
+      for (const target of [path.join(nested, 'source', 'r.html'), path.join(nested, 'components', 'r.html'), path.join(c, 'source', 'r.html'), path.join(c, 'components', 'r.html')]) {
+        for (const cwd of [a, elsewhere, c]) {
+          expect((await run(['render', '--auto', '--graph', graphFile, '--out', target], cwd)).code, `${target} from ${cwd}`).toBe(2)
+          expect(fs.existsSync(target)).toBe(false)
+        }
+      }
+    } finally { for (const d of [a, c, elsewhere]) fs.rmSync(d, { recursive: true, force: true }) }
+  })
+  it('maps a permission failure on the write to exit 2 with a clear message', async () => {
+    if (process.getuid && process.getuid() === 0) return
+    const dir = project()
+    try {
+      await run(['graph'], dir)
+      const ro = path.join(dir, 'ro'); fs.mkdirSync(ro); fs.chmodSync(ro, 0o500)
+      const r = await run(['render', '--auto', '--out', path.join(ro, 'r.html')], dir)
+      fs.chmodSync(ro, 0o700)
+      expect(r.code).toBe(2)
+      expect(r.err).toMatch(/cannot write .*permission denied \(E(ACCES|PERM)\)/)
+    } finally { fs.rmSync(dir, { recursive: true, force: true }) }
+  })
+  it('uses the default 8 MB threshold when none is given', () => {
+    const t = JSON.parse(JSON.stringify(skeleton))
+    t.features[0].summary = 'x'.repeat(5 * 1024 * 1024)
+    const r = render.renderReport(t, graph, FIXED)
+    expect(r.html.length).toBeGreaterThan(8 * 1024 * 1024)
+    expect(r.warnings).toHaveLength(1)
+    expect(r.warnings[0]).toMatch(/over the 8\.0 MB limit/)
   })
 })

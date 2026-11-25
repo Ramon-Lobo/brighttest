@@ -59,7 +59,7 @@ input file, a symbolic link, or a file that is not an HTML report. The file is w
 report is built from the graph alone, so it works with no agent at all. The skeleton tree is generated in memory from
 `graph.json`; `features graph` does not write a `tree.skeleton.json` file yet, and `--auto` does not read one.
 From a folder that is not a Roku project the CI checklist and the staleness banner are skipped (the rest of the
-report is unchanged). Without `--out`, the report goes beside the tree; only the staging folder
+report is unchanged). A tree at an app root with no `--out` is refused, because the default output folder (beside the tree) holds `source/`. Without `--out`, the report goes beside the tree; only the staging folder
 (`.brighttest/features/`) gets a self-ignoring `.gitignore`, a tree's own folder is never touched.
 
 The output is one HTML file you can open offline or attach to a ticket:
