@@ -77,6 +77,20 @@ describe('features graph: output and self-ignore', () => {
     expect(fs.existsSync(path.join(outside, 'graph.json'))).toBe(true)
     expect(fs.existsSync(path.join(outside, '.gitignore'))).toBe(false)
   })
+  it('selfIgnore compares real paths: a symlinked out dir that points outside the project is not written', () => {
+    const { selfIgnore } = require('../lib/features')
+    const real = fs.mkdtempSync(path.join(tmp, 'real-'))
+    const link = path.join(proj, 'gen-link')
+    fs.symlinkSync(real, link)
+    expect(selfIgnore(link, proj)).toBe(false)
+    expect(fs.existsSync(path.join(real, '.gitignore'))).toBe(false)
+  })
+  it('selfIgnore leaves a directory-valued .gitignore alone', () => {
+    const { selfIgnore } = require('../lib/features')
+    const out = path.join(proj, 'gen-dir'); fs.mkdirSync(path.join(out, '.gitignore'), { recursive: true })
+    expect(selfIgnore(out, proj)).toBe(false)
+    expect(fs.statSync(path.join(out, '.gitignore')).isDirectory()).toBe(true)
+  })
   it('refuses --out inside source/ and writes nothing', async () => {
     const r = await run(['graph', proj, '--out', path.join(proj, 'source', 'gen')])
     expect(r.code).toBe(2)
