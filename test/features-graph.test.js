@@ -406,3 +406,171 @@ describe('feature graph: census hook and hash', () => {
     } finally { fs.rmSync(tmp, { recursive: true, force: true }) }
   })
 })
+
+describe('feature graph: spec roots outside source/ and components/', () => {
+  const SR = path.join(ROOT, 'test', 'fixtures', 'feature-graph', 'spec-roots')
+  const coversOf = (g, file) => g.edges.filter((e) => e.kind === 'spec-covers' && e.from === `file:${file}`)
+  const hasNode = (g, id) => g.nodes.some((n) => n.id === id)
+  const win = process.platform === 'win32'
+  const mk = (files) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-specroots-'))
+    const all = { manifest: 'title=T\n', 'source/util.brs': 'function SrUtilAdd(a, b)\n return a + b\nend function\n', ...files }
+    for (const [rel, text] of Object.entries(all)) { const f = path.join(dir, rel); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, text) }
+    return dir
+  }
+  const SPEC = 'sub S()\n x = SrUtilAdd(1, 2)\nend sub\n'
+  const cleanup = (d) => fs.rmSync(d, { recursive: true, force: true })
+
+  it('finds specs under conventional test/ and specs/ dirs', async () => {
+    const g = await buildGraph(SR)
+    expect(coversOf(g, 'test/RootSpec.bs').map((e) => e.to).sort()).toEqual(['comp:SrWidget', 'file:source/util.brs'])
+    expect(coversOf(g, 'specs/Plain.brs').map((e) => e.to)).toEqual(['file:source/util.brs'])
+    expect(g.nodes.find((n) => n.id === 'file:test/RootSpec.bs').spec).toBe(true)
+  })
+  it('does not walk a dir that neither the conventions nor the config pattern name', async () => {
+    expect(coversOf(await buildGraph(SR), 'qa/unit/Pattern.spec.bs')).toEqual([])
+  })
+  it('adds the leading directory of testsFilePattern from the config', async () => {
+    const g = await buildGraph(SR, { config: { testsFilePattern: 'qa/unit/**/*.spec.bs' } })
+    expect(coversOf(g, 'qa/unit/Pattern.spec.bs').map((e) => e.to)).toEqual(['file:source/util.brs'])
+    expect(coversOf(g, 'test/RootSpec.bs').length).toBeGreaterThan(0)
+  })
+  it('keeps the default layout: source/ and components/ specs still resolve', () => {
+    expect(find(app, 'spec-covers').length).toBeGreaterThan(0)
+  })
+  it('ignores patterns with no static leading dir (wildcard, brace, absolute, .., Windows absolute)', async () => {
+    for (const pat of ['**/qa/*.bs', '{qa,zz}/**/*.bs', '/qa/unit/*.bs', '../qa/*.bs', 'C:\\qa\\unit\\*.bs', '*/unit/*.bs']) {
+      const g = await buildGraph(SR, { config: { testsFilePattern: pat } })
+      expect(coversOf(g, 'qa/unit/Pattern.spec.bs'), pat).toEqual([])
+    }
+  })
+  it('accepts a Windows-style relative pattern', async () => {
+    const g = await buildGraph(SR, { config: { testsFilePattern: 'qa\\unit\\*.spec.bs' } })
+    expect(coversOf(g, 'qa/unit/Pattern.spec.bs').length).toBe(1)
+  })
+  it('prunes vendor dirs under spec roots and applies the vendor matcher to files', async () => {
+    const d = mk({ 'tests/Real.spec.bs': SPEC, 'tests/e2e/node_modules/rooibos/dist/lib.brs': SPEC, 'tests/roku_modules/x/y.brs': SPEC, 'tests/lib/rooibos-helper/h.brs': SPEC, 'tests/skipme/z.brs': SPEC })
+    try {
+      const g = await buildGraph(d, { config: { instrument: { exclude: ['tests/skipme/**'] } } })
+      expect(hasNode(g, 'file:tests/Real.spec.bs')).toBe(true)
+      for (const id of ['file:tests/e2e/node_modules/rooibos/dist/lib.brs', 'file:tests/roku_modules/x/y.brs', 'file:tests/lib/rooibos-helper/h.brs', 'file:tests/skipme/z.brs']) expect(hasNode(g, id), id).toBe(false)
+    } finally { cleanup(d) }
+  })
+  it('matches convention dirs case-insensitively and uses the real dir name in ids, without double counting', async () => {
+    const d = mk({ 'Tests/A.spec.bs': SPEC })
+    try {
+      const g = await buildGraph(d, { config: { testsFilePattern: 'tests/**/*.bs' } })
+      expect(hasNode(g, 'file:Tests/A.spec.bs')).toBe(true)
+      expect(hasNode(g, 'file:tests/A.spec.bs')).toBe(false)
+      expect(coversOf(g, 'Tests/A.spec.bs').length).toBe(1)
+      const g2 = await buildGraph(d, { config: { testsFilePattern: 'Tests/**/*.bs' } })
+      expect(coversOf(g2, 'Tests/A.spec.bs').length).toBe(1)
+      expect(g2.nodes.filter((n) => lcId(n.id) === 'file:tests/a.spec.bs').length).toBe(1)
+    } finally { cleanup(d) }
+  })
+  const lcId = (s) => s.toLowerCase()
+  it('treats a spec file in source/ the same as before even if testsFilePattern matches every file', async () => {
+    const d = mk({ 'source/Helper.brs': 'sub H()\nend sub\n', 'test/T.spec.bs': SPEC })
+    try {
+      const g = await buildGraph(d, { config: { testsFilePattern: '**/*.brs' } })
+      expect(g.nodes.find((n) => n.id === 'file:source/Helper.brs').spec).toBe(false)
+      expect(g.edges.filter((e) => e.kind === 'spec-covers' && e.from === 'file:source/util.brs')).toEqual([])
+      expect(coversOf(g, 'test/T.spec.bs').length).toBe(1)
+    } finally { cleanup(d) }
+  })
+  it.skipIf(win)('adds no not-read items for non-brs symlinks in a spec root', async () => {
+    const d = mk({ 'test/T.spec.bs': SPEC, 'test/data.json': '{}' })
+    try {
+      fs.symlinkSync(path.join(d, 'test', 'data.json'), path.join(d, 'test', 'link.json'))
+      fs.symlinkSync(path.join(d, 'test', 'T.spec.bs'), path.join(d, 'test', 'link.bs'))
+      const g = await buildGraph(d)
+      const nr = g.uncertainty.items.filter((u) => u.kind === 'not-read').map((u) => u.at)
+      expect(nr).toEqual(['test/link.bs'])
+    } finally { cleanup(d) }
+  })
+  it.skipIf(win)('rejects spec roots that are symlinks to the project root, to source/, or outside; survives symlink loops', async () => {
+    const out = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-specroots-out-'))
+    fs.writeFileSync(path.join(out, 'O.spec.bs'), SPEC)
+    const d = mk({ 'components/W.brs': 'sub W()\nend sub\n', 'real/R.spec.bs': SPEC })
+    try {
+      fs.symlinkSync(d, path.join(d, 'tests'))
+      fs.symlinkSync(path.join(d, 'source'), path.join(d, 'spec'))
+      fs.symlinkSync(out, path.join(d, 'specs'))
+      let g = await buildGraph(d)
+      for (const n of g.nodes) expect(/^file:(tests|spec|specs)\//.test(n.id), n.id).toBe(false)
+      for (const n of ['tests', 'spec', 'specs']) fs.unlinkSync(path.join(d, n))
+      fs.mkdirSync(path.join(d, 'test'))
+      fs.symlinkSync(path.join(d, 'test'), path.join(d, 'test', 'loop'))
+      fs.writeFileSync(path.join(d, 'test', 'T.spec.bs'), SPEC)
+      g = await buildGraph(d)
+      expect(coversOf(g, 'test/T.spec.bs').length).toBe(1)
+    } finally { cleanup(d); cleanup(out) }
+  })
+  it.skipIf(win)('does not double count a spec root reached through two names', async () => {
+    const d = mk({ 'real/R.spec.bs': SPEC })
+    try {
+      fs.symlinkSync(path.join(d, 'real'), path.join(d, 'tests'))
+      const g = await buildGraph(d, { config: { testsFilePattern: 'real/**/*.bs' } })
+      expect(g.nodes.filter((n) => /^file:(real|tests)\/R\.spec\.bs$/.test(n.id)).length).toBe(1)
+    } finally { cleanup(d) }
+  })
+
+  it('counts only .brs/.bs files toward the cap: many data files sorted first do not starve a real spec', async () => {
+    const d = mk({ 'tests/unit/Real.spec.bs': SPEC })
+    try {
+      fs.mkdirSync(path.join(d, 'tests', 'fixtures'), { recursive: true })
+      for (let i = 0; i < 5001; i++) fs.writeFileSync(path.join(d, 'tests', 'fixtures', `d${String(i).padStart(5, '0')}.json`), '{}')
+      const g = await buildGraph(d)
+      expect(hasNode(g, 'file:tests/unit/Real.spec.bs')).toBe(true)
+      expect(g.uncertainty.items.some((u) => u.kind === 'truncated')).toBe(false)
+    } finally { cleanup(d) }
+  }, 60000)
+  it('reports truncated and keeps exactly 5000 spec nodes when the spec roots hold more', async () => {
+    const d = mk({})
+    try {
+      fs.mkdirSync(path.join(d, 'tests', 'many'), { recursive: true })
+      for (let i = 0; i < 5001; i++) fs.writeFileSync(path.join(d, 'tests', 'many', `s${String(i).padStart(5, '0')}.spec.bs`), 'sub S()\nend sub\n')
+      const g = await buildGraph(d)
+      expect(g.nodes.filter((n) => n.id.startsWith('file:tests/many/')).length).toBe(5000)
+      expect(g.uncertainty.items.some((u) => u.kind === 'truncated' && /spec roots/.test(u.detail))).toBe(true)
+    } finally { cleanup(d) }
+  }, 60000)
+  it('considers every case-variant entry (stubbed fs for case-sensitive disks)', () => {
+    const readdir = fs.readdirSync; const realpath = fs.realpathSync
+    const d = mk({ 'Tests/A.spec.bs': SPEC, 'alt/B.spec.bs': SPEC })
+    const rd = fs.realpathSync(d)
+    const spyR = vi.spyOn(fs, 'readdirSync').mockImplementation((p, o) => (String(p) === d && !o ? ['Tests', 'alt', 'manifest', 'source', 'tests'] : readdir.call(fs, p, o)))
+    const spyP = vi.spyOn(fs, 'realpathSync').mockImplementation((p, o) => (String(p) === path.join(d, 'tests') ? path.join(rd, 'alt') : realpath.call(fs, p, o)))
+    try {
+      const { resolveSpecRoots } = require('../lib/features/graph')
+      expect(resolveSpecRoots(d, {}, () => false).sort()).toEqual(['Tests', 'tests'])
+    } finally { spyR.mockRestore(); spyP.mockRestore(); cleanup(d) }
+  })
+  it.skipIf(win)('walks both Tests and tests when the disk keeps them apart', async () => {
+    const d = mk({ 'Tests/A.spec.bs': SPEC })
+    try {
+      try { fs.mkdirSync(path.join(d, 'tests')) } catch (e) { return }
+      if (fs.readdirSync(d).filter((n) => n.toLowerCase() === 'tests').length < 2) return // case-insensitive disk
+      fs.writeFileSync(path.join(d, 'tests', 'B.spec.bs'), SPEC)
+      const g = await buildGraph(d)
+      expect(hasNode(g, 'file:Tests/A.spec.bs') && hasNode(g, 'file:tests/B.spec.bs')).toBe(true)
+    } finally { cleanup(d) }
+  })
+  it('keeps spec files named after rooibos in a spec root while still pruning rooibos folders', async () => {
+    const d = mk({ 'tests/RooibosConfig.spec.bs': SPEC, 'tests/rooibos-lib/x.spec.bs': SPEC, 'source/tests/RooibosSrc.spec.bs': SPEC })
+    try {
+      const g = await buildGraph(d)
+      expect(hasNode(g, 'file:tests/RooibosConfig.spec.bs')).toBe(true)
+      expect(hasNode(g, 'file:tests/rooibos-lib/x.spec.bs')).toBe(false)
+    } finally { cleanup(d) }
+  })
+  it.skipIf(win)('rejects a spec root whose real path is inside node_modules or a vendor-excluded folder', async () => {
+    const d = mk({ 'node_modules/pkg/P.spec.bs': SPEC, 'vendorx/V.spec.bs': SPEC })
+    try {
+      fs.symlinkSync(path.join(d, 'node_modules', 'pkg'), path.join(d, 'tests'))
+      fs.symlinkSync(path.join(d, 'vendorx'), path.join(d, 'specs'))
+      const g = await buildGraph(d, { config: { instrument: { exclude: ['vendorx/**'] } } })
+      expect(g.nodes.some((n) => /^file:(tests|specs|node_modules|vendorx)\//.test(n.id))).toBe(false)
+    } finally { cleanup(d) }
+  })
+})

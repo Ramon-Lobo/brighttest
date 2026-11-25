@@ -135,12 +135,13 @@ state-only: the AppState panel works, while panels that need a device (tree, scr
 performance) answer 409 `SIMULATOR_TARGET`, and the Network panel needs a device. The banner prints the engine as
 `simulator <name>@<version> (<flavor>)`.
 
-- **Engine**: the stock engine (`npm i brs-node`) unless `engines.brsNode` or `BRIGHTTEST_ENGINES` picks another one.
+- **Engine**: the stock engine (`brs-node`, shipped as a brighttest dependency) unless `engines.brsNode` or `BRIGHTTEST_ENGINES` picks another one.
   An explicit `patched` choice is allowed, with a warning on stderr, because the patched 2.2.0 engine can hang on Tasks.
-  With no engine installed it exits 1 and prints the `npm i brs-node` hint.
-- **Install step**: the stock engine is a separate package. Run `npm i brs-node` in your project (or `npm i --no-save
-  brs-node` to try it without touching `package.json`). If brighttest ships `brs-node` as one of its own dependencies
-  in your version, `npm i brighttest` already covers it and there is nothing extra to install.
+  If the engine is missing from `node_modules` it exits 1 and prints the `npm i brs-node` hint.
+  A `brs-node` installed in your own project wins over the bundled one, and the banner shows its version.
+  Both engines declare the `brs-cli` bin, so `npx brs-cli` may run either one; brighttest itself reads each engine's
+  path from its package, so it is not affected.
+- **Install step**: nothing extra to install; `npm i brs-node` only if it is missing from `node_modules`.
 - **Header badge**: instead of the device lease badge the header shows the engine and its
   state, like `simulator · brs-node@2.7.1 (stock) · running`. The Screen mirror, Remote and Run controls say they need a device. The State tab has no live layer view in
   this mode (the live read goes through the device); save a snapshot to read the state, and edits made from the State
