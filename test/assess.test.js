@@ -216,6 +216,13 @@ describe('TP-ADOPT-06 (greenfield, plugin app, non-Roku dir, bad input)', () => 
     expect(r.ci.nodeOk).toBe(false)
     expect(r.gitignore.env).toBe(true)
   })
+  test('a bsconfig.json with a leading BOM and comments still reports its plugins', async () => {
+    const d = path.join(tmp, 'bom-app')
+    fs.cpSync(PLUGIN, d, { recursive: true })
+    fs.writeFileSync(path.join(d, 'bsconfig.json'), '\uFEFF// c\n{ "plugins": ["bom-plugin",], }')
+    const r = await json(d)
+    expect(r.project.bsconfig.plugins).toEqual(['bom-plugin'])
+  })
   test('empty and non-Roku directories are not-a-roku-app with exit 0', async () => {
     fs.mkdirSync(path.join(tmp, 'empty'))
     for (const d of [path.join(tmp, 'empty'), PLAIN]) {
