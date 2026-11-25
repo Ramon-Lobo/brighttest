@@ -24,9 +24,9 @@ sub runStress()
     sb = m.top.findNode("stress")
     kb = 256
     if m.global.stressKb <> invalid then kb = m.global.stressKb
-    sb.callFunc("growGlobal", 500, kb)
-    sb.callFunc("buildTree", 1500)
-    sb.callFunc("buildTree", 6000)
+    sb.callFunc("growGlobal", stressParam("stressFields", 500), kb)
+    if stressParam("stressTree", "both") <> "6000" then sb.callFunc("buildTree", 1500)
+    if stressParam("stressTree", "both") <> "1500" then sb.callFunc("buildTree", 6000)
 end sub
 
 sub startWorkers()
@@ -113,4 +113,11 @@ function onKeyEvent(key as string, press as boolean) as boolean
         return true
     end if
     return false
+end function
+
+' launch-param value from m.global (set by Main from stressfields / stresstree), or the default
+function stressParam(name as string, fallback as dynamic) as dynamic
+    v = m.global[name]
+    if v = invalid then return fallback
+    return v
 end function

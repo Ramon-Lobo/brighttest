@@ -1,7 +1,16 @@
-# Pressing Play writes m.global.user.tier and dispatches a store action.
+# TP-STA-15 round trip through the state agent (needs an instrumented build), then the UI write path:
+# pressing Play writes m.global.user.tier and dispatches a store action.
 appId: dev
-config: { timeout: 8 }
+config: { timeout: 8, state: { ack: reflected } }
 steps:
   - launch
+  - waitForAgent: { timeout: 30 }
+  - snapshot: fresh
+  - setState: { layer: global, path: user.tier, value: premium }
+  - assertState: { layer: global, path: user.tier, equals: premium }
+  - assertText: { id: tierLabel, equals: "Tier: premium" }
+  - restore: fresh
+  - assertState: { layer: global, path: user.tier, equals: free }
+  - assertText: { id: tierLabel, equals: "Tier: free" }
   - press: Play
   - assertText: { id: tierLabel, equals: "Tier: premium" }

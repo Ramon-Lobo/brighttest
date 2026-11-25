@@ -53,10 +53,10 @@ describe('census of examples/legacy-app', () => {
   })
   it('finds m.global.addFields keys and registry sections with lines', () => {
     expect(c.globalFields.map((g) => g.name)).toEqual(expect.arrayContaining(['config', 'user', 'authToken', 'sessionId', 'password', 'launchCount', 'stress']))
-    expect(c.globalFields.find((g) => g.name === 'user')).toMatchObject({ file: 'source/main.brs', line: 31 })
+    expect(c.globalFields.find((g) => g.name === 'user')).toMatchObject({ file: 'source/main.brs', line: 41 })
     expect(c.registrySections).toEqual([
       { name: 'legacy_session', file: 'components/scenes/LegacyScene.brs', line: 12 },
-      { name: 'legacy_prefs', file: 'source/main.brs', line: 45 },
+      { name: 'legacy_prefs', file: 'source/main.brs', line: 57 },
     ])
   })
   it('classifies setUrl and CreateObject sites with threads and coverage', () => {

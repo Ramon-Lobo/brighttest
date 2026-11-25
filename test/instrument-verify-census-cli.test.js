@@ -85,6 +85,11 @@ describe('init --brownfield', () => {
   const setup = (name) => {
     const d = path.join(tmp, name)
     fs.cpSync(legacy, d, { recursive: true })
+    // the fixture now declares instrument.state; init only proposes a block when it is exclude-only, so reset that
+    const f = path.join(d, 'brighttest.json')
+    const c = JSON.parse(fs.readFileSync(f, 'utf8'))
+    delete c.instrument.state
+    fs.writeFileSync(f, JSON.stringify(c))
     return d
   }
   it('writes the instrument block with proposed registry sections and a .gitignore entry; no example spec', () => {

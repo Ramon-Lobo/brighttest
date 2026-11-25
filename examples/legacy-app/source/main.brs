@@ -7,12 +7,22 @@ sub Main(args as dynamic)
     sceneName = "LegacyScene"
     stress = false
     stressKb = 256
+    stressFields = 500
+    stressTree = "both"
     if type(args) = "roAssociativeArray"
         if args.scene <> invalid and args.scene <> "" then sceneName = args.scene
         if args.stress <> invalid then stress = true
         if args.stresskb <> invalid
             kb = Val(args.stresskb)
             if kb = 1 or kb = 16 or kb = 64 or kb = 256 then stressKb = Int(kb)
+        end if
+        if args.stressfields <> invalid
+            nf = Val(args.stressfields)
+            if nf = 100 or nf = 500 or nf = 1000 then stressFields = Int(nf)
+        end if
+        if args.stresstree <> invalid
+            st = LCase(args.stresstree)
+            if st = "1500" or st = "6000" or st = "both" then stressTree = st
         end if
         if args.netdiag <> invalid and args.netdiag <> "" then cfg.netDiagUrl = args.netdiag
         if args.noinput = invalid
@@ -39,10 +49,16 @@ sub Main(args as dynamic)
         meta: { created: CreateObject("roDateTime") }
         stress: stress
         stressKb: stressKb
+        stressFields: stressFields
+        stressTree: stressTree
     })
     m.global.launchCount = m.global.launchCount + 1
     scene = screen.CreateScene(sceneName) : screen.show() : scene.setFocus(true)
     reg = CreateObject("roRegistrySection", "legacy_prefs")
+    if not reg.exists("lastTier")
+        reg.write("lastTier", m.global.user.tier)
+        reg.flush()
+    end if
     if reg.exists("lastTier") then m.global.setField("user", { tier: reg.read("lastTier"), profile: m.global.user.profile })
     while true
         msg = wait(0, m.port)

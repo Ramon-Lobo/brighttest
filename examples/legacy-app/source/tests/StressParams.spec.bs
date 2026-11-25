@@ -1,0 +1,46 @@
+namespace tests
+  ' Stress builder cells for the launch params stressfields / stresstree (TP-STA-18 matrix).
+  @suite("StressParams")
+  @SGNode("StressBuilder")
+  class StressParamsTests extends rooibos.BaseTestSuite
+
+    private function countStress() as integer
+      n = 0
+      for each k in m.global.getFields().keys()
+        if Left(k, 7) = "stress_" then n = n + 1
+      end for
+      return n
+    end function
+
+    private function countNodes(node as object) as integer
+      total = 0
+      for i = 0 to node.getChildCount() - 1
+        total = total + 1 + m.countNodes(node.getChild(i))
+      end for
+      return total
+    end function
+
+    @describe("growGlobal")
+
+    @it("adds 100 stress_ fields")
+    function _()
+      m.assertEqual(m.top.callFunc("growGlobal", 100, 16), 100)
+      m.assertEqual(m.countStress(), 100)
+    end function
+
+    @describe("buildTree")
+
+    @it("builds the single 1,500-node tree")
+    function _()
+      m.assertEqual(m.top.callFunc("buildTree", 1500), 1500)
+      m.assertEqual(m.countNodes(m.top), 1500)
+    end function
+
+    @it("builds the single 6,000-node tree")
+    function _()
+      m.assertEqual(m.top.callFunc("buildTree", 6000), 6000)
+      m.assertEqual(m.countNodes(m.top), 6000)
+    end function
+
+  end class
+end namespace
