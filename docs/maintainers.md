@@ -624,10 +624,61 @@ Changelog first. Every release needs a curated section in `docs/changelog.md`, a
 4. After pushing the tag (optional, owner-gated): `node scripts/changelog.js notes vX.Y.Z > /tmp/notes.md`, then `gh release create vX.Y.Z --notes-file /tmp/notes.md --verify-tag`.
 
 Release flow: `skills/facts.json` carries `cliVersion`, so `npm version` alone leaves it stale. Run `npm run skills:manifest` after any version bump, dependency range change, CLI flag/subcommand/help change or lease/instrument default change, and commit the result (`brighttest skills --check` fails on drift). Bump with `npm version <patch|minor|major>` (commits + tags `vX.Y.Z` on `main`; regenerate and commit facts before it, or amend the release commit before tagging), push the
-branch **and the tag**, then `npm publish --access public`. The npm account has **2FA enabled**, so publish
-prompts for a one-time password — pass it with `--otp=<code>` (it can't be automated interactively; use an
-automation token for unattended CI releases). `npm pack --dry-run` before publishing to confirm the tarball
-contents. `v0.3.0` was the first release carrying the e2e lane.
+branch **and the tag**; CI stages the package (see [Releasing](#releasing)). Do not run `npm publish` by hand.
+`npm pack --dry-run --ignore-scripts` shows the tarball contents (run `npm run studio:build` first). `v0.3.0` was the first release carrying the e2e lane.
+
+### Releasing
+
+Releases are staged by CI and approved by a person. Pushing a `v*` tag runs `.github/workflows/release.yml`, which stages the package on npm. Nothing is live until the owner approves it with 2FA.
+
+#### Steps
+
+1. Curate `## Unreleased` in `docs/changelog.md` on `main` (see Publishing above).
+2. Actions -> **Prepare release** -> Run workflow: pick `patch`, `minor` or `major` and tick `notes_ready`. It bumps the version without a tag, stamps the changelog, regenerates `skills/` facts and opens a PR from `release/vX.Y.Z`. It never tags or publishes.
+3. Review and merge the PR. PRs opened with `GITHUB_TOKEN` do not trigger `pull_request` workflows, so the workflow also dispatches `test.yml` on the branch (best effort, not yet exercised on a real run). If the checks do not appear, push an empty commit to the branch or close and reopen the PR.
+4. Tag the merged commit on `main` and push the tag: `git tag vX.Y.Z <sha> && git push origin vX.Y.Z`.
+5. Approve the `npm-release` environment when GitHub asks (if a required reviewer is set). `verify` runs first; `publish` waits for that approval.
+6. The `publish` job stages the package and writes the stage id and these instructions to its job summary. Review it, then approve with 2FA: **Approve** in the Staged Packages tab on npmjs.com, or `npm stage approve <stage-id>`.
+7. `github-release` has already created a **draft** GitHub Release. Read the notes and click Publish only after the package is approved.
+8. Post-release checks: `npm view brighttest version`; in a scratch directory run `npm i brighttest && npx brighttest --version`; after the docs deploy, `curl -s https://ramon-lobo.github.io/brighttest/llms.txt | head`.
+
+Rehearse without a tag: Actions -> **Release** -> Run workflow (`dry_run` stays `true`). That runs `verify`, then the `publish` job (it needs the `npm-release` environment approval) with `npm stage publish --dry-run` and no npm token, and prints the output in the job summary. Nothing is staged, published or released, and a dispatch with `dry_run` false is refused. npm does not document which registry or permission checks `--dry-run` performs, so treat it as a pack check only; the true rehearsal is staging a real prerelease (below).
+
+#### Rehearse a release
+
+1. Actions -> **Prepare release** -> bump `preminor` (from 0.7.0 gives `0.8.0-rc.0`; `prerelease` continues an rc as `0.8.0-rc.1`), `preid` `rc`, tick `notes_ready`. Prereleases get no changelog section: the stamp step leaves `## Unreleased` in place and the stable release stamps it later. Merge the PR.
+2. Tag the merged commit: `git tag v0.8.0-rc.0 <sha> && git push origin v0.8.0-rc.0`. The workflow stages it under the `next` dist-tag (a prerelease is never staged as `latest`), and the draft GitHub Release is marked as a prerelease. The docs workflow also runs on the tag; it ignores prerelease tags, so it redeploys `main` unchanged and its changelog check passes.
+3. Inspect the stage without 2FA: `npm stage list brighttest`, `npm stage view <stage-id>`, `npm stage download <stage-id>` (unpack the tarball and look).
+4. Then either approve it (2FA; the rc goes live under `next`, so `npm i brighttest@next` gets it) or reject it (`npm stage reject <stage-id>`, 2FA, documented to remove the staged package). The tag is fixed when staging and `npm stage approve` takes no tag option. After a reject, staging the same version again is implied by the docs but not stated, so confirm it on the first rehearsal. An approved rc cannot be reused: the next one is `0.8.0-rc.1`.
+
+#### What each safeguard does
+
+- `verify` (no secrets, read-only): the tag must equal `v` + the `package.json` version; the tagged commit must be an ancestor of `origin/main`; that version must not already exist on npm; the changelog gates (`check --version-env`, `check --tags`) pass; every dependency range resolves on npm; unit and integration suites pass; and the tarball (`npm pack --dry-run`, after a Studio build) holds `bin/`, `lib/`, `skills/` and the built Studio assets and nothing from `test/`, `scripts/`, `docs/`, `examples/` or design notes.
+- `publish` is the only job with the `npm-release` environment, `id-token: write` and the npm secret, and the secret is set on the single `npm stage publish` step. npm is upgraded to 11.15.0 or later first (staged publishing needs it). The command is `npm stage publish --access public --tag <tag> --provenance`.
+- Credential: the stage step sets `NODE_AUTH_TOKEN` from the environment secret `NPM_TOKEN`. npm tries GitHub OIDC (trusted publishing) before falling back to a token, so with a trusted publisher configured OIDC is used and the token is the fallback. Either way the credential can only stage.
+- Dist-tag: a prerelease version is staged under `next`, anything else under `latest`. The tag is fixed when staging (npm requires it explicitly for prereleases, and `npm stage approve` has no tag option); to change it, reject the stage and re-stage.
+- Provenance: `--provenance` is a supported flag of `npm stage publish`, so the attestation is requested. Whether it is attached when the version is approved has not been observed yet; check the package page after the first release.
+- `github-release` only ever creates a draft (`--draft --verify-tag`), with a banner saying the package is staged, not live.
+- Workflows pin third-party actions to commit SHAs, the top level has `permissions: {}`, concurrency is per tag without cancelling, and there is no `pull_request_target`. A unit test (`test/release-workflows.test.js`) pins these properties, including that the npm secret appears only on the stage step and that `npm publish` never appears.
+
+#### The npm token
+
+`NPM_TOKEN` (environment `npm-release`) is a granular token with **Read and Write (Stage only)**; keep it that way. The package's publishing access is "Require two-factor authentication and disallow bypass 2fa tokens", so a leaked token can stage a version, never make one live without the owner's 2FA approval. Granular tokens expire: note the expiry date when you create it, rotate before then (create a new stage-only token, update the environment secret, revoke the old one), and never widen its scope.
+
+The trusted publisher (repo `Ramon-Lobo/brighttest`, workflow `release.yml`, environment `npm-release`, with "Allow npm publish" and "Allow npm dist-tag" unchecked) expires if its first successful publish is not completed within 2 days of creating it. If that lapses, delete it and create it again.
+
+#### If a stage is wrong
+
+Reject it (**Reject** on npmjs.com or `npm stage reject <stage-id>`; 2FA required), fix the cause, and stage again. A staged version holds the version number, so re-staging the same version needs the reject first. Once a version is live it cannot be reused: bump the version and tag again (the failed tag stays; do not move or reuse tags).
+
+#### Owner settings (CI cannot apply these)
+
+- Settings -> Actions -> General -> allow GitHub Actions to create and approve pull requests (for Prepare release).
+- Environment `npm-release`: add a required reviewer and restrict deployment branches and tags to `v*` tags.
+- Add a tag protection rule (or ruleset) for `v*`.
+- Keep the `NPM_TOKEN` secret stage-only (see above) and track its expiry.
+
+The fork packages `@ramonlobo/brs-node` and `@ramonlobo/rooibos-roku` must already be published at versions that satisfy the ranges in `package.json`; `verify` fails otherwise.
 
 ### Publishing the docs site
 

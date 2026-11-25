@@ -1,0 +1,115 @@
+name: Prepare release
+
+# Step 1 of a release (see docs/maintainers.md, "Releasing"). Bumps the version, stamps the changelog and opens a
+# PR from `release/vX.Y.Z`. It never tags and never publishes: the owner reviews and merges the PR, then pushes
+# the tag, which starts release.yml.
+#
+# Prerequisites in the repo settings (owner): Settings -> Actions -> General -> Workflow permissions ->
+# "Allow GitHub Actions to create and approve pull requests".
+#
+# GITHUB_TOKEN caveat: a PR opened with GITHUB_TOKEN does not trigger `pull_request` workflows, so the required
+# checks would never start. This workflow therefore also dispatches test.yml on the release branch (workflow_dispatch
+# runs are exempt from that rule), best effort. If the checks still do not show on the PR, push an empty commit
+# to the branch (`git commit --allow-empty -m "chore: trigger checks"`) or close and reopen the PR.
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version bump. preminor from 0.7.0 gives 0.8.0-rc.0; prerelease continues an rc (0.8.0-rc.1)"
+        type: choice
+        options: [patch, minor, major, prepatch, preminor, premajor, prerelease]
+        default: patch
+      preid:
+        description: Prerelease id, used by the pre* bumps (default rc)
+        type: string
+        default: rc
+      notes_ready:
+        description: "I curated the Unreleased section of docs/changelog.md on main (required)"
+        type: boolean
+        default: false
+
+permissions: {}
+
+concurrency:
+  group: prepare-release
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Open release PR
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write # push the release/vX.Y.Z branch
+      pull-requests: write # open the PR
+      actions: write # dispatch test.yml on the branch
+    steps:
+      - name: Require confirmation
+        env:
+          NOTES_READY: ${{ inputs.notes_ready }}
+        run: |
+          if [ "$NOTES_READY" != "true" ]; then
+            echo "::error::Tick notes_ready: curate '## Unreleased' in docs/changelog.md on main first."
+            exit 1
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # changelog stamp reads tags and the first commit
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+      - name: Install dependencies (no lifecycle scripts)
+        run: npm ci --ignore-scripts
+      - name: Bump version and stamp changelog
+        env:
+          BUMP: ${{ inputs.bump }}
+          PREID: ${{ inputs.preid }}
+        run: |
+          # No tag is created. npm still runs the `version` script, which stamps docs/changelog.md and aborts
+          # (before anything is committed) when Unreleased has no entries.
+          # pre* bumps take --preid: preminor from 0.7.0 gives 0.8.0-rc.0, prerelease then gives 0.8.0-rc.1. Prereleases get
+          # no changelog section: stamp leaves Unreleased in place, which the stable release stamps later.
+          case "$BUMP" in
+            pre*)
+              if ! printf '%s' "$PREID" | grep -Eq '^[A-Za-z][A-Za-z0-9]*$'; then echo "::error::preid must be alphanumeric"; exit 1; fi
+              npm version "$BUMP" --preid "$PREID" --no-git-tag-version ;;
+            *)
+              npm version "$BUMP" --no-git-tag-version ;;
+          esac
+          npm run skills:manifest
+          # `npm version` exports npm_package_version to the version script only; set it for this check.
+          npm_package_version=$(node -p "require('./package.json').version") node scripts/changelog.js check --version-env
+      - name: Open the release PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p "require('./package.json').version")
+          BRANCH="release/v${VERSION}"
+          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
+            echo "::error::Branch $BRANCH already exists on origin. Delete it or finish that release first."
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add -A package.json package-lock.json docs/changelog.md docs/.vitepress/release-pages.json skills
+          git commit -m "chore(release): v${VERSION}"
+          git push origin "$BRANCH"
+          cat > "$RUNNER_TEMP/pr-body.md" <<BODY
+          Release v${VERSION}. Nothing is tagged or published by this PR.
+
+          Checklist:
+          - [ ] Read the stamped \`docs/changelog.md\` section for v${VERSION}
+          - [ ] Checks are green (if none appear: push an empty commit or close and reopen this PR; PRs opened by GITHUB_TOKEN do not trigger workflows)
+          - [ ] Merge this PR
+          - [ ] Push the tag from the merged commit on main: \`git tag v${VERSION} <sha> && git push origin v${VERSION}\`
+          - [ ] Approve the \`npm-release\` environment when prompted, then approve the staged package on npmjs.com (2FA)
+          - [ ] Read the draft GitHub Release and publish it
+
+          See "Releasing" in docs/maintainers.md.
+          BODY
+          gh pr create --base main --head "$BRANCH" --title "chore(release): v${VERSION}" --body-file "$RUNNER_TEMP/pr-body.md"
+          # Best effort: start the suites on the branch (see the header comment).
+          gh workflow run test.yml --ref "$BRANCH" || echo "::warning::could not dispatch test.yml; push an empty commit to the branch to start the checks"
