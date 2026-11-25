@@ -97,10 +97,16 @@ copies named runtime files only.
 
     `instrument.state.dispatch: ["fn"]` wraps each non-excluded, non-namespaced function with that name. The wrapper takes
     BT_dwHash(m.global) before and after the call (CRC32 of the serialized global fields as JSON, hex; nodes become markers) and calls BT_dwEmit, which sets
-    the global string field `__btEv` to { source:"wrap:<fn>", type, payload, hashBefore, hashAfter }. type and payload
+    appends { source:"wrap:<fn>", type, payload, hashBefore, hashAfter } to a queue kept as JSON in the global string field
+    `__btEv` ({ q: [events], d: dropped }, at most 64 events; the oldest is dropped and counted in `d`). type and payload
     come from the first argument when it is an associative array; the payload is serialized with the configured caps
-    (secret-looking keys are masked). The render-thread agent observes `__btEv` and forwards it to the hub as a
-    `state.action` event. Any thread may emit: setting a global field is thread-safe.
+    (secret-looking keys are masked). The render-thread agent drains the queue on a `__btEv` change and on every tick,
+    and forwards each event to the hub as a `state.action` event; the first drained event carries `dropped` when `d` > 0.
+    A missing or malformed `__btEv` (not a string, not an object, no `q` array) is treated as an empty queue, so an emit
+    never crashes. Any thread may emit, but the append is a read-modify-write of one field and is not atomic: when a Task
+    thread emits while another thread emits or the agent drains, an event can be duplicated (drain between read and
+    write) or lost (two Task emitters overwrite each other). That is accepted for a debug log; render-thread emitters
+    are drained one event at a time and are not affected.
 
     `instrument.state.tasks: ["TaskComponent"]` wraps the Task's entry function, found as the string assigned in a
     top-level `m.top.functionName = "<fn>"` of the component's `init`. BT_taskSnap(m.global, name, event, m) stores

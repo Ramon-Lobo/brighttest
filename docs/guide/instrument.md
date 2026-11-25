@@ -472,7 +472,10 @@ republished (only when the command asked for `ack: reflected`). A session mismat
   `__bt_orig_<fn>` and appends a wrapper with the original name and parameters (defaulted parameters keep their default
   expression, so omitting an argument behaves as before). Around each call the wrapper hashes the global fields and
   publishes a `state.action` event with `type` and `payload` (first argument, when it is an object), `hashBefore` and
-  `hashAfter`. The action log is complete while Studio is subscribed; while idle the agent keeps up to 64 events between samples and reports any it dropped in a `dropped` count on the next event. Limitation: the wrapper is a plain function, so a target used as a value (`store = { dispatch: fn }`,
+  `hashAfter`. Events are queued (up to 64 between agent ticks) and any dropped on overflow are counted in a `dropped`
+  field on the next event. The queue is one global field updated read-modify-write, so events emitted from Task threads
+  at the same moment can occasionally be duplicated or lost; this is acceptable for a debug log.
+  Limitation: the wrapper is a plain function, so a target used as a value (`store = { dispatch: fn }`,
   then `store.dispatch(a)`) would lose its `m` binding. Such a target is not wrapped and is reported as
   `wrap-target-unknown` (it trips `strict`); wrap a function that is called by name. The payload is masked by key name
   on the device; `redact.paths` is applied host-side only.
