@@ -38,7 +38,12 @@ function run() {
       `    t = CreateObject("roTimespan")`,
       `    j = BT_labelJson(1, g, sc, cfg, 0)`,
       `    print "@@${name} " + t.TotalMilliseconds().toStr() + " " + Len(j).toStr()`,
-      `    print j`,
+      // One big `print j` costs the engine seconds per 64 KB (about 90 s for these cases, near the 120 s kill on the Windows
+      // runner); the same bytes printed in 2 KB slices take well under a second. The output is identical.
+      `    for p = 1 to Len(j) step 2048`,
+      `        print Mid(j, p, 2048);`,
+      `    end for`,
+      `    print ""`,
     )
   }
   const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'bt-fit-')), 'fit.brs')
