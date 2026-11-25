@@ -101,4 +101,5 @@ Host, project, bsconfig, manifest, engines, census, CI, `.gitignore`, devices, r
 ## Next
 
 To see how the app's files, components and calls connect, run `brighttest features graph`;
-see [Map the app](/guide/feature-tree).
+see [Map the app](/guide/feature-tree). An agent can turn that graph into a feature tree and test plan with the
+`mapping-a-roku-app` skill (see [Agent skills](/guide/agent-skills)).

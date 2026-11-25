@@ -28,6 +28,16 @@ and observeField sites), and the HTML report shows it as the "Unresolved sites" 
 sites on one line are counted separately (each edge then carries a `col`). Plain `calls` sites on one line are not told
 apart: they are counted once per line in `resolution.sites.calls`.
 
+## Mapping with an agent
+
+The deterministic commands need no agent. To have an agent group the graph into named features, install the skills
+(`npx brighttest skills install`) and ask it to map the app: the `mapping-a-roku-app` skill runs `features graph`,
+reads the graph in slices, writes `tree.json` next to `graph.json`, runs `features check` (at most three fix rounds),
+runs `features render`, then presents both test paths and asks which to take before any spec is written. The
+`adoption-assessor` agent may write `tree.json` and the report in the features folder and nothing else in the
+project; `test-author` takes its next target from the path you chose. The agent never edits the app and never uses a
+device; every class in the report is a prediction until a run proves it.
+
 ## Where specs are found
 
 Specs inside `source/` and `components/` are found as before. Specs outside them (so `spec-covers` edges exist) are

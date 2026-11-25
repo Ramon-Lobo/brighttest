@@ -205,6 +205,8 @@ error, `2` usage error, missing `<dir>`, bad config or refused `--out`. See [Ass
 
 ## `brighttest features`
 
+The `mapping-a-roku-app` agent skill drives these three commands; see [Map the app](/guide/feature-tree#mapping-with-an-agent).
+
 ```text
 features graph [<dir>] [--out <dir>] [--json] [-c|--config <config>]
 ```

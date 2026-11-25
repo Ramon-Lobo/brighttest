@@ -118,6 +118,7 @@ Do not start fixing. Suggest the next skill from the table, one at a time:
 | Result | Next |
 |---|---|
 | path `brownfield`, blockers understood | `setting-up-brighttest`, then `adopting-brighttest` for the order of work |
+| existing app, you need to know what to test first | `mapping-a-roku-app` (feature map, test order, headless versus device) |
 | path `greenfield` | `adopting-brighttest` (an existing app still starts with `npx brighttest init`) |
 | path `not-a-roku-app` | ask the human for the folder with the manifest, and run assess there |
 | failing existing specs | `debugging-failing-tests` |

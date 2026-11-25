@@ -58,7 +58,7 @@ It is a thin orchestrator over a proven stack, not a new BrightScript engine:
 - **HTTP fixtures, headless** — mock, fault and record `roUrlTransfer` calls from config rules or per test
   with `BTNet_mock` / `BTNet_requests`; see [HTTP fixtures](docs/writing-tests/http-fixtures.md).
 - **Adopt an existing app** — `brighttest assess` (read-only report),
-  `brighttest features graph` (dependency graph of the app),
+  `brighttest features graph` (dependency graph of the app; the `mapping-a-roku-app` skill turns it into a feature tree and test plan),
   `brighttest init --brownfield` / `--greenfield`, and `brighttest instrument build|verify|census` for a
   debug-only instrumented package with a
   release gate; see [Instrumented builds](docs/guide/instrument.md) and [Assess a project](docs/guide/assess.md).

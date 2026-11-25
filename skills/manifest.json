@@ -56,6 +56,16 @@
       ]
     },
     {
+      "name": "mapping-a-roku-app",
+      "files": [
+        "SKILL.md",
+        "references/feature-tree-format.md",
+        "references/grouping-and-naming.md",
+        "references/test-paths.md",
+        "references/testability-classes.md"
+      ]
+    },
+    {
       "name": "mocking-network-and-store",
       "files": [
         "SKILL.md",
@@ -137,7 +147,8 @@
       ],
       "skills": [
         "assessing-a-roku-app",
-        "adopting-brighttest"
+        "adopting-brighttest",
+        "mapping-a-roku-app"
       ]
     },
     {

@@ -69,6 +69,10 @@ Follow `references/first-green-run.md`: write 3 meaningful specs for pure functi
 
 ## Step 5: characterization tests first, then seams
 
+Order: when a feature tree exists (`mapping-a-roku-app`, `tree.json`), take the order from the path the human chose
+(`paths.recommended`, leaf-first or base-first) and do one step at a time. Without a tree, start with the pure
+functions below.
+
 Pin what the code does today before changing it: formatters, parsers, URL builders, reducers. For code that cannot
 be called from a test (logic inside `init`, observers, Tasks), extract a pure function as a proposal. With edit
 permission, make it a separate small change. Without it, write the proposal as a patch for a human to review: you
