@@ -32,12 +32,20 @@ state, network and robustness checks.
 - Stress mode: launch param `stress=1` or `bs_const STRESS=true`: 500 global fields / 256 KB by default, plus trees of
   1,500 and 6,000 nodes. Size knob: launch param `stresskb=<1|16|64|256>` (KB of `m.global` payload; default 256,
   other values ignored).
+  Further knobs: `stressfields=<100|500|1000>` (number of `stress_*` global fields; default 500, other values
+  ignored; `m.global.stressFields`) and `stresstree=<1500|6000|both>` (which node tree(s) to build; default `both`,
+  other values ignored; `m.global.stressTree`). With `bs_const STRESS=true` the defaults apply (500 fields, both trees)
+  unless launch params override them. Matrix example: `stress=1 stressfields=1000 stresskb=64 stresstree=6000`.
 - No-`roInput` mode: launch param `noinput=1`. Build variant without `supports_input_launch`: `manifest.noinput`.
-- Specs (`source/tests`): `AgentCount`, `AgentSerializer`, `AgentWrite` (`@SGNode`). `InducedCrash` is
+- Specs (`source/tests`): `AgentCount`, `AgentSerializer`, `AgentWrite` (`@SGNode`), `StressParams` (`@SGNode`: 100 fields, single 1,500 and 6,000-node trees). `InducedCrash` is
   `@ignore`d; unignored it crashes at `source/Config.brs:67` (`Legacy_explode`) called from
   `source/tests/InducedCrash.spec.bs:13` (call spans lines 13-16). That line is only the ignored spec and is not
   run by the fixture flow; the flow crash is the `LegacyScene.brs` line above.
-- Flows: `state-read`, `state-write`, `network-legacy` (`flows/*.e2e.yaml`).
+- Flows: `state-read`, `state-write`, `network-legacy` (`flows/*.e2e.yaml`). `state-read` also asserts
+  `global user.tier` and `registry legacy_prefs.lastTier` (both `free` on a fresh install; `main.brs` seeds
+  `lastTier` at startup when absent). `state-write` runs the TP-STA-15 round trip (`waitForAgent`, `snapshot: fresh`,
+  `setState`, assert, `restore: fresh`, assert) before its Play step. State flows need an instrumented build
+  (`instrument build --net`); `brighttest.json` declares the registry sections `legacy_prefs` and `legacy_session`.
 
 ## Census ground truth and scaling
 

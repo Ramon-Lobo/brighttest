@@ -32,3 +32,38 @@ describe('legacy-app Main() global handle', () => {
     expect(row.indexOf('setFocus(true)')).toBeGreaterThan(row.indexOf('show()'))
   })
 })
+
+describe('legacy-app stress launch params', () => {
+  const scene = fs.readFileSync(path.resolve(__dirname, '../examples/legacy-app/components/scenes/LegacyScene.brs'), 'utf8')
+  const flows = (n) => fs.readFileSync(path.resolve(__dirname, `../examples/legacy-app/flows/${n}.e2e.yaml`), 'utf8')
+
+  it('main.brs accepts only the documented stressfields and stresstree values, with defaults 500 and both', () => {
+    expect(main).toMatch(/stressFields = 500/)
+    expect(main).toMatch(/stressTree = "both"/)
+    expect(main).toMatch(/nf = 100 or nf = 500 or nf = 1000/)
+    expect(main).toMatch(/st = "1500" or st = "6000" or st = "both"/)
+    expect(main).toMatch(/stressFields: stressFields/)
+    expect(main).toMatch(/stressTree: stressTree/)
+  })
+
+  it('main.brs seeds registry legacy_prefs.lastTier when absent', () => {
+    expect(main).toMatch(/not reg\.exists\("lastTier"\)/)
+  })
+
+  it('runStress passes the params to growGlobal and builds only the chosen tree(s)', () => {
+    expect(scene).toMatch(/callFunc\("growGlobal", stressParam\("stressFields", 500\), kb\)/)
+    expect(scene).toMatch(/stressParam\("stressTree", "both"\) <> "6000" then sb\.callFunc\("buildTree", 1500\)/)
+    expect(scene).toMatch(/stressParam\("stressTree", "both"\) <> "1500" then sb\.callFunc\("buildTree", 6000\)/)
+  })
+
+  it('state flows carry the layer assertions and the TP-STA-15 steps', () => {
+    expect(flows('state-read')).toMatch(/layer: registry, path: legacy_prefs\.lastTier/)
+    expect(flows('state-read')).toMatch(/layer: global, path: user\.tier/)
+    for (const k of ['waitForAgent', 'snapshot: fresh', 'setState:', 'restore: fresh', 'assertText: { id: tierLabel, equals: "Tier: premium" }']) expect(flows('state-write')).toContain(k)
+  })
+
+  it('brighttest.json declares the registry sections', () => {
+    const cfg = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../examples/legacy-app/brighttest.json'), 'utf8'))
+    expect(cfg.instrument.state.registrySections).toEqual(['legacy_prefs', 'legacy_session'])
+  })
+})
