@@ -1,0 +1,4 @@
+' @SGNode("SrWidget")
+sub RootSpec()
+  x = SrUtilAdd(1, 2)
+end sub
