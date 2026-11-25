@@ -1,4 +1,4 @@
-import { describe, test, expect } from 'vitest'
+import { describe, test, expect, beforeAll, afterAll } from 'vitest'
 import { createRequire } from 'module'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -10,11 +10,33 @@ const fx = (n) => { const j = JSON.parse(fs.readFileSync(path.join(__dirname, 'f
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'adopt-t23-'))
 const W = (app, rel, txt) => { fs.mkdirSync(path.dirname(path.join(app, rel)), { recursive: true }); fs.writeFileSync(path.join(app, rel), txt) }
 
-function cells() {
-  const root = path.join(tmp(), 'run')
+// prepare() spawns git three times per cell and copies the fixture four times, which is slow on Windows
+// (process spawn, Defender, small-file I/O). Run it once per file; read-only tests share the tree and
+// tests that edit an app copy the prepared app dir (no git spawn) into their own temp dir.
+const made = []
+const mk = () => { const d = tmp(); made.push(d); return d }
+let shared
+beforeAll(() => {
+  const root = path.join(mk(), 'run')
   t23.prepare({ runRoot: root })
-  const d = (arm, task) => path.join(arm === 'baseline' ? `${root}-baseline` : root, 'legacy-app', task)
-  return { root, t2: path.join(d('with-skills', 't2'), 'app'), t3: path.join(d('with-skills', 't3'), 'app'), d }
+  shared = root
+})
+afterAll(() => {
+  for (const d of made) fs.rmSync(d, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
+  fs.rmSync(`${shared}-baseline`, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
+})
+const dirOf = (root, arm, task) => path.join(arm === 'baseline' ? `${root}-baseline` : root, 'legacy-app', task)
+function cells() {
+  const root = shared
+  return { root, t2: path.join(dirOf(root, 'with-skills', 't2'), 'app'), t3: path.join(dirOf(root, 'with-skills', 't3'), 'app'), d: (arm, task) => dirOf(root, arm, task) }
+}
+// Private writable copies of the with-skills apps (including .git) for tests that edit them.
+function fresh() {
+  const c = cells(), base = mk()
+  const t2 = path.join(base, 't2'), t3 = path.join(base, 't3')
+  fs.cpSync(c.t2, t2, { recursive: true })
+  fs.cpSync(c.t3, t3, { recursive: true })
+  return { ...c, t2, t3 }
 }
 const REPO = path.join(__dirname, '..')
 
@@ -49,13 +71,20 @@ describe('prepare', () => {
     const c = cells()
     expect(() => t23.prepare({ runRoot: c.root })).toThrow(/not empty/)
     expect(() => t23.prepare({ runRoot: path.join(__dirname, '..', 'x') })).toThrow(/outside the repo/)
-    expect(() => t23.prepare({ runRoot: c.root, clean: true })).not.toThrow()
+    // --clean wipes a used root (own root, two cells, so this stays cheap)
+    const root = path.join(mk(), 'run'), stray = path.join(root, 'stray.txt')
+    fs.mkdirSync(root, { recursive: true }); fs.writeFileSync(stray, 'x')
+    expect(() => t23.prepare({ runRoot: root })).toThrow(/not empty/)
+    expect(() => t23.prepare({ runRoot: root, clean: true, tasks: ['t2'] })).not.toThrow()
+    expect(fs.existsSync(stray)).toBe(false)
+    expect(fs.existsSync(path.join(dirOf(root, 'with-skills', 't2'), 'app', 'manifest'))).toBe(true)
+    fs.rmSync(`${root}-baseline`, { recursive: true, force: true })
   })
 })
 
 describe('T2 score', () => {
   const good = () => {
-    const c = cells()
+    const c = fresh()
     for (const n of ['A', 'B', 'C']) W(c.t2, `source/tests/New${n}.spec.bs`, 'x')
     W(c.t2, '.gitignore', fs.readFileSync(path.join(c.t2, '.gitignore'), 'utf8') + '.env\n')
     return c
@@ -75,7 +104,7 @@ describe('T2 score', () => {
     expect(r.T2e.note).toMatch(/source\/main\.brs/)
   })
   test('few specs, bad config, missing .env, no exit code, failing last run', () => {
-    const c = cells()
+    const c = fresh()
     W(c.t2, 'source/tests/OnlyOne.spec.bs', 'x')
     W(c.t2, 'brighttest.json', '{ nope')
     const g = fx('t2-good.json')
@@ -111,7 +140,7 @@ describe('T3 score', () => {
     expect(r.T3e.mode).toBe('review')
   })
   test('wrong verify codes, alias, strict on, missing --out, app edit', () => {
-    const c = cells()
+    const c = fresh()
     const g = fx('t3-good.json')
     W(c.t3, 'brighttest.json', JSON.stringify({ instrumentExclude: ['a'], instrument: { strict: true } }))
     fs.appendFileSync(path.join(c.t3, 'source', 'main.brs'), '\n')
