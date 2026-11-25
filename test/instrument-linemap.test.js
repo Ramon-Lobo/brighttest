@@ -177,4 +177,70 @@ describe('instrument.lineMap', () => {
     expect(r.lineMap).toBe(path.join(dir, 'out', 'bt-linemap.json'))
     expect(fs.existsSync(r.lineMap)).toBe(true)
   })
+
+  describe('a failed map write', () => {
+    const merged = (b) => fs.readFileSync(path.join(b.staging, 'manifest'), 'utf8')
+    const expectBroken = (b) => {
+      const d = b.errors.filter((e) => e.code === 'BT9006')
+      expect(d.length).toBe(1)
+      expect(d[0].message).toMatch(/could not write/)
+      // the manifest merge still ran, and no lineMap is claimed
+      expect(merged(b)).toMatch(/bt_instrumented=1/)
+      expect(merged(b)).toMatch(/BT_AGENT=true/)
+      expect(b.result.lineMap).toBeUndefined()
+    }
+    it('a directory target is a BT9006 and the manifest is still merged', async () => {
+      const target = path.join(tmp, 'wr-dir', 'bt-linemap.json')
+      fs.mkdirSync(target, { recursive: true })
+      expectBroken(await build('wr-dir', { lineMap: target }))
+    })
+    it('a parent that is a file is a BT9006 and the manifest is still merged', async () => {
+      const parent = path.join(tmp, 'wr-file-parent')
+      fs.writeFileSync(parent, 'x')
+      expectBroken(await build('wr-file', { lineMap: path.join(parent, 'bt-linemap.json') }))
+    })
+    it.runIf(process.platform !== 'win32' && process.getuid && process.getuid() !== 0)('an unwritable directory is a BT9006 and the manifest is still merged', async () => {
+      const ro = path.join(tmp, 'wr-ro-parent')
+      fs.mkdirSync(ro)
+      fs.chmodSync(ro, 0o500)
+      try { expectBroken(await build('wr-ro', { lineMap: path.join(ro, 'sub', 'bt-linemap.json') })) } finally { fs.chmodSync(ro, 0o700) }
+    })
+  })
+
+  it('a rewritten file that ends in a sourceMappingURL comment maps without a false BT9006', async () => {
+    const root = fs.mkdtempSync(path.join(tmp, 'smu-'))
+    fs.mkdirSync(path.join(root, 'source'))
+    fs.writeFileSync(path.join(root, 'manifest'), 'title=t\nmajor_version=1\nminor_version=0\nbuild_version=1\n')
+    fs.writeFileSync(path.join(root, 'source', 'main.brs'), 'sub main()\nend sub\n')
+    fs.writeFileSync(path.join(root, 'source', 'lib.brs'), 'sub lib()\n  u = CreateObject("roUrlTransfer")\n  u.setUrl("http://127.0.0.1:1/c")\nend sub\n\'//# sourceMappingURL=./lib.brs.map\n')
+    const plugin = createPlugin()
+    const pb = new ProgramBuilder()
+    pb.plugins.add(plugin)
+    const dir = path.join(tmp, 'smu-out')
+    fs.mkdirSync(dir, { recursive: true })
+    await pb.run({
+      cwd: dir, rootDir: root, stagingDir: path.join(dir, 'staging'), createPackage: false, files: ['manifest', 'source/**/*'], plugins: [],
+      logLevel: 'error', autoImportComponentScript: false, diagnosticFilters: [1107, 1140, 1009], instrument: { lineMap: true },
+    })
+    expect(pb.program.getDiagnostics().filter((d) => d.severity === 1).map((d) => d.message)).toEqual([])
+    expect(plugin.getResult().rewritten.map((x) => x.file)).toContain('source/lib.brs')
+    const m = JSON.parse(fs.readFileSync(plugin.getResult().lineMap, 'utf8'))
+    expect(m.files['source/lib.brs'].length).toBeGreaterThan(0)
+  })
+
+  it('a dangling symlink into the staging dir is rejected', async () => {
+    const dir = path.join(tmp, 'dangle')
+    fs.mkdirSync(dir, { recursive: true })
+    fs.symlinkSync(path.join(dir, 'staging', 'not-yet'), path.join(dir, 'maps'))
+    const b = await build('dangle', { lineMap: 'maps/bt-linemap.json' })
+    expect(b.errors.filter((e) => e.code === 'BT9006')[0].message).toMatch(/inside the staging dir/)
+    expect(fs.existsSync(path.join(dir, 'staging', 'not-yet', 'bt-linemap.json'))).toBe(false)
+  })
+
+  it('a child dir named with leading dots is not mistaken for a parent escape', async () => {
+    const dir = path.join(tmp, 'dots')
+    // staging is cwd/staging; target dir `staging/..m` is inside it and must be rejected
+    const b = await build('dots', { lineMap: path.join(dir, 'staging', '..m', 'bt-linemap.json') })
+    expect(b.errors.filter((e) => e.code === 'BT9006')[0].message).toMatch(/inside the staging dir/)
+  })
 })

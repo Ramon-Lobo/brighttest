@@ -55,3 +55,15 @@ describe('writeBsConfig with BTState_ specs', () => {
     expect(objs(files('headless-scene'))).toEqual([])
   })
 })
+
+describe('writeBsConfig instrument.lineMap', () => {
+  it('is not handed to the --net headless plugin options', () => {
+    fs.writeFileSync(path.join(tmp, 'manifest'), 'title=x\n')
+    const c = { ...cfg(), instrument: { lineMap: true, strict: true } }
+    const out = writeBsConfig(c, 'headless-scene', { net: { token: 't', port: 1 } })
+    const bs = JSON.parse(fs.readFileSync(out.bsconfigPath, 'utf8'))
+    expect(bs.instrument).toBeDefined()
+    expect(bs.instrument.lineMap).toBeUndefined()
+  })
+})
+
