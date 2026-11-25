@@ -21,6 +21,13 @@ The graph is a pure function of the project tree: running it twice on the same t
 display-only `app` field). Edges carry a confidence (`exact`, `name`, `ambiguous`, `dynamic`, `unresolved`, `builtin`),
 and everything the analysis cannot resolve is listed under `uncertainty` rather than guessed.
 
+`resolution.sites` counts, per kind (`calls`, `callfunc`, `observes`), how many call sites the graph saw and how many
+it resolved or left unresolved. A site is resolved when every outcome at it is `exact`, `name` or `builtin`. The tally is
+derived from the edges, so it is not part of the graph hash. `features graph` prints it as an `unresolved:` line (callFunc
+and observeField sites), and the HTML report shows it as the "Unresolved sites" row. Several callFunc or observeField
+sites on one line are counted separately (each edge then carries a `col`). Plain `calls` sites on one line are not told
+apart: they are counted once per line in `resolution.sites.calls`.
+
 ## Where specs are found
 
 Specs inside `source/` and `components/` are found as before. Specs outside them (so `spec-covers` edges exist) are
