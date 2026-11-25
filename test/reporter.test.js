@@ -385,3 +385,17 @@ describe('engineCrash: a run the engine killed must not read as green', () => {
     expect(laneFailures(head + 'Total: 2\n  Passed: 2\nRESULT: Success\n' + fin, 0).failed).toBe(1)
   })
 })
+
+describe('engineCrash: native FATAL ERROR', () => {
+  const tail = 'RESULT: Success\nFATAL ERROR: Error::ThrowAsJavaScriptException napi_throw\n----- Native stack trace -----\n'
+  it('is an engine crash even with no EXIT line', () => {
+    expect(engineCrash(tail).reason).toBe('native FATAL ERROR')
+    expect(laneFailures(tail, 0).failed).toBe(1)
+  })
+  it('matches napi_throw anywhere in a line', () => {
+    expect(engineCrash('node: napi_throw failed\n')).not.toBeNull()
+  })
+  it('ignores a normal run', () => {
+    expect(engineCrash('RESULT: Success\n')).toBeNull()
+  })
+})
