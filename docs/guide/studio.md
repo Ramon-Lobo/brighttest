@@ -124,6 +124,24 @@ tracing cannot be switched off from Studio.
 (capture remote presses into a flow), **Devices** (discover and switch Rokus) and **Settings** (a placeholder with no
 working controls). The **Network** tab shows the hub's HTTP traffic; see [E2E: Network panel](/e2e/#network-panel).
 
+## Simulator target (no device)
+
+```sh
+brighttest studio --simulator [--port 8700] [--flows-dir flows] [--open]
+```
+
+Builds your app instrumented, runs it on the local brs-node engine and points Studio at that instead of a Roku. It is
+state-only: the AppState panel works, while panels that need a device (tree, screenshot, remote, run, connect, launch,
+performance) answer 409 `SIMULATOR_TARGET`, and the Network panel needs a device. The banner prints the engine as
+`simulator <name>@<version> (<flavor>)`.
+
+- **Engine**: the stock engine (`npm i brs-node`) unless `engines.brsNode` or `BRIGHTTEST_ENGINES` picks another one.
+  An explicit `patched` choice is allowed, with a warning on stderr, because the patched 2.2.0 engine can hang on Tasks.
+  With no engine installed it exits 1 and prints the `npm i brs-node` hint.
+- **Conflicts**: `--simulator` with `--host`, or with a `deviceLease.pool`, exits 2. `--simulator=<value>` exits 2
+  (the flag takes no value). `--password` is ignored, with a warning.
+- **Exit codes**: 2 for a usage error or a missing UI bundle, 1 for any other start failure.
+
 ## Troubleshooting
 
 - **"UI not built" / exit 2**: run `npm run studio:build` in a source checkout.
@@ -138,8 +156,9 @@ working controls). The **Network** tab shows the hub's HTTP traffic; see [E2E: N
 - Checked against code and `--help` in this repo, and exercised headless with the fake Roku (the screenshots above, and
   the Studio unit tests in `test/studio-*.test.js`).
 - **Not device-verified in these docs.** Real-device behaviour of Studio is not claimed here.
-- **Not available yet**: a device-free simulator target for Studio (there is no `--simulator` flag) and a refusal of
-  edits made against a stale view of the state. Neither exists in the code today; the 423 above is the lease refusal.
+- **Not available yet**: a refusal of edits made against a stale view of the state. It does not exist in the code today;
+  the 423 above is the lease refusal.
+- The simulator target (`--simulator`, above) is covered by unit tests with a faked engine, not run end to end here.
 
 ## Regenerating the screenshots
 
