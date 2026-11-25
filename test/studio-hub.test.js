@@ -83,6 +83,45 @@ describe('studio starts the hub before the app launches', () => {
   })
 })
 
+describe('studio without a host (no hub controller)', () => {
+  it('connects and launches without a TypeError on the absent hub', async () => {
+    const hits = []
+    const ecp = http.createServer((q, s) => {
+      hits.push(`${q.method} ${q.url}`)
+      if (q.url.startsWith('/query/device-info')) { s.setHeader('content-type', 'text/xml'); s.end('<device-info><model-name>X</model-name><ui-resolution>1080p</ui-resolution></device-info>') } else s.end('')
+    })
+    await new Promise((r) => ecp.listen(0, '127.0.0.1', r))
+    const prevEcp = process.env.ROKU_ECP_PORT
+    const prevCache = process.env.BRIGHTTEST_CACHE
+    const prevHost = process.env.ROKU_HOST
+    process.env.ROKU_ECP_PORT = String(ecp.address().port)
+    process.env.BRIGHTTEST_CACHE = path.join(dir, 'empty-devices.json') // no cached device: Studio starts hostless
+    delete process.env.ROKU_HOST
+    try {
+      logs = []
+      server = await studio.start({
+        app: 'dev', port: 0, rootDir: dir, cfg: { rootDir: dir },
+        leaseOpts: { acquireOpts: { dir, timers: false, identity: {} }, tickMs: 20, log: (s) => logs.push(s) },
+      })
+      port = server.address().port
+      const post = (p, b) => new Promise((resolve, reject) => {
+        const body = JSON.stringify(b)
+        const rq = http.request({ host: '127.0.0.1', port, path: p, method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) } }, (res) => { res.resume(); res.on('end', () => resolve(res.statusCode)) })
+        rq.on('error', reject); rq.end(body)
+      })
+      expect(await post('/api/connect', { host: '127.0.0.1', password: 'x' })).toBe(200)
+      expect(await post('/api/launch', { app: 'dev' })).toBe(200)
+      await new Promise((r) => setTimeout(r, 100))
+      expect(hits.filter((h) => h.includes('/launch/')).length).toBeGreaterThanOrEqual(2) // connect auto-launch + explicit launch
+    } finally {
+      if (prevEcp === undefined) delete process.env.ROKU_ECP_PORT; else process.env.ROKU_ECP_PORT = prevEcp
+      process.env.BRIGHTTEST_CACHE = prevCache
+      if (prevHost !== undefined) process.env.ROKU_HOST = prevHost
+      await new Promise((r) => ecp.close(r))
+    }
+  })
+})
+
 describe('studio hub lifecycle', () => {
   it('starts the hub with the configured port and the env token once the lease is held', async () => {
     await boot({ BRIGHTTEST_HUB_TOKEN: TOKEN })
@@ -102,6 +141,13 @@ describe('studio hub lifecycle', () => {
     r = await get('/api/net/requests')
     expect(r.json).toMatchObject({ total: 0, hellos: 2, lastHelloAt: 1700000000000 })
     expect(r.text).not.toContain(TOKEN)
+  })
+
+  it('the net hello view counts role=net hellos with the agent ones', async () => {
+    await boot({ BRIGHTTEST_HUB_TOKEN: TOKEN })
+    fakeHub.hellos = 0; fakeHub.netHellos = 1; fakeHub.lastNetHelloAt = 1700000005000
+    const r = await get('/api/net/requests')
+    expect(r.json).toMatchObject({ hellos: 1, lastHelloAt: 1700000005000 })
   })
 
   it('passes instrument.state.redact.paths to the hub so cmd.sent events and the stream are masked', async () => {
