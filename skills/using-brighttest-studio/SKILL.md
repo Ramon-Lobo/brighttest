@@ -37,6 +37,15 @@ brighttest studio --host <ip> [--password <pw>] [--port 8700] [--app dev] [--flo
   A snapshot holds at most 64 KB and the store keeps 20. Without an instrumented build the tab stays read-only (see
   `testing-app-state`).
 
+## Simulator target (no device)
+
+`brighttest studio --simulator` builds the app instrumented and runs it on the local brs-node engine, so the State tab
+works with no device and no lease. It is state-only: tree, screenshot, remote, run, connect and profiling routes answer
+409 `SIMULATOR_TARGET`. The header badge shows the engine and its state (`simulator · brs-node@2.7.1 (stock) · running`).
+State shows global, scene, node and registry layers (not `focus`); before the app says hello, or when the engine is
+`no-hello` or exited, `GET /api/state` answers 200 with `layers: null` and `agentCode: SIM_NOT_CONNECTED`. Combining
+`--simulator` with `--host` or `deviceLease.pool` exits 2. See `docs/guide/studio.md`.
+
 ## What the UI gives you
 
 Pages (`lib/studio/web/src/App.svelte`): Inspect, Runs, Record, Devices, Profile, Settings. In the editor view, tabs next to the
