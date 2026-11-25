@@ -50,6 +50,19 @@ const labelSidebar = <T,>(items: T): T => {
   }
 }
 
+// True when the changelog's Unreleased section has at least one entry (the /next/ banner links to it then).
+function hasUnreleased(): boolean {
+  try {
+    const req = createRequire(import.meta.url)
+    const mod = req(path.resolve(docsRoot, '..', 'scripts', 'docs-badges.js'))
+    const f = path.join(docsRoot, 'changelog.md')
+    if (!fs.existsSync(f)) return false
+    return /^\s*[-*] /m.test(mod.changelogSection(fs.readFileSync(f, 'utf8'), null))
+  } catch {
+    return false
+  }
+}
+
 // VitePress site config for the brighttest docs. Mermaid diagrams are enabled via
 // vitepress-plugin-mermaid (```mermaid fenced blocks render to SVG).
 export default withMermaid({
@@ -79,6 +92,7 @@ export default withMermaid({
 
   themeConfig: {
     btBadges: { pages: bt.badges, since: bt.since },
+    btChangelog: { unreleased: hasUnreleased() },
     nav: [
       {
         text: 'Start',

@@ -58,6 +58,9 @@ onBeforeUnmount(() => { document.removeEventListener('click', onDocClick); docum
         <a :href="hrefFor(v)" :aria-current="!page.isNotFound && current?.id === v.id ? 'page' : undefined"
           @click="go($event, v)">{{ v.label }}</a>
       </li>
+      <li class="bt-vs-sep" data-testid="version-changelog">
+        <a :href="site.base + 'changelog'">Changelog</a>
+      </li>
     </ul>
   </div>
 </template>
@@ -66,6 +69,7 @@ onBeforeUnmount(() => { document.removeEventListener('click', onDocClick); docum
 .bt-vs { position: relative; margin-left: 12px; margin-right: 12px; align-self: center; }
 .bt-vs-btn { font-size: 14px; font-weight: 500; padding: 4px 10px; border: 1px solid var(--vp-c-divider); border-radius: 6px; color: var(--vp-c-text-1); }
 .bt-vs-menu { position: absolute; left: 0; top: 34px; min-width: 190px; list-style: none; margin: 0; padding: 6px; background: var(--vp-c-bg-elv); border: 1px solid var(--vp-c-divider); border-radius: 8px; box-shadow: var(--vp-shadow-3); z-index: 100; }
+.bt-vs-sep { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--vp-c-divider); }
 .bt-vs-menu a { display: block; padding: 6px 10px; font-size: 14px; color: var(--vp-c-text-1); border-radius: 4px; }
 .bt-vs-menu a[aria-current] { font-weight: 700; color: var(--vp-c-brand-1); }
 .bt-vs-menu a:hover { background: var(--vp-c-default-soft); color: var(--vp-c-brand-1); }

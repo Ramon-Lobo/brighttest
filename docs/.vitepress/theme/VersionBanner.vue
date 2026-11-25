@@ -13,6 +13,12 @@ const compareUrl = computed(() => {
   if (!tag || !gh || !/^https:\/\/github\.com\/[\w.-]+\/[\w.-]+$/.test(gh)) return null
   return `${gh}/compare/${encodeURIComponent(tag)}...main`
 })
+// Changes link: this build's own changelog when it has Unreleased entries, else the GitHub compare.
+const changesUrl = computed(() => {
+  const cfg = (theme.value as { btChangelog?: { unreleased?: boolean } }).btChangelog
+  if (cfg?.unreleased && current.value) return `${current.value.path}changelog#unreleased`
+  return compareUrl.value
+})
 const kind = computed(() => {
   // A 404 page cannot know which version was requested, so it shows no banner.
   if (page.value.isNotFound || !current.value || !data.value) return null
@@ -43,7 +49,7 @@ onBeforeUnmount(() => ro?.disconnect())
     Unreleased: these docs track <code>main</code>, ahead of the latest release
     <strong>{{ latest?.tag }}</strong>. Features here may not be in your installed version.
     <a :href="latest?.path">Docs for {{ latest?.tag }}</a>
-    <a v-if="compareUrl" :href="compareUrl" rel="noopener">Changes since {{ latest?.tag }}</a>
+    <a v-if="changesUrl" :href="changesUrl" rel="noopener">Changes since {{ latest?.tag }}</a>
   </div>
   <div v-else-if="kind === 'old'" ref="el" class="bt-banner bt-old" data-testid="banner-old">
     Docs for {{ current?.label }}. The latest release is {{ latest?.tag }}.
