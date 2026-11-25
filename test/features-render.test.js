@@ -446,16 +446,23 @@ describe('features render command', () => {
       }
     } finally { for (const d of [a, c, elsewhere]) fs.rmSync(d, { recursive: true, force: true }) }
   })
-  it('maps a permission failure on the write to exit 2 with a clear message', async () => {
-    if (process.getuid && process.getuid() === 0) return
+  it('maps write failures (EACCES, EPERM, ENOSPC, EROFS, EDQUOT) to exit 2 with a clear message', async () => {
     const dir = project()
     try {
       await run(['graph'], dir)
-      const ro = path.join(dir, 'ro'); fs.mkdirSync(ro); fs.chmodSync(ro, 0o500)
-      const r = await run(['render', '--auto', '--out', path.join(ro, 'r.html')], dir)
-      fs.chmodSync(ro, 0o700)
-      expect(r.code).toBe(2)
-      expect(r.err).toMatch(/cannot write .*permission denied \(E(ACCES|PERM)\)/)
+      const { runRender } = require('../lib/features/render')
+      const Usage = require('../lib/assess').UsageError
+      const want = { EACCES: /permission denied \(EACCES\)/, EPERM: /permission denied \(EPERM\)/, ENOSPC: /no space left on the device \(ENOSPC\)/, EROFS: /read-only file system \(EROFS\)/, EDQUOT: /no space left on the device \(EDQUOT\)/ }
+      const prev = process.cwd(); process.chdir(dir)
+      try {
+        for (const [code, re] of Object.entries(want)) {
+          const writeReport = () => { throw Object.assign(new Error(code), { code }) }
+          await expect(runRender({ auto: true, out: 'r.html' }, { root: dir, stagingDir: path.join(dir, '.brighttest'), baseRel: '.', stdout: () => {}, stderr: () => {}, writeReport }, Usage)).rejects.toThrow(re)
+        }
+        const other = () => { throw Object.assign(new Error('boom'), { code: 'EIO' }) }
+        await expect(runRender({ auto: true, out: 'r.html' }, { root: dir, stagingDir: path.join(dir, '.brighttest'), baseRel: '.', stdout: () => {}, stderr: () => {}, writeReport: other }, Usage)).rejects.toThrow('boom')
+      } finally { process.chdir(prev) }
+      expect(fs.existsSync(path.join(dir, 'r.html'))).toBe(false)
     } finally { fs.rmSync(dir, { recursive: true, force: true }) }
   })
   it('uses the default 8 MB threshold when none is given', () => {
