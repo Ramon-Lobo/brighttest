@@ -103,13 +103,43 @@ describe('headless.runWithNet instrument context', () => {
     expect(got).toBeUndefined()
   })
 
-  it('a bad block exits 2 with the message and never runs inner', async () => {
+  it('a bad block on an enabled run exits 2 with the prefixed message and never runs inner', async () => {
     const err = vi.spyOn(console, 'error').mockImplementation(() => {})
     let ran = false
-    const code = await headless.runWithNet(writeCfg({ enabled: 'yes' }), {}, fakeHubDeps({}), async () => { ran = true; return 0 })
+    const code = await headless.runWithNet(writeCfg({ enabled: true, state: 'x' }), {}, fakeHubDeps({}), async () => { ran = true; return 0 })
     expect(code).toBe(2)
     expect(ran).toBe(false)
-    expect(err.mock.calls.join('\n')).toContain('instrument.enabled must be true or false')
+    expect(err.mock.calls.join('\n')).toContain('[brighttest] instrument: instrument.state must be true, false or an object')
+    const forced = await headless.runWithNet(writeCfg({ state: 'x' }), { instrument: true }, fakeHubDeps({}), async () => 0)
+    expect(forced).toBe(2)
+  })
+
+  it('a bad block on a run that is not enabled warns once and runs on (no exit 2)', async () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {})
+    for (const block of [{ enabled: 'yes' }, 'nope', { state: 7 }, { exclude: 'x' }]) {
+      let got = 'unset'
+      const code = await headless.runWithNet(writeCfg(block), {}, fakeHubDeps({}), async (c) => { got = c; return 0 })
+      expect(code).toBe(0)
+      expect(got).toBeUndefined()
+    }
+    const text = err.mock.calls.map((c) => c.join(' ')).join('\n')
+    expect(text).toContain('[brighttest] instrument: instrument.enabled must be true or false (got "yes") (ignored')
+    // the same problem twice in one process prints once
+    const before = err.mock.calls.length
+    await headless.runWithNet(writeCfg({ enabled: 'yes' }), {}, fakeHubDeps({}), async () => 0)
+    expect(err.mock.calls.length).toBe(before)
+  })
+
+  it('--no-sgnode with the state agent exits 2 before the hub starts (default lane only)', async () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {})
+    let started = false
+    const deps = { startHub: async () => { started = true; return { host: '127.0.0.1', port: 1, stop: async () => {} } }, localLease: () => ({}) }
+    const code = await headless.runWithNet(writeCfg({ enabled: true }), { noSgnode: true }, deps, async () => 0)
+    expect(code).toBe(2)
+    expect(started).toBe(false)
+    expect(err.mock.calls.join('\n')).toContain('--no-sgnode runs no SceneGraph; the instrument state agent needs a scene lane')
+    // state off + net: not refused
+    expect(await headless.runWithNet(writeCfg({ enabled: true, state: false, net: true }), { noSgnode: true }, deps, async () => 0)).toBe(0)
   })
 
   it('a hub that cannot start fails an instrumented run', async () => {
@@ -120,13 +150,6 @@ describe('headless.runWithNet instrument context', () => {
 })
 
 describe('headless.runSuite with state', () => {
-  it('--no-sgnode with the state agent exits 2 with the design message', async () => {
-    const err = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const code = await headless.runSuite(writeCfg({ enabled: true }), { noSgnode: true }, { token: 't', port: 1, net: false, state: {} })
-    expect(code).toBe(2)
-    expect(err.mock.calls.join('\n')).toContain('--no-sgnode runs no SceneGraph; the instrument state agent needs a scene lane')
-  })
-
   it('state on routes to the scene lane with the context', async () => {
     const cov = require('../lib/coverage-headless.js')
     const spy = vi.spyOn(cov, 'run').mockResolvedValue(0)
@@ -137,12 +160,46 @@ describe('headless.runSuite with state', () => {
 })
 
 describe('instrumentWanted', () => {
-  it('is false by default and true when enabled, forced, or the block is bad', () => {
+  it('is false by default and true when enabled, forced, or the enabled block is bad', () => {
     expect(headless.instrumentWanted(writeCfg(undefined), {})).toBe(false)
     expect(headless.instrumentWanted(writeCfg({ enabled: false }), {})).toBe(false)
     expect(headless.instrumentWanted(writeCfg({ enabled: true }), {})).toBe(true)
     expect(headless.instrumentWanted(writeCfg(undefined), { instrument: true })).toBe(true)
-    expect(headless.instrumentWanted(writeCfg({ enabled: 1 }), {})).toBe(true)
+    expect(headless.instrumentWanted(writeCfg({ enabled: 1 }), {})).toBe(false)
+    expect(headless.instrumentWanted(writeCfg({ enabled: true, state: 'x' }), {})).toBe(true)
     expect(headless.instrumentWanted(writeCfg({ enabled: true }), { _noInstrument: true })).toBe(false)
   })
+})
+
+describe('coverage LCOV drops the injected tool files', () => {
+  it('removes source/bt and components/bt records, keeps app files', () => {
+    const { dropToolRecords } = require('../lib/coverage-headless.js')
+    const rec = (f) => `TN:\nSF:${f}\nDA:1,1\nLF:1\nLH:1\nend_of_record\n`
+    const text = rec('source/main.brs') + rec('source/bt/BT_write.brs') + rec('components/bt/BT_Agent.brs') + rec('components/Widget.brs') + rec('source/btx/keep.brs')
+    const r = dropToolRecords(text)
+    expect(r.count).toBe(3)
+    expect(r.text).toContain('SF:source/main.brs')
+    expect(r.text).toContain('SF:components/Widget.brs')
+    expect(r.text).toContain('SF:source/btx/keep.brs')
+    expect(r.text).not.toContain('/bt/')
+  })
+})
+
+describe('plain and net-only generated output matches the pre-instrument-wire output', () => {
+  // Captured from the generator before the instrument wiring existed; paths normalized to <ROOT> and <REPO>.
+  const golden = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'headless-gen', 'main-equivalent.json'), 'utf8'))
+  const repo = path.resolve(__dirname, '..')
+  const cases = [
+    ['plain', undefined, 'headless', {}],
+    ['plain-scene', undefined, 'headless-scene', {}],
+    ['net', { net: true }, 'headless', { net: { token: 't0k', port: 4000 } }],
+    ['net-cov', { net: true }, 'headless-coverage', { net: { token: 't0k', port: 4000 } }],
+  ]
+  for (const [name, inst, lane, extra] of cases) {
+    it(`${name}: bsconfig.json and BT_config.brs are byte-identical`, () => {
+      const r = gen(writeCfg(inst), lane, extra)
+      expect(r.bs.split(tmp).join('<ROOT>').split(repo).join('<REPO>')).toBe(golden[name].bsconfig)
+      expect(r.btc).toBe(golden[name].btConfig)
+    })
+  }
 })
