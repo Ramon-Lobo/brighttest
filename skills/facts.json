@@ -7,8 +7,8 @@
   ],
   "cliVersion": "0.7.0",
   "engines": {
-    "brsNode": "^2.2.0",
-    "rooibos": "^5.16.4"
+    "brsNode": "2.7.1-bt.1",
+    "rooibos": "5.17.0-bt.1"
   },
   "exitCodes": {
     "buildStrict": 4,
