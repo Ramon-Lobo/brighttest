@@ -68,3 +68,29 @@ node scripts/adopt-eval/t23.js score   --run-root <dir> --results <json> [--task
 
 Cells: `<root>[-baseline]/legacy-app/<task>/{app/,out/,prompt.md}`. Results JSON keys are `legacy-app/<arm>/<task>`, each
 `{ finalMessage, commands, reads, exitCodes }`. Baseline cells are contamination-checked; only with-skills gates.
+
+## Feature tree mapping (`--case tree`)
+
+Map `examples/feature-tree-app` with and without the skills, three runs per arm. Same arm-root layout as T1.
+
+```
+node scripts/adopt-eval/prepare.js --case tree --run-root <dir> [--clean]
+node scripts/adopt-eval/score.js   --case tree --run-root <dir> --results <json>
+```
+
+Cells: `<dir>/feature-tree-app/run<1..3>/{app/,prompt.md}` (with-skills) and `<dir>-baseline/...` (baseline). `app/` is a fresh
+copy with `EXPECTED-GRAPH.json`, `EXPECTED-FEATURES.json`, `README.md` and `.brighttest` removed before the base commit; the
+scorer reads `EXPECTED-FEATURES.json` from the repo. with-skills gets the inlined safety block, the `adopting-brighttest`
+router, the `mapping-a-roku-app` skill and its references; both arms get the local CLI path and a lease dir
+(`<cell>/leases`, expected to stay absent or empty).
+
+Results JSON, per cell key `feature-tree-app/<arm>/run<n>`:
+`{ finalMessage, transcript?, commands: ["cmd" | { cmd, exit }], exitCodes?, reads?, grepBytes?, toolCalls?, tokens?, wallMs?, skillLoaded? }`.
+`commands` keeps run order (C2 counts `features check` invocations); give `{ cmd, exit }` when a command repeats with different
+exit codes. `reads` are paths opened by file-read tools; `grepBytes` is the total printed by `grep` (C4).
+
+Criteria C1-C8 are the pack's: graph run, valid tree within 3 checks (the scorer re-runs `features check`), grouping at 0.80
+per expected feature, 150 KB source budget, no device command, no client names (`check-denylist`; blocked, never pass, with
+no deny-list), both paths and a question, writes confined to the features output folder. Run rule: C2, C5, C6 and C8 must
+pass 3 of 3 runs; C1, C3, C4 and C7 2 of 3; all eight count; only with-skills gates. Output: `SCORE-TREE.md` and
+`SCORE-TREE.json` (pack version and harness commit sha included). The scorer never calls a model and never runs a device command.
