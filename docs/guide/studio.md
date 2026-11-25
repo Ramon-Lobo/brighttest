@@ -58,6 +58,15 @@ hand-over is refused with HTTP 423 and nothing is written (the inspector sets "D
 but the held view then replaces the panel, so that line may not stay on screen). The header badge can lag: it updates on
 the next poll, so it may still read "Studio holding" or already read "Studio released" while the banner shows the other holder. The read-only held view masks `name` and `token` like the live view.*
 
+### The lease board on the Devices page
+
+The Devices page has a **Lease** section: one card per device with its state, who holds it and for how long, the line of
+waiting sessions, whether the device answers, a table of recent runs, a bar strip of hold times (wait part in amber) and
+the last 24 hours in numbers. It is the same board as [`brighttest device watch`](/guide/device-lease). It reads
+`GET /api/lease/board`, which needs no lease, takes none and never waits on the device: the reachability check runs in the
+background, at most one small request per device every 30 seconds. The page refreshes every 3 seconds only while the Devices page
+is open. Studio's own hold shows like any other holder, as `studio`.
+
 ## State inspector
 
 The **State** tab on the Inspect page reads the instrumented app's `__bt_agent` node over ECP (one small request, not a
