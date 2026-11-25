@@ -189,6 +189,28 @@ describe('plain and net-only generated output matches the pre-instrument-wire ou
   // Captured from the generator before the instrument wiring existed; paths normalized to <ROOT> and <REPO>.
   const golden = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'headless-gen', 'main-equivalent.json'), 'utf8'))
   const repo = path.resolve(__dirname, '..')
+  // Parse the JSON (so Windows backslash escaping is irrelevant), flip separators to '/', then swap the
+  // temp root and repo root (as given, realpath'd, and 8.3-short variants) for placeholders.
+  const slash = (p) => p.replace(/\\/g, '/').replace(/\/+$/, '')
+  const variants = (p) => {
+    const out = new Set([slash(p)])
+    try { out.add(slash(fs.realpathSync.native(p))) } catch {}
+    try { out.add(slash(fs.realpathSync(p))) } catch {}
+    return [...out].sort((a, b) => b.length - a.length)
+  }
+  const normalizePaths = (text, roots) => {
+    const fix = (v) => {
+      if (typeof v === 'string') {
+        let t = slash(v)
+        for (const [dirs, label] of roots) for (const d of dirs) t = t.split(d).join(label)
+        return t
+      }
+      if (Array.isArray(v)) return v.map(fix)
+      if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, fix(x)]))
+      return v
+    }
+    return JSON.stringify(fix(JSON.parse(text)), null, 2)
+  }
   const cases = [
     ['plain', undefined, 'headless', {}],
     ['plain-scene', undefined, 'headless-scene', {}],
@@ -198,7 +220,7 @@ describe('plain and net-only generated output matches the pre-instrument-wire ou
   for (const [name, inst, lane, extra] of cases) {
     it(`${name}: bsconfig.json and BT_config.brs are byte-identical`, () => {
       const r = gen(writeCfg(inst), lane, extra)
-      expect(r.bs.split(tmp).join('<ROOT>').split(repo).join('<REPO>')).toBe(golden[name].bsconfig)
+      expect(normalizePaths(r.bs, [[variants(tmp), '<ROOT>'], [variants(repo), '<REPO>']])).toBe(golden[name].bsconfig)
       expect(r.btc).toBe(golden[name].btConfig)
     })
   }
