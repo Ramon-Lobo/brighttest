@@ -126,6 +126,11 @@ For an existing app you do not want to edit. It runs the census, writes the `ins
 `.brighttest/` and `*.bt-instrumented.zip` to `.gitignore`. It adds no example spec and no npm test script. An existing
 `instrument` block is kept unless you pass `--force`.
 
+On the no-edit path run it first, on a copy of the app, before `instrument build`. If the app's `brighttest.json` globs
+were written for test lanes (they leave out `source/main.brs`, or include `certs/**`), do not edit that file: write a
+separate config and pass it, for example `npx brighttest instrument build --config bt-instrument.json --out debug.bt-instrumented.zip`.
+Strict stays off for the first run so a package is always produced; turn it on later with `--strict` once it exits 0.
+
 ## Greenfield setup: `init --greenfield`
 
 ```bash
