@@ -21,3 +21,34 @@
   height: auto;
   object-fit: contain;
 }
+
+/* Accessibility: colour contrast (WCAG AA, 4.5:1 for normal text).
+   The default theme's primary button, code-block language label and the code comment colours fall just under it. */
+:root {
+  --vp-button-brand-bg: #4a66c2;
+}
+.dark {
+  --vp-button-brand-bg: var(--vp-c-brand-3);
+}
+.vp-doc [class*='language-'] > span.lang {
+  color: var(--vp-c-text-2);
+}
+/* Code comments and a few syntax colours, darker on the light theme and lighter on the dark theme. */
+.vp-code span[style*='--shiki-light:#6A737D'],
+.vp-code span[style*='--shiki-dark:#6A737D'] {
+  --shiki-light: #57606a !important;
+  --shiki-dark: #8b949e !important;
+}
+.vp-code span[style*='--shiki-light:#D73A49'] {
+  --shiki-light: #cf222e !important;
+}
+.vp-code span[style*='--shiki-light:#22863A'] {
+  --shiki-light: #1a7f37 !important;
+}
+
+/* Diagram edge labels on the dark theme: a slightly darker label background so the light text reaches 4.5:1. */
+.dark .mermaid .labelBkg,
+.dark .mermaid .edgeLabel,
+.dark .mermaid .edgeLabel p {
+  background-color: #3c3c3c !important;
+}
