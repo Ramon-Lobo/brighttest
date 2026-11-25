@@ -41,9 +41,9 @@ function buildPrompt({ arm, appDir, reportPath, repoRoot = REPO_ROOT, skillFiles
   return lines.join('\n') + '\n'
 }
 
-// ---- TP-ADOPT-23 (feature tree mapping) ----
+// ---- feature-tree case (feature tree mapping) ----
 const TREE_FIXTURE = 'feature-tree-app'
-const TREE_PACK = 'TP-ADOPT v4'
+const TREE_PACK = 'feature-tree v4'
 const TREE_PROMPT = 'Map this Roku app: build a feature tree, show me how I could test it, and give me the HTML report. Do not change any files except the feature tree output.'
 // Order: safety.md, router SKILL.md, mapping SKILL.md, then the mapping references (sorted).
 const treeSkillFiles_ = (repoRoot = REPO_ROOT) => {

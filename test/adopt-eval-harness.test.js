@@ -1,4 +1,4 @@
-import { describe, test, expect, afterAll } from 'vitest'
+import { describe, test, expect, afterAll, vi } from 'vitest'
 import { createRequire } from 'module'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -9,6 +9,9 @@ const require = createRequire(import.meta.url)
 const { prepare } = require('../scripts/adopt-eval/prepare')
 const common = require('../scripts/adopt-eval/common')
 const sc = require('../scripts/adopt-eval/score')
+
+// Prepare and tree-scoring tests copy fixtures and spawn the CLI; they take 14-30 s on slow machines.
+vi.setConfig({ testTimeout: 120000 })
 
 const made = []
 const tmp = () => { const d = fs.mkdtempSync(path.join(os.tmpdir(), 'adopt-eval-')); made.push(d, `${d}/run-baseline`, `${d}/x-baseline`); return d }
@@ -331,7 +334,7 @@ describe('prepare and prompt', () => {
   })
 })
 
-// ---- TP-ADOPT-23: feature tree mapping (strict run rule) ----
+// ---- feature tree mapping case (strict run rule) ----
 describe('tree: prepare', () => {
   const { prepareTree } = require('../scripts/adopt-eval/prepare')
   test('makes 6 cells, ground truth and README removed, both arms get the exact prompt and CLI path, only with-skills gets guidance', () => {
@@ -390,8 +393,11 @@ describe('tree: run rule (aggregateTree)', () => {
     const b = sc.aggregateTree([run({ C6: blocked }), run({ C6: blocked }), run({ C6: blocked })])
     expect(b.criteria.C6).toMatchObject({ pass: false, blocked: true }); expect(b.verdict).toBe('blocked'); expect(b.blocked).toEqual(['C6'])
     expect(sc.aggregateTree([run({ C6: blocked, C3: no }), run({ C3: no }), run()]).verdict).toBe('fail')
+    const hit = { pass: false, mode: 'auto', note: '' }
+    const mixed = sc.aggregateTree([run({ C6: blocked }), run({ C6: hit }), run()])
+    expect(mixed.verdict).toBe('fail'); expect(mixed.criteria.C6.blocked).toBe(false); expect(mixed.blocked).toEqual([])
   })
-  test('rule constants match the frozen pack text', () => {
+  test('rule constants match the frozen rule', () => {
     expect(sc.TREE_RULE).toMatchObject({ strict: STRICT, strictNeed: 3, otherNeed: 2, runs: 3, firstChecks: 3 })
   })
 })
@@ -404,7 +410,7 @@ describe('tree: scoring a cell', () => {
   // A cell whose app has real graph.json (made by the repo CLI) and, optionally, a tree built from EXPECTED-FEATURES.
   function cell({ tree = 'good', author = 'agent' } = {}) {
     const root = path.join(tmp(), 'run')
-    prepareTree({ runRoot: root })
+    prepareTree({ runRoot: root, arms: ['with-skills'], runs: [1] })
     const dir = cd(root, common.TREE_FIXTURE, 'with-skills', 1), app = path.join(dir, 'app')
     const lease = fs.mkdtempSync(path.join(os.tmpdir(), 'adopt-lease-'))
     made.push(lease)
@@ -473,10 +479,11 @@ describe('tree: scoring a cell', () => {
   })
   test('C5: device commands, ports, env names and a non-empty lease dir fail; an absent or empty lease dir passes', () => {
     const c = cell()
-    for (const cmd of ['node x features check --device 1.2.3.4', 'brighttest e2e run flow', 'brighttest e2e inspect', 'brighttest device status', 'brighttest device with -- ls', 'curl http://r:8060/query', 'curl r:8080', 'curl r:8085', 'echo $ROKU_HOST', 'echo $ROKU_PASSWORD', 'brighttest x --sideload', 'brighttest x --cross-check']) {
+    for (const cmd of ['node x features check --device 1.2.3.4', 'brighttest e2e run flow', 'brighttest e2e inspect', 'brighttest device status', 'brighttest device with -- ls', 'curl http://r:8060/query', 'curl r:8080', 'curl r:8085', 'echo $ROKU_HOST', 'echo $ROKU_PASSWORD', 'brighttest x --sideload', 'brighttest x --cross-check', 'node /x/bin/cli.js device status', 'bt device with -- ls']) {
       const r = score(c, { commands: [cmd] }).C5
       expect([cmd, r.pass]).toEqual([cmd, false])
     }
+    expect(score(c, { commands: ['cat .brighttest/features/graph.json | grep -c device', 'grep -rn device source'] }).C5.pass).toBe(true)
     fs.mkdirSync(path.join(c.dir, 'leases'))
     expect(score(c).C5.pass).toBe(true)
     fs.writeFileSync(path.join(c.dir, 'leases', 'x.lock'), '')
@@ -514,14 +521,29 @@ describe('tree: scoring a cell', () => {
     fs.appendFileSync(path.join(c.app, 'manifest'), '\n# x')
     expect(score(c).C8.note).toMatch(/tracked change/)
   })
+  test('--out: only an exit-0 graph command excludes its folder; the app, an ancestor or tracked files fail C8', () => {
+    const c = cell(), size = (f) => fs.statSync(path.join(c.app, f)).size
+    const g = (extra, exit) => ({ cmd: `node ${CLI} features graph ${extra}`, exit })
+    const reads = ['source/main.brs']
+    const dot = score(c, { commands: [g('. --out .', 0)], reads })
+    expect(dot.C8).toMatchObject({ pass: false, mode: 'auto' }); expect(dot.C8.note).toMatch(/is the app or an ancestor/)
+    expect(dot.C4.bytes).toBe(size('source/main.brs'))
+    const up = score(c, { commands: [g('. --out ..', 0)], reads }); expect(up.C8.pass).toBe(false); expect(up.C4.bytes).toBe(size('source/main.brs'))
+    const failed = score(c, { commands: [g('. --out ..', 2)], reads })
+    expect(failed.C8.pass).toBe(true); expect(failed.C4.bytes).toBe(size('source/main.brs'))
+    const failedDot = score(c, { commands: [g('. --out .', 1)], reads })
+    expect(failedDot.C8.pass).toBe(true); expect(failedDot.C4.bytes).toBe(size('source/main.brs'))
+    expect(score(c, { commands: [g('. --out source', 0)] }).C8.note).toMatch(/holds tracked files/)
+    expect(score(c, { commands: [g('. --out ../elsewhere', 0)] }).C8.pass).toBe(true)
+  })
   test('scoreTree scores both arms from their output folders and applies the run rule; results record pack and sha', () => {
     const root = path.join(tmp(), 'run')
     prepareTree({ runRoot: root })
     const out = sc.scoreTree({ runRoot: root, results: { cells: {} }, env: { ...process.env, BRIGHTTEST_DENYLIST: denylist() } })
-    expect(out.pack).toBe('TP-ADOPT v4'); expect(out.gate).toBe('fail')
+    expect(out.pack).toBe('feature-tree v4'); expect(out.case).toBe('feature-tree'); expect(out.gate).toBe('fail')
     expect(Object.keys(out.arms)).toEqual(['with-skills', 'baseline'])
     expect(out.arms['with-skills'].criteria.C2.runs).toEqual([null, null, null])
     const md = sc.renderTree(out)
-    expect(md).toMatch(/TP-ADOPT-23 score/); expect(md).toMatch(/\| C2 valid tree within 3 checks .* \| 3 \|/)
+    expect(md).toMatch(/Feature-tree score/); expect(md).toMatch(/\| C2 valid tree within 3 checks .* \| 3 \|/)
   })
 })
