@@ -21,6 +21,7 @@ describe('greenfield example: action log config', () => {
   it('declares instrument.state.dispatch ["dispatch"] in the shipped brighttest.json', () => {
     const cfg = JSON.parse(fs.readFileSync(path.join(APP, 'brighttest.json'), 'utf8'))
     expect(cfg.instrument.state.dispatch).toEqual(['dispatch'])
+    expect(cfg.instrument.state.registrySections).toEqual(['greenfield'])
   })
 
   it('instrument build of the unmodified example wraps dispatch and emits state.action with hashBefore and hashAfter', async () => {

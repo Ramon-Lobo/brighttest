@@ -5,6 +5,6 @@
   "stagingDir": ".brighttest",
   "diagnosticFilters": [1140],
   "instrument": {
-    "state": { "dispatch": ["dispatch"] }
+    "state": { "dispatch": ["dispatch"], "registrySections": ["greenfield"] }
   }
 }
