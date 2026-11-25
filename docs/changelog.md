@@ -15,11 +15,13 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
   [Upgrade notes](#upgrade-0-8-0)
 - **Reporting:** a run where an `@async` case inside an `@SGNode` suite never finishes, so the later cases are dropped, used
   to exit 0 with fewer cases counted. It now fails and lists the dropped cases. [Upgrade notes](#upgrade-0-8-0)
-- **Studio:** with several cached devices and no `--host`, `brighttest studio` now refuses to start instead of
-  connecting to the last device used. It also needs a dev password whenever it connects to a device, including with an
-  explicit `--host`. [Upgrade notes](#upgrade-0-8-0)
-- **E2E:** launch params must be strings, numbers or booleans; objects, arrays and `null` are rejected when the flow is
-  parsed (they used to be sent as `[object Object]`). [Upgrade notes](#upgrade-0-8-0)
+- **Studio:** `brighttest studio` no longer connects to the last device used. Without `--host` it uses `ROKU_HOST`, or
+  the one cached device; with several cached devices it refuses to start. It also refuses to start when it has a
+  device but no dev password (from `--password`, `ROKU_PASSWORD`, a project `.env` or the device cache); before, it
+  started and failed later. [Upgrade notes](#upgrade-0-8-0)
+- **E2E:** launch param values must be strings, numbers or booleans. A value that is an object, array or `null`
+  (for example params nested under a `params:` key, which used to be sent as `params=[object Object]`) now fails
+  the flow before the launch is sent. `brighttest e2e lint` also catches it, with no device. [Upgrade notes](#upgrade-0-8-0)
 
 ### Security
 - **Studio:** rejects cross-origin and non-JSON requests to its local API, and requests with a non-local `Host` header
@@ -33,7 +35,7 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
   cap. `census` redacts absolute and home paths from errors and report text
   ([guide](./guide/instrument.md), [app state](./e2e/app-state.md)).
 - **Studio:** state inspector with edit in place, snapshots, diff and export/import; action log with time travel;
-  network panel; lease badge, queue and device pool ([guide](./guide/studio.md)).
+  network panel; lease badge, queue and device pool (uses `deviceLease.pool` when configured) ([guide](./guide/studio.md)).
 - **Studio Profile page:** performance sampling, `.bsprof` profiler pull and import, a Perfetto system trace (kept per
   device, with auto-restart and a frame-budget summary), SceneGraph console commands and graphics frame rate. The node
   overlay now matches what the device draws ([guide](./guide/studio.md)).
@@ -72,8 +74,8 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
 - **Headless lane:** warns when it meets a Task component.
 
 ### Fixes
-- **E2E:** focus moves through composite focus; the focused selector picks the deepest node; launch with params
-  reaches an already running channel ([flow reference](./e2e/flows.md)).
+- **E2E:** focus navigation keeps pressing through a keyboard-style control whose cursor moves inside one focused
+  node; the focused selector picks the deepest node; launch with params reaches an already running channel ([flow reference](./e2e/flows.md)).
 - **Studio:** serves the last tree instead of an error on transient read failures.
 
 ### Upgrade notes {#upgrade-0-8-0}
@@ -84,9 +86,9 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
   `beforeEach`) while the totals said Success, fix that spec.
 - If a run now fails because an `@async` case in an `@SGNode` suite never finished, make that case call `m.done()` before
   its timeout. See [SceneGraph async tests](./writing-tests/scenegraph-async.md).
-- Studio: pass `--host <ip>` (or set `ROKU_HOST`) when several devices are cached, and give the dev password with
-  `--password` or `ROKU_PASSWORD`. `brighttest devices` finds Rokus on your network (SSDP) and saves the dev password
-  so Studio can connect without `--host`.
+- Studio: pass `--host <ip>` (or set `ROKU_HOST`) when several devices are cached, and make sure the dev password is
+  available (`--password`, `ROKU_PASSWORD`, a project `.env` or the device cache). `brighttest devices` finds Rokus on your network (SSDP) and saves the dev
+  password; Studio can then connect without `--host` only when that is the only cached device.
 - E2E flows: give launch params as flat keys with string, number or boolean values ([flow reference](./e2e/flows.md)).
 
 ## v0.7.0 - 2026-07-23 {#v0-7-0}
@@ -127,26 +129,22 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
 
 ## v0.3.0 - 2026-07-14 {#v0-3-0}
 
-First tagged release. It also covers the untagged npm releases 0.1.0 to 0.2.0.
+First tagged release. It lists only what was added after the untagged npm releases 0.1.0 to 0.2.0, which are not
+repeated here. Those releases shipped the headless, device and cross-check lanes, the live reporter, the coverage
+table, `@deviceOnly`, global context, agent skills, `init` and several ANSI output fixes.
 
 ### Breaking changes
 - **CLI:** requires Node 22 or later (the engine crashes on Node 18 and 20). [Upgrade notes](#upgrade-0-3-0)
 
 ### Features
-- **Lanes:** headless, device and cross-check lanes with a live reporter and a per-file coverage table
-  ([CI](./guide/ci.md)).
-- **Config:** `@deviceOnly` tests are skipped on headless lanes; global-context seeding for `@SGNode` device tests
-  ([global context](./writing-tests/global-context.md), [headless vs device](./writing-tests/headless-vs-device.md)).
-- **Adoption:** agent skills and `brighttest init` ([agent skills](./guide/agent-skills.md)).
 - **E2E:** on-device lane (`brighttest e2e`) with scripted flows, `record` to scaffold a flow, focus path-finding and
   text entry, build-time id injection, multi-device runs with a deep-link matrix and per-host passwords, and `--video`
   session replay ([overview](./e2e/index.md), [flow reference](./e2e/flows.md)).
 
 ### Fixes
 - **Reporter:** tests with long names are counted correctly.
-- **Coverage:** ANSI escapes no longer break cross-check test names or LCOV parsing.
 
 ### Upgrade notes {#upgrade-0-3-0}
 - Upgrade to Node 22 or later.
 
-[Full diff](https://github.com/Ramon-Lobo/brighttest/compare/1172a35...v0.3.0)
+[Full diff](https://github.com/Ramon-Lobo/brighttest/compare/a8fe9d2...v0.3.0)
