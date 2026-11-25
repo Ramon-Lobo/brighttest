@@ -5,7 +5,7 @@ import path from 'node:path'
 import { createRequire } from 'node:module'
 
 const require = createRequire(import.meta.url)
-const { buildGraph } = require('../lib/features/graph')
+const { buildGraph, hashGraph } = require('../lib/features/graph')
 
 const FILES = {
   'manifest': 'title=Sites\n',
@@ -81,5 +81,34 @@ describe('feature graph: callFunc and observeField sites', () => {
   it('is stable across builds', async () => {
     const again = await buildGraph(dir)
     expect(again.hash).toBe(g.hash)
+  })
+})
+
+describe('feature graph: same-line sites', () => {
+  const build = async (hostBrs) => {
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-sites2-'))
+    try {
+      for (const [rel, text] of Object.entries({ ...FILES, 'components/Host.brs': hostBrs })) { fs.mkdirSync(path.dirname(path.join(d, rel)), { recursive: true }); fs.writeFileSync(path.join(d, rel), text) }
+      return await buildGraph(d)
+    } finally { fs.rmSync(d, { recursive: true, force: true }) }
+  }
+  it('reports one dynamic-callfunc uncertainty per site when two share a line', async () => {
+    const x = await build('sub init()\n  kid = m.top.findNode("kid")\n  n = "a" : kid.callFunc(n) : kid.callFunc(n)\nend sub\n')
+    expect(x.uncertainty.counts['dynamic-callfunc']).toBe(2)
+    expect(x.resolution.sites.callfunc.unresolved).toBe(2)
+  })
+  it('orders same-line columns numerically', async () => {
+    const x = await build('sub init()\n  kid = m.top.findNode("kid")\n  kid.callFunc("doIt") : kid.callFunc("doIt") : kid.callFunc("doIt") : kid.callFunc("doIt") : kid.callFunc("doIt")\nend sub\n')
+    const cols = x.edges.filter((e) => e.kind === 'callfunc').map((e) => e.col)
+    expect(cols).toHaveLength(5)
+    expect(cols.some((c) => c >= 10)).toBe(true)
+    expect(cols).toEqual([...cols].sort((a, b) => a - b))
+  })
+  it('keeps the hash independent of the derived sites tally', async () => {
+    const x = await build('sub init()\n  kid = m.top.findNode("kid")\n  kid.callFunc("doIt", 1)\nend sub\n')
+    const { hash, app, ...rest } = x // eslint-disable-line no-unused-vars
+    const { sites, ...res } = rest.resolution // eslint-disable-line no-unused-vars
+    expect(hashGraph(x)).toBe(hashGraph({ ...rest, resolution: res }))
+    expect(hashGraph({ ...rest, resolution: { ...res, sites: { bogus: 1 } } })).toBe(x.hash)
   })
 })
