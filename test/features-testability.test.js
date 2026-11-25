@@ -63,6 +63,17 @@ describe('purity fixed point (U1, U2)', () => {
     ]))
     expect(r.get('a')).toMatchObject({ pure: true, clock: true })
   })
+  it('D1: a zero-timeout wait on a port is event-driven, a timed wait or Sleep still is not', async () => {
+    const g = await mk({
+      'source/loop.brs': ['sub Main()', '  port = CreateObject("roMessagePort")', '  msg = wait(0, port)', 'end sub'],
+      'source/timed.brs': ['sub Main2()', '  port = CreateObject("roMessagePort")', '  msg = wait(600, port)', 'end sub'],
+      'source/sleep.brs': ['sub Pause()', '  sleep(600)', 'end sub'],
+    })
+    const d1 = (id) => (node(g, id).testability.alsoNeeds || []).filter((x) => x.rule === 'D1')
+    expect(d1('file:source/loop.brs')).toEqual([])
+    expect(d1('file:source/timed.brs')[0]).toMatchObject({ aspect: 'wall-clock', at: 'source/timed.brs:3' })
+    expect(d1('file:source/sleep.brs')[0]).toMatchObject({ aspect: 'wall-clock', at: 'source/sleep.brs:2' })
+  })
   it('U1 on a graph: pure, unresolved callee, m use, clock, platform object, and a mutually recursive pair', async () => {
     const g = await mk({
       'source/util.brs': ['function Helper(x as integer) as integer', '  return x + 1', 'end function',
