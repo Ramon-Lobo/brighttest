@@ -54,7 +54,13 @@ npx brighttest features render tree.json --graph graph.json --out reports/featur
 `render` runs the same checks as `check` and refuses an invalid or stale tree (exit `3`, nothing written, an existing
 report is left as it was). Run it from the project root: the CI checklist reads the project's CI files, and a banner
 in the header says when the code changed since the graph was written. `--out` is refused inside `source/` or
-`components/`. With `--auto` the report is built from the graph alone, so it works with no agent at all.
+`components/` (of the current project, and of the project that holds the tree or graph), when it would overwrite an
+input file, a symbolic link, or a file that is not an HTML report. The file is written atomically. With `--auto` the
+report is built from the graph alone, so it works with no agent at all. The skeleton tree is generated in memory from
+`graph.json`; `features graph` does not write a `tree.skeleton.json` file yet, and `--auto` does not read one.
+From a folder that is not a Roku project the CI checklist and the staleness banner are skipped (the rest of the
+report is unchanged). Without `--out`, the report goes beside the tree; only the staging folder
+(`.brighttest/features/`) gets a self-ignoring `.gitignore`, a tree's own folder is never touched.
 
 The output is one HTML file you can open offline or attach to a ticket:
 
