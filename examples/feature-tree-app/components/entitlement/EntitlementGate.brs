@@ -1,7 +1,7 @@
 sub init()
     m.store = CreateObject("roChannelStore")
     m.port = CreateObject("roMessagePort")
-    m.store.SetMessagePort(m.port)
+    if GetInterface(m.store, "ifSetMessagePort") <> invalid then m.store.SetMessagePort(m.port)
 end sub
 
 function hasEntitlement(code as string) as boolean

@@ -7,7 +7,7 @@ sub init()
     m.home.observeField("selected", "onSelected")
     m.tick = m.top.findNode("tick")
     m.tick.observeField("fire", "onTick")
-    m.tick.control = "start"
+    m.tick.control = "start" : m.home.setFocus(true)
 end sub
 
 sub onContent()
