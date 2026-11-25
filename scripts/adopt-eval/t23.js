@@ -196,7 +196,7 @@ function scoreT3({ message = '', commands = [], exitCodes = {}, appDir }) {
     res.T3d = Array.isArray(ex) && ex.length && !alias ? { pass: true, mode: 'auto', note: `instrument.exclude has ${ex.length} entr${ex.length === 1 ? 'y' : 'ies'}; no instrumentExclude alias` } : { pass: false, mode: 'auto', note: [!(Array.isArray(ex) && ex.length) && 'instrument.exclude missing or empty', alias && 'deprecated instrumentExclude present'].filter(Boolean).join('; ') }
   }
   const strictOn = !error && cfg.instrument && cfg.instrument.strict === true
-  const explained = /\bstrict\b/i.test(message) && /(ramp|warn|gradual|phase|later|tighten|raise|enable)/i.test(message)
+  const explained = /\bstrict\b/i.test(message) && /(ramp|warn|gradual|phase|later|tighten|raise|enable|turn(?:ed)? on|first (?:build|run)|stays? off)/i.test(message)
   res.T3e = strictOn ? { pass: false, mode: 'auto', note: 'instrument.strict is true in brighttest.json' } : explained ? { pass: true, mode: 'review', note: 'strict not enabled in config; message mentions strict and a ramp: read the explanation' } : { pass: false, mode: 'review', note: 'strict not enabled, but the message does not explain the strict ramp' }
   res.T3f = checkDiff(appDir, T3_ALLOW)
   return res

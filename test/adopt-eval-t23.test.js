@@ -102,6 +102,14 @@ describe('T3 score', () => {
     for (const [k, v] of Object.entries(r)) expect([k, v.pass]).toEqual([k, true])
     expect(r.T3e.mode).toBe('review')
   })
+  test('strict explanation phrased as off-first-then-turn-on counts as explained', () => {
+    const c = cells()
+    const g = fx('t3-good.json')
+    const message = 'Strict stays off for the first build so a package is always produced; turn it on in CI once a build with --strict exits 0.'
+    const r = t23.scoreT3({ message, commands: g.commands, exitCodes: g.exitCodes, appDir: c.t3 })
+    expect(r.T3e.pass).toBe(true)
+    expect(r.T3e.mode).toBe('review')
+  })
   test('wrong verify codes, alias, strict on, missing --out, app edit', () => {
     const c = cells()
     const g = fx('t3-good.json')
