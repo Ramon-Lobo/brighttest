@@ -102,6 +102,19 @@ describe('ordering and F1 guard', () => {
     expect(args).toEqual(['build', 'docs', '--base', '/brighttest/', '--outDir', '/tmp/x/out-root'])
   })
 
+  test('latest builds (root and its alias) get BRIGHTTEST_DOCS_LATEST=1, others do not', () => {
+    const p = ds.plan(['v0.6.0', 'v0.7.0'], { floor: '0.6' })
+    const env = (b) => ds.buildEnv(b, { BRIGHTTEST_DOCS_LATEST: 'stale', KEEP: 'y' })
+    const by = (rel) => p.builds.find((b) => b.rel === rel)
+    expect(env(by('')).BRIGHTTEST_DOCS_LATEST).toBe('1')
+    expect(env(by('v0.7')).BRIGHTTEST_DOCS_LATEST).toBe('1')
+    expect(env(by('v0.6'))).not.toHaveProperty('BRIGHTTEST_DOCS_LATEST')
+    expect(env(by('next'))).not.toHaveProperty('BRIGHTTEST_DOCS_LATEST')
+    expect(env(by('next')).BRIGHTTEST_DOCS_CHANNEL).toBe('next')
+    expect(env(by('v0.6')).BRIGHTTEST_DOCS_CHANNEL).toBe('release')
+    expect(env(by('')).KEEP).toBe('y')
+  })
+
   test('assembling root cannot clobber other versions, whatever the input order', () => {
     const mk = (name, rel) => {
       const d = tmp()
@@ -185,6 +198,7 @@ const md = fs.readFileSync('docs/index.md', 'utf8')
 if (md === 'BREAK') { console.error('boom'); process.exit(1) }
 fs.rmSync(out, { recursive: true, force: true }); fs.mkdirSync(out, { recursive: true })
 const theme = fs.existsSync('docs/.vitepress/theme/index.ts')
+fs.writeFileSync(path.join(out, 'latest.txt'), String(process.env.BRIGHTTEST_DOCS_LATEST))
 fs.writeFileSync(path.join(out, 'index.html'), [md, base, process.env.BRIGHTTEST_DOCS_CHANNEL, 'theme=' + theme].join('|'))
 `)
     fs.chmodSync(bin, 0o755)
@@ -203,6 +217,10 @@ fs.writeFileSync(path.join(out, 'index.html'), [md, base, process.env.BRIGHTTEST
     expect(read(out, 'v0.7/index.html')).toBe('v2|/brighttest/v0.7/|release|theme=true')
     expect(read(out, 'v0.6/index.html')).toBe('v1|/brighttest/v0.6/|release|theme=true')
     expect(read(out, 'next/index.html')).toBe('main|/brighttest/next/|next|theme=true')
+    expect(read(out, 'latest.txt')).toBe('1')
+    expect(read(out, 'v0.7/latest.txt')).toBe('1')
+    expect(read(out, 'v0.6/latest.txt')).toBe('undefined')
+    expect(read(out, 'next/latest.txt')).toBe('undefined')
     const v = JSON.parse(read(out, 'versions.json'))
     expect(v.versions.map((x) => x.id)).toEqual(['next', '0.7', '0.6'])
     expect(v.skipped).toEqual([])

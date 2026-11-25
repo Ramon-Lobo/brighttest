@@ -1,4 +1,47 @@
+import fs from 'node:fs'
+import path from 'node:path'
+import { createRequire } from 'node:module'
+import { fileURLToPath } from 'node:url'
 import { withMermaid } from 'vitepress-plugin-mermaid'
+
+// New / Updated badges (scripts/docs-badges.js). Never fails the build: any problem means no badges.
+const here = path.dirname(fileURLToPath(import.meta.url))
+const docsRoot = path.resolve(here, '..')
+
+function badgeChannel(): 'next' | 'latest' | 'old' | 'dev' {
+  const c = process.env.BRIGHTTEST_DOCS_CHANNEL
+  if (c === 'next') return 'next'
+  if (c === 'release') return process.env.BRIGHTTEST_DOCS_LATEST === '1' ? 'latest' : 'old'
+  return 'dev'
+}
+
+function loadBadges() {
+  const none = { badges: {} as Record<string, string>, since: '' }
+  try {
+    const req = createRequire(import.meta.url)
+    const mod = req(path.resolve(docsRoot, '..', 'scripts', 'docs-badges.js'))
+    const channel = badgeChannel()
+    if (channel === 'old') return none
+    let releasePages: unknown = null
+    try { releasePages = JSON.parse(fs.readFileSync(path.join(here, 'release-pages.json'), 'utf8')) } catch {}
+    const changelogText = fs.existsSync(path.join(docsRoot, 'changelog.md'))
+      ? fs.readFileSync(path.join(docsRoot, 'changelog.md'), 'utf8') : ''
+    const version = JSON.parse(fs.readFileSync(path.resolve(docsRoot, '..', 'package.json'), 'utf8')).version
+    const info = mod.badgeInfo({ pages: mod.listPages(docsRoot), releasePages, changelogText, channel, version })
+    if (!info.baseline) {
+      console.log(`docs badges: none (${info.reason})`)
+      return none
+    }
+    const m = /^(\d+\.\d+)/.exec(info.baseline.version)
+    return { badges: info.badges, since: m ? `v${m[1]}` : `v${info.baseline.version}`, mod }
+  } catch (e) {
+    console.log(`docs badges: none (${(e as Error).message})`)
+    return none
+  }
+}
+
+const bt = loadBadges() as { badges: Record<string, string>; since: string; mod?: any }
+const labelSidebar = <T,>(items: T): T => (bt.mod && Object.keys(bt.badges).length ? bt.mod.labelSidebar(items, bt.badges) : items)
 
 // VitePress site config for the brighttest docs. Mermaid diagrams are enabled via
 // vitepress-plugin-mermaid (```mermaid fenced blocks render to SVG).
@@ -28,6 +71,7 @@ export default withMermaid({
   },
 
   themeConfig: {
+    btBadges: { pages: bt.badges, since: bt.since },
     nav: [
       {
         text: 'Start',
@@ -85,7 +129,7 @@ export default withMermaid({
       text: 'Edit this page on GitHub',
     },
 
-    sidebar: [
+    sidebar: labelSidebar([
       {
         text: 'Introduction',
         items: [
@@ -187,7 +231,7 @@ export default withMermaid({
           { text: 'Maintainer internals', link: '/maintainers' },
         ],
       },
-    ],
+    ]),
 
     outline: { level: [2, 3] },
     search: { provider: 'local' },

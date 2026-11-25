@@ -296,6 +296,71 @@ describe('stamp', () => {
   })
 })
 
+describe('release page list', () => {
+  const unrel = GOOD.replace('## Unreleased {#unreleased}\n', '## Unreleased {#unreleased}\n\n### Features\n- **CLI:** new thing.\n')
+  const setup = (existing) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cl-pages-'))
+    fs.mkdirSync(path.join(dir, 'docs', '.vitepress'), { recursive: true })
+    fs.mkdirSync(path.join(dir, 'docs', 'guide'))
+    fs.writeFileSync(path.join(dir, 'docs', 'index.md'), '#')
+    fs.writeFileSync(path.join(dir, 'docs', 'guide', 'a.md'), '#')
+    fs.writeFileSync(path.join(dir, 'docs', 'changelog.md'), unrel)
+    const pf = path.join(dir, 'docs', '.vitepress', 'release-pages.json')
+    if (existing) fs.writeFileSync(pf, JSON.stringify(existing))
+    const env = { run: mockRun(), cwd: dir, root: dir, stdout() {}, stderr() {}, today: () => '2026-04-01', env: {} }
+    return { dir, pf, env, file: path.join(dir, 'docs', 'changelog.md') }
+  }
+  const rel = (v) => ({ version: v, pages: ['index'] })
+
+  it('stamp appends an entry for the new version and keeps the newest two', () => {
+    const t = setup({ schema: 1, releases: [rel('0.1.0'), rel('0.2.0')] })
+    try {
+      expect(cl.main(['stamp', '--version', '0.3.0', '--file', t.file], t.env)).toBe(0)
+      const j = JSON.parse(fs.readFileSync(t.pf, 'utf8'))
+      expect(j.releases.map((r) => r.version)).toEqual(['0.2.0', '0.3.0'])
+      expect(j.releases[1].pages).toEqual(['changelog', 'guide/a', 'index'])
+    } finally { fs.rmSync(t.dir, { recursive: true, force: true }) }
+  })
+
+  it('stamp --no-pages leaves the data file alone; a malformed file starts over', () => {
+    const t = setup()
+    try {
+      fs.writeFileSync(t.pf, '{not json')
+      expect(cl.main(['stamp', '--version', '0.3.0', '--no-pages', '--file', t.file], t.env)).toBe(0)
+      expect(fs.readFileSync(t.pf, 'utf8')).toBe('{not json')
+      fs.writeFileSync(t.file, unrel)
+      expect(cl.main(['stamp', '--version', '0.3.0', '--file', t.file], t.env)).toBe(0)
+      expect(JSON.parse(fs.readFileSync(t.pf, 'utf8')).releases).toHaveLength(1)
+    } finally { fs.rmSync(t.dir, { recursive: true, force: true }) }
+  })
+
+  it('pages --from-tag lists the tag tree through the injected runner and writes the entry', () => {
+    const t = setup()
+    try {
+      const calls = []
+      const env = Object.assign({}, t.env, {
+        run: (cmd, args) => { calls.push([cmd, ...args]); return { status: 0, stdout: 'docs/index.md\ndocs/guide/mcp.md\ndocs/.vitepress/config.mts\ndocs/public/x.md\ndocs/guide/_p.md\n' } },
+      })
+      expect(cl.main(['pages', '--from-tag', 'v0.7.0', '--write'], env)).toBe(0)
+      expect(calls).toEqual([['git', 'ls-tree', '-r', '--name-only', 'v0.7.0', 'docs']])
+      expect(JSON.parse(fs.readFileSync(t.pf, 'utf8'))).toEqual({ schema: 1, releases: [{ version: '0.7.0', pages: ['guide/mcp', 'index'] }] })
+    } finally { fs.rmSync(t.dir, { recursive: true, force: true }) }
+  })
+
+  it('pages: unknown tag fails (exit 1), bad tag is a usage error (exit 2), no --write prints only', () => {
+    const t = setup()
+    try {
+      const bad = Object.assign({}, t.env, { run: () => ({ status: 128, stdout: '', stderr: 'bad' }) })
+      expect(cl.main(['pages', '--from-tag', 'v9.9.9', '--write'], bad)).toBe(1)
+      expect(cl.main(['pages', '--from-tag', 'main'], t.env)).toBe(2)
+      const lines = []
+      expect(cl.main(['pages', '--version', '0.3.0'], Object.assign({}, t.env, { stdout: (s) => lines.push(s) }))).toBe(0)
+      expect(JSON.parse(lines.join('')).pages).toEqual(['changelog', 'guide/a', 'index'])
+      expect(fs.existsSync(t.pf)).toBe(false)
+    } finally { fs.rmSync(t.dir, { recursive: true, force: true }) }
+  })
+})
+
 describe('slice', () => {
   let tree
   beforeEach(() => {

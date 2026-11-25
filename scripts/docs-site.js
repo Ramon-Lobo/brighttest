@@ -168,6 +168,15 @@ function buildArgs(build, outDir) {
   return ['build', 'docs', '--base', build.base, '--outDir', outDir]
 }
 
+// Environment the docs config reads: the channel, and LATEST=1 for the root build and its /vX.Y/ alias
+// (it decides whether New/Updated badges are shown). Other builds get no LATEST key at all.
+function buildEnv(build, base = process.env) {
+  const env = { ...base, BRIGHTTEST_DOCS_CHANNEL: build.channel }
+  if (build.latest) env.BRIGHTTEST_DOCS_LATEST = '1'
+  else delete env.BRIGHTTEST_DOCS_LATEST
+  return env
+}
+
 function fatalFailures(p, results) {
   return results.filter((r) => !r.ok && (r.build.id === 'next' || r.build.id === p.latest))
 }
@@ -317,7 +326,7 @@ async function cmdBuild(o) {
   if (o['dry-run']) {
     for (const g of groupByRef(builds)) {
       say(`worktree ${g.tag ? 'refs/tags/' + g.tag : nextRef} (tmp)`)
-      for (const b of g.builds) say(`  vitepress ${buildArgs(b, '<tmp>/' + (b.rel || 'root')).join(' ')}  [BRIGHTTEST_DOCS_CHANNEL=${b.channel}]`)
+      for (const b of g.builds) say(`  vitepress ${buildArgs(b, '<tmp>/' + (b.rel || 'root')).join(' ')}  [BRIGHTTEST_DOCS_CHANNEL=${b.channel}${b.latest ? ' BRIGHTTEST_DOCS_LATEST=1' : ''}]`)
     }
     process.stdout.write(JSON.stringify({ ...p, builds }, null, 2) + '\n')
     return 0
@@ -366,7 +375,7 @@ async function cmdBuild(o) {
       for (const b of g.builds) {
         const dir = path.join(tmpRoot, 'out-' + (b.rel || 'root'))
         const t0 = Date.now()
-        const r = await run(bin, buildArgs(b, dir), { cwd: wt, env: { ...process.env, BRIGHTTEST_DOCS_CHANNEL: b.channel } })
+        const r = await run(bin, buildArgs(b, dir), { cwd: wt, env: buildEnv(b) })
         const seconds = Math.round((Date.now() - t0) / 1000)
         if (r.ok && fs.existsSync(dir)) { results.push({ build: b, ok: true, dir, seconds }); say(`built ${g.key} at ${b.base} in ${seconds}s`) }
         else { results.push({ build: b, ok: false, error: `vitepress build failed: ${r.output.split('\n').slice(-3).join(' | ')}` }); say(`FAILED ${g.key} at ${b.base}`) }
@@ -403,4 +412,4 @@ if (require.main === module) {
   )
 }
 
-module.exports = { parseTag, plan, orderBuilds, versionsJson, groupByRef, buildArgs, fatalFailures, assemble, summaryMarkdown, defaultBase, parseArgs }
+module.exports = { parseTag, plan, orderBuilds, versionsJson, groupByRef, buildArgs, buildEnv, fatalFailures, assemble, summaryMarkdown, defaultBase, parseArgs }

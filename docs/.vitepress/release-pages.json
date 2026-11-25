@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "releases": [
+    {
+      "version": "0.7.0",
+      "pages": [
+        "architecture",
+        "contributing",
+        "e2e/authoring",
+        "e2e/flows",
+        "e2e/index",
+        "e2e/scaling",
+        "guide/agent-skills",
+        "guide/ci",
+        "guide/getting-started",
+        "guide/troubleshooting",
+        "index",
+        "maintainers",
+        "motivation",
+        "writing-tests/anatomy",
+        "writing-tests/assertions",
+        "writing-tests/cookbook",
+        "writing-tests/first-test",
+        "writing-tests/global-context",
+        "writing-tests/headless-vs-device",
+        "writing-tests/index",
+        "writing-tests/mistakes",
+        "writing-tests/organizing",
+        "writing-tests/parameterized",
+        "writing-tests/scenegraph-async",
+        "writing-tests/setup-teardown",
+        "writing-tests/test-doubles"
+      ]
+    }
+  ]
+}

@@ -589,6 +589,25 @@ releases are indexed. The 404 body does not read `versions.json`: it probes for 
 request and links to it when found. The root 404 page cannot know which version path was requested, so its switcher
 shows a neutral "Versions" label and there is no banner.
 
+### New and Updated badges
+
+Pages get a "New" or "Updated" tag (page header and sidebar) between releases. The tag is text, not colour alone.
+
+- **New:** the page exists in this build but not in the baseline release's page list. Renamed pages show as New.
+- **Updated:** the page is linked from a line of the coming release's changelog section (`## Unreleased` on `/next/`, the
+  build's own version section on a release build). A page that is New shows New only. To drop a wrong "Updated", edit
+  or remove the link in `docs/changelog.md`; linking many pages makes many tags.
+- **Baseline:** the previous release. It comes from `docs/.vitepress/release-pages.json` (the last two releases' page
+  lists), so builds need no git history or tags. The tags go away on their own when the next release is cut.
+- **Where:** `/next/`, and the latest release (root and its `/vX.Y/` alias; `docs-site.js` passes
+  `BRIGHTTEST_DOCS_LATEST=1` for those). Older minors show none, as do releases built before this feature existed.
+  `docs:dev` and a plain `docs:build` show them. A missing or malformed data file means no tags and one log line, never
+  a failed build.
+- **Release step:** `node scripts/changelog.js stamp` also appends the working tree's page list to
+  `release-pages.json` (`--no-pages` skips it); stage that file together with `docs/changelog.md` in the release commit.
+  To (re)create an entry from an existing tag: `node scripts/changelog.js pages --from-tag vX.Y.Z --write` (needs the
+  tag locally).
+
 ## Publishing
 
 `dependencies` (not devDependencies) list the runtime toolchain so a normal `npm i -D brighttest` pulls it
