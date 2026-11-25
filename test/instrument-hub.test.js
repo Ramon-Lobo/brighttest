@@ -61,6 +61,35 @@ describe('hub token, route and refusal rules', () => {
     expect((await req(hub, 'POST', `/bt/${TOKEN}/hello`, '{}')).status).toBe(200);
   });
 
+  it('a net hello (?role=net) is counted apart, replies the same, and never resyncs the agent session', async () => {
+    const hub = await start();
+    await req(hub, 'GET', `/bt/${TOKEN}/hello`);
+    const q = JSON.parse((await req(hub, 'POST', `/bt/${TOKEN}/state`, JSON.stringify({ op: 'ping' }))).body);
+    expect(hub.stateOps.get(q.id).status).toBe('pending');
+    const t0 = Date.now();
+    const r = await req(hub, 'GET', `/bt/${TOKEN}/hello?role=net`);
+    expect(r.status).toBe(200);
+    const j = JSON.parse(r.body);
+    expect(j.netBase).toBe(`/bt/${TOKEN}/net/;`);
+    expect(j.session).toBe(hub.sessionId);
+    expect(j.active).toBe(true);
+    expect(hub.stateOps.get(q.id).status).toBe('pending'); // not abandoned
+    expect(hub.netHellos).toBe(1);
+    expect(hub.lastNetHelloAt).toBeGreaterThanOrEqual(t0);
+    expect(hub.hellos).toBe(1);
+  });
+
+  it('a hello with no role still resyncs and abandons a pending command (agent hello)', async () => {
+    const hub = await start();
+    await req(hub, 'GET', `/bt/${TOKEN}/hello`);
+    const q = JSON.parse((await req(hub, 'POST', `/bt/${TOKEN}/state`, JSON.stringify({ op: 'ping' }))).body);
+    await req(hub, 'GET', `/bt/${TOKEN}/hello`);
+    expect(hub.stateOps.get(q.id).status).not.toBe('pending');
+    expect(hub.hellos).toBe(2);
+    expect(hub.netHellos).toBe(0);
+    expect(hub.lastNetHelloAt).toBeNull();
+  });
+
   it('counts hellos and records the last-seen time', async () => {
     const hub = await start();
     expect(hub.hellos).toBe(0);

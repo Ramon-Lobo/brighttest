@@ -33,7 +33,7 @@ function BT_netHello() as string
     x = CreateObject("roUrlTransfer")
     if x = invalid then return ""
     x.SetMessagePort(mp)
-    x.SetUrl(origin + "/bt/" + token + "/hello")
+    x.SetUrl(origin + "/bt/" + token + "/hello?role=net")
     x.SetMinimumTransferRate(1, 1)
     if not x.AsyncGetToString() then return ""
     clock = CreateObject("roTimespan")
@@ -64,7 +64,7 @@ function BT_netBase() as string
     if st.checked and now < st.retryAt then return ""
     st.checked = true
     st.base = BT_netHello()
-    if st.base = "" then st.retryAt = now + 30000
+    if st.base = "" then st.retryAt = now + 3000
     return st.base
 end function
 
