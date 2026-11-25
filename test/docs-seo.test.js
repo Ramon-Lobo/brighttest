@@ -4,6 +4,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { spawnSync } from 'node:child_process'
+import { spawnDocsBuild } from './support/docs-build-lock.js'
 
 const require = createRequire(import.meta.url)
 const seo = require('../scripts/docs-seo')
@@ -15,7 +16,7 @@ const ORIGIN = 'https://docs.example.test'
 function build(channel, base, out) {
   const env = { ...process.env, BRIGHTTEST_DOCS_CHANNEL: channel }
   if (channel === 'release') env.BRIGHTTEST_DOCS_ORIGIN = ORIGIN
-  const r = spawnSync(process.execPath, [BIN, 'build', DOCS, '--base', base, '--outDir', out], { cwd: ROOT, encoding: 'utf8', env, maxBuffer: 64 * 1024 * 1024 })
+  const r = spawnDocsBuild(process.execPath, [BIN, 'build', DOCS, '--base', base, '--outDir', out], { cwd: ROOT, encoding: 'utf8', env, maxBuffer: 64 * 1024 * 1024 })
   if (r.status !== 0) throw new Error('docs build failed: ' + (r.stderr || r.stdout).split('\n').slice(-12).join('\n'))
 }
 const count = (s, re) => (s.match(re) || []).length

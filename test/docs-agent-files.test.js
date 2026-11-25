@@ -4,6 +4,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { spawnSync } from 'node:child_process'
+import { spawnDocsBuild } from './support/docs-build-lock.js'
 
 const require = createRequire(import.meta.url)
 const af = require('../scripts/docs-agent-files')
@@ -52,7 +53,7 @@ describe('built agent-readable docs', () => {
     out = fs.mkdtempSync(path.join(os.tmpdir(), 'docs-agent-'))
     sources = walk(DOCS).sort()
     const bin = path.join(ROOT, 'node_modules', 'vitepress', 'bin', 'vitepress.js')
-    const r = spawnSync(process.execPath, [bin, 'build', DOCS, '--base', BASE, '--outDir', out], {
+    const r = spawnDocsBuild(process.execPath, [bin, 'build', DOCS, '--base', BASE, '--outDir', out], {
       cwd: ROOT, encoding: 'utf8', env: { ...process.env, BRIGHTTEST_DOCS_CHANNEL: 'release', BRIGHTTEST_DOCS_ORIGIN: ORIGIN }, maxBuffer: 64 * 1024 * 1024,
     })
     if (r.status !== 0) throw new Error('docs build failed: ' + (r.stderr || r.stdout).split('\n').slice(-12).join('\n'))
@@ -139,7 +140,7 @@ describe('next channel', () => {
     const out = fs.mkdtempSync(path.join(os.tmpdir(), 'docs-agent-next-'))
     try {
       const bin = path.join(ROOT, 'node_modules', 'vitepress', 'bin', 'vitepress.js')
-      const r = spawnSync(process.execPath, [bin, 'build', DOCS, '--base', '/brighttest/next/', '--outDir', out], {
+      const r = spawnDocsBuild(process.execPath, [bin, 'build', DOCS, '--base', '/brighttest/next/', '--outDir', out], {
         cwd: ROOT, encoding: 'utf8', env: { ...process.env, BRIGHTTEST_DOCS_CHANNEL: 'next' }, maxBuffer: 64 * 1024 * 1024,
       })
       expect(r.status).toBe(0)
