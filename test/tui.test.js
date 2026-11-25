@@ -38,7 +38,7 @@ describe('detectColorLevel', () => {
   const rows = [
     [{ FORCE_COLOR: '0' }, 'none'], [{ FORCE_COLOR: 'false' }, 'none'], [{ FORCE_COLOR: '1' }, '16'], [{ FORCE_COLOR: 'true' }, '16'],
     [{ FORCE_COLOR: '' }, '16'], [{ FORCE_COLOR: '2' }, '256'], [{ FORCE_COLOR: '3' }, 'truecolor'],
-    [{ FORCE_COLOR: '3', NO_COLOR: '1' }, 'truecolor'], [{ NO_COLOR: '1' }, 'none'], [{ NO_COLOR: '' , COLORTERM: 'truecolor' }, 'truecolor'],
+    [{ FORCE_COLOR: '3', NO_COLOR: '1' }, 'truecolor'], [{ FORCE_COLOR: 'banana', COLORTERM: 'truecolor' }, 'none'], [{ NO_COLOR: '1' }, 'none'], [{ NO_COLOR: '' , COLORTERM: 'truecolor' }, 'truecolor'],
     [{ TERM: 'dumb', COLORTERM: 'truecolor' }, 'none'], [{ COLORTERM: 'truecolor' }, 'truecolor'], [{ COLORTERM: '24bit' }, 'truecolor'],
     [{ WT_SESSION: 'x' }, 'truecolor'], [{ TERM: 'xterm-256color' }, '256'], [{ TERM: 'xterm' }, 'none'],
   ];
@@ -147,6 +147,33 @@ describe('width, truncate, pad', () => {
   it('pads to an exact width', () => {
     expect(T.pad('ab', 5)).toBe('ab   '); expect(T.pad('ab', 5, 'right')).toBe('   ab');
     expect(T.width(T.pad('日本語', 5))).toBe(5); expect(T.pad('abcdef', 4)).toBe('abc…');
+  });
+});
+
+describe('emoji and cluster widths', () => {
+  const table = [
+    ['a', 1], ['✅', 2], ['⌚', 2], ['⚡', 2], ['⭐', 2], ['⚠', 1], ['⚠️', 2], ['●', 1], ['❤️', 2], ['1️⃣', 2], ['#️⃣', 2],
+    ['🇺🇸', 2], ['👍', 2], ['👍🏽', 2], ['👨‍👩‍👧', 2], ['日', 2], ['e\u0301', 1], ['한', 2], ['가\u1161', 2], ['\u1161', 0], ['─', 1], ['▎', 1], ['≡', 1],
+    ['\u200b', 0], ['', 0],
+  ];
+  for (const [text, want] of table) it(`${JSON.stringify(text)} is ${want} cells`, () => expect(T.width(text)).toBe(want));
+  it('sums over a mixed string', () => expect(T.width('a✅🇺🇸日e\u0301')).toBe(1 + 2 + 2 + 2 + 1));
+  it('truncate and pad never split a cluster and respect the width', () => {
+    for (const text of ['🇺🇸🇺🇸🇺🇸', '👍🏽👍🏽👍🏽', '⚠️⚠️⚠️', '1️⃣1️⃣1️⃣', '👨‍👩‍👧x👨‍👩‍👧', 'e\u0301e\u0301e\u0301', 'a✅b✅c✅']) {
+      for (let w = 0; w <= 10; w++) {
+        const t = T.truncate(text, w);
+        expect(T.width(t)).toBeLessThanOrEqual(w);
+        expect(T.width(T.pad(text, w))).toBe(w);
+        expect(text.startsWith(t.replace(/…$/, ''))).toBe(true);
+      }
+    }
+    expect(T.truncate('🇺🇸🇺🇸🇺🇸', 5)).toBe('🇺🇸🇺🇸…');
+  });
+  it('jsonSafe escapes the risky code points and keeps the value', () => {
+    const v = 'x\u007f\u0085\u202e\u2028\u{e0041}y';
+    const out = T.jsonSafe(JSON.stringify(v));
+    expect(out).not.toMatch(/[\u007f-\u009f\u202e\u2028]|[\u{e0000}-\u{e007f}]/u);
+    expect(JSON.parse(out)).toBe(v);
   });
 });
 
