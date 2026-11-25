@@ -8,9 +8,14 @@ name: Release
 # falling back to the token). Nothing is live until the owner approves the staged version with 2FA on npmjs.com or with
 # `npm stage approve <stage-id>`. `github-release` then creates a DRAFT GitHub Release for the owner to publish.
 #
-# The npm trusted publisher MUST have its environment field set to npm-release (otherwise a copy of this file on
-# another branch could mint an OIDC token). The token and the trusted publisher can only stage, and the package
-# disallows bypass-2FA tokens, so this file must never call `npm publish`. See docs/maintainers.md, "Releasing".
+# THREAT MODEL. On a tag push GitHub runs this file from the TAGGED commit, so anyone who can create a v* tag can tag an
+# unmerged branch commit with a modified copy of this workflow that drops the checks in `verify`. The npm-release
+# environment only restricts deployments to v* tags, so OIDC would still be issued. The checks here (tag == version,
+# ancestor of main, not already on npm, changelog, tests, tarball contents) therefore guard honest mistakes, not an
+# attacker. The real controls are (1) a tag ruleset that limits who can create v* tags, and (2) the owner's 2FA review of
+# the staged package before approving it. The npm trusted publisher MUST also have its environment field set to
+# npm-release. The token and the trusted publisher can only stage, and the package disallows bypass-2FA tokens, so
+# this file must never call `npm publish`. See docs/maintainers.md, "Releasing".
 #
 # Rehearsal: Actions -> Release -> Run workflow (dry_run, default true) runs `verify` ONLY (every gate plus a real pack,
 # no artifact upload). `publish` and `github-release` run on tag pushes only, so a dispatch never touches the
@@ -134,8 +139,9 @@ jobs:
   # Runs NO repository code: no checkout, no npm ci, no scripts from the repo. It downloads the tarball verify built,
   # checks its sha512 integrity against verify's output with an inline check, and stages that exact file. A compromised
   # build dependency can therefore not reach the OIDC token or NPM_TOKEN via PATH, .npmrc or the toolcache here; it can
-  # still put malicious content into the tarball itself (it runs in verify), which is why the tag/branch protections
-  # and the owner's 2FA review of the staged package matter.
+  # still put malicious content into the tarball itself (it runs in verify), and a workflow edited on a tagged
+  # unmerged commit could skip these checks. Only the v* tag ruleset and the owner's 2FA review of the staged package
+  # control that (see THREAT MODEL above).
   publish:
     name: stage on npm
     needs: verify

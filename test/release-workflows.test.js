@@ -17,6 +17,10 @@ import path from 'node:path'
 // 25 branch-exists check removed          26 preid validation removed           27 permissions: write-all anywhere
 // 28 test.yml top-level permissions removed/widened 29 pull-requests: write outside prepare-release
 // 30 repo script run in publish           31 token passed to a step other than stage
+// 32 ${{ github.ref_name }} inside a run block  33 ${{ }} in `gh release create`  34 ${{ inputs.preid }} in a run block
+// 35 publish step that untars and runs node on the package   36 new third-party uses: step in publish
+// 37 `if: always()` on the stage step     38 tarball-name check removed         39 ancestor fetch refspec changed
+// 40 persist-credentials removed from a test.yml checkout
 const ROOT = path.resolve(__dirname, '..')
 const WF = path.join(ROOT, '.github', 'workflows')
 const read = (f) => fs.readFileSync(path.join(WF, f), 'utf8').replace(/\r\n/g, '\n')
@@ -148,7 +152,7 @@ describe('release.yml', () => {
   })
 
   it('every checkout in the release workflows disables credential persistence', () => {
-    for (const t of [rel.text, prep.text]) {
+    for (const t of [rel.text, prep.text, stripComments(read('test.yml'))]) {
       const steps = t.split(/\n {6}- /).filter((x) => x.startsWith('uses: actions/checkout'))
       expect(steps.length).toBeGreaterThan(0)
       for (const st of steps) expect(st).toMatch(/persist-credentials: false/)
@@ -200,6 +204,78 @@ describe('prepare-release.yml', () => {
     expect(prep.jobs.prepare).toMatch(/if ! printf '%s' "\$PREID" \| grep -Eq '[^']+'; then echo "[^"]*"; exit 1; fi/)
     expect(prep.jobs.prepare).not.toMatch(/\|\| true/)
     expect(norm(block(prep.jobs.prepare, 'permissions', 4))).toBe('contents: write|pull-requests: write|actions: write')
+  })
+})
+
+// Every `run:` body of a workflow file (inline or block scalar).
+function runBodies(text) {
+  const lines = text.split('\n')
+  const out = []
+  for (let i = 0; i < lines.length; i++) {
+    const m = /^(\s*)(?:- )?run:\s*(.*)$/.exec(lines[i])
+    if (!m) continue
+    if (/^[|>]/.test(m[2])) {
+      const base = m[1].length
+      const body = []
+      for (let n = i + 1; n < lines.length && (lines[n].trim() === '' || indentOf(lines[n]) > base); n++) body.push(lines[n])
+      out.push(body.join('\n'))
+    } else out.push(m[2])
+  }
+  return out
+}
+const publishSteps = (job) => job.split(/\n {6}- /).slice(1)
+
+describe('publish job shape', () => {
+  it('has exactly this ordered step list, pinned by SHA, with no step-level if', () => {
+    const first = publishSteps(rel.jobs.publish).map((st) => st.split('\n')[0].replace(/\s+#(?! v).*$/, ''))
+    expect(first).toEqual([
+      'uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0',
+      'name: Ensure npm supports staged publishing (>= 11.15.0)',
+      'uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2',
+      'name: Verify the tarball integrity and work out version and dist-tag',
+      'name: Stage the package (not live until approved)',
+    ])
+    for (const st of publishSteps(rel.jobs.publish)) expect(st).not.toMatch(/^ {8}if:/m)
+    expect(rel.jobs.publish).not.toMatch(/continue-on-error/)
+  })
+
+  it('touches the downloaded tarball only in the integrity and stage commands', () => {
+    const steps = publishSteps(rel.jobs.publish)
+    for (const st of steps) {
+      const name = st.split('\n')[0]
+      const lines = st.split('\n')
+      const hits = lines.filter((l) => /PKG_DIR|TARBALL|\/pkg\b/.test(l))
+      if (/Verify the tarball integrity/.test(name)) {
+        // env declarations, the name check, and the one sha512 read; nothing else.
+        for (const l of hits) expect(l.trim(), l).toMatch(/^(PKG_DIR: |TARBALL: |if \[ "\$TARBALL" != |echo "::error::Unexpected tarball name |ACTUAL=\$\(node -e '[^']*createHash\("sha512"\)[^']*' "\$PKG_DIR\/\$TARBALL"\)$)/)
+      } else if (/Stage the package/.test(name)) {
+        for (const l of hits) expect(l.trim(), l).toMatch(/^(PKG_DIR: |TARBALL: |npm stage publish "\$PKG_DIR\/\$TARBALL" --ignore-scripts )/)
+      } else if (!/download-artifact/.test(name)) {
+        expect(hits, name).toEqual([])
+      }
+    }
+    expect(rel.jobs.publish).not.toMatch(/\btar\b|\bunzip\b|\bnode\s+[./A-Za-z]|\bnpx\b/)
+  })
+
+  it('checks the tarball name against the tag', () => {
+    const meta = stepOf(rel.jobs.publish, 'Verify the tarball integrity and work out version and dist-tag')
+    expect(meta).toContain('VERSION="${REF_NAME#v}"')
+    expect(meta).toMatch(/if \[ "\$TARBALL" != "brighttest-\$\{VERSION\}\.tgz" \]; then\n[^\n]*\n\s+exit 1\n\s+fi/)
+  })
+
+  it('fetches main into the ref the ancestor check reads', () => {
+    expect(rel.jobs.verify).toContain('git fetch --no-tags origin main:refs/remotes/origin/main')
+    expect(rel.jobs.verify).toContain('merge-base --is-ancestor "$SHA" origin/main')
+  })
+})
+
+describe('expression injection', () => {
+  it('no run: block interpolates ${{ }}; values reach the shell through env:', () => {
+    for (const f of touched) {
+      const bodies = runBodies(stripComments(read(f)))
+      expect(bodies.length, f).toBeGreaterThan(0)
+      for (const b of bodies) expect(b, f).not.toContain('${{')
+    }
   })
 })
 
