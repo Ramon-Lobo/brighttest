@@ -13,6 +13,14 @@ describe('release-check', () => {
     expect(rc.parsePackJson(JSON.stringify([{ files: [{ path: 'a' }] }]))).toEqual(['a'])
     expect(() => rc.parsePackJson('[]')).toThrow()
   })
+  it('parses the stage id npm prints', () => {
+    expect(rc.parseStageId('npm notice x\n+ brighttest@0.8.0-rc.0 (staged with id abC_12-9)\n')).toBe('abC_12-9')
+    expect(rc.parseStageId('nothing here')).toBe('')
+  })
+  it('hashes the file list independent of order and separators', () => {
+    expect(rc.packHash(['b', 'a/x'])).toBe(rc.packHash(['a\\x', 'b']))
+    expect(rc.packHash(['a'])).not.toBe(rc.packHash(['a', 'b']))
+  })
   it('picks next for prereleases and latest otherwise', () => {
     expect(rc.distTagFor('0.8.0-rc.1')).toBe('next')
     expect(rc.distTagFor('v1.0.0')).toBe('latest')
