@@ -53,8 +53,17 @@
 
   let treeBusy = false, shotBusy = false;
 
+  // Simulator target: Studio runs the app in the local engine, no device. Device-only panels say so.
+  const sim = $derived(studio.device?.target === 'simulator');
+  const SIM_STATES = { starting: 'starting', settling: 'settling', running: 'running', 'no-hello': 'no hello from the app', exited: 'engine exited' };
+  const simText = (d) => {
+    const e = d?.engine;
+    return `simulator · ${e ? `${e.name}@${e.version} (${e.flavor})` : 'engine'} · ${SIM_STATES[d?.state] || d?.state || 'starting'}`;
+  };
+  const simCls = (d) => (d?.state === 'running' ? 'mine' : d?.state === 'no-hello' || d?.state === 'exited' ? 'other' : 'wait');
+
   async function grabTree() {
-    if (treeBusy || studio.lease || !studio.live || (studio.page !== 'inspect' && studio.page !== 'record')) return;
+    if (treeBusy || sim || studio.lease || !studio.live || (studio.page !== 'inspect' && studio.page !== 'record')) return;
     treeBusy = true;
     try {
       const d = await api.tree();
@@ -64,7 +73,7 @@
     } catch { studio.status = 'tree error'; } finally { treeBusy = false; }
   }
   async function grabShot() {
-    if (shotBusy || studio.lease || !studio.live || (studio.page !== 'inspect' && studio.page !== 'record')) return;
+    if (shotBusy || sim || studio.lease || !studio.live || (studio.page !== 'inspect' && studio.page !== 'record')) return;
     shotBusy = true;
     try {
       const r = await fetch(api.screenshotUrl());
@@ -174,6 +183,7 @@
   // Device lease: while another holder has the device, device polling pauses and a banner says who has it.
   // "Take over when free" queues Studio like any other waiter; it never preempts.
   async function leaseCheck() {
+    if (sim) return;
     try {
       const l = await api.lease();
       studio.leaseInfo = l;
@@ -211,19 +221,24 @@
     let t1, t2;
     const treeLoop = async () => { await grabTree(); t1 = setTimeout(treeLoop, 300); };
     const shotLoop = async () => { await grabShot(); t2 = setTimeout(shotLoop, 900); };
+    const simLoop = async () => { if (sim) await refreshDevice(); t4 = setTimeout(simLoop, 1000); };
     const leaseLoop = async () => { await leaseCheck(); t3 = setTimeout(leaseLoop, 3000); };
-    let t3;
-    treeLoop(); shotLoop(); leaseLoop();
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+    let t3, t4;
+    treeLoop(); shotLoop(); leaseLoop(); simLoop();
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); };
   });
 </script>
 
 <div class="app">
   <header>
     <div class="brand"><span class="dot"></span><b>brighttest</b><span class="sub">studio</span></div>
-    <span class="device">{studio.device?.connected ? `${studio.device.model} · fw ${studio.device.firmware}` : studio.device ? 'no device' : 'connecting…'}</span>
+    <span class="device">{sim ? 'no device' : studio.device?.connected ? `${studio.device.model} · fw ${studio.device.firmware}` : studio.device ? 'no device' : 'connecting…'}</span>
     <div class="spacer"></div>
-    {#if studio.leaseInfo?.host || studio.leaseInfo?.pool}
+    {#if sim}
+      <span class="leasebadge simbadge {simCls(studio.device)}" title={studio.device.tail?.length ? studio.device.tail.join('\n') : 'Studio is running the app in the local simulator; no device is used'}>
+        <span class="ldot"></span><span class="simtext">{simText(studio.device)}</span>
+      </span>
+    {:else if studio.leaseInfo?.host || studio.leaseInfo?.pool}
       {@const b = badge(studio.leaseInfo)}
       <details class="leasebadge {b.cls}">
         <summary title="device lease: {b.text}; {b.own}"><span class="ldot"></span>{b.text} · {b.own}</summary>
@@ -238,7 +253,7 @@
       <label class="tog" title="also outline structural containers with no id, text or focus"><input type="checkbox" bind:checked={studio.showAll} /> all nodes</label>
       <label class="tog" title="also outline nodes the device isn't drawing — hidden, transparent, or scrolled out of view"><input type="checkbox" bind:checked={studio.showOffscreen} /> offscreen</label>
       <label class="tog"><input type="checkbox" bind:checked={studio.live} /> live</label>
-      <span class="status">{studio.status}</span>
+      {#if !sim}<span class="status">{studio.status}</span>{/if}
     {/if}
   </header>
   {#if studio.lease}
@@ -283,7 +298,7 @@
               <div class="editorwrap"><Editor bind:value={flowText} bind:this={editor} getSelected={selectedNode} /></div>
               <div class="flowbar">
                 <button class="ghost" onclick={saveFlow}>Save</button>
-                <button class="run" onclick={() => run()} disabled={running}>{running ? 'Running…' : 'Run ▶'}</button>
+                <button class="run" onclick={() => run()} disabled={running || sim} title={sim ? 'needs a device; start Studio with --host' : ''}>{running ? 'Running…' : 'Run ▶'}</button>
                 <span class="msg" class:err={flowErr}>{flowMsg}</span>
               </div>
               {#if runSteps.length}
@@ -299,7 +314,11 @@
           <section class="sim">
             <div class="card feed">
               <div class="eyebrow">program monitor <span class="tip">right-click a node for actions</span></div>
-              <Stage {shotSrc} oncontext={onNodeContext} />
+              {#if sim}
+                <div class="needsdev" role="note">Screen mirror needs a device. Start Studio with --host to use it.</div>
+              {:else}
+                <Stage {shotSrc} oncontext={onNodeContext} />
+              {/if}
             </div>
             <!-- Inspector tabs and the remote sit side by side: driving the device and reading the
                  resulting node state are the same loop, so they should not compete for vertical space. -->
@@ -331,7 +350,9 @@
               </div>
               <div class="card remotecard">
                 <div class="eyebrow">remote</div>
-                <div class="remotewrap"><Remote onact={onRemote} /></div>
+                <div class="remotewrap">
+                  {#if sim}<div class="needsdev" role="note">The remote needs a device.</div>{:else}<Remote onact={onRemote} />{/if}
+                </div>
               </div>
             </div>
           </section>
@@ -388,6 +409,9 @@
   .leasebadge.mine .ldot { background: #3fb950; }
   .leasebadge.other .ldot { background: #d29922; }
   .leasebadge .lqueue { position: absolute; right: 0; z-index: 5; margin: 4px 0 0; padding: 6px 10px 6px 26px; background: var(--color-panel); border: 1px solid var(--color-haze); white-space: nowrap; }
+  .needsdev { padding: 16px; font-size: 12px; color: var(--color-haze); }
+  .simbadge { display: flex; align-items: center; gap: 6px; }
+  .simbadge.wait .ldot { background: #d29922; }
   .leasebar .queued { color: var(--color-haze); }
   .status { font-family: var(--font-mono); font-size: 11px; color: var(--color-haze); min-width: 68px; text-align: right; }
 
