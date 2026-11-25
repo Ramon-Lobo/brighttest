@@ -15,7 +15,7 @@ const { loadConfig } = require('../../lib/config.js')
 const engines = require('../../lib/engines.js')
 
 let stock = null
-try { stock = engines.resolveEngine('brsNode', 'stock') } catch { /* not installed */ }
+try { stock = engines.resolveEngine('brsNode', 'stock') } catch (e) { if (!e || e.code !== 'ENGINE_MISSING') throw e /* only a missing engine skips */ }
 if (!stock) console.log('studio-simulator integration skipped: stock brs-node is not resolvable (install it with: npm i --no-save brs-node@~2.7.1)')
 const d = stock ? describe : describe.skip
 
