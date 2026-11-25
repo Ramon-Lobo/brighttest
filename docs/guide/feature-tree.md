@@ -108,6 +108,31 @@ The output is one HTML file you can open offline or attach to a ticket:
 
 The checklist cites `docs/guide/ci.md` by path and section and does not generate workflow files.
 
+### Run evidence from JUnit and LCOV
+
+```bash
+npx brighttest --coverage --lcov coverage/lcov.info --junit reports/junit.xml
+npx brighttest features render --auto --junit reports/junit.xml --lcov coverage/lcov.info
+```
+
+`--junit <file>` and `--lcov <file>` (both repeatable) overlay what actually ran onto the report.
+
+- The JUnit file has to come from brighttest, or carry `file` attributes. brighttest's headless JUnit names each case by
+  its Rooibos `@suite("...")` title and has no file attribute, so the graph records each spec file's suite titles and a
+  case maps to the one spec that has that title. A title used by more than one spec is reported as not mapped (the
+  warning gives a count). A `file` attribute, or a classname that is a spec path, is matched by whole trailing path
+  segments; a bare name maps only when exactly one spec has it.
+- A spec whose mapped cases all pass marks itself and the nodes it covers `ran-headless`. A failing or skipped-only spec
+  marks nothing.
+- `ran-device` comes only from a JUnit marked `brighttest.lane=device` (a `<property>` inside the `<testsuite>`, or at
+  the file level) or from the e2e suite name. No brighttest reporter writes that marker yet, and e2e flows are not graph
+  spec nodes, so today `ran-device` appears only for a JUnit you mark by hand. The marker applies to its own suite, so a
+  merged file can hold a headless and a device suite.
+- LCOV carries no lane, so it never adds a level. A node whose lines executed shows `executed (lcov N% of M lines)`;
+  `--lcov` output from a device run is not told apart from a headless one. Paths are matched after removing `pkg:/` and
+  the project root; a bare file name with more than one match, and paths that climb out of the project, are ignored.
+
+
 ## Exit codes
 
 `features graph`: `0` graph produced (findings never change it), `1` internal error, `2` usage error, missing

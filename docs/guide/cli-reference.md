@@ -229,7 +229,7 @@ assigned. Exit codes: `0` valid (warnings allowed), `1` internal error, `2` usag
 invalid or stale.
 
 ```text
-features render [<tree.json>] [--graph <graph.json>] [--out <file.html>] [--auto]
+features render [<tree.json>] [--graph <graph.json>] [--out <file.html>] [--auto] [--junit <file>]... [--lcov <file>]...
 ```
 
 Validates the tree like `check`, then writes one self-contained `report.html` (default: beside the tree). `--auto`
@@ -237,6 +237,12 @@ renders the generated skeleton tree, so no agent is needed; do not combine it wi
 project root: the CI checklist and the "code changed since the graph" banner read the project in the current
 directory. Exit codes: `0` written, `1` internal error, `2` usage error, unreadable input or `--out` refused (inside
 `source/` or `components/`), `3` tree invalid or stale (nothing is written). See [Map the app](/guide/feature-tree).
+
+`--junit` and `--lcov` (repeatable) overlay run evidence. The JUnit must come from brighttest (cases map to specs by
+`@suite` title) or carry `file` attributes. A spec whose cases pass marks its nodes `ran-headless`; `ran-device` only
+comes from a JUnit marked `brighttest.lane=device` (per suite) or the e2e suite name, and no brighttest reporter writes
+that marker yet (e2e flows are not graph spec nodes). LCOV shows `executed (lcov N% of M lines)` and gives no level,
+because it carries no lane. See [Map the app](/guide/feature-tree#run-evidence-from-junit-and-lcov).
 
 ## `brighttest doctor`
 
