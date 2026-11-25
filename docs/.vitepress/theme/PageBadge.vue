@@ -17,7 +17,7 @@ const title = computed(() => (since.value ? `${text.value} since ${since.value}`
 </script>
 
 <template>
-  <div v-if="kind" class="bt-page-badge">
+  <div v-if="kind" class="bt-page-badge" role="region" aria-label="Page status">
     <Badge :type="kind === 'new' ? 'tip' : 'info'" :text="text" :title="title" />
   </div>
 </template>

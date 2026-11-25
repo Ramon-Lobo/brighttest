@@ -567,6 +567,7 @@ VitePress lives in `docs/` (excluded from the npm `files` list, so it isn't publ
 npm run docs:dev       # local preview
 npm run docs:build     # static site → docs/.vitepress/dist
 npm run docs:preview   # serve the built site
+npm run docs:a11y      # axe accessibility check of every built page, light and dark (needs Chrome; see the script header)
 ```
 
 Mermaid diagrams render via `vitepress-plugin-mermaid`. Content is plain Markdown; the sidebar/nav lives
