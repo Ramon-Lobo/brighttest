@@ -181,6 +181,7 @@ Current limitations (the full design is not implemented yet):
 | `strict` | A "could not instrument" entry fails the build (exit 4). `--strict` / `--no-strict` override it per run. | `false` |
 | `exclude` | Globs of files the plugin leaves alone (relative to `rootDir`). The default exclusions (Rooibos, `roku_modules`, vendor, specs) apply on top. | `[]` |
 | `net` | `true` or `false` turns the `setUrl` / `getUrl` rewrite on or off. An object configures it: `unknown`, `receivers` (see below), plus the headless net keys `fixtures`, `unmatched`, `upstreamHosts`, `redact`, `observe`. Any other type is `BT9005`. | `true` |
+| `enabled` | Headless lanes only: `true` builds the headless run with the instrument plugin in state mode (`state: false` keeps net only). `instrument build` ignores it. A non-boolean is an error. | `false` |
 | `scene` | Bootstrap every non-excluded Scene `init` and ship the state agent. `false` also drops the agent components. | `true` |
 | `op` | Add the `BT_op` function to instrumented component chains (the `m` layer). | `true` |
 | `hub` | `host` and `port` the device dials. Unset `host` uses this machine's LAN address (the literal `"auto"` is rejected). `port` is an integer 1 to 65535. | LAN address, `8790` |
