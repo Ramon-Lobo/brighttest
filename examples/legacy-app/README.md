@@ -38,7 +38,7 @@ state, network and robustness checks.
   unless launch params override them. Matrix example: `stress=1 stressfields=1000 stresskb=64 stresstree=6000`.
 - No-`roInput` mode: launch param `noinput=1`. Build variant without `supports_input_launch`: `manifest.noinput`.
 - Specs (`source/tests`): `AgentCount`, `AgentSerializer`, `AgentWrite` (`@SGNode`), `StressParams`
-  (`@SGNode`: 100 fields, single 1,000, 1,500 and 6,000-node trees), `StressArgs` (pure launch-param parser).
+  (`@SGNode`: 100- and 1,000-field cases, single 1,000, 1,500 and 6,000-node trees), `StressArgs` (pure launch-param parser).
   The spec counts nodes with an iterative walk (a recursive count of the 600-deep tree overflows the engine stack),
   so the 6,000-node case runs on both engines. `InducedCrash` is
   `@ignore`d; unignored it crashes at `source/Config.brs:67` (`Legacy_explode`) called from
