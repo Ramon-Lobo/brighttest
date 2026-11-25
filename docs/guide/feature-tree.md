@@ -112,3 +112,9 @@ The checklist cites `docs/guide/ci.md` by path and section and does not generate
 
 Dynamic names (`CreateObject` with a variable, `callFunc` by a computed name), inline CDATA scripts, code behind
 `bs_const` branches and anything outside `source/` and `components/` are reported as uncertainty, not resolved.
+
+`bsconfig.json` plugins and a custom `files` list are reported as uncertainty (`bsconfig-plugins`, `bsconfig-files`);
+`extends` is followed for both (json files inside the project root, no symlinks, five levels). A `bsconfig.json` that
+cannot be read or parsed, or an `extends` target that cannot be followed, is reported as `bsconfig-not-read`. Known
+limitation: a `files` list that is only a subset of the default entries is not flagged, since it matches the walked layout
+for the entries it keeps.
