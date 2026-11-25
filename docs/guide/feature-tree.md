@@ -43,11 +43,46 @@ reach the node (for example `headless-unit` on a component with only inline CDAT
 carries a JSON pointer, so it can be fixed and re-run. `--json` prints `schema`, `ok`, `errors`, `warnings`,
 `findings` and `agentJudgement` (the nodes whose override had no rule class to undercut).
 
+## Render the report
+
+```bash
+npx brighttest features render                 # <stagingDir>/features/tree.json -> report.html beside it
+npx brighttest features render --auto          # no agent: render the generated skeleton tree
+npx brighttest features render tree.json --graph graph.json --out reports/features.html
+```
+
+`render` runs the same checks as `check` and refuses an invalid or stale tree (exit `3`, nothing written, an existing
+report is left as it was). Run it from the project root: the CI checklist reads the project's CI files, and a banner
+in the header says when the code changed since the graph was written. `--out` is refused inside `source/` or
+`components/`. With `--auto` the report is built from the graph alone, so it works with no agent at all.
+
+The output is one HTML file you can open offline or attach to a ticket:
+
+- **Self-contained and locked down.** Inline CSS and one inline script, with a Content-Security-Policy that carries
+  their hashes (`default-src 'none'`), so nothing is fetched. Every string from the project or the tree is escaped.
+  The same graph and tree always give the same bytes.
+- **Complete without JavaScript.** The script only adds a filter box, expand and collapse all, path tabs and a theme
+  toggle. Both test paths are shown in sequence when it is off.
+- **Accessible.** Landmarks, a skip link, ordered headings, labelled tables, native `details` for the tree, badges
+  with text (never colour alone), reduced-motion and print styles. Light and dark themes follow the system setting;
+  `report.html#theme=dark` or `#theme=light` forces one. Both meet WCAG AA contrast.
+- **Sections.** Header (versions, hashes, warnings), summary, feature tree, a panel per feature (members with rule
+  and evidence, dependencies with edge kind, confidence and `file:line`, specs, proposed tests, CI jobs), the
+  leaf-first and base-first test paths, a headless versus device matrix, a numbered CI checklist, uncertainty with
+  what only a device can confirm, and method and provenance.
+- **Nodes that no rule classified** show a "not classified" badge in their own last column, are never counted as
+  headless or device, get no CI job ("classify first") and are summarised as "N nodes not classified".
+- **Size.** Member and dependency tables stop at 500 rows with "N more in graph.json". `render` warns when the file is
+  over 8 MB and still writes it.
+
+The checklist cites `docs/guide/ci.md` by path and section and does not generate workflow files.
+
 ## Exit codes
 
 `features graph`: `0` graph produced (findings never change it), `1` internal error, `2` usage error, missing
 `<dir>`, bad config or refused `--out`.
 `features check`: `0` valid, `1` internal error, `2` usage error or unreadable input, `3` tree invalid or stale.
+`features render`: `0` report written, `1` internal error, `2` usage error, unreadable input or refused `--out`, `3` tree invalid or stale (nothing written).
 
 ## What the graph cannot see
 
