@@ -9,6 +9,8 @@ const require = createRequire(import.meta.url)
 process.env.BRIGHTTEST_CACHE = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'bt-studio-sim-cache-')), 'devices.json')
 const studio = require('../lib/studio/server.js')
 const { startHub, localLease } = require('../lib/instrument/hub.js')
+const { createEventLog } = require('../lib/instrument/events.js')
+const { createStateOps } = require('../lib/instrument/state-ops.js')
 
 let srv, hub, dir, stops
 afterEach(async () => {
@@ -127,5 +129,69 @@ describe('studio server simulator branch', () => {
     try { studio.start({ port: 0, simulator: true, cfg: { deviceLease: { pool: 'not-a-list' } } }) } catch (e) { err = e }
     expect(err && err.code).toBe('USAGE')
     expect(err.message).toMatch(/--simulator/)
+  })
+  describe('/api/state layers from the hub', () => {
+    // A fake hub: state-ops + log, and an auto-acking app that answers `snapshot` with fixed layers.
+    function fakeHub({ hellos = 1, answer = true } = {}) {
+      const log = createEventLog({ sessionId: 's1' })
+      const stateOps = createStateOps({ session: 's1' })
+      let seq = 0
+      const h = {
+        sessionId: 's1', hellos, lastHelloAt: hellos ? 1 : null, log, stateOps, pushed: [], events: log,
+        push(cmd, { ack } = {}) {
+          const full = { v: 1, id: `c-${++seq}`, ...cmd, seq, session: 's1' }
+          stateOps.track(full, { ack, now: Date.now() })
+          h.pushed.push(full)
+          if (answer) setTimeout(() => {
+            stateOps.onAck({ id: full.id, seq, phase: 'received', session: 's1' })
+            const result = full.op === 'snapshot' ? { layers: { global: { user: { tier: 'free', password: 'pw' } }, registry: {} } } : undefined
+            stateOps.onAck({ id: full.id, seq, phase: 'applied', session: 's1', result })
+          }, 5)
+          return full
+        },
+      }
+      return h
+    }
+    async function bootFake(opts) {
+      dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-sim-'))
+      const fh = fakeHub(opts)
+      const sim = { net: { hub: fh, proxy: null, redactPaths: [], events: fh.events, log: fh.log }, info: () => ({ target: 'simulator' }), stop: () => {} }
+      srv = await studio.start({ port: 0, rootDir: dir, simulator: true, simStart: async () => sim })
+      return fh
+    }
+    it('returns the live layers in the device-mode shape (object keyed by layer, masked) when the hub is up', async () => {
+      const fh = await bootFake()
+      const r = await get('/api/state')
+      expect(r.status).toBe(200)
+      expect(r.json.layers.global.state.user.tier).toBe('free')
+      expect(r.json.layers.global.truncated).toEqual([])
+      expect(r.json.layers.global.state.user.password).not.toBe('pw')
+      expect(r.json.agentError).toBeNull()
+      expect(r.json.agentReadFailed).toBe(false)
+      expect(fh.pushed.map((c) => c.op)).toEqual(['snapshot'])
+      expect(r.json.commands).toEqual([]) // poll commands stay out of the list
+    })
+    it('raw=1 returns unmasked layers', async () => {
+      await bootFake()
+      const r = await get('/api/state?raw=1')
+      expect(r.json.layers.global.state.user.password).toBe('pw')
+    })
+    it('layers is null with a clear message before the app says hello, and nothing is queued', async () => {
+      const fh = await bootFake({ hellos: 0 })
+      const r = await get('/api/state')
+      expect(r.status).toBe(200)
+      expect(r.json.layers).toBeNull()
+      expect(r.json.agentError).toMatch(/hello/)
+      expect(r.json.agentReadFailed).toBe(false)
+      expect(fh.pushed).toEqual([])
+    })
+    it('layers is null with agentReadFailed when the app never acks', async () => {
+      await bootFake({ answer: false })
+      const r = await get('/api/state')
+      expect(r.status).toBe(200)
+      expect(r.json.layers).toBeNull()
+      expect(r.json.agentReadFailed).toBe(true)
+      expect(r.json.agentCode).toBe('ACK_TIMEOUT')
+    }, 15000)
   })
 })
