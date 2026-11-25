@@ -26,7 +26,7 @@ Use the script to check what already happened (prior attempts, blockers, decisio
 4. Update `STATUS.md` and reply with: **Dispatch** (ID, agent, brief path), **Ready to merge** (branch, tests), **Needs owner** (question, one line each), **In progress**, **Next up**, **Blocked**.
 
 ## Caps and standing rules
-- At most 4 developer lanes, 3 fork/scratch, 1 reviewer, 1 researcher, and 1 device-qa (only when the device is reachable and the owner confirmed `ROKU_PASSWORD` is exported). Never two agents on the same hot file (`bin/cli.js`, `lib/e2e/run.js`, `lib/studio/server.js`, `package.json`, `lib/devices.js`).
+- At most 4 developer lanes, 3 fork/scratch, 1 reviewer, 1 researcher, and 2 device-qa (only when a device is reachable and the owner confirmed `ROKU_PASSWORD` is exported; both lanes queue on the per-device lease, so they share the two lab devices and never run on one device at once). Never two agents on the same hot file (`bin/cli.js`, `lib/e2e/run.js`, `lib/studio/server.js`, `package.json`, `lib/devices.js`).
 - Developers work in their own worktree off the feature branch, commit there, never push. Commit messages: Conventional Commits, plain, no attribution trailers.
 - Never schedule: push, merge, publish, version bumps, `npm audit fix`, device work without a lease/serial plan, writing the device password anywhere, client references (CLAUDE.md rule 8).
 - Merges, the real deny-list run, pushes, upstream issues/PRs and anything marked `owner` are the owner's call: put them under **Needs owner**, never dispatch them.
