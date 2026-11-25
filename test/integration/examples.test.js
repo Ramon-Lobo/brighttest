@@ -23,7 +23,7 @@ describe('greenfield-app', () => {
   it('passes headless with pure and @SGNode suites; ignored suites do not run', () => {
     const res = runCli(copyApp('greenfield-app'))
     expect(res.status).toBe(0)
-    expect(res.output).toContain('30 passed, 0 failed')
+    expect(res.output).toContain('31 passed, 0 failed')
     expect(res.output).toContain('6 suites')
   })
 })
