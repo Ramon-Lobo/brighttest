@@ -50,9 +50,17 @@ function screenshot(app) {
   const dest = shotFile(app);
   fs.mkdirSync(path.dirname(dest), { recursive: true });
   const prof = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-mapres-chrome-'));
+  // Frame the shot on the Feature tree section (Summary hidden, every feature expanded; scrolling is unreliable in headless screenshots): render from a temp copy of the report
+  // with its CSP meta dropped and a small script appended, so the published HTML is untouched.
+  const framed = path.join(prof, 'framed.html');
+  const inject = '<script>(function(){var s=document.getElementById("tree");if(!s)return;' +
+    's.querySelectorAll("details").forEach(function(d){d.open=true;});' +
+    'var m=document.getElementById("summary");if(m)m.style.display="none";})();</script>';
+  fs.writeFileSync(framed, fs.readFileSync(outFile(app), 'utf8')
+    .replace(/<meta http-equiv="Content-Security-Policy"[^>]*>/, '').replace('</body>', inject + '</body>'));
   try {
     const r = spawnSync(chrome, ['--headless=new', '--disable-gpu', '--no-first-run', '--hide-scrollbars', `--user-data-dir=${prof}`,
-      '--window-size=1280,800', '--force-device-scale-factor=1', `--screenshot=${dest}`, require('url').pathToFileURL(outFile(app)).href],
+      '--window-size=1280,800', '--force-device-scale-factor=1', `--screenshot=${dest}`, require('url').pathToFileURL(framed).href],
     { stdio: 'ignore', timeout: 60000, killSignal: 'SIGKILL' });
     if (r.error || !fs.existsSync(dest)) throw new Error(`screenshot of ${app} failed`);
   } finally {
