@@ -1,5 +1,5 @@
 namespace tests
-  ' Stress builder cells for the launch params stressfields / stresstree (TP-STA-18 matrix).
+  ' Stress builder cells for the launch params stressfields / stresstree.
   @suite("StressParams")
   @SGNode("StressBuilder")
   class StressParamsTests extends rooibos.BaseTestSuite
@@ -13,11 +13,27 @@ namespace tests
     end function
 
     private function countNodes(node as object) as integer
+      ' iterative on purpose: a recursive count 600 levels deep overflows the engine stack
       total = 0
-      for i = 0 to node.getChildCount() - 1
-        total = total + 1 + m.countNodes(node.getChild(i))
-      end for
+      stack = [node]
+      while stack.count() > 0
+        cur = stack.pop()
+        total = total + 1
+        for i = 0 to cur.getChildCount() - 1
+          stack.push(cur.getChild(i))
+        end for
+      end while
       return total
+    end function
+
+    ' builds one tree, counts only the new subtree, then removes it so cases do not see each other
+    private function builtSubtree(nodes as integer) as integer
+      made = m.top.callFunc("buildTree", nodes)
+      root = m.top.getChild(m.top.getChildCount() - 1)
+      counted = m.countNodes(root)
+      m.top.removeChild(root)
+      m.assertEqual(made, nodes)
+      return counted
     end function
 
     @describe("growGlobal")
@@ -32,14 +48,17 @@ namespace tests
 
     @it("builds the single 1,500-node tree")
     function _()
-      m.assertEqual(m.top.callFunc("buildTree", 1500), 1500)
-      m.assertEqual(m.countNodes(m.top), 1500)
+      m.assertEqual(m.builtSubtree(1500), 1500)
+    end function
+
+    @it("builds the single 1,000-node tree")
+    function _()
+      m.assertEqual(m.builtSubtree(1000), 1000)
     end function
 
     @it("builds the single 6,000-node tree")
     function _()
-      m.assertEqual(m.top.callFunc("buildTree", 6000), 6000)
-      m.assertEqual(m.countNodes(m.top), 6000)
+      m.assertEqual(m.builtSubtree(6000), 6000)
     end function
 
   end class

@@ -1,4 +1,4 @@
-# TP-STA-15 round trip through the state agent (needs an instrumented build), then the UI write path:
+# Round trip through the state agent (needs an instrumented build), then the UI write path:
 # pressing Play writes m.global.user.tier and dispatches a store action.
 appId: dev
 config: { timeout: 8, state: { ack: reflected } }
@@ -14,3 +14,5 @@ steps:
   - assertText: { id: tierLabel, equals: "Tier: free" }
   - press: Play
   - assertText: { id: tierLabel, equals: "Tier: premium" }
+  - restore: fresh
+  - assertText: { id: tierLabel, equals: "Tier: free" }

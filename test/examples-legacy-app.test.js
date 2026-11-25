@@ -37,13 +37,13 @@ describe('legacy-app stress launch params', () => {
   const scene = fs.readFileSync(path.resolve(__dirname, '../examples/legacy-app/components/scenes/LegacyScene.brs'), 'utf8')
   const flows = (n) => fs.readFileSync(path.resolve(__dirname, `../examples/legacy-app/flows/${n}.e2e.yaml`), 'utf8')
 
-  it('main.brs accepts only the documented stressfields and stresstree values, with defaults 500 and both', () => {
-    expect(main).toMatch(/stressFields = 500/)
-    expect(main).toMatch(/stressTree = "both"/)
-    expect(main).toMatch(/nf = 100 or nf = 500 or nf = 1000/)
-    expect(main).toMatch(/st = "1500" or st = "6000" or st = "both"/)
-    expect(main).toMatch(/stressFields: stressFields/)
-    expect(main).toMatch(/stressTree: stressTree/)
+  it('main.brs feeds the parsed stress args into m.global; Config.brs holds the pure parser', () => {
+    expect(main).toMatch(/Legacy_stressArgs\(args\)/)
+    expect(main).toMatch(/stressFields: sa\.stressFields/)
+    expect(main).toMatch(/stressTree: sa\.stressTree/)
+    const cfg = fs.readFileSync(path.resolve(__dirname, '../examples/legacy-app/source/Config.brs'), 'utf8')
+    expect(cfg).toMatch(/nf = 100 or nf = 500 or nf = 1000/)
+    expect(cfg).toMatch(/st = "1500" or st = "6000" or st = "both"/)
   })
 
   it('main.brs seeds registry legacy_prefs.lastTier when absent', () => {
@@ -56,10 +56,12 @@ describe('legacy-app stress launch params', () => {
     expect(scene).toMatch(/stressParam\("stressTree", "both"\) <> "1500" then sb\.callFunc\("buildTree", 6000\)/)
   })
 
-  it('state flows carry the layer assertions and the TP-STA-15 steps', () => {
+  it('state flows carry the layer assertions and the round-trip steps', () => {
     expect(flows('state-read')).toMatch(/layer: registry, path: legacy_prefs\.lastTier/)
     expect(flows('state-read')).toMatch(/layer: global, path: user\.tier/)
     for (const k of ['waitForAgent', 'snapshot: fresh', 'setState:', 'restore: fresh', 'assertText: { id: tierLabel, equals: "Tier: premium" }']) expect(flows('state-write')).toContain(k)
+    // repeatable: the flow ends back on the free tier
+    expect(flows('state-write').trimEnd().split('\n').slice(-2)).toEqual(['  - restore: fresh', '  - assertText: { id: tierLabel, equals: "Tier: free" }'])
   })
 
   it('brighttest.json declares the registry sections', () => {

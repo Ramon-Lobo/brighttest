@@ -66,3 +66,23 @@ end function
 function Legacy_explode(a as object, b as object) as integer
     return a.count + b.missing.count
 end function
+
+' Pure launch-param parsing for the stress knobs. Unknown or out-of-range values fall back to the defaults.
+function Legacy_stressArgs(args as dynamic) as object
+    out = { stress: false, stressKb: 256, stressFields: 500, stressTree: "both" }
+    if type(args) <> "roAssociativeArray" then return out
+    if args.stress <> invalid then out.stress = true
+    if args.stresskb <> invalid
+        kb = Val(args.stresskb)
+        if kb = 1 or kb = 16 or kb = 64 or kb = 256 then out.stressKb = Int(kb)
+    end if
+    if args.stressfields <> invalid
+        nf = Val(args.stressfields)
+        if nf = 100 or nf = 500 or nf = 1000 then out.stressFields = Int(nf)
+    end if
+    if args.stresstree <> invalid
+        st = LCase(args.stresstree)
+        if st = "1500" or st = "6000" or st = "both" then out.stressTree = st
+    end if
+    return out
+end function
