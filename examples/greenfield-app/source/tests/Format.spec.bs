@@ -34,6 +34,13 @@ namespace tests
       m.assertEqual(Config_baseUrl({ BT_BASE_URL: "http://10.0.0.2:9000" }), "http://10.0.0.2:9000")
     end function
 
+    @it("ignores a BT_BASE_URL that is not an http(s) URL")
+    function _()
+      m.assertEqual(Config_baseUrl({ BT_BASE_URL: "10.0.0.2:9000" }), "http://127.0.0.1:8787")
+      m.assertEqual(Config_baseUrl({ BT_BASE_URL: "" }), "http://127.0.0.1:8787")
+      m.assertEqual(Config_baseUrl({ BT_BASE_URL: "ftp://10.0.0.2" }), "http://127.0.0.1:8787")
+    end function
+
     @describe("Reducer")
 
     @it("signs in and out without mutating the previous state")

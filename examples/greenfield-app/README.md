@@ -11,7 +11,8 @@ fixture for network, state, robustness, MCP and engine checks.
   `trackingStatus`), `SearchScreen` (`searchKeyboard`, `searchQuery`, `runSearch`, `searchError`),
   `FocusScreen` (focus chain `outerGroup > innerGroup > leafButton`; `plainTarget` is a plain `Group`).
 - `HttpTask`: modes `get` (sync), `getAsync`, `post` (JSON body), `download` (to `tmp:/`); `lastUrl` is the
-  `getUrl()` read-back. Base URL comes from launch parameter `BT_BASE_URL` (default `http://127.0.0.1:8787`).
+  `getUrl()` read-back. Base URL comes from launch parameter `BT_BASE_URL` (default `http://127.0.0.1:8787`); only `http://` or `https://`
+  values are honoured, anything else is ignored. `Main()` copies it to `MainScene.baseUrl`, which sets it on every `HttpTask`.
 - `AppStore`: a `BTStore` (`source/brighttest/BTStore.brs`) with slices `user` and `nav`, and `dispatch(action)`,
   which routes to `BTStore_dispatch`. `EffectsTask` persists one preference to registry section `greenfield`.
 - Periodic mode: launch with `periodic=true` to GET `/home` every 10 s.

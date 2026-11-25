@@ -1,11 +1,13 @@
-' Runtime configuration. BT_BASE_URL (launch parameter) overrides the default origin.
+' Runtime configuration. BT_BASE_URL (launch parameter) overrides the default origin when it is an http(s) URL; any
+' other value is ignored and the default is used.
 function Config_defaultBaseUrl() as string
     return "http://127.0.0.1:8787"
 end function
 
 function Config_baseUrl(args as object) as string
-    if type(args) = "roAssociativeArray" and args.BT_BASE_URL <> invalid and args.BT_BASE_URL <> ""
-        return args.BT_BASE_URL
+    if type(args) = "roAssociativeArray" and type(args.BT_BASE_URL) = "roString"
+        v = args.BT_BASE_URL
+        if left(lCase(v), 7) = "http://" or left(lCase(v), 8) = "https://" then return v
     end if
     return Config_defaultBaseUrl()
 end function
