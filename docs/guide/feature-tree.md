@@ -38,12 +38,15 @@ rendering: wrong shape or caps (V1), a graph the tree was not written for (V2), 
 an unknown member or a component split from its XML file (V4), a bad or repeated feature id (V5), a testability
 override without evidence (V6), an invalid proposed test (V7), unsafe text such as an absolute path, a URL with
 credentials or a token-like string (V8), and a missing recommended path (V9). A proposed test on a node that no rule
-classified is a warning. Each finding carries a JSON pointer, so it can be fixed and re-run.
+classified is a warning. A proposed test whose target is not a file or component of the graph, or whose lane cannot
+reach the node (for example `headless-unit` on a component with only inline CDATA script), is an error. Each finding
+carries a JSON pointer, so it can be fixed and re-run. `--json` prints `schema`, `ok`, `errors`, `warnings`,
+`findings` and `agentJudgement` (the nodes whose override had no rule class to undercut).
 
 ## Exit codes
 
-`features graph`: `0` graph produced (findings never change it), `1` internal error, `2` usage error, missing `<dir>`, bad config or
-refused `--out`.
+`features graph`: `0` graph produced (findings never change it), `1` internal error, `2` usage error, missing
+`<dir>`, bad config or refused `--out`.
 `features check`: `0` valid, `1` internal error, `2` usage error or unreadable input, `3` tree invalid or stale.
 
 ## What the graph cannot see
