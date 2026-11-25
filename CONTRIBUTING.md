@@ -96,10 +96,15 @@ checkout, so you can test changes against a real Roku project. Run `npm unlink -
   `type(scope): summary`, e.g. `feat(cli): add --watch flag`, `fix(headless): …`, `docs: …`,
   `coverage: …`. Keep the subject in the imperative mood and under ~72 characters.
 - **Keep PRs focused** — one logical change per PR. Unrelated cleanups belong in their own PR.
-- **Open against `main`** and fill in the PR description: what changed, why, and how you verified it.
+- **Open against `main`** and fill in the PR template (`.github/PULL_REQUEST_TEMPLATE.md`). Every PR uses it:
+  `Summary` (what changed, the before-state and what it caused), `Behavior` (a table of the cases that
+  change), `Changes`, `Known differences`, and `Test plan` (a checklist with the exact commands and counts you ran).
+  Use a conventional, lowercase title, `type(scope): short description`.
 - **Update the docs** in the same PR when you change behaviour, flags, or config.
 
 ### PR checklist
+
+The checklist lives in the template's `Test plan`. In short:
 
 - [ ] Change is scoped to one thing and the branch is up to date with `main`.
 - [ ] `npm test` passes, and new/changed behaviour has test coverage under `test/`.
