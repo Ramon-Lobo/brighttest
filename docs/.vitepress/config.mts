@@ -84,7 +84,27 @@ export default withMermaid({
     if (!siteConfig.pages.includes(pageData.relativePath)) return []
     // Released docs also publish a plain-Markdown twin of every page (see buildEnd below).
     const b = ('/' + (siteConfig.site.base || '/').replace(/^\/+|\/+$/g, '') + '/').replace(/^\/\/$/, '/')
-    return [['link', { rel: 'alternate', type: 'text/markdown', href: b + pageData.relativePath }]]
+    const head: any[] = [['link', { rel: 'alternate', type: 'text/markdown', href: b + pageData.relativePath }]]
+    // Canonical link, citation meta tags and schema.org JSON-LD (scripts/docs-seo.js). Released docs only.
+    try {
+      const req = createRequire(import.meta.url)
+      const repoRoot = path.resolve(docsRoot, '..')
+      head.push(...req(path.resolve(repoRoot, 'scripts', 'docs-seo.js')).seoHead({
+        repoRoot,
+        srcDir: siteConfig.srcDir,
+        relativePath: pageData.relativePath,
+        base: siteConfig.site.base,
+        origin: req(path.resolve(repoRoot, 'scripts', 'docs-agent-files.js')).siteOrigin(repoRoot),
+        title: pageData.title,
+        description: pageData.description,
+        lastUpdated: pageData.lastUpdated,
+        siteTitle: siteConfig.site.title,
+        siteDescription: siteConfig.site.description,
+      }))
+    } catch (e) {
+      console.log(`docs seo: none for ${pageData.relativePath} (${(e as Error).message})`)
+    }
+    return head
   },
 
   // Agent-readable files for released docs only (not /next/): llms.txt plus a .md twin per page.
