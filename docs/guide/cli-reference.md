@@ -240,8 +240,8 @@ directory. Exit codes: `0` written, `1` internal error, `2` usage error, unreada
 
 `--junit` and `--lcov` (repeatable) overlay run evidence. The JUnit must come from brighttest (cases map to specs by
 `@suite` title) or carry `file` attributes. A spec whose cases pass marks its nodes `ran-headless`; `ran-device` only
-comes from a JUnit marked `brighttest.lane=device` (per suite) or the e2e suite name, and no brighttest reporter writes
-that marker yet (e2e flows are not graph spec nodes). LCOV shows `executed (lcov N% of M lines)` and gives no level,
+comes from a JUnit marked `brighttest.lane=device` (per suite) or the e2e suite name, and `--device --junit` writes
+that marker (e2e flows are not graph spec nodes). LCOV shows `executed (lcov N% of M lines)` and gives no level,
 because it carries no lane. See [Map the app](/guide/feature-tree#run-evidence-from-junit-and-lcov).
 
 ## `brighttest doctor`
