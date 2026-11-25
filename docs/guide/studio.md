@@ -141,6 +141,21 @@ performance) answer 409 `SIMULATOR_TARGET`, and the Network panel needs a device
   A `brs-node` installed in your own project wins over the bundled one, and the banner shows its version.
   Both engines declare the `brs-cli` bin, so `npx brs-cli` may run either one; brighttest itself reads each engine's
   path from its package, so it is not affected.
+- **Install step**: nothing extra to install; `npm i brs-node` only if it is missing from `node_modules`.
+- **Header badge**: instead of the device lease badge the header shows the engine and its
+  state, like `simulator · brs-node@2.7.1 (stock) · running`. The Screen mirror, Remote and Run controls say they need a device. The State tab has no live layer view in
+  this mode (the live read goes through the device); save a snapshot to read the state, and edits made from the State
+  panel (`/api/state/cmd`) still apply. Run is disabled (`/api/run` answers 409).
+- **States** (also in `GET /api/device` as `state`): `starting` (engine launched), `settling` (the app said hello, Studio
+  waits about 1.5 s for it to stay quiet), `running` (ready), `no hello from the app` (`no-hello`) and `engine exited`
+  (`exited`). Hover the badge to read the last engine output.
+- **No hello**: after 30 s without an `agent.hello` the state becomes `no-hello`. It means the app never started its
+  agent: the build is not instrumented, the app crashed before the agent started, or you picked the patched engine,
+  which can hang on Tasks. Studio prints the engine output and keeps the engine running so you can read it; stop Studio
+  to end it.
+- **Resend an abandoned first command**: a command sent in the first seconds after the app says hello can be dropped
+  when the hub resyncs (it shows `abandoned`). Send it again; reads simply re-run on refresh. Scripts that send
+  commands should wait until the state is `running`.
 - **Conflicts**: `--simulator` with `--host`, or with a `deviceLease.pool`, exits 2. `--simulator=<value>` exits 2
   (the flag takes no value). `--password` is ignored, with a warning.
 - **Exit codes**: 2 for a usage error or a missing UI bundle, 1 for any other start failure.
@@ -161,7 +176,9 @@ performance) answer 409 `SIMULATOR_TARGET`, and the Network panel needs a device
 - **Not device-verified in these docs.** Real-device behaviour of Studio is not claimed here.
 - **Not available yet**: a refusal of edits made against a stale view of the state. It does not exist in the code today;
   the 423 above is the lease refusal.
-- The simulator target (`--simulator`, above) is covered by unit tests with a faked engine, not run end to end here.
+- The simulator target (`--simulator`, above) is covered by unit tests with a faked engine, and was exercised end to end
+  headless with the stock engine and the greenfield example (badge, `running`, an edit reaching `reflected`, snapshot
+  and restore). It was not compared with a device.
 
 ## Regenerating the screenshots
 
