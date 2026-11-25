@@ -15,7 +15,7 @@ const APP = path.join(ROOT, 'examples', 'feature-tree-app')
 const cl = (s, id) => s.clusters.find((c) => c.id === id)
 const where = (s, nodeId) => s.clusters.find((c) => c.members.includes(nodeId)).id
 
-describe('Tarjan SCC (TP-TREE-12)', () => {
+describe('Tarjan SCC', () => {
   const adj = (o) => new Map(Object.entries(o).map(([k, v]) => [k, v]))
   it('finds a 2-cycle and a 3-cycle, leaves singles alone, lists dependencies first', () => {
     const a = adj({ a: ['b'], b: ['a', 'c'], c: [], d: ['e'], e: ['f'], f: ['d'], g: ['g'] })
@@ -53,7 +53,7 @@ describe('dominators', () => {
   })
 })
 
-describe('dominator clusters, app-shell, shared, unreached, vendor (TP-TREE-13)', () => {
+describe('dominator clusters, app-shell, shared, unreached, vendor', () => {
   it('a node dominated by a screen joins that screen; the diamond below a screen stays in one cluster', () => {
     const g = mk({ comps: ['Top', 'Left', 'Right', 'Bottom'], edges: [['comp:S', 'comp:Top', 'child'], ['comp:Top', 'comp:Left', 'child'], ['comp:Top', 'comp:Right', 'child'], ['comp:Left', 'comp:Bottom', 'child'], ['comp:Right', 'comp:Bottom', 'child']] })
     const s = suggest(g)
@@ -125,11 +125,50 @@ describe('dominator clusters, app-shell, shared, unreached, vendor (TP-TREE-13)'
   })
 })
 
+describe('cluster ids and completeness', () => {
+  const owned = (s, g) => {
+    const all = s.clusters.flatMap((c) => c.members)
+    expect(new Set(all).size).toBe(all.length)
+    for (const n of g.nodes.filter((x) => x.kind === 'file' || x.kind === 'component')) expect(all.filter((m) => m === n.id).length).toBe(1)
+  }
+  it('names equal to a reserved id, or equal after the 48 character cut, never share or overwrite a cluster id', () => {
+    const long = 'AVeryLongScreenNameThatKeepsGoingPastTheCutOffForClusterIds'
+    const names = ['Vendor', 'AppShell', 'Unreached', `${long}One`, `${long}Two`, 'Dash', 'DashX']
+    const g = mk({ comps: names, files: [{ rel: 'source/roku_modules/v/lib.brs', vendor: true }], edges: [...names.map((n) => ['comp:S', `comp:${n}`, 'child']), ['comp:Dash', 'file:source/roku_modules/v/lib.brs', 'calls']] })
+    const s = suggest(g)
+    const ids = s.clusters.map((c) => c.id)
+    expect(new Set(ids).size).toBe(ids.length)
+    owned(s, g)
+    for (const n of names) expect(s.clusters.find((c) => c.members.includes(`comp:${n}`)).kind).toBe('screen')
+    expect(s.clusters.find((c) => c.id === 'vendor').kind).toBe('vendor')
+    expect(s.clusters.find((c) => c.id === 'app-shell').kind).toBe('app-shell')
+    for (const id of ids) { expect(id.length).toBeLessThanOrEqual(48); expect(id).not.toMatch(/-$/) }
+  })
+  it('a multi-cluster graph with shared, unreached and vendor code puts every file and component in exactly one cluster', () => {
+    const g = mk({ comps: ['A', 'B', 'Dead', 'Vendor'], files: ['source/lib/u.brs', 'source/dead.brs', { rel: 'source/roku_modules/v/x.brs', vendor: true }], edges: [['comp:S', 'comp:A', 'child'], ['comp:S', 'comp:B', 'child'], ['comp:S', 'comp:Vendor', 'child'], ['comp:A', 'file:source/lib/u.brs', 'calls'], ['comp:B', 'file:source/lib/u.brs', 'calls'], ['comp:Dead', 'file:source/dead.brs', 'calls']] })
+    owned(suggest(g), g)
+  })
+  it('a deep dominator chain is clustered in linear time, and no deep node falls back to app-shell', () => {
+    const n = 30000
+    const comps = Array.from({ length: n }, (_, i) => `N${i}`)
+    const edges = [['comp:S', 'comp:N0', 'child'], ...comps.slice(1).map((c, i) => [`comp:N${i}`, `comp:${c}`, 'child'])]
+    const g = mk({ comps, edges })
+    const t0 = Date.now(); const s = suggest(g); const ms = Date.now() - t0
+    expect(ms).toBeLessThan(15000)
+    expect(where(s, `comp:N${n - 1}`)).toBe('n0'); expect(where(s, `comp:N${n >> 1}`)).toBe('n0')
+    expect(cl(s, 'n0').components).toBe(n)
+  })
+  it('cycles are listed ordered by their first member, not by discovery order', () => {
+    const g = mk({ comps: ['AA', 'AB', 'ZA', 'ZB'], edges: [['comp:S', 'comp:AA', 'child'], ['comp:AA', 'comp:AB', 'child'], ['comp:AB', 'comp:AA', 'child'], ['comp:AA', 'comp:ZA', 'child'], ['comp:ZA', 'comp:ZB', 'child'], ['comp:ZB', 'comp:ZA', 'child']] })
+    expect(suggest(g).cycles).toEqual([['comp:AA', 'comp:AB'], ['comp:ZA', 'comp:ZB']])
+  })
+})
+
 // ---- ordering -----------------------------------------------------------------------------------------------------------
 const F = (id, cls, extra) => ({ id, shared: false, files: 1, nodes: [{ id: `file:${id}.brs`, class: cls }], ...(extra || {}) })
 const ids = (steps) => steps.map((s) => s.features.join('+'))
 
-describe('orderings (TP-TREE-14)', () => {
+describe('orderings', () => {
   it('leaf-first is a reverse topological order of the condensed feature DAG', () => {
     const input = { features: ['app', 'home', 'details', 'lib'].map((i) => F(i, 'headless-scene')), deps: [{ from: 'app', to: 'home' }, { from: 'home', to: 'details' }, { from: 'home', to: 'lib' }, { from: 'details', to: 'lib' }], entry: 'app' }
     const o = ids(orderFeatures(input, 'leaf-first'))
@@ -163,7 +202,7 @@ describe('orderings (TP-TREE-14)', () => {
   it('tie 4: id', () => {
     expect(ids(orderFeatures(level([F('b', 'headless-unit'), F('a', 'headless-unit')]), 'leaf-first'))).toEqual(['a', 'b'])
   })
-  it('an all-unknown feature sorts after a headless-unit feature at the same level, in both paths (TP-TREE-14 tie-break)', () => {
+  it('an all-unknown feature sorts after a headless-unit feature at the same level, in both paths', () => {
     const input = { features: [F('aaa-unknown', 'unknown'), F('zzz-unit', 'headless-unit')], deps: [], entry: null }
     expect(ids(orderFeatures(input, 'leaf-first'))).toEqual(['zzz-unit', 'aaa-unknown'])
     expect(ids(orderFeatures(input, 'base-first'))).toEqual(['zzz-unit', 'aaa-unknown'])

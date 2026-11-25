@@ -7,7 +7,7 @@ const require = createRequire(import.meta.url)
 const { mk } = require('./features-synth-helper.cjs')
 const { buildGraph } = require('../lib/features/graph')
 const { suggest } = require('../lib/features/cluster')
-const { buildDigest, focusSlice, buildSkeleton } = require('../lib/features/digest')
+const { buildDigest, focusSlice, buildSkeleton, DEFAULT_BUDGET } = require('../lib/features/digest')
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const APP = path.join(ROOT, 'examples', 'feature-tree-app')
 
@@ -17,7 +17,7 @@ function wide(n) {
   return mk({ comps, edges })
 }
 
-describe('digest budget (TP-TREE-15)', () => {
+describe('digest budget', () => {
   it('feature-tree-app: default budget holds, the table is full, and nothing is claimed truncated', async () => {
     const g = await buildGraph(APP); const s = suggest(g)
     const d = buildDigest(g, s)
@@ -36,6 +36,41 @@ describe('digest budget (TP-TREE-15)', () => {
     const d = buildDigest(g, s, { budget: 20000 })
     expect(d.length).toBeLessThanOrEqual(20000)
     for (const c of s.clusters) expect(d).toContain(c.id)
+  })
+  it('at 4000 every cluster id is named; at 1200 every cluster is covered by its id or its rolled-up folder', () => {
+    const g = wide(300); const s = suggest(g)
+    const d4 = buildDigest(g, s, { budget: 4000 })
+    expect(d4.length).toBeLessThanOrEqual(4000)
+    for (const c of s.clusters) expect(d4).toContain(c.id)
+    const d1 = buildDigest(g, s, { budget: 1200 })
+    expect(d1.length).toBeLessThanOrEqual(1200); expect(d1).toMatch(/truncat/i)
+    for (const c of s.clusters) {
+      const f = c.members.find((m) => m.startsWith('file:')).slice(5).split('/')
+      expect(d1.includes(c.id) || d1.includes(f.slice(0, 2).join('/')) || d1.includes(f[0])).toBe(true)
+    }
+    expect(d1).toMatch(/components(\/area\d)? \(\d+\)/)
+  })
+  it('cuts the rollup at a whole entry when even the rolled-up folders do not fit', () => {
+    const comps = []; const edges = []
+    for (let i = 0; i < 120; i++) { comps.push({ name: `Screen${i}`, dir: `components/area${i}/s${i}` }); edges.push(['comp:S', `comp:Screen${i}`, 'child']) }
+    const g = mk({ comps, edges }); const s = suggest(g)
+    const d = buildDigest(g, s, { budget: 900 })
+    expect(d.length).toBeLessThanOrEqual(900)
+    expect(d).toMatch(/components \(\d+\)/)
+  })
+  it('the default budget is 48,000 characters: a table that needs more than 20,000 stays full by default', () => {
+    expect(DEFAULT_BUDGET).toBe(48000)
+    const g = wide(300); const s = suggest(g)
+    const d = buildDigest(g, s)
+    expect(d.length).toBeGreaterThan(20000); expect(d).toContain('| id | name | kind |'); expect(d).not.toMatch(/truncat/i)
+    const big = wide(1500); const bs = suggest(big)
+    const bd = buildDigest(big, bs)
+    expect(bd.length).toBeLessThanOrEqual(48000); expect(bd).toContain('| folder | clusters | files |')
+  })
+  it('the budget is a hard limit even when the header alone is larger, and is never below 200', () => {
+    const g = wide(5); const s = suggest(g)
+    expect(buildDigest(g, s, { budget: 200 }).length).toBeLessThanOrEqual(200)
+    expect(buildDigest(g, s, { budget: 10 }).length).toBeLessThanOrEqual(200)
   })
   it('switches the cluster table to folder rollups when the full table does not fit', () => {
     const g = wide(300); const s = suggest(g)
@@ -71,6 +106,9 @@ describe('--focus slice', () => {
     expect(t.length).toBeLessThanOrEqual(8000); expect(t).toMatch(/Truncated at 8000/)
     expect(() => focusSlice(g, s, 'nope')).toThrow(/unknown cluster: nope.*leaf0/)
     expect(focusSlice(g, s, 'leaf0', { max: 500 }).length).toBeLessThanOrEqual(500)
+    // a larger requested max never goes past the 8,000 cap
+    const big = focusSlice(g, s, 'leaf0', { max: 50000 })
+    expect(big.length).toBeLessThanOrEqual(8000); expect(big.length).toBeGreaterThan(7000); expect(big).toMatch(/Truncated at 8000/)
   })
 })
 
