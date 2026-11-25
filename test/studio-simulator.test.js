@@ -29,7 +29,7 @@ function seam(over = {}) {
     startHub: async (o) => { calls.push('hub'); hub.opts = o; return hub },
     build: async (cfg, o) => { calls.push('build'); buildArgs = o; return { exitCode: 0, out: o.out, lines: [] } },
     spawn: (cmd, args, o) => { calls.push('spawn'); spawnArgs = { cmd, args, o }; child = fakeChild(); return child },
-    isAlive: () => true, commandOf: () => 'node /x/node_modules/brs-node/bin/brs.cli.js app.zip',
+    isAlive: () => true, commandOf: () => `node /x/node_modules/brs-node/bin/brs.cli.js ${path.join(dir, 'simulator', 'app.zip')}`,
     kill: (pid, sig) => { killed.push([pid, sig]) },
     settleMs: 40, helloTimeoutMs: 400, pollMs: 5, killGraceMs: 60,
     ...over,
@@ -160,6 +160,12 @@ describe('startSimulator', () => {
     it('is not killed when the command line does not match; the file is still deleted', async () => {
       const sim = await startSimulator({ cfg: cfgOf(), seam: seam({ commandOf: () => 'node some-other.js' }) })
       expect(killed).toEqual([])
+      await sim.stop()
+    })
+    it('is not killed when it runs brs.cli.js on a different app.zip (reused pid)', async () => {
+      const sim = await startSimulator({ cfg: cfgOf(), seam: seam({ commandOf: () => 'node /x/node_modules/brs-node/bin/brs.cli.js /elsewhere/other/app.zip' }) })
+      expect(killed).toEqual([])
+      expect(fs.readFileSync(pidFile(), 'utf8')).toBe('424242')
       await sim.stop()
     })
     it('is not killed when the pid is dead', async () => {
