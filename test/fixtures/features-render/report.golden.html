@@ -77,7 +77,7 @@ section[hidden]{display:none}
 <a class="skip" href="#main">Skip to the report</a>
 <header>
 <h1>Feature tree: Feature Probe</h1>
-<dl class="kv"><dt>brighttest</dt><dd>0.0.0-test</dd><dt>Graph hash</dt><dd><code>4642d340d36e1f768926ad2c4943667814d8600a82815427fe97d268a64188a2</code></dd><dt>Project tree hash</dt><dd><code>2bb631d9a6541831a1aa2206a62e0b9f8218f16a1fd4ceec5978823535b269dd</code></dd><dt>Tree author</dt><dd>brighttest</dd></dl>
+<dl class="kv"><dt>brighttest</dt><dd>0.0.0-test</dd><dt>Graph hash</dt><dd><code>9788081a5ec6823e640909b3ec1a536b6c77bc9e0420cd64c9e151aeba943cef</code></dd><dt>Project tree hash</dt><dd><code>131e408475d89afecf7b4a266512b634adfa16998f0a8cb653cb056a477078a7</code></dd><dt>Tree author</dt><dd>brighttest</dd></dl>
 
 </header>
 <nav aria-label="Report sections"><ul><li><a href="#summary">Summary</a></li><li><a href="#tree">Feature tree</a></li><li><a href="#panels">Feature details</a></li><li><a href="#paths">Test paths</a></li><li><a href="#matrix">Headless versus device</a></li><li><a href="#ci">CI checklist</a></li><li><a href="#uncertainty">Uncertainty</a></li><li><a href="#method">Method and provenance</a></li></ul><div id="tools" hidden></div></nav>
@@ -106,12 +106,12 @@ section[hidden]{display:none}
 <h4>Members and testability</h4>
 <div class="scroll" role="region" tabindex="0" aria-label="Members of App shell"><table><caption>Members of App shell</caption><thead><tr><th scope="col">Node</th><th scope="col">Class</th><th scope="col">Rule</th><th scope="col">Evidence</th><th scope="col">Needs and also needs</th><th scope="col">Notes</th></tr></thead><tbody>
 <tr><th scope="row"><span id="n-f2d3cb45d3"><code>comp:ApiTask</code></span></th><td><span class="badge c-headless-fixtures">headless-fixtures</span></td><td>T1</td><td>rule</td><td>net (F1), device (task-timing)</td><td></td></tr>
-<tr><th scope="row"><span id="n-c10b6d9d63"><code>comp:MainScene</code></span></th><td><span class="badge c-headless-scene">headless-scene</span></td><td>S0</td><td>rule</td><td>device (wall-clock), e2e (launch)</td><td></td></tr>
+<tr><th scope="row"><span id="n-c10b6d9d63"><code>comp:MainScene</code></span></th><td><span class="badge c-headless-scene">headless-scene</span></td><td>S0</td><td>rule</td><td>device (wall-clock), e2e (focus-and-keys), e2e (launch)</td><td></td></tr>
 <tr><th scope="row"><span id="n-affa4768e9"><code>entry:main</code></span></th><td><span class="badge c-e2e">e2e</span></td><td>E2</td><td>rule</td><td></td><td></td></tr>
 <tr><th scope="row"><span id="n-41737afa7d"><code>file:components/services/ApiTask.brs</code></span></th><td><span class="badge c-headless-fixtures">headless-fixtures</span></td><td>F1</td><td>rule</td><td>net (F1)</td><td></td></tr>
 <tr><th scope="row"><span id="n-9003797fd5"><code>file:components/services/ApiTask.xml</code></span></th><td><span class="muted">n/a</span></td><td></td><td></td><td></td><td></td></tr>
 <tr><th scope="row"><span id="n-b37ebc2dc5"><code>file:components/services/ContentParser.brs</code></span></th><td><span class="badge c-headless-unit">headless-unit</span></td><td>U1</td><td>rule</td><td></td><td></td></tr>
-<tr><th scope="row"><span id="n-8f5a954218"><code>file:components/shell/MainScene.brs</code></span></th><td><span class="badge c-headless-scene">headless-scene</span></td><td>S0</td><td>rule</td><td></td><td></td></tr>
+<tr><th scope="row"><span id="n-8f5a954218"><code>file:components/shell/MainScene.brs</code></span></th><td><span class="badge c-headless-scene">headless-scene</span></td><td>S0</td><td>rule</td><td>e2e (focus-and-keys)</td><td></td></tr>
 <tr><th scope="row"><span id="n-81600d389a"><code>file:components/shell/MainScene.xml</code></span></th><td><span class="muted">n/a</span></td><td></td><td></td><td></td><td></td></tr>
 <tr><th scope="row"><span id="n-c85a6cd171"><code>file:manifest</code></span></th><td><span class="muted">n/a</span></td><td></td><td></td><td></td><td></td></tr>
 <tr><th scope="row"><span id="n-d8841aa05d"><code>file:source/main.brs</code></span></th><td><span class="badge c-headless-scene">headless-scene</span></td><td>S0</td><td>rule</td><td>device (wall-clock)</td><td></td></tr>
