@@ -106,7 +106,7 @@ const gitApp = () => {
   spawnSync('git', [...g, 'commit', '-q', '-m', 'x'], { cwd: app })
   return app
 }
-const RUN_RESULTS = path.join(os.homedir(), 'brighttest-pack-runs', 'ADOPT-21a-T1-results', 'results.json')
+const EXCERPTS = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'adopt-eval', 't1-excerpts.json'), 'utf8'))
 
 describe('score mechanics (ADOPT-12 harness fixes)', () => {
   const legacyHeadline = '- Project: 32 .brs, 4 .bs, 56 .xml; 4 existing specs.\n- Census: 56 components, 6 scenes, 3 tasks; 1 dynamic CreateObject; 3 certificate calls.'
@@ -162,19 +162,43 @@ describe('score mechanics (ADOPT-12 harness fixes)', () => {
     const cells = { 'legacy-app/baseline/run1': { finalMessage: 'I ran brighttest assess on it' }, 'legacy-app/baseline/run2': { finalMessage: 'plain read, nothing special' } }
     const out = sc.score({ runRoot: root, results: { cells } })
     expect(out.contaminated).toEqual([{ cell: 'legacy-app/baseline/run1', why: ['ran assess'] }])
-    expect(out.fixtures['legacy-app/baseline'].criteria.C1.runs[0]).toBeNull()
+    expect(out.fixtures['legacy-app/baseline'].criteria.C1.runs[0]).toBe(sc.EXCLUDED)
     expect(sc.render(out)).toContain('Contaminated baseline cells')
   })
-  test.skipIf(!fs.existsSync(RUN_RESULTS))('real ADOPT-21a results.json: legacy with-skills C2 and C5-edit-half now read as the architect hand-read says', () => {
-    const cells = JSON.parse(fs.readFileSync(RUN_RESULTS, 'utf8')).cells
+  test('redacted T1 excerpts (hermetic): legacy C2/C4/C5-edit and plugin C2/C3 pass', () => {
     const app = gitApp()
-    for (const n of [1, 2, 3]) {
-      const m = cells[`legacy-app/with-skills/run${n}`].finalMessage
-      expect(sc.scoreRun({ fixture: 'legacy-app', message: m, appDir: app }).C2.pass).toBe(true)
-      expect(sc.questionsIn(m).some((q) => /\bedit(?:s|ed|ing)?\b/i.test(q))).toBe(true)
-    }
-    const p3 = cells['bsconfig-plugin-app/with-skills/run3'].finalMessage
-    expect(sc.scoreRun({ fixture: 'bsconfig-plugin-app', message: p3, appDir: app }).C2.pass).toBe(true)
+    const m = EXCERPTS['legacy-app/with-skills/run1']
+    const l = sc.scoreRun({ fixture: 'legacy-app', message: m, appDir: app })
+    expect(l.C2.pass).toBe(true); expect(l.C4.pass).toBe(true)
+    expect(sc.questionsIn(m).some((q) => /\bedit(?:s|ed|ing)?\b/i.test(q))).toBe(true)
+    const p = sc.scoreRun({ fixture: 'bsconfig-plugin-app', message: EXCERPTS['bsconfig-plugin-app/with-skills/run3'], appDir: app })
+    expect(p.C2.pass).toBe(true); expect(p.C3.pass).toBe(true); expect(p.C4).toBeNull()
+  })
+  test('C2 fails when a contradicting value sits next to the right one, and ignores brs-node versions', () => {
+    const app = gitApp()
+    expect(sc.scoreRun({ fixture: 'legacy-app', message: legacyHeadline + ' Also 30 .brs in total.', appDir: app }).C2.pass).toBe(false)
+    expect(sc.numbersFor('brsFiles', 'brs-node 2.2.0 installed')).toEqual([])
+    expect([...new Set(sc.numbersFor('brsFiles', 'engines: brs-node 2.2.0; 1 .brs, 1 .xml'))]).toEqual([1])
+    expect(sc.numbersFor('brsFiles', 'brs files: 32')).toContain(32)
+    expect(sc.scoreRun({ fixture: 'bsconfig-plugin-app', message: 'brs-node 2.2.0; 1 .brs, 0 .bs, 1 .xml', appDir: app }).C2.pass).toBe(true)
+  })
+  test('README contamination needs a read action, not a mention', () => {
+    expect(sc.contamination({ message: 'You should add a README section about setup.' })).toEqual([])
+    expect(sc.contamination({ message: 'The app has no README.' })).toEqual([])
+    expect(sc.contamination({ message: 'I read the README first.' })).toEqual(['read README'])
+    expect(sc.contamination({ message: 'x', commands: ['cat README.md'] })).toEqual(['read README'])
+  })
+  test('contaminated runs leave the denominator; all excluded -> n/a', () => {
+    const mk = (p) => ({ pass: p, mode: 'auto', note: '' })
+    const ok = Object.fromEntries(['C1', 'C2', 'C3', 'C4', 'C5', 'C6'].map((c) => [c, mk(true)]))
+    const bad = Object.fromEntries(['C1', 'C2', 'C3', 'C4', 'C5', 'C6'].map((c) => [c, mk(false)]))
+    // 1 pass + 1 fail + 1 excluded -> 1 of 2 -> criterion fails; 2 pass + 1 excluded -> passes
+    expect(sc.aggregate('legacy-app', [ok, bad, sc.EXCLUDED]).criteria.C1.pass).toBe(false)
+    expect(sc.aggregate('legacy-app', [ok, ok, sc.EXCLUDED]).pass).toBe(true)
+    // a missing result (null) still counts as a non-pass
+    expect(sc.aggregate('legacy-app', [ok, null, sc.EXCLUDED]).criteria.C1.pass).toBe(false)
+    const none = sc.aggregate('legacy-app', [sc.EXCLUDED, sc.EXCLUDED, sc.EXCLUDED])
+    expect(none.pass).toBeNull(); expect(none.applicable).toBe(0)
   })
 })
 
@@ -202,6 +226,24 @@ describe('prepare and prompt (ADOPT-12 harness fixes)', () => {
     for (const fx of ['legacy-app', 'bsconfig-plugin-app']) {
       expect(fs.existsSync(path.join(root, fx, 'baseline', 'run1', 'app', 'README.md'))).toBe(false)
       expect(fs.existsSync(path.join(root, fx, 'with-skills', 'run1', 'app', 'README.md'))).toBe(true)
+    }
+  })
+  test('baseline arm has no node_modules and no brighttest skills anywhere in the prepared app', () => {
+    // a fixture with an installed copy of the shipped skills must not leak them into the baseline cell
+    const repo = path.join(tmp(), 'repo')
+    for (const fx of ['legacy-app', 'bsconfig-plugin-app']) {
+      fs.cpSync(path.join(common.REPO_ROOT, 'examples', fx), path.join(repo, 'examples', fx), { recursive: true })
+      const leak = path.join(repo, 'examples', fx, 'node_modules', 'brighttest', 'skills', 'assessing-a-roku-app')
+      fs.mkdirSync(leak, { recursive: true })
+      fs.writeFileSync(path.join(leak, 'SKILL.md'), '# leaked skill\n')
+    }
+    fs.cpSync(path.join(common.REPO_ROOT, 'skills'), path.join(repo, 'skills'), { recursive: true })
+    const root = path.join(tmp(), 'run')
+    prepare({ runRoot: root, repoRoot: repo })
+    const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.name === '.git' ? [] : e.isDirectory() ? [path.join(d, e.name), ...walk(path.join(d, e.name))] : [path.join(d, e.name)]))
+    for (const fx of ['legacy-app', 'bsconfig-plugin-app']) for (const run of [1, 2, 3]) {
+      const all = walk(path.join(root, fx, 'baseline', `run${run}`, 'app'))
+      expect(all.filter((f) => /node_modules/.test(f) || /SKILL\.md$/i.test(f) || path.basename(f) === 'skills')).toEqual([])
     }
   })
 })
