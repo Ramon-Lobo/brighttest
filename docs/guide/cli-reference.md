@@ -205,8 +205,8 @@ features graph [<dir>] [--out <dir>] [--json] [-c|--config <config>]
 ```
 
 Read-only, offline map of an app (default: the current directory). Writes `graph.json`
-(`brighttest-feature-graph/v1`) to `<stagingDir>/features/` (default `.brighttest/features/`) or to `--out`, and prints a
-short summary; `--json` prints the graph instead. Exit codes: `0` graph produced, `1` internal error, `2` usage error,
+(`brighttest-feature-graph/v1`) to `<stagingDir>/features/` (default `.brighttest/features/`)
+or to `--out`, and prints a short summary; `--json` prints the graph instead. Exit codes: `0` graph produced, `1` internal error, `2` usage error,
 missing `<dir>`, bad config or refused `--out` (inside `source/` or `components/`). See
 [Map the app](/guide/feature-tree).
 
