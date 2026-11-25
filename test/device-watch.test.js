@@ -396,8 +396,8 @@ describe('modes, interval and the plain loop', () => {
     expect(await W.runWatch({ view: view(), flags: { intervalMs: 1000 }, io, signal: ac.signal })).toBe(0);
     expect(out).toHaveLength(2); expect(out[0].startsWith('brighttest device watch')).toBe(true); expect(out[1].startsWith('\n')).toBe(true);
   });
-  it('the TUI choice falls back to the plain loop until a live screen is supplied', async () => {
-    const { io, out } = fakeIo({ stdoutIsTTY: true, stdinIsTTY: true }); const ac = new AbortController();
+  it('the TUI choice falls back to the plain loop when the live screen cannot load, and honours an injected screen', async () => {
+    const { io, out } = fakeIo({ stdoutIsTTY: true, stdinIsTTY: true, loadInk: async () => ({ error: new Error('missing') }) }); const ac = new AbortController();
     io.sleep = async () => ac.abort();
     expect(await W.runWatch({ view: view(), flags: {}, io, signal: ac.signal })).toBe(0);
     expect(out).toHaveLength(1);

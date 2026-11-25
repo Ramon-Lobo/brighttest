@@ -1,0 +1,30 @@
+ brighttest  device watch                     lease dir ~/.brighttest/leases · this machine (test-host) · 10:41:03 · 2s
+┌ Devices ───────────────────────────────────────────┐┌ lab-a · held by device-qa#1 for 4m12s ─────────────────────────┐
+│> ● lab-a held    device-qa#1    4m12s  ≡2 up       ││ purpose e2e run smoke   deadline 10:58   branch feat/x         │
+│  ● lab-b free    -                  -  ≡0 ⚠ unreach││ reach up  checked 10:40                                        │
+│  ● lab-c STALE   dev#9         50m00s  ≡0 ·        ││ line  #1 dev#3 "with npx rooibos"  waiting 1m02s  eta ~3m00s   │
+│  ◌ pool  line 1 (2 devices)                        ││       #2 device-qa#2 "with e2e.sh"  waiting 20s  eta ~5m00s    │
+│                                                    ││       dead ticket (will be swept)                              │
+│                                                    ││ Runs (24h: 31 · hold p50 2m40s p90 7m00s · wait p50 12s · max …│
+│                                 ┌──────────────────────────────────────────────────┐█▎            0s  4m00s running  │
+│                                 │ ↑ ↓  k j        move selectionce-qa#1 e2e ru… ███│████          0s  6m10s ok       │
+│                                 │ PgUp PgDn  g G  page, first, lastith npx roo… ░░░│█▊         2m00s  2m05s ok       │
+│                                 │ enter  →  l     open detailevice-qa#2 with e… █▍ │              0s  1m01s lost     │
+│                                 │ ←  h            back to the device list2e ru… ░██│             30s  1m30s exit 1   │
+│                                 │ tab  shift-tab  switch paneevice-qa#1 e2e ru… █  │              0s    45s reclaimed│
+│                                 │ a               show or hide all keys e2e ru… ░██│███▌          5s  5m00s ok       │
+│                                 │ p               pause or resumee-qa#1 e2e ru… ░░░│░░░░░░░░░ 10m00s      - gave up  │
+│                                 │ r               refresh nowevice-qa#1 e2e ru… ▍  │              0s    15s ok       │
+│                                 │ ?               this help device-qa#1 e2e ru… ░██│█▍            1s  3m20s ok       │
+│                                 │ esc             close help, back, then quit      │                                 │
+│                                 │ q  ctrl-c       quit                             │                                 │
+│                                 └──────────────────────────────────────────────────┘                                 │
+│                                                    ││                                                                │
+│                                                    ││                                                                │
+│                                                    ││                                                                │
+│                                                    ││                                                                │
+│                                                    ││                                                                │
+│ runs ▅▁▁▇▁▂▂▃█▆  (lab-a, last 10)                  ││                                                                │
+│ 50 hidden (loopback or idle > 7d) · a: all         ││                                                                │
+└────────────────────────────────────────────────────┘└────────────────────────────────────────────────────────────────┘
+ ↑↓ select  enter detail  tab pane  a all  p pause  r refresh  ? help  q quit                           reach: 10:40:51

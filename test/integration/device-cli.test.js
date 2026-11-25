@@ -127,4 +127,51 @@ describe('brighttest device', () => {
     expect([rh.code, rw.code]).toEqual([0, 0])
     expect(order()).toEqual({ ids: ['h', 'w'], overlaps: 0 })
   })
+
+  it('watch --once --json shows the holder of a lease dir and changes nothing on disk', async () => {
+    const h = bt(withArgs('h', 20000))
+    expect(await waitFor(() => lines().length > 0)).toBe(true)
+    const snapshot = () => fs.readdirSync(path.join(dir, 'leases', '127.0.0.1')).sort().join(',')
+    const before = snapshot()
+    const w = await bt(['device', 'watch', '--once', '--json']).done
+    expect(w.code).toBe(0)
+    const board = JSON.parse(w.out)
+    expect(board.schema).toBe('brighttest-lease-board/v1')
+    const dev = board.devices.find((d) => d.holder && d.holder.agent === 'h')
+    expect(dev).toBeTruthy()
+    expect(dev.state).toBe('held')
+    expect(w.out).not.toMatch(/leaseId"/)
+    expect(snapshot()).toBe(before)
+    h.kill('SIGKILL')
+    await h.done
+  })
+
+  it('watch --once prints the static board and an empty lease dir is an empty board', async () => {
+    const empty = await bt(['device', 'watch', '--once']).done
+    expect(empty.code).toBe(0)
+    expect(empty.out).toContain('No devices known yet')
+    expect(empty.err).not.toContain('ink')
+    expect(fs.existsSync(path.join(dir, 'leases'))).toBe(false) // read-only: it never creates the lease dir
+  })
+
+  it('watch --plain repeats the static board until SIGINT, exits 0 and never mentions ink', async () => {
+    const h = bt(withArgs('h', 20000))
+    expect(await waitFor(() => lines().length > 0)).toBe(true)
+    const w = bt(['device', 'watch', '--plain', '--interval', '500ms'])
+    await sleep(1800)
+    w.kill('SIGINT')
+    const r = await w.done
+    expect(r.code).toBe(0)
+    expect(r.out.match(/brighttest device watch ·/g).length).toBeGreaterThanOrEqual(2)
+    expect(r.out).toContain('DEVICE')
+    expect(r.err).not.toContain('ink')
+    h.kill('SIGKILL')
+    await h.done
+  })
+
+  it('watch rejects a bad --interval with exit 2', async () => {
+    const r = await bt(['device', 'watch', '--interval', '10ms']).done
+    expect(r.code).toBe(2)
+    expect(r.err).toContain('--interval')
+  })
 })
