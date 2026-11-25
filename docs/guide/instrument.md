@@ -181,7 +181,6 @@ Current limitations (the full design is not implemented yet):
 | `strict` | A "could not instrument" entry fails the build (exit 4). `--strict` / `--no-strict` override it per run. | `false` |
 | `exclude` | Globs of files the plugin leaves alone (relative to `rootDir`). The default exclusions (Rooibos, `roku_modules`, vendor, specs) apply on top. | `[]` |
 | `net` | `true` or `false` turns the `setUrl` / `getUrl` rewrite on or off. An object configures it: `unknown`, `receivers` (see below), plus the headless net keys `fixtures`, `unmatched`, `upstreamHosts`, `redact`, `observe`. Any other type is `BT9005`. | `true` |
-| `enabled` | Headless lanes only: `true` builds the headless run with the instrument plugin in state mode (`state: false` keeps net only). `instrument build` ignores it. A non-boolean is an error. | `false` |
 | `scene` | Bootstrap every non-excluded Scene `init` and ship the state agent. `false` also drops the agent components. | `true` |
 | `op` | Add the `BT_op` function to instrumented component chains (the `m` layer). | `true` |
 | `hub` | `host` and `port` the device dials. Unset `host` uses this machine's LAN address (the literal `"auto"` is rejected). `port` is an integer 1 to 65535. | LAN address, `8790` |
@@ -257,6 +256,10 @@ by hand, because the plugin only rewrites `setUrl` and `getUrl` on `roUrlTransfe
   on device; wrap the URL in a Task"); for a Task it reports calls in `init` and in `observeField` callbacks it
   registers (best effort). It never fails strict. Calls the plugin inserts itself are not reported.
 - **Failed hello.** A failed hello is cached for 30 s and retried, with one console line per retry.
+
+## In headless tests
+
+`instrument.enabled` (boolean, default `false`) is reserved for the headless lanes: `instrument build` ignores it. The config loader validates it together with `state` (`true`, `false` or an object), `net` and `exclude`, and a bad value is an `InstrumentConfigError`. The headless lanes do not apply it yet, so setting it has no effect on a run today.
 
 ## Headless network fixtures: flags, config and run records
 

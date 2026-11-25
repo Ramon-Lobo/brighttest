@@ -58,10 +58,10 @@ describe('resolveHeadlessInstrument: valid and defaults', () => {
 
 describe('resolveHeadlessInstrument: invalid', () => {
   it('instrument not an object', () => {
-    // hand-built cfg: loadConfig itself always merges the block into an object
-    expect(msg({ rootDir: tmp, instrument: 'yes' })).toBe('instrument must be an object (got "yes")')
-    expect(msg({ rootDir: tmp, instrument: [1] })).toBe('instrument must be an object (got [1])')
-    expect(msg({ rootDir: tmp, instrument: null })).toBe('instrument must be an object (got null)')
+    expect(msg(cfgOf('yes'))).toBe('instrument must be an object (got "yes")')
+    expect(msg(cfgOf([1]))).toBe('instrument must be an object (got [1])')
+    expect(msg(cfgOf(null))).toBe('instrument must be an object (got null)')
+    expect(msg({ rootDir: tmp, instrument: 'yes' })).toBe('instrument must be an object (got "yes")') // hand-built, no raw copy
   })
   it('enabled not boolean', () => {
     expect(msg(cfgOf({ enabled: 'true' }))).toBe('instrument.enabled must be true or false (got "true")')
@@ -79,6 +79,18 @@ describe('resolveHeadlessInstrument: invalid', () => {
   it('exclude not an array of strings', () => {
     expect(msg(cfgOf({ exclude: 'source/**' }))).toBe('instrument.exclude must be an array of glob strings')
     expect(msg(cfgOf({ exclude: ['a', 2] }))).toBe('instrument.exclude must be an array of glob strings')
+  })
+  it('exclude string is caught even when the instrumentExclude alias adds entries', () => {
+    expect(msg(cfgOf({ exclude: 'source/**' }, { instrumentExclude: ['b/**'] }))).toBe('instrument.exclude must be an array of glob strings')
+  })
+  it('loadConfig never throws for bad values; only resolveHeadlessInstrument does (D6)', () => {
+    for (const inst of [{ enabled: 'x' }, { state: 'x' }, { exclude: 'x' }, { state: { redact: 'x' } }, 'yes', null, [1]]) {
+      const cfg = cfgOf(inst)
+      expect(() => resolveHeadlessInstrument(cfg)).toThrow(InstrumentConfigError)
+    }
+  })
+  it('the raw block is not enumerable on the loaded config', () => {
+    expect(Object.keys(cfgOf({ enabled: true }))).not.toContain('_rawInstrument')
   })
   it('enabled with state false and no net: nothing to instrument', () => {
     const m = 'instrument.enabled is on but state is false and the run does not use net: nothing to instrument'
