@@ -175,6 +175,15 @@ describe('fail fast', () => {
     await req(hub.port, 'GET', `/bt/${TOKEN}/hello`)
     await expect(ns.awaitHandshake(ctx)).resolves.toBeUndefined()
   })
+  it('passes on a role=net hello alone (net-only build: no agent hello)', async () => {
+    const flow = flowOf(BASE + '  - launch\n')
+    flow.config.net = {}
+    await setup(flow)
+    await req(hub.port, 'GET', `/bt/${TOKEN}/hello?role=net`)
+    expect(hub.hellos).toBe(0)
+    expect(hub.netHellos).toBe(1)
+    await expect(ns.awaitHandshake(ctx)).resolves.toBeUndefined()
+  })
   it('a flow with net steps and no hub fails before the device is touched (e2e.run)', async () => {
     const calls = []
     const createDevice = () => ({ deviceInfo: async () => { calls.push('info'); return { model: 'Stub', developerEnabled: true } }, launch: async () => calls.push('launch'), keypress: async () => calls.push('key') })
