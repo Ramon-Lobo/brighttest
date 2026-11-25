@@ -96,7 +96,7 @@ describe('instrument.lineMap', () => {
   })
 
   it.each([[42], ['  '], [{}], [['x']]])('an invalid value %j is a clear BT9006 error', async (value) => {
-    const b = await build('bad-' + JSON.stringify(value), { lineMap: value })
+    const b = await build('bad-' + Buffer.from(JSON.stringify(value)).toString('hex'), { lineMap: value }) // no quotes in a dir name (Windows)
     const d = b.errors.filter((e) => e.code === 'BT9006')
     expect(d.length).toBe(1)
     expect(d[0].message).toMatch(/instrument\.lineMap must be true, false or a non-empty file path/)
@@ -242,5 +242,25 @@ describe('instrument.lineMap', () => {
     // staging is cwd/staging; target dir `staging/..m` is inside it and must be rejected
     const b = await build('dots', { lineMap: path.join(dir, 'staging', '..m', 'bt-linemap.json') })
     expect(b.errors.filter((e) => e.code === 'BT9006')[0].message).toMatch(/inside the staging dir/)
+  })
+
+  it('a trailing sourceMappingURL comment with a space in it (bsc keeps it) does not give a false BT9006', async () => {
+    const root = fs.mkdtempSync(path.join(tmp, 'smu2-'))
+    fs.mkdirSync(path.join(root, 'source'))
+    fs.writeFileSync(path.join(root, 'manifest'), 'title=t\nmajor_version=1\nminor_version=0\nbuild_version=1\n')
+    fs.writeFileSync(path.join(root, 'source', 'main.brs'), 'sub main()\nend sub\n')
+    fs.writeFileSync(path.join(root, 'source', 'lib.brs'), 'sub lib()\n  u = CreateObject("roUrlTransfer")\n  u.setUrl("http://127.0.0.1:1/c")\nend sub\n\'//# sourceMappingURL=a b\n')
+    const plugin = createPlugin()
+    const pb = new ProgramBuilder()
+    pb.plugins.add(plugin)
+    const dir = path.join(tmp, 'smu2-out')
+    fs.mkdirSync(dir, { recursive: true })
+    await pb.run({
+      cwd: dir, rootDir: root, stagingDir: path.join(dir, 'staging'), createPackage: false, files: ['manifest', 'source/**/*'], plugins: [],
+      logLevel: 'error', autoImportComponentScript: false, diagnosticFilters: [1107, 1140, 1009], instrument: { lineMap: true },
+    })
+    expect(pb.program.getDiagnostics().filter((d) => d.severity === 1).map((d) => d.message)).toEqual([])
+    expect(plugin.getResult().rewritten.map((x) => x.file)).toContain('source/lib.brs')
+    expect(JSON.parse(fs.readFileSync(plugin.getResult().lineMap, 'utf8')).files['source/lib.brs'].length).toBeGreaterThan(0)
   })
 })
