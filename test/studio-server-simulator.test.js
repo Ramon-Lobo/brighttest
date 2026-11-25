@@ -53,6 +53,20 @@ describe('studio server simulator branch', () => {
     await boot()
     const r = await get('/api/state?layer=global')
     expect(r.status).toBe(200)
+    expect(r.json.layers).toBeNull()
+    expect(r.json.agentReadFailed).toBe(false)
+  })
+  it('/api/bt/stream streams in simulator mode', async () => {
+    await boot()
+    const head = await new Promise((resolve, reject) => {
+      const req = http.get({ host: '127.0.0.1', port: srv.address().port, path: '/api/bt/stream' }, (res) => {
+        let b = ''
+        res.on('data', (c) => { b += c; if (b.includes(': ready')) { req.destroy(); resolve({ status: res.statusCode, type: res.headers['content-type'] }) } })
+      })
+      req.on('error', (e) => (e.code === 'ECONNRESET' ? null : reject(e)))
+    })
+    expect(head.status).toBe(200)
+    expect(head.type).toMatch(/text\/event-stream/)
   })
   it.each(['/api/tree', '/api/screenshot', '/api/keypress', '/api/run', '/api/connect', '/api/launch', '/api/perf/session', '/api/perf/console'])('%s answers 409 SIMULATOR_TARGET', async (p) => {
     await boot()
@@ -79,5 +93,22 @@ describe('studio server simulator branch', () => {
     let err
     try { await studio.start({ port: 0, simulator: true, simStart: async () => { throw Object.assign(new Error('nope'), { code: 'ENGINE_MISSING' }) } }) } catch (e) { err = e }
     expect(err.code).toBe('ENGINE_MISSING')
+  })
+  it('a synchronous throw in the inner start reaches the catch path and stops the simulator', async () => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-sim-'))
+    stops = 0
+    // The inner start throws synchronously (reading net off the started simulator throws).
+    const sim = { get net() { throw new Error('boom') }, info: () => ({}), stop: () => { stops++ } }
+    const opts = { port: 0, rootDir: dir, simulator: true, simStart: async () => sim }
+    let err
+    try { await studio.start(opts) } catch (e) { err = e }
+    expect(err && err.message).toBe('boom')
+    expect(stops).toBe(1)
+  })
+  it('a malformed deviceLease.pool with --simulator is a USAGE error, not a crash', () => {
+    let err
+    try { studio.start({ port: 0, simulator: true, cfg: { deviceLease: { pool: 'not-a-list' } } }) } catch (e) { err = e }
+    expect(err && err.code).toBe('USAGE')
+    expect(err.message).toMatch(/--simulator/)
   })
 })
