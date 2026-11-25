@@ -143,8 +143,8 @@ performance) answer 409 `SIMULATOR_TARGET`, and the Network panel needs a device
   in your version, `npm i brighttest` already covers it and there is nothing extra to install.
 - **Header badge**: instead of the device lease badge the header shows the engine and its
   state, like `simulator · brs-node@2.7.1 (stock) · running`. The Screen mirror, Remote and Run controls say they need a device. The State tab has no live layer view in
-  this mode (the live read goes through the device); save a snapshot to read the state, and edits sent to the state
-  routes or by `setState` steps still apply.
+  this mode (the live read goes through the device); save a snapshot to read the state, and edits made from the State
+  panel (`/api/state/cmd`) still apply. Run is disabled (`/api/run` answers 409).
 - **States** (also in `GET /api/device` as `state`): `starting` (engine launched), `settling` (the app said hello, Studio
   waits about 1.5 s for it to stay quiet), `running` (ready), `no hello from the app` (`no-hello`) and `engine exited`
   (`exited`). Hover the badge to read the last engine output.
