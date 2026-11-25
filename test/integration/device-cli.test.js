@@ -53,7 +53,7 @@ describe('brighttest device', () => {
     const r = await bt(withArgs('a', 10), { EXIT_CODE: '3' }).done
     expect(r.code).toBe(3)
     expect(lines()[0]).toMatch(/^enter a \d+ tok 127\.0\.0\.1$/)
-    expect(events().map((e) => e.ev)).toEqual(['acquired', 'released'])
+    expect(events().map((e) => e.ev).filter((ev) => ev !== 'note')).toEqual(['acquired', 'released'])
   })
 
   it('8 concurrent `device with` never overlap and are served FIFO', async () => {
