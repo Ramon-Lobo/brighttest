@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { createRequire } from 'node:module'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -78,6 +79,31 @@ describe('findNodeSpecs', () => {
     fs.mkdirSync(path.join(tmp, 'node_modules', 'pkg'), { recursive: true })
     fs.writeFileSync(path.join(tmp, 'node_modules', 'pkg', 'Dep.spec.bs'), '@SGNode("Dep")')
     expect(findNodeSpecs(cfgAt(fs.realpathSync(tmp)))).toEqual([])
+  })
+})
+
+describe('writeBsConfig coverage key by rooibos version', () => {
+  const engines = createRequire(import.meta.url)('../lib/engines.js')
+  afterEach(() => { vi.restoreAllMocks() })
+  for (const [version, key, other] of [
+    ['5.16.4', 'isRecordingCodeCoverage', 'codeCoverage'],
+    ['5.17.0', 'codeCoverage', 'isRecordingCodeCoverage'],
+    ['5.17.0-bt.1', 'codeCoverage', 'isRecordingCodeCoverage'],
+  ]) {
+    it(`rooibos ${version} writes only ${key}`, () => {
+      vi.spyOn(engines, 'engineFor').mockReturnValue({ kind: 'rooibos', version, stamp: null })
+      for (const lane of ['headless-coverage', 'headless-scene']) {
+        const bs = readBsConfig(writeBsConfig(cfgAt(tmp), lane).bsconfigPath)
+        expect(bs.rooibos[key]).toBe(lane === 'headless-coverage')
+        expect(other in bs.rooibos).toBe(false)
+      }
+    })
+  }
+  it('keeps the old key when no rooibos engine resolves', () => {
+    vi.spyOn(engines, 'engineFor').mockImplementation(() => { throw new Error('missing') })
+    const bs = readBsConfig(writeBsConfig(cfgAt(tmp), 'headless-coverage').bsconfigPath)
+    expect(bs.rooibos.isRecordingCodeCoverage).toBe(true)
+    expect('codeCoverage' in bs.rooibos).toBe(false)
   })
 })
 
