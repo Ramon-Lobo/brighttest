@@ -173,11 +173,14 @@ failed (also `--fail-on-skip` with a skip, or no flow ran), `2` usage or device-
 
 ```text
 studio --host <ip> [--password <pw>] [--port 8700] [--app dev] [--flows-dir flows] [--open]
+studio --simulator [--port 8700] [--flows-dir flows] [--open]
 ```
 
 `--host` (or `ROKU_HOST`), `--password` (`--pass`, or `ROKU_PASSWORD`), `--port <n>` (default 8700; if busy and `--port` was not given, the first free of
 8701-8709; an explicit busy `--port` fails), `--app <id>` (default `dev`), `--flows-dir <dir>` (default `./flows`),
 `-o`, `--open` (open the browser). Studio takes the [device lease](/guide/device-lease#studio) while you use it. See the [Studio guide](/guide/studio).
+
+`--simulator` runs Studio against the local brs-node simulator instead of a device (state-only; see [Simulator target](/guide/studio#simulator-target-no-device)). It uses the stock engine (`npm i brs-node`) unless `engines.brsNode` or `BRIGHTTEST_ENGINES` says otherwise, takes no value, and exits 2 when combined with `--host` or a device pool. `--password` is ignored with it. Exit codes: 2 usage error or UI not built, 1 other failures.
 
 ## `brighttest net convert`
 

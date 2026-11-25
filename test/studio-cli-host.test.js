@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, afterEach } from 'vitest'
 import { createRequire } from 'node:module'
 
 const require = createRequire(import.meta.url)
@@ -23,6 +23,12 @@ describe('brighttest studio --simulator', () => {
   const fs = require('node:fs')
   const path = require('node:path')
   const { spawnSync } = require('node:child_process')
+  const made = []
+  afterEach(() => { for (const d of made.splice(0)) fs.rmSync(d, { recursive: true, force: true }) })
+  const runStudio = (args) => {
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-sim-cli-')); made.push(cwd)
+    return spawnSync(process.execPath, [path.join(__dirname, '..', 'bin', 'cli.js'), 'studio', ...args], { cwd, encoding: 'utf8', timeout: 30000 })
+  }
 
   it('parses the flag and passes it to the server', () => {
     expect(parseStudioArgs([]).simulator).toBe(false)
@@ -32,10 +38,20 @@ describe('brighttest studio --simulator', () => {
     expect(studioStartOptions(parseStudioArgs([]), {}).simulator).toBe(false)
   })
   it('--simulator with --host exits 2 and says why', () => {
-    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-sim-cli-'))
-    const r = spawnSync(process.execPath, [path.join(__dirname, '..', 'bin', 'cli.js'), 'studio', '--simulator', '--host', '1.2.3.4'], { cwd, encoding: 'utf8', timeout: 30000 })
+    const r = runStudio(['--simulator', '--host', '1.2.3.4'])
     expect(r.status).toBe(2)
     expect(r.stderr).toContain('--simulator cannot be combined with --host')
+  })
+  it('--simulator=<value> is a usage error, never a silent device-mode start', () => {
+    const r = runStudio(['--simulator=true'])
+    expect(r.status).toBe(2)
+    expect(r.stderr).toContain('takes no value')
+    expect(parseStudioArgs(['--simulator=false']).simulator).toBe(false)
+  })
+  it('--password with --simulator warns on stderr', () => {
+    const r = runStudio(['--simulator', '--password', 'x', '--host', '1.2.3.4'])
+    expect(r.stderr).toContain('--password is ignored with --simulator')
+    expect(r.stderr).not.toContain('--password x')
   })
   it('maps USAGE and a missing UI bundle to exit 2, other failures to 1', () => {
     expect(studioExitCode(Object.assign(new Error('x'), { code: 'USAGE' }))).toBe(2)

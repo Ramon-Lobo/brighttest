@@ -448,6 +448,7 @@ function parseStudioArgs(rest) {
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
     if (a === '--simulator') o.simulator = true;
+    else if (a.startsWith('--simulator=')) o.badSimulator = a;
     else if (a === '--host') o.host = rest[++i];
     else if (a.startsWith('--host=')) o.host = a.slice(7);
     else if (a === '--password' || a === '--pass') o.password = rest[++i];
@@ -481,8 +482,9 @@ Options:
   --port <n>         Local port for the studio (default 8700; if busy, the first free of 8701-8709)
   --app <id>         Channel to launch / drive (default: dev)
   --flows-dir <dir>  Where flows are read and written (default: ./flows)
-  --simulator        Run against the local brs-node simulator instead of a device (state-only; needs the stock
-                     engine: npm i brs-node). Cannot be combined with --host or a device pool.
+  --simulator        Run against the local brs-node simulator instead of a device (state-only). Uses the stock
+                     engine (npm i brs-node) unless engines.brsNode or BRIGHTTEST_ENGINES picks another one.
+                     Takes no value; cannot be combined with --host or a device pool.
   -o, --open         Open the studio in your browser
   -h, --help         Show this help
 `;
@@ -713,6 +715,8 @@ async function main() {
   if (argv[0] === 'studio') {
     const o = parseStudioArgs(argv.slice(1));
     if (o.help) { console.log(STUDIO_HELP); process.exit(0); }
+    if (o.badSimulator) { console.error(`[brighttest studio] ${o.badSimulator}: --simulator is a flag and takes no value`); process.exit(2); }
+    if (o.simulator && o.password) console.error('[brighttest studio] warning: --password is ignored with --simulator');
     if (o.simulator && o.host) { console.error('[brighttest studio] --simulator cannot be combined with --host'); process.exit(2); }
     // The raw --host/--password go to the server, which owns the device rules (explicit host wins, several cached
     // devices fail instead of guessing, none starts device-less). The CLI never resolves the host for studio.
