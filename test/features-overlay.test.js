@@ -88,11 +88,134 @@ describe('overlay evidence levels', () => {
     expect(ov.stats).toMatchObject({ cases: 1, mapped: 0, unmapped: 1 })
     expect(ov.nodes.size).toBe(0)
   })
-  it('lcov: marks executed files ran-headless with a coverage percentage, and not an unexecuted file', () => {
+  it('lcov: labels executed files lane-neutrally (never a ran level) with a coverage percentage, and not an unexecuted file', () => {
     const { g } = graphWithSpec()
     const ov = overlay.buildOverlay(g, [], [{ file: 'l', records: overlay.parseLcov('SF:source/Resume.brs\nLF:4\nLH:3\nend_of_record\nSF:source/Other.brs\nLF:4\nLH:0\nend_of_record\n') }])
-    expect(overlay.evidenceText(ov, 'file:source/Resume.brs')).toBe('ran-headless (lcov 75% of 4 lines)')
+    expect(overlay.evidenceText(ov, 'file:source/Resume.brs')).toBe('executed (lcov 75% of 4 lines)')
     expect(overlay.evidenceText(ov, 'file:source/Other.brs')).toBe('')
+  })
+})
+
+const EX = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'examples', 'feature-tree-app')
+const FX = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 'fixtures', 'features-render')
+const suiteGraph = (suites) => {
+  const g = mk({ files: ['source/a/main.brs', 'source/b/main.brs'] })
+  for (const id of Object.keys(suites)) g.nodes.push({ id, kind: 'file', lang: 'bs', vendor: false, spec: true })
+  g.specSuites = suites
+  return g
+}
+const fileG = (files, specs = []) => {
+  const g = mk({ files })
+  for (const f of specs) g.nodes.push({ id: `file:${f}`, kind: 'file', lang: 'bs', vendor: false, spec: true })
+  return g
+}
+const lc = (file, lf, lh) => ({ file: 'l', records: [{ file, lf, lh }] })
+
+describe('overlay: real reporter output', () => {
+  it('suite-title matching maps the headless reporter fixture onto the example app and marks nodes ran-headless', async () => {
+    const { buildGraph, hashGraph } = require('../lib/features/graph')
+    const g = await buildGraph(EX)
+    expect(g.specSuites['file:source/tests/Badge.spec.bs']).toEqual(['Badge component'])
+    expect(hashGraph({ ...g, specSuites: undefined })).toBe(g.hash)
+    const j = overlay.parseJunit(fs.readFileSync(path.join(FX, 'headless-reporter.junit.xml'), 'utf8'))
+    const ov = overlay.buildOverlay(g, [{ file: 'j', ...j }], [{ file: 'l', records: overlay.parseLcov(fs.readFileSync(path.join(FX, 'headless-reporter.lcov.info'), 'utf8')) }], { root: EX })
+    expect(ov.stats).toMatchObject({ cases: 3, mapped: 3, unmapped: 0, specsPassed: 2 })
+    expect(overlay.evidenceText(ov, 'file:source/tests/Badge.spec.bs')).toBe('ran-headless (1 case passed)')
+    expect(overlay.evidenceText(ov, 'file:source/tests/StringUtils.spec.bs')).toBe('ran-headless (2 cases passed)')
+    const covered = [...g.edges].filter((e) => e.kind === 'spec-covers' && e.to).map((e) => e.to)
+    expect(covered.length).toBeGreaterThan(0)
+    for (const id of covered) expect(overlay.evidenceText(ov, id)).toContain('ran-headless')
+    expect(overlay.evidenceText(ov, 'file:components/widgets/Badge.brs')).toContain('executed (lcov 100% of 2 lines)')
+  })
+  it('an @suite title shared by two specs is unmapped and counted', () => {
+    const g = suiteGraph({ 'file:t/A.spec.bs': ['Same'], 'file:t/B.spec.bs': ['Same'], 'file:t/C.spec.bs': ['Only C'] })
+    const j = overlay.parseJunit(junit(tc('Same', 'x') + tc('Only C', 'y')))
+    const ov = overlay.buildOverlay(g, [{ file: 'j', ...j }])
+    expect(ov.stats).toMatchObject({ mapped: 1, unmapped: 1, ambiguous: 1 })
+    expect(overlay.evidenceText(ov, 'file:t/C.spec.bs')).toBe('ran-headless (1 case passed)')
+    expect(overlay.evidenceText(ov, 'file:t/A.spec.bs')).toBe('')
+  })
+})
+
+describe('overlay: lanes per suite', () => {
+  it('a merged JUnit with a headless suite and a device suite keeps each lane on its own cases', () => {
+    const g = fileG([], ['t/H.spec.bs', 't/D.spec.bs'])
+    const xml = '<testsuites><testsuite name="h"><properties><property name="brighttest.lane" value="headless"/></properties>' + tc('t/H.spec', 'a') +
+      '</testsuite><testsuite name="d"><properties><property name="brighttest.lane" value="device"/></properties>' + tc('t/D.spec', 'b') + '</testsuite></testsuites>'
+    const j = overlay.parseJunit(xml)
+    expect(j.lane).toBe('mixed')
+    expect(j.cases.map((c) => c.lane)).toEqual(['headless', 'device'])
+    const ov = overlay.buildOverlay(g, [{ file: 'j', ...j }])
+    expect(overlay.evidenceText(ov, 'file:t/H.spec.bs')).toBe('ran-headless (1 case passed)')
+    expect(overlay.evidenceText(ov, 'file:t/D.spec.bs')).toBe('ran-device (1 case passed)')
+  })
+  it('a property outside every testsuite applies to the whole file; a suite-level one wins', () => {
+    const xml = '<testsuites><properties><property name="brighttest.lane" value="device"/></properties><testsuite name="a">' + tc('x', '1') + '</testsuite>' +
+      '<testsuite name="b"><properties><property name="brighttest.lane" value="headless"/></properties>' + tc('x', '2') + '</testsuite></testsuites>'
+    expect(overlay.parseJunit(xml).cases.map((c) => c.lane)).toEqual(['device', 'headless'])
+  })
+})
+
+describe('overlay: path matching', () => {
+  it('a bare shorter path needs exactly one match; a longer-or-equal one matches by trailing segments', () => {
+    const g = fileG([], ['a/tests/Format.spec.bs', 'b/tests/Format.spec.bs'])
+    const run = (cls) => overlay.buildOverlay(g, [{ file: 'j', ...overlay.parseJunit(junit(tc(cls, 'x'))) }]).nodes.size
+    expect(run('Format.spec')).toBe(0)
+    expect(run('tests/Format.spec')).toBe(0)
+    expect(run('a/tests/Format.spec')).toBe(1)
+    expect(run('pkg:/a/tests/Format.spec.brs')).toBe(1)
+    expect(run('/ci/work/b/tests/Format.spec.bs')).toBe(1)
+  })
+  it('lcov: SF:main.brs with two main.brs files is ambiguous; the xml file does not count as a match', () => {
+    const g = fileG(['source/main.brs', 'components/main.brs'])
+    expect(overlay.buildOverlay(g, [], [lc('main.brs', 4, 4)]).nodes.size).toBe(0)
+    const g2 = fileG(['source/main.brs'])
+    g2.nodes.push({ id: 'file:components/main.xml', kind: 'file', lang: 'xml', vendor: false, spec: false })
+    expect(overlay.buildOverlay(g2, [], [lc('main.brs', 4, 4)]).nodes.has('file:source/main.brs')).toBe(true)
+  })
+  it('lcov: pkg:/ and the project root are stripped; paths that climb out are dropped and counted', () => {
+    const g = fileG(['source/main.brs'])
+    const ov = overlay.buildOverlay(g, [], [{ file: 'l', records: [{ file: 'pkg:/source/main.brs', lf: 2, lh: 1 }, { file: '../../other/source/main.brs', lf: 9, lh: 9 }, { file: '/proj/source/../../x/source/main.brs', lf: 9, lh: 9 }] }], { root: '/proj' })
+    expect(ov.nodes.get('file:source/main.brs').lcov).toEqual({ lf: 2, lh: 1 })
+    expect(ov.stats.lcovDropped).toBe(2)
+  })
+  it('lcov: LH is clamped to LF and several records for one source merge by the larger total', () => {
+    expect(overlay.parseLcov('SF:a.brs\nLF:2\nLH:7\nend_of_record\n')[0]).toEqual({ file: 'a.brs', lf: 2, lh: 2 })
+    const g = fileG(['source/main.brs'])
+    const ov = overlay.buildOverlay(g, [], [{ file: 'l', records: [{ file: 'source/main.brs', lf: 10, lh: 4 }, { file: 'source/main.brs', lf: 10, lh: 6 }] }])
+    expect(ov.nodes.get('file:source/main.brs').lcov).toEqual({ lf: 10, lh: 6 })
+  })
+})
+
+describe('overlay: parser', () => {
+  it('an attribute value containing > does not truncate the tag', () => {
+    const j = overlay.parseJunit(junit('<testcase classname="a" name="x > y" file="t/H.spec.bs"><failure message="a>b"/></testcase>' + tc('t/H.spec', 'ok')))
+    expect(j.cases.map((c) => [c.name, c.status])).toEqual([['x > y', 'failed'], ['ok', 'passed']])
+  })
+  it('40k unclosed tags finish quickly', () => {
+    const t0 = Date.now()
+    const junk = '<testcase classname="x '.repeat(40000) + '<!-- '.repeat(10000)
+    const j = overlay.parseJunit(junit(tc('t/H.spec', 'ok')) + junk)
+    expect(j.cases.length).toBe(1)
+    const g = fileG([], ['t/H.spec.bs'])
+    overlay.buildOverlay(g, [{ file: 'j', ...j }])
+    expect(Date.now() - t0).toBeLessThan(10000)
+  })
+  it('runRender turns a read failure into a usage error for both flags', async () => {
+    const Usage = require('../lib/assess').UsageError
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-ov-'))
+    try {
+      const { buildGraph } = require('../lib/features/graph')
+      const gf = path.join(dir, 'graph.json')
+      fs.writeFileSync(gf, JSON.stringify(await buildGraph(EX)))
+      fs.writeFileSync(path.join(dir, 'a.xml'), junit(tc('x', 'y')))
+      fs.writeFileSync(path.join(dir, 'a.info'), 'SF:x\nend_of_record\n')
+      const readFile = () => { const e = new Error('denied'); e.code = 'EACCES'; throw e }
+      const ctx = { root: dir, stagingDir: path.join(dir, '.brighttest'), baseRel: '.', stdout: () => {}, stderr: () => {}, readFile }
+      for (const bad of [{ junit: [path.join(dir, 'a.xml')] }, { lcov: [path.join(dir, 'a.info')] }]) {
+        await expect(render.runRender({ auto: true, graph: gf, junit: [], lcov: [], out: path.join(dir, 'x.html'), ...bad }, ctx, Usage)).rejects.toThrow(/cannot read .*: EACCES/)
+      }
+    } finally { fs.rmSync(dir, { recursive: true, force: true }) }
   })
 })
 
@@ -148,7 +271,8 @@ describe('features render --junit/--lcov', () => {
       const out = path.join(dir, 'r.html')
       expect(await render.runRender({ ...base, out, junit: [path.join(dir, 'unit.xml'), path.join(dir, 'dev.xml')], lcov: [path.join(dir, 'lcov.info')] }, ctx, Usage)).toBe(0)
       const html = fs.readFileSync(out, 'utf8')
-      expect(html).toContain('ran-headless (1 case passed, lcov 50% of 10 lines)')
+      expect(html).toContain('ran-headless (1 case passed)')
+      expect(html).toContain('executed (lcov 50% of 10 lines)')
       expect(html).toContain('ran-device (1 case passed)')
       expect(err).toMatch(/1 of 3 JUnit cases map to no spec/)
       for (const bad of [{ junit: [path.join(dir, 'missing.xml')] }, { junit: [path.join(dir, 'bad.xml')] }, { lcov: [path.join(dir, 'bad.xml')] }]) {

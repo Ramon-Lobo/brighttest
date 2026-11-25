@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="brighttest" tests="3" failures="0">
+    <testcase name="passes the text through to its label" classname="Badge component"/>
+    <testcase name="removes leading and trailing spaces" classname="StringUtils (pure functions, headless-unit)"/>
+    <testcase name="capitalizes the first letter only" classname="StringUtils (pure functions, headless-unit)"/>
+  </testsuite>
+</testsuites>
