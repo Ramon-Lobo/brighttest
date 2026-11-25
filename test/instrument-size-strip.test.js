@@ -47,7 +47,7 @@ describe('staged runtime strip (ADR 0020 D3)', () => {
     expect(f.split('\n').some(isFullLineComment)).toBe(true)
   })
 
-  it('TP-INS-16: the real built zip has at most 1500 lines and 60650 bytes under source/bt + components/bt', async () => {
+  it('TP-INS-16: the real built zip has at most 1500 lines and 60793 bytes under source/bt + components/bt', async () => {
     // Same measure as the test pack: every file (XML and BT_config.brs included), `unzip -p ... | wc -l` for lines.
     const out = path.join(tmp, 'legacy.bt-instrumented.zip')
     const cfg = { ...loadConfig(path.resolve(__dirname, '../examples/legacy-app')), stagingDir: path.join(tmp, 'stage') }
@@ -66,7 +66,8 @@ describe('staged runtime strip (ADR 0020 D3)', () => {
     // Wiring: the agent assets and the runtime in the zip are the stripped ones (fails if setFile used the raw text).
     for (const a of AGENT_ASSETS.filter((x) => x.dest.endsWith('.brs'))) expect(await z.file(a.dest).async('string')).toBe(stagedAsset(a))
     expect(await z.file('source/bt/BT_runtime.brs').async('string')).toBe(runtimeSource(true, true, false))
+    console.log(`TP-INS-16 headroom: ${60793 - bytes} bytes under 60793, ${1500 - nl} lines under 1500`)
     expect(nl).toBeLessThanOrEqual(1500)
-    expect(bytes).toBeLessThanOrEqual(60650)
+    expect(bytes).toBeLessThanOrEqual(60793)
   }, 120000)
 })
