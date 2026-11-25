@@ -30,6 +30,20 @@ describe('compareCaps', () => {
     expect(r.rows.find((x) => x.id === 'BRS-07')).toMatchObject({ metadata: true, probe: null })
     expect(r.rows.find((x) => x.id === 'BRS-08')).toMatchObject({ metadata: true, probe: null })
   })
+  it('BRS-09 and BRS-10 are labelled and metadata only: no probe column, never a mismatch', () => {
+    for (const caps of [['BRS-09', 'BRS-10'], []]) {
+      const r = C.compareCaps(eng({ caps }), probe({}))
+      expect(r.mismatches).toEqual([])
+    }
+    const r = C.compareCaps(eng({ caps: ['BRS-09', 'BRS-10'] }), probe({}))
+    expect(r.rows.find((x) => x.id === 'BRS-09')).toMatchObject({ label: 'RoFont binary-search ellipsis', metadata: true, probe: null })
+    expect(r.rows.find((x) => x.id === 'BRS-10')).toMatchObject({ label: 'measuring canvas width 0 after EXIT', metadata: true, probe: null })
+    expect(C.METADATA_ONLY.has('BRS-09') && C.METADATA_ONLY.has('BRS-10')).toBe(true)
+  })
+  it('mutation: an unknown claimed id (BRS-99) is still a mismatch', () => {
+    const r = C.compareCaps(eng({ caps: ['BRS-09', 'BRS-99'] }), probe({}))
+    expect(r.mismatches.map((x) => x.id)).toEqual(['BRS-99'])
+  })
   it('flags a capability the probe shows but metadata lacks', () => {
     const r = C.compareCaps(eng({ caps: [] }), probe({ 'BRS-03': 1 }))
     expect(r.mismatches.map((x) => x.id)).toEqual(['BRS-03'])
