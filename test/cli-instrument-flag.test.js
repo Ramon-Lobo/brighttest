@@ -44,8 +44,9 @@ describe('--instrument flag', () => {
 
   it('does not trip the guard on a headless run without the flag', () => {
     const dir = project('noguard', {})
-    const r = bt(dir, ['--device', '--host', '127.0.0.1', '--help'])
+    const r = bt(dir, ['--no-sgnode', '--junit'])
     expect(r.stderr).not.toContain('--instrument applies')
+    expect(r.stderr).not.toContain('--instrument takes no value')
   })
 
   it('a bad instrument block with --instrument exits 2 with the typed message', () => {
@@ -65,6 +66,16 @@ describe('--instrument flag', () => {
   it('without the flag the same bad block only warns and does not exit 2 on validation', () => {
     const dir = project('warn', { instrument: { state: 'yes' } })
     const r = bt(dir, [])
+    expect(r.status).not.toBe(2)
     expect(r.stderr).toContain('ignored: instrument is not enabled for this run')
+  })
+
+  it('--instrument=<value> exits 2 (takes no value)', () => {
+    const dir = project('withvalue', {})
+    for (const v of ['--instrument=true', '--instrument=']) {
+      const r = bt(dir, [v])
+      expect(r.status).toBe(2)
+      expect(r.stderr).toContain('--instrument takes no value')
+    }
   })
 })

@@ -94,7 +94,7 @@ published as `<redacted:key>`. Wrong types or out-of-range numbers fail the inst
 
 Headless specs can run against the real state agent: set `"instrument": { "enabled": true }` (the `state` options above
 then apply to the headless build too). The run takes the scene lane, and `--no-sgnode` exits 2. Coverage counts only the
-app's files, not the injected `bt` runtime. A device or `--cross-check` run ignores `enabled`.
+app's files, not the injected `bt` runtime. A device or `--cross-check` run ignores `enabled`. `brighttest --instrument` turns it on for one run.
 
 ## Errors
 
