@@ -1,4 +1,4 @@
-# External app examples
+# Examples of mapping
 
 brighttest was run read-only against four public, open-source Roku apps to see what it reports on code it has never seen. This page
 lists what came out: counts, names and structure that brighttest derived, plus pictures of its own feature report. Nothing here is
