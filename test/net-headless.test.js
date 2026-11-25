@@ -168,14 +168,45 @@ describe('isActive only counts BTNet_ specs that would run', () => {
     put('source/a.spec.bs', suite('@suite("A")\n@ignore').replace(/\n/g, '\r\n'))
     expect(active()).toBe(false)
   })
-  it('honours testsFilePattern, with Windows separators in the pattern', () => {
+  it('testsFilePattern is not consulted (the Rooibos fork selects specs with includeFilters)', () => {
     put('source/a.spec.bs', suite('@suite("A")'))
-    put('other/b.spec.bs', suite('@suite("B")'))
-    expect(active({ testsFilePattern: 'other\\**\\*.spec.bs' })).toBe(true)
-    expect(active({ testsFilePattern: 'nowhere\\**\\*.spec.bs' })).toBe(false)
+    expect(active({ testsFilePattern: 'other/**/*.spec.bs' })).toBe(true)
     expect(active({ testsFilePattern: ['**/*.spec.bs', '!source/**'] })).toBe(true)
-    fs.rmSync(path.join(tmp, 'other'), { recursive: true })
-    expect(active({ testsFilePattern: ['**/*.spec.bs', '!source\\**'] })).toBe(false)
+  })
+  const helper = 'namespace H\n  function countNet()\n    return BTNet_requests({}).count()\n  end function\nend namespace\n'
+  const user = '@suite("HelperUser")\nclass U\n  sub t()\n    print tests.countNet()\n  end sub\nend class\n'
+  const parked = '@ignore\n@suite("Parked")\nclass P\n  sub t()\n    print 1\n  end sub\nend class\n'
+  it('shared helper after, between or before suites survives an ignored suite', () => {
+    put('source/a.spec.bs', user + parked + helper)
+    expect(active()).toBe(true)
+    put('source/a.spec.bs', parked + user + helper)
+    expect(active()).toBe(true)
+    put('source/a.spec.bs', user + helper + parked)
+    expect(active()).toBe(true)
+    put('source/a.spec.bs', helper + parked + user)
+    expect(active()).toBe(true)
+    put('source/a.spec.bs', parked + helper + user)
+    expect(active()).toBe(true)
+  })
+  it('a helper with no runnable suite still does not trigger', () => {
+    put('source/a.spec.bs', parked + helper)
+    expect(active()).toBe(false)
+  })
+  it('an ignored suite alone with BTNet_ in its class stays off even with a plain suite and helper-free code', () => {
+    put('source/a.spec.bs', suite('@suite("A")\n@ignore') + '@suite("B")\nclass B\n  sub t()\n    print 1\n  end sub\nend class\n')
+    expect(active()).toBe(false)
+  })
+  it('template strings are masked as strings but their code is not', () => {
+    put('source/a.spec.bs', suite('@suite("A")', 'x = `BTNet_mock`'))
+    expect(active()).toBe(false)
+    put('source/a.spec.bs', suite('@suite("A")', 'x = `a ${BTNet_requests({}).count()}`'))
+    expect(active()).toBe(true)
+  })
+  it('an apostrophe or quote inside a template string does not hide a following BTNet_ call', () => {
+    put('source/a.spec.bs', suite('@suite("A")', "x = `it's` : n = BTNet_requests({}).count()"))
+    expect(active()).toBe(true)
+    put('source/a.spec.bs', suite('@suite("A")', 'x = `say "hi` : n = BTNet_requests({}).count()'))
+    expect(active()).toBe(true)
   })
   it('explicit instrument.net still activates', () => {
     put('source/a.spec.bs', suite('@suite("A")\n@ignore'))

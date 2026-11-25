@@ -306,12 +306,15 @@ these keys.
 The headless test lanes (`brighttest`, `brighttest --coverage`, the scene lanes) can route the app's `roUrlTransfer`
 traffic through an in-process proxy that serves mocks and fixtures. It switches on when any of these is present: a
 `--net-record` or `--net-unmatched` flag, `instrument.net` set to `true` or to an object with a `fixtures`, `unmatched`,
-`upstreamHosts` or `redact` key, or a spec file that mentions `BTNet_*` and would actually run. A file does not count when it does not match
-`testsFilePattern`, when every suite that uses `BTNet_*` is marked `@ignore` (an annotation above or beside `@suite`; the
-word in a comment or string is not a marker), or when the mention is only in a comment or string. A non-ignored
+`upstreamHosts` or `redact` key, or a spec file that mentions `BTNet_*` and would actually run. A file does not count when every suite that uses `BTNet_*` is marked `@ignore` (an annotation above or beside `@suite`; the
+word in a comment or string is not a marker), or when the mention is only in a comment or string. Shared helper code
+outside any `@ignore`d suite's class (before, between or after suites) counts as runnable when a non-ignored suite exists.
+`testsFilePattern` plays no part: the Rooibos fork picks spec files with `includeFilters`, so a file can run without
+matching that pattern. A non-ignored
 `BTNet_*` suite switches it on as before. Without any of these a headless run is unchanged. There is no separate opt-out
-for specs that run: if they use `BTNet_*` the runtime has to be staged, so to get a plugin-free run, mark them `@ignore`
-or keep them out of `testsFilePattern`.
+for specs that run: if they use `BTNet_*` the runtime has to be staged, so to get a plugin-free run, mark them `@ignore`.
+With `instrument.enabled: true`, `state: false` and only `@ignore`d `BTNet_*` specs, nothing is left to instrument, so the
+run exits 2 with "nothing to instrument" (the message names what counts as using net).
 
 ### `--net-record [file]`
 

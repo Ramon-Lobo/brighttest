@@ -33,7 +33,7 @@ Defaults work for a conventional layout. To customize, add `brighttest.json` at 
 |---|---|---|
 | `rootDir` | Project root that globs resolve against. | `.` |
 | `sourceGlobs` | Files compiled into the test build. Roku only executes `source/` and `components/`. | `["manifest","source/**/*","components/**/*"]` |
-| `testsFilePattern` | Where Rooibos looks for specs. | `**/*.spec.bs` |
+| `testsFilePattern` | Written to the generated `bsconfig.json`; the Rooibos fork does not currently read it (it selects specs with `includeFilters`, default `**/*.spec.bs`). | `**/*.spec.bs` |
 | `stagingDir` | Scratch dir for generated builds/config. Git-ignore it. | `.brighttest` |
 
 ::: tip Git-ignore the scratch dirs

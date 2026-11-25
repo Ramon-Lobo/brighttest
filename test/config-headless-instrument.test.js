@@ -100,7 +100,7 @@ describe('resolveHeadlessInstrument: invalid', () => {
     expect(Object.keys(cfgOf({ enabled: true }))).not.toContain('_rawInstrument')
   })
   it('enabled with state false and no net: nothing to instrument', () => {
-    const m = 'instrument.enabled is on but state is false and the run does not use net: nothing to instrument'
+    const m = 'instrument.enabled is on but state is false and the run does not use net: nothing to instrument (net counts as used when a spec calls BTNet_* outside an @ignore suite, or instrument.net is set)'
     expect(msg(cfgOf({ enabled: true, state: false }))).toBe(m)
     expect(msg(cfgOf({ state: false }), { instrument: true })).toBe(m)
   })
