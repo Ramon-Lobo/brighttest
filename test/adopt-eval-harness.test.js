@@ -1,4 +1,4 @@
-import { describe, test, expect } from 'vitest'
+import { describe, test, expect, afterAll } from 'vitest'
 import { createRequire } from 'module'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -10,18 +10,21 @@ const { prepare } = require('../scripts/adopt-eval/prepare')
 const common = require('../scripts/adopt-eval/common')
 const sc = require('../scripts/adopt-eval/score')
 
-const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'adopt-eval-'))
+const made = []
+const tmp = () => { const d = fs.mkdtempSync(path.join(os.tmpdir(), 'adopt-eval-')); made.push(d, `${d}/run-baseline`, `${d}/x-baseline`); return d }
+afterAll(() => { for (const d of made) fs.rmSync(d, { recursive: true, force: true }) })
+const cd = (root, fx, arm, run) => common.cellDir(root, fx, arm, run)
 
 describe('prepare', () => {
   test('makes 12 cells with git-initialised app copies, no ground truth', () => {
     const root = path.join(tmp(), 'run')
     const r = prepare({ runRoot: root })
     expect(r.cells).toHaveLength(12)
-    const app = path.join(root, 'legacy-app', 'baseline', 'run1', 'app')
+    const app = path.join(cd(root, 'legacy-app', 'baseline', 1), 'app')
     expect(fs.existsSync(path.join(app, 'manifest'))).toBe(true)
     expect(fs.existsSync(path.join(app, 'EXPECTED-CENSUS.json'))).toBe(false)
     expect(spawnSync('git', ['status', '--porcelain'], { cwd: app, encoding: 'utf8' }).stdout).toBe('')
-    expect(fs.existsSync(path.join(root, 'bsconfig-plugin-app', 'with-skills', 'run3', 'prompt.md'))).toBe(true)
+    expect(fs.existsSync(path.join(cd(root, 'bsconfig-plugin-app', 'with-skills', 3), 'prompt.md'))).toBe(true)
   })
   test('refuses non-empty root unless --clean; refuses root inside repo', () => {
     const root = tmp()
@@ -96,7 +99,7 @@ describe('score', () => {
   })
 })
 
-// Excerpts below are generic phrasings taken from the real ADOPT-21a T1 results.json (legacy-app and bsconfig-plugin-app fixtures).
+// Excerpts below are generic phrasings taken from the real T1 results.json (legacy-app and bsconfig-plugin-app fixtures).
 const gitApp = () => {
   const app = tmp()
   spawnSync('git', ['init', '-q'], { cwd: app })
@@ -108,7 +111,7 @@ const gitApp = () => {
 }
 const EXCERPTS = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'adopt-eval', 't1-excerpts.json'), 'utf8'))
 
-describe('score mechanics (ADOPT-12 harness fixes)', () => {
+describe('score mechanics', () => {
   const legacyHeadline = '- Project: 32 .brs, 4 .bs, 56 .xml; 4 existing specs.\n- Census: 56 components, 6 scenes, 3 tasks; 1 dynamic CreateObject; 3 certificate calls.'
   test('C2 matches "<n> .brs", "<n> .xml" and "N brs files" in either order', () => {
     expect(sc.numbersFor('brsFiles', legacyHeadline)).toContain(32)
@@ -151,17 +154,17 @@ describe('score mechanics (ADOPT-12 harness fixes)', () => {
     expect(sc.applicable('bsconfig-plugin-app')).not.toContain('C4')
     expect(sc.applicable('legacy-app')).toContain('C4')
   })
-  test('contamination detects assess runs and README reads', () => {
-    expect(sc.contamination({ message: 'I ran node /x/bin/cli.js assess .' })).toEqual(['ran assess'])
-    expect(sc.contamination({ message: 'clean', reads: ['/app/README.md'] })).toEqual(['read README'])
-    expect(sc.contamination({ message: 'Counted files by hand.', commands: ['find . -name "*.brs"'] })).toEqual([])
+  test('contamination detects assess runs and README reads from commands/reads', () => {
+    expect(sc.contamination({ commands: ['node /x/bin/cli.js assess .'] }).why).toContain('ran assess')
+    expect(sc.contamination({ message: 'clean', reads: ['/app/README.md'] }).why).toEqual(['read README'])
+    expect(sc.contamination({ message: 'Counted files by hand.', commands: ['find . -name "*.brs"'] })).toEqual({ why: [], review: [] })
   })
   test('score() excludes contaminated baseline cells and lists them', () => {
     const root = path.join(tmp(), 'run')
     prepare({ runRoot: root })
-    const cells = { 'legacy-app/baseline/run1': { finalMessage: 'I ran brighttest assess on it' }, 'legacy-app/baseline/run2': { finalMessage: 'plain read, nothing special' } }
+    const cells = { 'legacy-app/baseline/run1': { finalMessage: 'done', commands: ['npx brighttest@latest assess .'] }, 'legacy-app/baseline/run2': { finalMessage: 'plain read, nothing special' } }
     const out = sc.score({ runRoot: root, results: { cells } })
-    expect(out.contaminated).toEqual([{ cell: 'legacy-app/baseline/run1', why: ['ran assess'] }])
+    expect(out.contaminated).toEqual([{ cell: 'legacy-app/baseline/run1', why: ['ran assess', 'used tool material'] }])
     expect(out.fixtures['legacy-app/baseline'].criteria.C1.runs[0]).toBe(sc.EXCLUDED)
     expect(sc.render(out)).toContain('Contaminated baseline cells')
   })
@@ -182,11 +185,91 @@ describe('score mechanics (ADOPT-12 harness fixes)', () => {
     expect(sc.numbersFor('brsFiles', 'brs files: 32')).toContain(32)
     expect(sc.scoreRun({ fixture: 'bsconfig-plugin-app', message: 'brs-node 2.2.0; 1 .brs, 0 .bs, 1 .xml', appDir: app }).C2.pass).toBe(true)
   })
-  test('README contamination needs a read action, not a mention', () => {
-    expect(sc.contamination({ message: 'You should add a README section about setup.' })).toEqual([])
-    expect(sc.contamination({ message: 'The app has no README.' })).toEqual([])
-    expect(sc.contamination({ message: 'I read the README first.' })).toEqual(['read README'])
-    expect(sc.contamination({ message: 'x', commands: ['cat README.md'] })).toEqual(['read README'])
+  test('README contamination needs a first-person read action in text (review only) or a command', () => {
+    const c = (message, o = {}) => sc.contamination({ message, ...o })
+    expect(c('You should add a README section about setup.')).toEqual({ why: [], review: [] })
+    expect(c('The app has no README.')).toEqual({ why: [], review: [] })
+    expect(c('I did not read the README.')).toEqual({ why: [], review: [] })
+    expect(c('Do not read the README; read the manifest.')).toEqual({ why: [], review: [] })
+    expect(c('I read the README first.')).toEqual({ why: [], review: ['text says README was read'] })
+    expect(c('x', { commands: ['cat README.md'] }).why).toEqual(['read README'])
+  })
+  test('contamination: tool material in commands/reads excludes; text advice only reviews', () => {
+    const c = (o) => sc.contamination(o)
+    for (const cmd of ['npx brighttest doctor', 'node /r/bin/cli.js lint', 'bt scan .', 'cat ../../with-skills/run1/prompt.md', 'cat /r/skills/assessing-a-roku-app/SKILL.md', 'ls /r/docs/', 'ls node_modules/brighttest']) {
+      expect(c({ commands: [cmd] }).why.length, cmd).toBeGreaterThan(0)
+    }
+    for (const rd of ['/r/skills/x.md', '/r/docs/guide.md', '/r/node_modules/brighttest/package.json', '/w/prompt.md', '/r/SKILL.md']) {
+      expect(c({ reads: [rd] }).why.length, rd).toBeGreaterThan(0)
+    }
+    expect(c({ commands: ['grep -rn bt_ app/'] }).why).toEqual([])
+    // advice and denials in text never exclude
+    expect(c({ message: 'You could run npx brighttest@latest assess to get a census.' })).toEqual({ why: [], review: ['assess mentioned in text, no command record'] })
+    expect(c({ message: 'I did not run brighttest assess; I counted by hand.' }).why).toEqual([])
+    expect(c({ message: 'ran it', commands: ['npx brighttest@latest assess .'] }).why).toContain('ran assess')
+  })
+  test('@version after the tool name is accepted in the assess text pattern', () => {
+    expect(sc.scoreRun({ fixture: 'legacy-app', message: 'I ran npx brighttest@latest assess .', appDir: gitApp() }).C1).toMatchObject({ pass: true, mode: 'review' })
+  })
+  test('score() keeps text-only hits in the baseline score and lists them for review', () => {
+    const root = path.join(tmp(), 'run')
+    prepare({ runRoot: root })
+    const out = sc.score({ runRoot: root, results: { cells: { 'legacy-app/baseline/run1': { finalMessage: 'I read the README first.' } } } })
+    expect(out.contaminated).toEqual([])
+    expect(out.contamReview).toEqual([{ cell: 'legacy-app/baseline/run1', why: ['text says README was read'] }])
+    expect(out.fixtures['legacy-app/baseline'].criteria.C1.runs[0]).not.toBe(sc.EXCLUDED)
+    expect(sc.render(out)).toContain('review by hand')
+  })
+  test('C2 qualifiers, versions and spec listings do not count; contradiction beside the truth is review', () => {
+    const app = gitApp()
+    const head = '32 .brs, 56 .xml. 56 components, 3 tasks.'
+    for (const extra of [' 6 scene components.', ' The 3 task components use roUrlTransfer.', ' 4 existing .brs spec files.', ' Spec files: 4 .bs, 0 .brs.', ' Rooibos v5 components']) {
+      const r = sc.scoreRun({ fixture: 'legacy-app', message: head + extra, appDir: app }).C2
+      expect(r.pass, extra).toBe(true)
+    }
+    const mixed = sc.scoreRun({ fixture: 'legacy-app', message: head + ' Also 30 .brs in total.', appDir: app }).C2
+    expect(mixed).toMatchObject({ pass: false, mode: 'review' })
+    const wrong = sc.scoreRun({ fixture: 'legacy-app', message: '30 .brs, 56 .xml. 56 components, 3 tasks.', appDir: app }).C2
+    expect(wrong).toMatchObject({ pass: false, mode: 'auto' })
+    expect(sc.numbersFor('xmlFiles', 'v5 .xml')).toEqual([])
+  })
+  test('C2 label form "brs: 32"', () => {
+    expect(sc.numbersFor('brsFiles', 'brs: 32')).toEqual([32])
+  })
+  test('C5 sentence split ignores e.g./i.e./etc. and dots inside parentheses', () => {
+    expect(sc.questionsIn('Is a Roku device (e.g. Roku Ultra) attached?')).toEqual(['Is a Roku device (e.g. Roku Ultra) attached?'])
+    expect(sc.questionsIn('Is a device (i.e. a box) attached?')).toHaveLength(1)
+    expect(sc.questionsIn('Any devices, e.g. sticks, etc. available? Fine.')).toHaveLength(1)
+    expect(sc.questionsIn('One. Is it ok? Two.')).toEqual(['Is it ok?'])
+    const m = 'May I edit files? Is a Roku device (e.g. Roku Ultra) attached?'
+    expect(sc.scoreRun({ fixture: 'legacy-app', message: m, appDir: gitApp() }).C5.pass).toBe(true)
+  })
+  test('aggregate: 1 scored of 1 (others excluded) uses the scored denominator; SCORE.md shows it', () => {
+    const mk = (p) => ({ pass: p, mode: 'auto', note: '' })
+    const ok = Object.fromEntries(['C1', 'C2', 'C3', 'C4', 'C5', 'C6'].map((c) => [c, mk(true)]))
+    const agg = sc.aggregate('legacy-app', [ok, sc.EXCLUDED, sc.EXCLUDED])
+    expect(agg.criteria.C1).toMatchObject({ passes: 1, scored: 1, pass: true })
+    expect(agg.pass).toBe(true)
+    const none = sc.aggregate('legacy-app', [Object.fromEntries(['C1', 'C2', 'C3', 'C4', 'C5', 'C6'].map((c) => [c, mk(false)])), sc.EXCLUDED, sc.EXCLUDED])
+    expect(none.criteria.C1).toMatchObject({ passes: 0, scored: 1, pass: false })
+    const md = sc.render({ caveats: [], contaminated: [], gate: true, fixtures: { 'legacy-app/baseline': { fixture: 'legacy-app', arm: 'baseline', meta: [], ...agg } } })
+    expect(md).toContain('| 1/1 |')
+    expect(md).not.toContain('1/3')
+  })
+  test('arms have separate roots: baseline cells are not under the with-skills tree', () => {
+    const root = path.join(tmp(), 'run')
+    prepare({ runRoot: root })
+    const base = cd(root, 'legacy-app', 'baseline', 1), ws = cd(root, 'legacy-app', 'with-skills', 1)
+    expect(path.relative(root, base).startsWith('..')).toBe(true)
+    expect(base.startsWith(root + path.sep)).toBe(false)
+    expect(fs.existsSync(path.join(ws, 'prompt.md'))).toBe(true)
+    // nothing reachable by walking up from the baseline cell to the baseline root contains with-skills text
+    const skillText = fs.readFileSync(common.SKILL_FILES[1], 'utf8').trim().slice(0, 80)
+    const baseRoot = common.armRoot(root, 'baseline')
+    const files = []
+    const walk = (d) => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { if (e.name === '.git') continue; const f = path.join(d, e.name); e.isDirectory() ? walk(f) : files.push(f) } }
+    walk(baseRoot)
+    for (const f of files) expect(fs.readFileSync(f, 'utf8').includes(skillText), f).toBe(false)
   })
   test('contaminated runs leave the denominator; all excluded -> n/a', () => {
     const mk = (p) => ({ pass: p, mode: 'auto', note: '' })
@@ -202,7 +285,7 @@ describe('score mechanics (ADOPT-12 harness fixes)', () => {
   })
 })
 
-describe('prepare and prompt (ADOPT-12 harness fixes)', () => {
+describe('prepare and prompt', () => {
   test('with-skills prompt inlines every references/* file', () => {
     const p = common.buildPrompt({ arm: 'with-skills', appDir: '/x/app', reportPath: '/x/report.md' })
     const dir = path.join(common.REPO_ROOT, 'skills', 'assessing-a-roku-app', 'references')
@@ -224,8 +307,8 @@ describe('prepare and prompt (ADOPT-12 harness fixes)', () => {
     const root = path.join(tmp(), 'run')
     prepare({ runRoot: root })
     for (const fx of ['legacy-app', 'bsconfig-plugin-app']) {
-      expect(fs.existsSync(path.join(root, fx, 'baseline', 'run1', 'app', 'README.md'))).toBe(false)
-      expect(fs.existsSync(path.join(root, fx, 'with-skills', 'run1', 'app', 'README.md'))).toBe(true)
+      expect(fs.existsSync(path.join(cd(root, fx, 'baseline', 1), 'app', 'README.md'))).toBe(false)
+      expect(fs.existsSync(path.join(cd(root, fx, 'with-skills', 1), 'app', 'README.md'))).toBe(true)
     }
   })
   test('baseline arm has no node_modules and no brighttest skills anywhere in the prepared app', () => {
@@ -242,7 +325,7 @@ describe('prepare and prompt (ADOPT-12 harness fixes)', () => {
     prepare({ runRoot: root, repoRoot: repo })
     const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.name === '.git' ? [] : e.isDirectory() ? [path.join(d, e.name), ...walk(path.join(d, e.name))] : [path.join(d, e.name)]))
     for (const fx of ['legacy-app', 'bsconfig-plugin-app']) for (const run of [1, 2, 3]) {
-      const all = walk(path.join(root, fx, 'baseline', `run${run}`, 'app'))
+      const all = walk(path.join(cd(root, fx, 'baseline', run), 'app'))
       expect(all.filter((f) => /node_modules/.test(f) || /SKILL\.md$/i.test(f) || path.basename(f) === 'skills')).toEqual([])
     }
   })

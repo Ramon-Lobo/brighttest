@@ -1,11 +1,11 @@
 'use strict'
-// Shared constants and prompt builder for the ADOPT-21a T1 harness. Plain Node, no dependencies.
+// Shared constants and prompt builder for the T1 harness. Plain Node, no dependencies.
 const fs = require('node:fs')
 const os = require('node:os')
 const path = require('node:path')
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..')
-const DEFAULT_RUN_ROOT = path.join(os.homedir(), 'brighttest-pack-runs', 'ADOPT-21a-C112')
+const DEFAULT_RUN_ROOT = path.join(os.homedir(), 'adopt-eval-runs', 't1')
 const FIXTURES = ['legacy-app', 'bsconfig-plugin-app']
 const ARMS = ['with-skills', 'baseline']
 const RUNS = [1, 2, 3]
@@ -18,7 +18,7 @@ const skillFiles_ = (repoRoot = REPO_ROOT) => {
 }
 const SKILL_FILES = skillFiles_()
 // Baseline isolation text. The harness cannot switch off tools, so this is a rule in the prompt plus a post-run check (score.js).
-const BASELINE_RULES = 'Use only file reads and standard shell commands inside your working directory. Do not run any tool or CLI named in the task, and do not read README files.'
+const BASELINE_RULES = 'Use only file reads and standard shell commands inside your working directory. Do not run any tool or CLI named in the task, do not read README files, and do not read or list anything outside your working directory.'
 const REPLY_RULE = 'Also include the complete report in your final reply (if you cannot write the report file, the final reply is the report).'
 // Ground truth fields compared by C2. legacy-app: examples/legacy-app/EXPECTED-CENSUS.json (read at score time).
 // bsconfig-plugin-app has no census file; these two values are from `bin/cli.js assess` on the frozen fixture.
@@ -26,7 +26,9 @@ const PLUGIN_TRUTH = { brsFiles: 1, xmlFiles: 1 }
 const C2_FIELDS = ['brsFiles', 'xmlFiles', 'components', 'tasks', 'urlTransferLiteral', 'createObjectDynamic', 'syncGet', 'asyncGet', 'certificateCalls']
 
 const cellId = (fixture, arm, run) => `${fixture}/${arm}/run${run}`
-const cellDir = (root, fixture, arm, run) => path.join(root, fixture, arm, `run${run}`)
+// Each arm has its own root so a baseline agent walking up from its cell cannot reach the with-skills prompts or reports.
+const armRoot = (root, arm) => (arm === 'baseline' ? `${root.replace(/[\\/]+$/, '')}-baseline` : root)
+const cellDir = (root, fixture, arm, run) => path.join(armRoot(root, arm), fixture, `run${run}`)
 
 function buildPrompt({ arm, appDir, reportPath, repoRoot = REPO_ROOT, skillFiles = skillFiles_(repoRoot) }) {
   const lines = [TASK_PROMPT, '', `Your working directory is ${appDir} (the app). Write the report to ${reportPath}. ${REPLY_RULE}`]
@@ -39,4 +41,4 @@ function buildPrompt({ arm, appDir, reportPath, repoRoot = REPO_ROOT, skillFiles
   return lines.join('\n') + '\n'
 }
 
-module.exports = { REPO_ROOT, DEFAULT_RUN_ROOT, FIXTURES, ARMS, RUNS, TASK_PROMPT, SKILL_FILES, PLUGIN_TRUTH, C2_FIELDS, BASELINE_RULES, REPLY_RULE, skillFiles: skillFiles_, cellId, cellDir, buildPrompt }
+module.exports = { REPO_ROOT, DEFAULT_RUN_ROOT, FIXTURES, ARMS, RUNS, TASK_PROMPT, SKILL_FILES, PLUGIN_TRUTH, C2_FIELDS, armRoot, BASELINE_RULES, REPLY_RULE, skillFiles: skillFiles_, cellId, cellDir, buildPrompt }

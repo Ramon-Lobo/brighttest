@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict'
-// Score the T1 cells (TP-ADOPT-11). Deterministic regex checks; every verdict is tagged "auto" or "review".
+// Score the T1 cells. Deterministic regex checks; every verdict is tagged "auto" or "review".
 const fs = require('node:fs')
 const path = require('node:path')
 const { spawnSync } = require('node:child_process')
@@ -16,7 +16,7 @@ const RUN_QUORUM = 2, RUN_QUORUM_DEN = 3
 const threshold = (n) => Math.ceil((8 * n) / 10)
 
 const LABELS = {
-  brsFiles: '(?<![\\w.])\\.brs\\b(?:\\s+source)?(?:\\s+files?)?|(?<![\\w.-])brs(?:\\s+source)?\\s+files?\\b|(?<![\\w.-])brs\\s*:|brightscript\\s+files?',
+  brsFiles: '(?<![\\w.])\\.brs\\b(?:\\s+source)?(?:\\s+files?)?|(?<![\\w.-])brs(?:\\s+source)?\\s+files?\\b|(?<![\\w.-])brs(?=\\s*[:=])|brightscript\\s+files?',
   xmlFiles: '(?<![\\w.])\\.?xml\\b(?:\\s+files?)?',
   components: 'components?',
   tasks: 'tasks?(?:\\s+nodes?)?',
@@ -30,8 +30,11 @@ const LABELS = {
 // '<n> label' or 'label: <n>' only: a number after a bare label belongs to the next item, and C2 fails on any contradicting value.
 function numbersFor(field, text) {
   const l = LABELS[field], out = []
-  for (const re of [new RegExp(`(\\d+)\\s+(?:\\w+\\s+){0,1}(?:${l})`, 'gi'), new RegExp(`(?:${l})\\s*[:=]\\s*(\\d+)`, 'gi')]) {
-    let m; while ((m = re.exec(text))) out.push(Number(m[1]))
+  // A listing of spec files ("Spec files: 4 .bs, 0 .brs.") counts something else: drop it up to the end of its sentence.
+  const t = String(text).replace(/\bspecs?(?:\s+files?)?\s*:.*?\.(?=\s|$)/gi, ' ')
+  // The number must not be glued to a word or dot (v5, 1.5); the optional in-between word must not be a qualifier (6 scene components).
+  for (const re of [new RegExp(`(?<![\\w.])(\\d+)\\s+(?:(?!(?:scenes?|tasks?|specs?|existing)\\b)\\w+\\s+){0,1}(?:${l})`, 'gi'), new RegExp(`(?:${l})\\s*[:=]\\s*(\\d+)`, 'gi')]) {
+    let m; while ((m = re.exec(t))) out.push(Number(m[1]))
   }
   return out
 }
@@ -43,35 +46,49 @@ function groundTruth(fixture, repoRoot) {
 
 const MIN_FIELDS = 4
 function checkC2(text, truth) {
-  const mismatches = [], matched = []
+  const mismatches = [], matched = [], mixed = []
   for (const f of C2_FIELDS) {
     if (!(f in truth)) continue
     const found = numbersFor(f, text)
     if (!found.length) continue
     if (found.every((n) => n === truth[f])) matched.push(f)
+    else if (found.includes(truth[f])) mixed.push(`${f}: expected ${truth[f]}, saw ${[...new Set(found)].join('/')}`)
     else mismatches.push(`${f}: expected ${truth[f]}, saw ${[...new Set(found)].join('/')}`)
   }
   const need = Math.min(MIN_FIELDS, Object.keys(truth).length)
-  if (mismatches.length) return { pass: false, mode: 'auto', note: mismatches.join('; ') }
+  if (mismatches.length) return { pass: false, mode: 'auto', note: [...mismatches, ...mixed].join('; ') }
+  // The true value is also stated: the other number may be a different item, so a person decides.
+  if (mixed.length) return { pass: false, mode: 'review', note: `contradicting values next to the true one (read them): ${mixed.join('; ')}` }
   if (matched.length < need) return { pass: false, mode: 'review', note: `only ${matched.length} census fields found in text` }
   return { pass: true, mode: 'auto', note: `${matched.length} fields match` }
 }
 
 // Sentences end at . ? ! followed by whitespace (or a newline), so dots inside '.gitignore' or 'bsconfig.json' do not split.
 function questionsIn(text) {
-  return String(text).split(/\n+|(?<=[.!?])\s+/).map((x) => x.trim()).filter((x) => /\?["'`)\]*_.]*$/.test(x))
+  // Dots in abbreviations (e.g. i.e. etc.) and inside parentheses are not sentence ends: hide them while splitting.
+  const hide = (x) => x.replace(/\./g, '\u0001')
+  const t = String(text).replace(/\b(?:e\.g|i\.e|etc|vs)\./gi, hide).replace(/\([^()\n]*\)/g, hide)
+  return t.split(/\n+|(?<=[.!?])\s+/).map((x) => x.replace(/\u0001/g, '.').trim()).filter((x) => /\?["'`)\]*_.]*$/.test(x))
 }
 
-// Baseline isolation: the harness cannot disable tools, so flag cells that ran the CLI's assess or read a README.
-// `commands` / `reads` come from the results JSON when the Agent tool exposes them; the message and report are scanned too.
-// Only an action counts (read/cat/open ... README), not any mention such as 'add a README section'.
-const README_READ = /\b(?:read|reads|reading|cat|cated|open|opens|opened|opening|view|viewed|consult(?:ed)?|looked\s+at|checked)\s+(?:\w+\s+){0,2}(?:the\s+)?(?:\w+\s+)?README(?:\.md)?\b/i
+// Baseline isolation: the harness cannot disable tools, so flag cells that used the tool or its material.
+// Exclusion rests on `commands` / `reads` (what the agent did). Free text is only advice or narration, so a text hit is a
+// review item and the run is kept. Returns { why: [...exclude], review: [...keep, look at] }.
+const README_READ_TEXT = /\b(?:I|we)\s+(?:(?:have|had)\s+)?(?:read|opened|viewed|consulted|checked|looked\s+at|cat(?:ed)?)\s+(?:\w+\s+){0,2}(?:the\s+)?(?:\w+\s+)?README(?:\.md)?\b/i
+const ASSESS_TEXT = /(?:cli\.js|brighttest(?:@[\w.-]+)?|\bbt)\s+assess\b/i
+// Tool material in a command or read path: the tool name, its CLI entry, a `bt ` call, skill files, docs, the prompts.
+const TOOL_USE = /brighttest|bin\/cli\.js|(?:^|[\s;&|(])bt\s|SKILL\.md|prompt\.md|(?:^|[\/\s"'=])skills\/|\/docs\/|(?:^|[\s"'=])docs\/|node_modules\/brighttest/i
+const isAssess = (c) => /\bassess\b/.test(c) && /(cli\.js|brighttest|\bbt\b)/.test(c)
 function contamination({ message = '', report = null, commands = [], reads = [] }) {
-  const why = []
+  const why = [], review = []
   const text = `${report || ''}\n${message}`
-  if (commands.some((c) => /\bassess\b/.test(c) && /(cli\.js|brighttest|\bbt\b)/.test(c)) || /(?:cli\.js|brighttest|\bbt)\s+assess\b/i.test(text)) why.push('ran assess')
-  if ([...commands, ...reads].some((c) => /\breadme(\.\w+)?\b/i.test(c)) || README_READ.test(text)) why.push('read README')
-  return why
+  const acts = [...commands, ...reads]
+  if (commands.some(isAssess)) why.push('ran assess')
+  else if (/assess\b/.test(text) && ASSESS_TEXT.test(text)) review.push('assess mentioned in text, no command record')
+  if (acts.some((c) => TOOL_USE.test(c))) why.push('used tool material')
+  if (acts.some((c) => /\breadme(\.\w+)?\b/i.test(c))) why.push('read README')
+  else if (README_READ_TEXT.test(text)) review.push('text says README was read')
+  return { why, review }
 }
 
 function checkC6(appDir) {
@@ -88,8 +105,8 @@ function checkC6(appDir) {
 function scoreRun({ fixture, message = '', report = null, commands = [], appDir, repoRoot = REPO_ROOT }) {
   const text = `${report || ''}\n${message}`
   const res = {}
-  const invoked = commands.some((c) => /\bassess\b/.test(c) && /(cli\.js|brighttest|\bbt\b)/.test(c))
-  const said = /(?:cli\.js|brighttest|\bbt)\s+assess\b/i.test(text)
+  const invoked = commands.some(isAssess)
+  const said = ASSESS_TEXT.test(text)
   res.C1 = invoked ? { pass: true, mode: 'auto', note: 'assess command recorded' } : said ? { pass: true, mode: 'review', note: 'assess mentioned in message, no command record' } : { pass: false, mode: 'auto', note: 'no assess invocation seen' }
   res.C2 = checkC2(text, groundTruth(fixture, repoRoot))
   res.C3 = fixture === 'legacy-app' ? null : (/bsconfig/i.test(text) && /(blocker|rootDir)/i.test(text) ? { pass: true, mode: 'auto', note: 'bsconfig + blocker/rootDir named' } : { pass: false, mode: 'auto', note: 'bsconfig caveat missing' })
@@ -129,13 +146,13 @@ const CAVEATS = [
   'N=3 is small; a 2-of-3 pass is a weak bar.',
   'Token and wall-time numbers are whatever the Agent tool reports; not billed API usage.',
   'Pass rules (our interpretation of the owner bar): a criterion passes in a fixture x arm when >= 2 of 3 runs pass it; a fixture passes when passing criteria >= ceil(0.8 x applicable). legacy-app: C3 not applicable, 5 applicable -> 4. bsconfig-plugin-app: C4 not applicable (no CDATA scene, no vendor dir, no risky pattern in that fixture), 5 applicable -> 4. The with-skills arm must pass; baseline is reported for comparison and is not gated.',
-  'Baseline isolation is by prompt rule and README removal plus a post-run contamination check: a baseline cell that ran assess or read a README (a command/read, or phrasing like "read the README") is flagged and excluded from the baseline denominator; if all three runs of a baseline cell group are excluded the baseline is reported n/a. Excluded runs score 2 of 3 as 2 of 2 / 1 of 1.',
+  'Baseline isolation is by prompt rule and README removal plus a post-run contamination check: a baseline cell whose recorded commands/reads ran assess, touched the tool or its material (brighttest, bin/cli.js, `bt `, skills/, docs/, SKILL.md, prompt.md) or read a README is flagged and excluded from the baseline denominator; advice or narration in the reply ("run brighttest assess", "I read the README") only adds a review note and the run is kept; if all three runs of a baseline cell group are excluded the baseline is reported n/a. Excluded runs score 2 of 3 as 2 of 2 / 1 of 1.',
   'Mode "auto" = regex/git verdict; "review" = ambiguous, read it by hand.',
 ]
 
 function score({ runRoot, results, repoRoot = REPO_ROOT }) {
   const cells = results.cells || results
-  const out = { caveats: CAVEATS, fixtures: {}, contaminated: [], gate: null }
+  const out = { caveats: CAVEATS, fixtures: {}, contaminated: [], contamReview: [], gate: null }
   for (const fixture of FIXTURES) for (const arm of ARMS) {
     const runResults = [], meta = []
     for (const run of RUNS) {
@@ -145,7 +162,8 @@ function score({ runRoot, results, repoRoot = REPO_ROOT }) {
       const rp = path.join(dir, 'report.md')
       const report = fs.existsSync(rp) ? fs.readFileSync(rp, 'utf8') : null
       if (arm === 'baseline') {
-        const why = contamination({ message: r.finalMessage || '', report, commands: r.commands || [], reads: r.reads || [] })
+        const { why, review } = contamination({ message: r.finalMessage || '', report, commands: r.commands || [], reads: r.reads || [] })
+        if (review.length) out.contamReview.push({ cell: id, why: review })
         if (why.length) { out.contaminated.push({ cell: id, why }); runResults.push(EXCLUDED); continue }
       }
       const sr = scoreRun({ fixture, message: r.finalMessage || '', report, commands: r.commands || [], appDir: path.join(dir, 'app'), repoRoot })
@@ -159,14 +177,14 @@ function score({ runRoot, results, repoRoot = REPO_ROOT }) {
 }
 
 function render(s) {
-  const L = ['# T1 score (TP-ADOPT-11), ADOPT-21a', '', '## Fidelity caveats', '', ...s.caveats.map((c) => `- ${c}`), '']
+  const L = ['# T1 score', '', '## Fidelity caveats', '', ...s.caveats.map((c) => `- ${c}`), '']
   for (const k of Object.keys(s.fixtures)) {
     const f = s.fixtures[k]
     if (f.pass === null) { L.push(`## ${k}`, '', `Fixture verdict: **n/a** (all ${f.excluded} runs contaminated and excluded)${f.arm === 'baseline' ? ' [not gated]' : ''}`, ''); continue }
     L.push(`## ${k}`, '', '| Criterion | run1 | run2 | run3 | passes | cell |', '|---|---|---|---|---|---|')
     for (const [c, v] of Object.entries(f.criteria)) {
       const cell = v.runs.map((r) => (r === EXCLUDED ? 'excluded (contaminated)' : r ? `${r.pass ? 'pass' : 'FAIL'} (${r.mode})` : 'n/a (no result)'))
-      L.push(`| ${c} ${NAMES[c]} | ${cell.join(' | ')} | ${v.passes}/3 | ${v.pass ? 'PASS' : 'FAIL'} |`)
+      L.push(`| ${c} ${NAMES[c]} | ${cell.join(' | ')} | ${v.passes}/${v.scored} | ${v.pass ? 'PASS' : 'FAIL'} |`)
     }
     L.push('', `Fixture verdict: **${f.pass ? 'PASS' : 'FAIL'}** (${f.passing}/${f.applicable} criteria, need ${f.threshold}${f.excluded ? `; ${f.excluded} contaminated run(s) excluded` : ''})${f.arm === 'baseline' ? ' [not gated]' : ''}`, '')
     const notes = []
@@ -176,6 +194,7 @@ function render(s) {
     if (m.length) L.push('Agent-reported usage: ' + m.join('; '), '')
   }
   if (s.contaminated && s.contaminated.length) L.push('## Contaminated baseline cells (excluded)', '', ...s.contaminated.map((c) => `- ${c.cell}: ${c.why.join(', ')}`), '')
+  if (s.contamReview && s.contamReview.length) L.push('## Baseline cells to review by hand (kept in the score)', '', ...s.contamReview.map((c) => `- ${c.cell}: ${c.why.join(', ')}`), '')
   L.push(`## Gate`, '', `with-skills arm on both fixtures: **${s.gate ? 'PASS' : 'FAIL'}**`, '')
   return L.join('\n')
 }

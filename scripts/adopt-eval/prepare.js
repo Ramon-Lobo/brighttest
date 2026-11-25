@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 'use strict'
-// Prepare the 12 T1 cells: <root>/<fixture>/<arm>/run<n>/{app/,prompt.md}. Does not launch anything.
+// Prepare the 12 T1 cells: <root>/<fixture>/run<n>/{app/,prompt.md} (with-skills) and <root>-baseline/<fixture>/run<n>/... (baseline). Does not launch anything.
 const fs = require('node:fs')
 const path = require('node:path')
 const { spawnSync } = require('node:child_process')
-const { REPO_ROOT, DEFAULT_RUN_ROOT, FIXTURES, ARMS, RUNS, cellDir, buildPrompt } = require('./common')
+const { REPO_ROOT, DEFAULT_RUN_ROOT, FIXTURES, ARMS, RUNS, armRoot, cellDir, buildPrompt } = require('./common')
 
 // Ground truth must not be visible to the agent.
 const HIDDEN = new Set(['EXPECTED-CENSUS.json', 'node_modules', '.git'])
@@ -16,15 +16,17 @@ function git(cwd, args) {
 
 function prepare({ runRoot = DEFAULT_RUN_ROOT, clean = false, repoRoot = REPO_ROOT } = {}) {
   runRoot = path.resolve(runRoot)
-  const rel = path.relative(repoRoot, runRoot)
-  // A different drive (Windows) makes path.relative return an absolute path: that is outside the repo.
-  const inside = rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel))
-  if (inside) throw new Error('run root must be outside the repo')
-  if (fs.existsSync(runRoot) && fs.readdirSync(runRoot).length) {
-    if (!clean) throw new Error(`run root ${runRoot} is not empty (use --clean to wipe it)`)
-    fs.rmSync(runRoot, { recursive: true, force: true })
+  const roots = ARMS.map((arm) => armRoot(runRoot, arm))
+  for (const r of roots) {
+    const rel = path.relative(repoRoot, r)
+    // A different drive (Windows) makes path.relative return an absolute path: that is outside the repo.
+    const inside = rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel))
+    if (inside) throw new Error('run root must be outside the repo')
   }
-  fs.mkdirSync(runRoot, { recursive: true })
+  const used = roots.filter((r) => fs.existsSync(r) && fs.readdirSync(r).length)
+  if (used.length && !clean) throw new Error(`run root ${used[0]} is not empty (use --clean to wipe it)`)
+  for (const r of used) fs.rmSync(r, { recursive: true, force: true })
+  for (const r of roots) fs.mkdirSync(r, { recursive: true })
   const cells = []
   for (const fixture of FIXTURES) for (const arm of ARMS) for (const run of RUNS) {
     const dir = cellDir(runRoot, fixture, arm, run)
