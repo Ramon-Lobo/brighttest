@@ -282,3 +282,55 @@ describe('features render --junit/--lcov', () => {
     } finally { fs.rmSync(dir, { recursive: true, force: true }) }
   })
 })
+
+describe('device JUnit from the reporter builder', () => {
+  const { buildRooibosJunit } = require('../lib/reporter')
+  const build = (lane, cases) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-bj-'))
+    try {
+      const f = path.join(dir, 'j.xml')
+      buildRooibosJunit({ junit: f, cases, out: '[Rooibos Result]', failed: 0, crash: null, killReason: undefined, sawResult: true, lane })
+      return fs.readFileSync(f, 'utf8')
+    } finally { fs.rmSync(dir, { recursive: true, force: true }) }
+  }
+  const cases = [{ suite: 'Some Title', name: 'one', ok: true, loc: 'source/tests/Resume.spec.bs:12' }]
+
+  it('renders ran-device from a graph without specSuites by the file attribute', () => {
+    const { g, tree } = graphWithSpec()
+    expect(g.specSuites).toBeUndefined()
+    const xml = build('device', cases)
+    expect(xml).toContain('file="source/tests/Resume.spec.bs"')
+    const ov = overlay.buildOverlay(g, [{ file: 'j', ...overlay.parseJunit(xml) }])
+    expect(ov.stats.unmapped).toBe(0)
+    const html = render.renderReport(tree, g, { version: 't', ci: CI_NONE, overlay: ov }).html
+    expect(html).toContain('ran-device (1 case passed)')
+    expect(html).not.toContain('ran-headless (')
+  })
+  it('a headless build marks ran-headless', () => {
+    const { g } = graphWithSpec()
+    const ov = overlay.buildOverlay(g, [{ file: 'j', ...overlay.parseJunit(build('headless', cases)) }])
+    expect(ov.nodes.get('file:source/tests/Resume.spec.bs')['ran-headless']).toBe(1)
+  })
+  it('prints the old-graph hint once, only when cases are unmapped, never as an error', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-hint-'))
+    try {
+      const { buildGraph } = require('../lib/features/graph')
+      const g = await buildGraph(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'examples', 'feature-tree-app'))
+      delete g.specSuites // a graph saved before @suite titles were recorded
+      const gf = path.join(dir, 'graph.json')
+      fs.writeFileSync(gf, JSON.stringify(g))
+      fs.writeFileSync(path.join(dir, 'a.xml'), junit(tc('Some Title', 'one') + tc('Other Title', 'two')))
+      fs.writeFileSync(path.join(dir, 'b.xml'), junit(tc('source/tests/StringUtils.spec', 'one')))
+      const run = async (j) => {
+        let err = ''
+        const ctx = { root: dir, stagingDir: path.join(dir, '.brighttest'), baseRel: '.', stdout: () => {}, stderr: (s) => { err += s } }
+        const code = await render.runRender({ auto: true, graph: gf, junit: [path.join(dir, j)], lcov: [], out: path.join(dir, 'r.html') }, ctx, require('../lib/assess').UsageError)
+        return { code, err }
+      }
+      const a = await run('a.xml')
+      expect(a.code).toBe(0)
+      expect(a.err.match(/graph has no @suite titles; run bt features build to refresh; the graph hash does not change/g)).toHaveLength(1)
+      expect((await run('b.xml')).err).not.toContain('@suite titles')
+    } finally { fs.rmSync(dir, { recursive: true, force: true }) }
+  })
+})

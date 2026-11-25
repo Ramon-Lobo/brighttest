@@ -125,8 +125,8 @@ npx brighttest features render --auto --junit reports/junit.xml --lcov coverage/
 - A spec whose mapped cases all pass marks itself and the nodes it covers `ran-headless`. A failing or skipped-only spec
   marks nothing.
 - `ran-device` comes only from a JUnit marked `brighttest.lane=device` (a `<property>` inside the `<testsuite>`, or at
-  the file level) or from the e2e suite name. No brighttest reporter writes that marker yet, and e2e flows are not graph
-  spec nodes, so today `ran-device` appears only for a JUnit you mark by hand. The marker applies to its own suite, so a
+  the file level) or from the e2e suite name. The device Rooibos lane (`--device --junit`) writes that marker, and e2e flows are not graph
+  spec nodes. The marker applies to its own suite, so a
   merged file can hold a headless and a device suite.
 - LCOV carries no lane, so it never adds a level. A node whose lines executed shows `executed (lcov N% of M lines)`;
   `--lcov` output from a device run is not told apart from a headless one. Paths are matched after removing `pkg:/` and
