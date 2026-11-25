@@ -151,8 +151,8 @@ describe('view model', () => {
     const b = makeBoard();
     const sel = { selected: 'id-bbbbbbbbbbbbbbbb', selectedIndex: 1 };
     expect(W.selectedIndexOf(b, ui0([80, 24], sel))).toBe(1);
-    const reordered = { ...b, devices: [b.devices[2], b.devices[1], b.devices[0]] };
-    expect(W.selectedIndexOf(reordered, ui0([80, 24], sel))).toBe(1);
+    const reordered = { ...b, devices: [b.devices[1], b.devices[0], b.devices[2]] }; // the selected device moves from row 1 to row 0
+    expect(W.selectedIndexOf(reordered, ui0([80, 24], sel))).toBe(0);
     const gone = { ...b, devices: [b.devices[0], b.devices[2]] };
     expect(W.selectedIndexOf(gone, ui0([80, 24], sel))).toBe(1);
     expect(W.selectedIndexOf({ devices: [] }, ui0([80, 24], sel))).toBe(-1);
@@ -253,6 +253,58 @@ describe('reduce', () => {
   });
 });
 
+describe('nits', () => {
+  const board = makeBoard();
+  it('fitLine fills the cell left free when a wide character is cut', () => {
+    const b = makeBoard(); b.devices[0].queue[0].purpose = '漢'.repeat(25); b.devices[0].holder.purpose = 'a' + '漢'.repeat(25);
+    for (const s of SIZES) for (const l of frame(b, ui0(s, { focus: 'detail' }), s)) expect(T.width(T.toPlain([l])[0])).toBe(s[0]);
+    const cut = W.renderModel(b, ui0([60, 16]), { cols: 60, rows: 16 }, NOW, OPTS).detail.lines[0];
+    expect(T.width(T.toPlain([cut])[0])).toBe(58);
+  });
+  it('the live frame uses the color depth hook (rule 8) through runWatch', async () => {
+    const out = [];
+    const io = { stdout: { write: (x) => out.push(x) }, stdoutIsTTY: true, stdinIsTTY: true, env: {}, now: () => NOW, getColorDepth: () => 24 };
+    await W.runWatch({ view: { snapshot: () => makeBoard() }, flags: { once: true, utc: true }, io });
+    expect(out.join('')).toContain('\x1b[38;2;');
+  });
+  it('resize re-clamps the run cursor and scroll', () => {
+    const u = { ...ui0([160, 40], { focus: 'detail', runCursor: 9, runScroll: 5 }) };
+    const r = W.resize(u, { cols: 60, rows: 16 }, board);
+    const vis = W.renderModel(board, r, { cols: 60, rows: 16 }, NOW, OPTS).detail.runs.visible;
+    expect(r.runCursor).toBe(9);
+    expect(r.runScroll).toBe(9 - vis + 1);
+    const short = { ...board, devices: [{ ...board.devices[0], runs: board.devices[0].runs.slice(0, 2) }] };
+    expect(W.resize(u, { cols: 160, rows: 40 }, short)).toMatchObject({ runCursor: 1, runScroll: 0 });
+  });
+  it('the selection is seeded from the first device id', () => {
+    expect(W.initialUi({ cols: 80, rows: 24 }, {}, board).selected).toBe(board.devices[0].id);
+    expect(W.initialUi({ cols: 80, rows: 24 }).selected).toBeNull();
+    expect(W.syncSelection(W.initialUi({ cols: 80, rows: 24 }), board).selected).toBe(board.devices[0].id);
+    const kept = ui0([80, 24], { selected: 'id-bbbbbbbbbbbbbbbb' });
+    expect(W.syncSelection(kept, board)).toBe(kept);
+  });
+  it('a while paused does not ask for a snapshot; pause without board.at uses the given time', () => {
+    const paused = { ...ui0([80, 24]), paused: true, pausedAt: board.at };
+    const r = W.reduce(paused, 'a', board);
+    expect(r.ui.all).toBe(true); expect(r.effects).not.toContain('snapshot');
+    const p = W.reduce(ui0([80, 24]), 'p', { ...board, at: undefined }, NOW);
+    expect(p.ui.pausedAt).toBe(new Date(NOW).toISOString());
+  });
+  it('odd sizes: zero rows is zero lines, bad sizes are too small', () => {
+    expect(W.renderFrame(board, ui0([80, 24]), { cols: 80, rows: 0 }, NOW)).toHaveLength(0);
+    expect(W.renderFrame(board, ui0([80, 24]), { cols: 0, rows: 0 }, NOW)).toHaveLength(0);
+    for (const sz2 of [{}, { cols: NaN, rows: NaN }, { cols: undefined, rows: 24 }, { cols: 80, rows: undefined }]) {
+      expect(W.layoutOf(sz2, 5).kind).toBe('tooSmall');
+      expect(() => W.renderFrame(board, ui0([80, 24]), sz2, NOW)).not.toThrow();
+    }
+  });
+  it('ascii glyphs reach the box drawing too', () => {
+    const f = T.toPlain(frame(board, ui0([80, 24], { help: true }), [80, 24], { ...OPTS, ascii: true })).join('\n');
+    expect(f).toContain('+ Devices');
+    expect(f).not.toMatch(/[┌┐└┘│─]/);
+  });
+});
+
 describe('inkKeyName', () => {
   const rows = [
     ['', { upArrow: true }, 'up'], ['', { downArrow: true }, 'down'], ['', { leftArrow: true }, 'left'], ['', { rightArrow: true }, 'right'],
@@ -284,6 +336,18 @@ describe('static renderer', () => {
     expect(W.renderOnce({ ...emptyBoard(), hidden: { keys: 7 } }, { now: NOW, utc: true })).toContain('No devices known yet');
     expect(W.renderOnce({ ...emptyBoard(), hidden: { keys: 7 } }, { now: NOW, utc: true })).toContain('7 hidden');
   });
+  it('--json escapes control, bidi, separator and tag characters but parses back unchanged', () => {
+    const b = makeBoard();
+    const nasty = 'a\u009b2Jb\u009d0;x\u009c\u202ecba\n\u{e0041}\u007f\u2028\u2066\u200b\ufeff\u00ad';
+    b.devices[0].holder.purpose = nasty;
+    const s = W.renderJson(b);
+    expect(JSON.parse(s).devices[0].holder.purpose).toBe(nasty);
+    expect(JSON.parse(s).schema).toBe('brighttest-lease-board/v1');
+    const bytes = Buffer.from(s, 'utf8');
+    expect(bytes.includes(Buffer.from('\u009b'))).toBe(false);
+    expect(/[\u007f-\u009f\u00ad\u200b-\u200f\u2028\u2029\u202a-\u202e\u2060-\u206f\ufeff]|[\u{e0000}-\u{e007f}]/u.test(s)).toBe(false);
+    expect(s).toContain('\\u009b'); expect(s).toContain('\\u202e');
+  });
   it('--json is the board, pretty printed, and never has a full lease id', () => {
     const b = makeBoard();
     const s = W.renderJson(b);
@@ -310,7 +374,8 @@ describe('modes, interval and the plain loop', () => {
   it('parses intervals', () => {
     expect(W.parseInterval('2s')).toBe(2000); expect(W.parseInterval('500ms')).toBe(500); expect(W.parseInterval('1.5s')).toBe(1500);
     expect(W.parseInterval('1m')).toBe(60000); expect(W.parseInterval('750')).toBe(750);
-    for (const bad of ['', 'x', '100ms', '-1s', '0', '2h']) expect(() => W.parseInterval(bad)).toThrow(RangeError);
+    expect(W.parseInterval('1h')).toBe(3600000); expect(W.parseInterval('3600s')).toBe(3600000);
+    for (const bad of ['', 'x', '100ms', '-1s', '0', '2h', '61m', '3601s', '2147484s', '99999999999999999999', '99999999999999999999s']) expect(() => W.parseInterval(bad)).toThrow(RangeError);
   });
   const fakeIo = (extra = {}) => { const out = []; const err = []; return { out, err, io: { stdout: { write: (s) => out.push(s) }, stderr: { write: (s) => err.push(s) }, stdoutIsTTY: false, stdinIsTTY: false, env: {}, platform: 'linux', now: () => NOW, ...extra } }; };
   const view = (b = makeBoard()) => { const calls = []; return { calls, snapshot: (o) => { calls.push(o); return b; } }; };
