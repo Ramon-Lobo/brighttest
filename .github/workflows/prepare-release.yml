@@ -67,7 +67,7 @@ jobs:
           PREID: ${{ inputs.preid }}
         run: |
           # No tag is created. npm still runs the `version` script, which stamps docs/changelog.md and aborts
-          # (before anything is committed) when Unreleased has no entries.
+          # (before anything is committed) when Unreleased has no entries. Prerelease bumps skip that abort.
           # pre* bumps take --preid: preminor from 0.7.0 gives 0.8.0-rc.0, prerelease then gives 0.8.0-rc.1. Prereleases get
           # no changelog section: stamp leaves Unreleased in place, which the stable release stamps later.
           case "$BUMP" in
@@ -97,8 +97,15 @@ jobs:
           git add -A package.json package-lock.json docs/changelog.md docs/.vitepress/release-pages.json skills
           git commit -m "chore(release): v${VERSION}"
           git push origin "$BRANCH"
+          WARN=""
+          if ! node scripts/changelog.js notes "v${VERSION}" | grep -q '^- '; then
+            WARN="**Warning: the release notes for v${VERSION} are empty** (prereleases use the Unreleased section, which has no entries). The draft GitHub Release will have empty notes."
+            echo "::warning::release notes for v${VERSION} are empty"
+          fi
           cat > "$RUNNER_TEMP/pr-body.md" <<BODY
           Release v${VERSION}. Nothing is tagged or published by this PR.
+
+          ${WARN}
 
           Checklist:
           - [ ] Read the stamped \`docs/changelog.md\` section for v${VERSION}

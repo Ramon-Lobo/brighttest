@@ -3,11 +3,14 @@
 // Release-pipeline helpers used by .github/workflows/release.yml (and unit-tested in test/release-check.test.js).
 //   node scripts/release-check.js pack <npm-pack-json-file>   validate the tarball file list
 //   node scripts/release-check.js deps                        check every dependency range resolves on npm
+//   node scripts/release-check.js pack-hash <npm-pack-json-file>   sha256 of the sorted file list (verify vs publish)
+//   node scripts/release-check.js stage-id <log-file>         stage id from `npm stage publish` output
 //   node scripts/release-check.js dist-tag <version>          print the dist-tag to stage under (next for prereleases)
 //   node scripts/release-check.js version-ok <npm-version>    exit 0 when npm >= 11.15.0 (staged publishing needs it)
 // Exit codes: 0 ok, 1 findings, 2 usage.
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { spawnSync } = require('child_process');
 
 const FORBIDDEN = [/^test\//, /^scripts\//, /^docs\//, /^design\//, /^planning\//, /^\.github\//, /^examples\//];
@@ -28,6 +31,17 @@ function parsePackJson(text) {
   const entry = Array.isArray(data) ? data[0] : data;
   if (!entry || !Array.isArray(entry.files)) throw new Error('npm pack --json output has no files list');
   return entry.files.map((f) => f.path);
+}
+
+function packHash(files) {
+  const list = files.map((f) => String(f).replace(/\\/g, '/')).sort();
+  return crypto.createHash('sha256').update(list.join('\n')).digest('hex');
+}
+
+// npm prints: + brighttest@0.8.0 (staged with id <id>)
+function parseStageId(text) {
+  const m = /staged with id ([A-Za-z0-9_-]+)/.exec(String(text));
+  return m ? m[1] : '';
 }
 
 function isPrerelease(version) {
@@ -82,11 +96,19 @@ function main(argv) {
     if (!findings.length) console.log(`release-check: all ${Object.keys(pkg.dependencies || {}).length} dependency ranges resolve on npm`);
     return findings.length ? 1 : 0;
   }
+  if (cmd === 'pack-hash' && argv[1]) {
+    try { console.log(packHash(parsePackJson(fs.readFileSync(argv[1], 'utf8')))); return 0; } catch (e) { console.error(`release-check: ${e.message}`); return 1; }
+  }
+  if (cmd === 'stage-id' && argv[1]) {
+    const id = parseStageId(fs.readFileSync(argv[1], 'utf8'));
+    if (id) console.log(id);
+    return id ? 0 : 1;
+  }
   if (cmd === 'dist-tag' && argv[1]) { console.log(distTagFor(argv[1])); return 0; }
   if (cmd === 'version-ok' && argv[1]) return npmAtLeast(argv[1]) ? 0 : 1;
-  console.error('usage: release-check.js pack <file> | deps | dist-tag <version> | version-ok <npm-version>');
+  console.error('usage: release-check.js pack <file> | pack-hash <file> | stage-id <log> | deps | dist-tag <version> | version-ok <npm-version>');
   return 2;
 }
 
-module.exports = { validatePack, parsePackJson, isPrerelease, distTagFor, npmAtLeast, checkDeps };
+module.exports = { packHash, parseStageId, validatePack, parsePackJson, isPrerelease, distTagFor, npmAtLeast, checkDeps };
 if (require.main === module) process.exit(main(process.argv.slice(2)));

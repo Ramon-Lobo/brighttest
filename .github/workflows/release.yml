@@ -7,20 +7,21 @@ name: Release
 # the staged version with 2FA on npmjs.com or with `npm stage approve <stage-id>`. `github-release` then creates a
 # DRAFT GitHub Release; the owner publishes it after approving the package.
 #
-# The token and the npm trusted publisher can only stage, and the package disallows bypass-2FA tokens, so this
+# The npm trusted publisher MUST have its environment field set to npm-release (otherwise a copy of this file on
+# another branch could mint an OIDC token). The token and the trusted publisher can only stage, and the package disallows bypass-2FA tokens, so this
 # file must never call `npm publish`. See docs/maintainers.md, "Releasing".
 #
-# Rehearsal: Actions -> Release -> Run workflow with dry_run (default true) runs `verify`, then `publish` in
-# dry-run form: `npm stage publish --dry-run` WITHOUT the npm token, and no release. It never stages for real and never
-# publishes. A dispatch with dry_run=false is refused. What --dry-run checks against the registry is undocumented, so
-# staging a real prerelease tag is the true rehearsal.
+# Rehearsal: Actions -> Release -> Run workflow (dry_run, default true) runs `verify` ONLY: every gate plus a
+# `npm pack --dry-run` of the tarball. `publish` and `github-release` run on tag pushes only, so a dispatch never
+# touches the npm-release environment, OIDC or the npm token. A dispatch with dry_run=false is refused. The true
+# rehearsal of staging is pushing a prerelease tag (for example v0.8.0-rc.0).
 on:
   push:
     tags: ["v*"]
   workflow_dispatch:
     inputs:
       dry_run:
-        description: "Rehearsal: run verify only (stage, publish and release are skipped). Must stay true."
+        description: "Rehearsal: runs verify only (gates + npm pack --dry-run). Nothing is staged, published or released. Must stay true."
         type: boolean
         default: true
 
@@ -78,12 +79,22 @@ jobs:
           else
             echo "::notice::Rehearsal: tag and ancestor checks skipped (no tag on this run)."
           fi
-          if npm view "brighttest@$VERSION" version 2>/dev/null | grep -q .; then
+          # Fail closed: only a registry 404 means "not published". Any other error stops the run.
+          set +e
+          VIEW=$(npm view "brighttest@$VERSION" version 2>&1)
+          VIEW_RC=$?
+          set -e
+          if [ "$VIEW_RC" -eq 0 ] && [ -n "$VIEW" ]; then
             if [ "$EVENT" = "push" ]; then
               echo "::error::brighttest@$VERSION is already on npm. Versions cannot be reused; bump and tag again."
               exit 1
             fi
             echo "::warning::brighttest@$VERSION is already on npm (fine for a rehearsal, fatal for a tag run)."
+          elif printf '%s' "$VIEW" | grep -q 'E404'; then
+            echo "brighttest@$VERSION is not on npm yet."
+          else
+            echo "::error::Could not tell whether brighttest@$VERSION is on npm (not a 404): $VIEW"
+            exit 1
           fi
       - name: Check changelog
         run: |
@@ -96,18 +107,23 @@ jobs:
       - run: npm run test:unit
       - run: npm run test:integration
       - name: Build Studio and check the tarball contents
+        id: pack
         run: |
           set -euo pipefail
           # Build first and pack with --ignore-scripts: `npm pack --dry-run` exports dry-run to the nested
           # `npm install` inside prepack, which then installs nothing and the Studio build fails.
-          npm run studio:build
+          npm ci --prefix lib/studio/web
+          npm --prefix lib/studio/web run build
           npm pack --dry-run --ignore-scripts --json > "$RUNNER_TEMP/pack.json"
           node scripts/release-check.js pack "$RUNNER_TEMP/pack.json"
+          echo "file_hash=$(node scripts/release-check.js pack-hash "$RUNNER_TEMP/pack.json")" >> "$GITHUB_OUTPUT"
+    outputs:
+      file_hash: ${{ steps.pack.outputs.file_hash }}
 
   publish:
     name: stage on npm
     needs: verify
-    if: github.event_name == 'push' || inputs.dry_run
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: npm-release
@@ -145,25 +161,26 @@ jobs:
           TAG=$(node scripts/release-check.js dist-tag "$VERSION")
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "dist_tag=$TAG" >> "$GITHUB_OUTPUT"
-      - name: Dry-run stage (rehearsal only; no token, stages nothing)
-        if: github.event_name != 'push'
+      # Everything that runs third-party build code happens here, with no npm token and with the OIDC request
+      # variables removed, so the credentialed step below runs no lifecycle script and no build.
+      - name: Build Studio, check changelog and tarball (no credentials)
         env:
-          VERSION: ${{ steps.meta.outputs.version }}
-          DIST_TAG: ${{ steps.meta.outputs.dist_tag }}
+          VERIFIED_HASH: ${{ needs.verify.outputs.file_hash }}
         run: |
           set -euo pipefail
-          npm stage publish --dry-run --access public --tag "$DIST_TAG" --provenance 2>&1 | tee "$RUNNER_TEMP/dry.log" || true
-          {
-            echo "## Rehearsal: npm stage publish --dry-run for brighttest v${VERSION} (dist-tag \`${DIST_TAG}\`)"
-            echo
-            echo "Nothing was staged or published. npm does not document which registry or permission checks --dry-run performs, so this only proves the tarball packs. Push a prerelease tag (for example v0.8.0-rc.0) to rehearse a real stage."
-            echo
-            echo '```'
-            cat "$RUNNER_TEMP/dry.log"
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
+          unset ACTIONS_ID_TOKEN_REQUEST_TOKEN ACTIONS_ID_TOKEN_REQUEST_URL
+          npm_package_version=$(node -p "require('./package.json').version") node scripts/changelog.js check --version-env
+          npm ci --prefix lib/studio/web
+          npm --prefix lib/studio/web run build
+          npm pack --dry-run --ignore-scripts --json > "$RUNNER_TEMP/pack.json"
+          node scripts/release-check.js pack "$RUNNER_TEMP/pack.json"
+          # The tarball staged below is built here, not downloaded from verify; assert it has the same file list.
+          HASH=$(node scripts/release-check.js pack-hash "$RUNNER_TEMP/pack.json")
+          if [ -z "$VERIFIED_HASH" ] || [ "$HASH" != "$VERIFIED_HASH" ]; then
+            echo "::error::Staged file list differs from the one verify tested ($HASH vs $VERIFIED_HASH)."
+            exit 1
+          fi
       - name: Stage the package (not live until approved)
-        if: github.event_name == 'push'
         id: stage
         env:
           # The only place the token is exposed. Stage-only scope: a leak can stage, never go live.
@@ -172,13 +189,14 @@ jobs:
           DIST_TAG: ${{ steps.meta.outputs.dist_tag }}
         run: |
           set -euo pipefail
-          # prepack builds Studio. npm tries OIDC first and falls back to NODE_AUTH_TOKEN (the stage-only token).
+          # --ignore-scripts: no lifecycle script runs while the credentials are in the environment (Studio was
+          # built and the changelog checked in the previous step). npm tries OIDC first, then NODE_AUTH_TOKEN.
           # --tag: prereleases must be staged under `next`, never `latest` (the CLI also errors on a prerelease
           # without an explicit tag). The tag is immutable once staged; to change it, reject and re-stage.
           # --provenance: attach the build provenance attestation (supported by `npm stage publish`).
-          npm stage publish --access public --tag "$DIST_TAG" --provenance 2>&1 | tee "$RUNNER_TEMP/stage.log"
-          STAGE_ID=$(grep -Eio 'stage[ _-]?id[^A-Za-z0-9]+[A-Za-z0-9_-]+' "$RUNNER_TEMP/stage.log" | head -n1 | grep -Eo '[A-Za-z0-9_-]+$' || true)
-          echo "stage_id=${STAGE_ID}" >> "$GITHUB_OUTPUT"
+          npm stage publish --ignore-scripts --access public --tag "$DIST_TAG" --provenance 2>&1 | tee "$RUNNER_TEMP/stage.log"
+          # npm prints: + brighttest@X (staged with id <id>)
+          STAGE_ID=$(node scripts/release-check.js stage-id "$RUNNER_TEMP/stage.log" || true)
           {
             echo "## brighttest v${VERSION} is STAGED, not published"
             echo
@@ -187,7 +205,7 @@ jobs:
             if [ -n "$STAGE_ID" ]; then
               echo "Stage id: \`${STAGE_ID}\`"
             else
-              echo "Stage id: not recognised in the CLI output below. Find it on npmjs.com (Staged Packages tab) or with \`npm stage list brighttest\`."
+              echo "Stage id: not found in the CLI output below. Find it on npmjs.com (Staged Packages tab) or with \`npm stage list brighttest\`."
             fi
             echo
             echo "To make it live (2FA required, nothing publishes until you do this):"
@@ -227,10 +245,15 @@ jobs:
           DIST_TAG: ${{ needs.publish.outputs.dist_tag }}
         run: |
           set -euo pipefail
+          NOTES=$(node scripts/changelog.js notes "$TAG")
           {
+            if ! printf '%s\n' "$NOTES" | grep -q '^- '; then
+              echo "> WARNING: no changelog entries were found for this release; write the notes before publishing."
+              echo
+            fi
             echo "> DRAFT. The package brighttest ${VERSION} is only STAGED on npm (dist-tag \`${DIST_TAG}\`), not live. Publish this release only after approving the staged package on npm."
             echo
-            node scripts/changelog.js notes "$TAG"
+            printf '%s\n' "$NOTES"
           } > "$RUNNER_TEMP/notes.md"
           PRE=""
           if [ "$DIST_TAG" = "next" ]; then PRE="--prerelease"; fi
