@@ -185,7 +185,22 @@ function parseInstrumentArgs(rest) {
 
 // Options for studio's start(): the raw parsed flags, never a host resolved here (the server decides the device).
 function studioStartOptions(o, extra) {
-  return { host: o.host, password: o.password, app: o.app, flowsDir: o.flowsDir, ...extra };
+  return { host: o.host, password: o.password, app: o.app, flowsDir: o.flowsDir, simulator: o.simulator === true, ...extra };
+}
+
+// Studio start failure -> exit code: usage mistakes and a missing UI bundle are 2, everything else 1.
+function studioExitCode(e) {
+  return e && (e.code === 'USAGE' || e.code === 'UI_NOT_BUILT') ? 2 : 1;
+}
+
+// Banner target: the simulator engine (name@version, flavor) or the device.
+function studioTargetLabel(o, sim, resolveDevice) {
+  if (sim && typeof sim.info === 'function') {
+    const e = sim.info().engine || {};
+    return `simulator ${e.name}@${e.version} (${e.flavor})`;
+  }
+  const r = o.host ? { host: o.host, source: 'flag' } : resolveDevice({});
+  return r.host ? `device ${r.host}${r.source !== 'flag' ? ` (${r.source})` : ''}` : 'no device — discover one in the Devices tab';
 }
 
 const INSTRUMENT_HELP = `
@@ -429,10 +444,11 @@ Exit codes: the command's own code · 75 busy / wait timed out · 77 lease lost,
 
 // `brighttest studio` — visual studio (web app) for authoring & debugging e2e flows on a device.
 function parseStudioArgs(rest) {
-  const o = { host: null, password: null, port: null, app: 'dev', flowsDir: null, open: false, help: false };
+  const o = { host: null, password: null, port: null, app: 'dev', flowsDir: null, open: false, simulator: false, help: false };
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
-    if (a === '--host') o.host = rest[++i];
+    if (a === '--simulator') o.simulator = true;
+    else if (a === '--host') o.host = rest[++i];
     else if (a.startsWith('--host=')) o.host = a.slice(7);
     else if (a === '--password' || a === '--pass') o.password = rest[++i];
     else if (a.startsWith('--password=')) o.password = a.slice(11);
@@ -457,6 +473,7 @@ brighttest studio — visual studio for authoring & debugging e2e flows on a dev
 
 Usage:
   brighttest studio --host <ip> [--password <pw>] [--port 8700] [--app dev] [--flows-dir flows] [--open]
+  brighttest studio --simulator [--port 8700] [--flows-dir flows] [--open]
 
 Options:
   --host <ip>        Roku device IP (or ROKU_HOST)
@@ -464,6 +481,8 @@ Options:
   --port <n>         Local port for the studio (default 8700; if busy, the first free of 8701-8709)
   --app <id>         Channel to launch / drive (default: dev)
   --flows-dir <dir>  Where flows are read and written (default: ./flows)
+  --simulator        Run against the local brs-node simulator instead of a device (state-only; needs the stock
+                     engine: npm i brs-node). Cannot be combined with --host or a device pool.
   -o, --open         Open the studio in your browser
   -h, --help         Show this help
 `;
@@ -694,23 +713,23 @@ async function main() {
   if (argv[0] === 'studio') {
     const o = parseStudioArgs(argv.slice(1));
     if (o.help) { console.log(STUDIO_HELP); process.exit(0); }
+    if (o.simulator && o.host) { console.error('[brighttest studio] --simulator cannot be combined with --host'); process.exit(2); }
     // The raw --host/--password go to the server, which owns the device rules (explicit host wins, several cached
     // devices fail instead of guessing, none starts device-less). The CLI never resolves the host for studio.
     // Without --port, fall back to 8701-8709 when 8700 is taken (parallel worktrees each running a Studio).
     const fallback = o.port ? null : [8701, 8702, 8703, 8704, 8705, 8706, 8707, 8708, 8709];
     let server;
     try {
-      server = await require('../lib/studio/server').start(studioStartOptions(o, { requireUi: true, port: o.port || 8700, portFallback: fallback, rootDir: process.cwd(), cfg: loadConfig(process.cwd(), null) }));
+      server = await require('../lib/studio/server').start(studioStartOptions(o, { requireUi: true, port: o.port || 8700, portFallback: fallback, rootDir: process.cwd(), cfg: loadConfig(process.cwd(), null), simLog: (m) => console.error(m) }));
     } catch (e) {
       console.error(`[brighttest studio] ${e.message}`);
-      process.exit(e.code === 'UI_NOT_BUILT' ? 2 : 1);
+      process.exit(studioExitCode(e));
     }
     const port = server.address().port;
     if (!o.port && port !== 8700) console.log(`(port 8700 is in use; using ${port})`);
     const url = `http://localhost:${port}`;
-    // Display only: the server already chose the device with its own rules.
-    const r = o.host ? { host: o.host, source: 'flag' } : require('../lib/devices').resolveDevice({});
-    const dev = r.host ? `device ${r.host}${r.source !== 'flag' ? ` (${r.source})` : ''}` : 'no device — discover one in the Devices tab';
+    // Display only: the server already chose the target with its own rules.
+    const dev = studioTargetLabel(o, server.sim, require('../lib/devices').resolveDevice);
     console.log(`brighttest studio → ${url}  ·  ${dev}`);
     if (o.open) {
       try {
@@ -826,4 +845,4 @@ async function main() {
 // Only run the CLI when executed directly (not when required by tests).
 if (require.main === module) main();
 
-module.exports = { parseNetArgs, studioStartOptions, parseArgs, parseInstrumentArgs, INSTRUMENT_ACTIONS, parseSkillsArgs, parseInitArgs, parseE2eArgs, parseStudioArgs, parseDeviceArgs, parseDoctorArgs, SKILLS_ACTIONS, E2E_ACTIONS, DEVICE_ACTIONS, SCREENSHOT_MODES };
+module.exports = { parseNetArgs, studioStartOptions, parseArgs, parseInstrumentArgs, INSTRUMENT_ACTIONS, parseSkillsArgs, parseInitArgs, parseE2eArgs, parseStudioArgs, studioExitCode, studioTargetLabel, parseDeviceArgs, parseDoctorArgs, SKILLS_ACTIONS, E2E_ACTIONS, DEVICE_ACTIONS, SCREENSHOT_MODES };
