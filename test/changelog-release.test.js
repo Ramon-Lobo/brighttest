@@ -40,7 +40,7 @@ describe('changelog release gate', () => {
 
   it('stamp writes the version heading and a fresh empty Unreleased', () => {
     fs.writeFileSync(file, FILLED)
-    const r = run(['stamp', '--version', '0.2.0', '--date', '2026-02-03'])
+    const r = run(['stamp', '--version', '0.2.0', '--date', '2026-02-03', '--no-pages'])
     expect(r.status).toBe(0)
     const t = fs.readFileSync(file, 'utf8')
     expect(t).toMatch(/^## Unreleased \{#unreleased\}\n\n## v0\.2\.0 - 2026-02-03 \{#v0-2-0\}\n/m)
@@ -50,7 +50,7 @@ describe('changelog release gate', () => {
 
   it('stamp reads npm_package_version when --version is missing (no-shell-variable form)', () => {
     fs.writeFileSync(file, FILLED)
-    const r = run(['stamp', '--date', '2026-02-03'], { npm_package_version: '0.3.0' })
+    const r = run(['stamp', '--date', '2026-02-03', '--no-pages'], { npm_package_version: '0.3.0' })
     expect(r.status).toBe(0)
     expect(fs.readFileSync(file, 'utf8')).toContain('## v0.3.0 - 2026-02-03 {#v0-3-0}')
   })
