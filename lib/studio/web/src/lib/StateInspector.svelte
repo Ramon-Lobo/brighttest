@@ -3,6 +3,7 @@
   import { api } from './api.js';
   import { rowsOf } from './rows.js';
   import AppState from './AppState.svelte';
+  import { studio } from './store.svelte.js';
 
   // State inspector (STA-S-T8). The live tree is the app's __bt_agent node as /api/state serves it (read over ECP,
   // redacted); the hub adds edits, snapshots and the ack of each command. An edit goes through /api/state/cmd (the
@@ -225,7 +226,7 @@
       </dl>
     {/each}
   {:else}
-    <p class="empty err">{info.agentReadFailed ? `Device read failed, retrying (${info.agentError}).` : info.agentError ? `Agent state is unreadable: ${info.agentError}` : 'No agent layers published by the app.'}</p>
+    <p class="empty err">{studio.device?.target === 'simulator' ? 'The simulator has no live layer view. Save a snapshot to read the state; edits sent to the state routes or by flow steps still apply.' : info.agentReadFailed ? `Device read failed, retrying (${info.agentError}).` : info.agentError ? `Agent state is unreadable: ${info.agentError}` : 'No agent layers published by the app.'}</p>
   {/if}
 
   {#if hubUp}
