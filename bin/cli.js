@@ -398,6 +398,7 @@ function parseDeviceArgs(rest) {
     else if ((v = val('--lease')) !== undefined) o.lease = v;
     else if (a === '--no-hygiene') o.noHygiene = true;
     else if ((v = val('--interval')) !== undefined) o.interval = v;
+    else if (a === '--interval') o.interval = ''; // no value after it: cmdWatch rejects it
     else if (a === '--once') o.once = true;
     else if (a === '--plain') o.plain = true;
     else if (a === '--all') o.all = true;

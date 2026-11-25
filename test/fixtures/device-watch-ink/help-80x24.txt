@@ -6,15 +6,15 @@
 │  ◌ pool  lin┌──────────────────────────────────────────────────┐             │
 │ runs ▅▁▁▇▁▂▂│ ↑ ↓  k j        move selection                   │             │
 │ 50 hidden (l│ PgUp PgDn  g G  page, first, last                │             │
-└─────────────│ enter  →  l     open detail──────────────────────│─────────────┘
-┌ lab-a · held│ ←  h            back to the device list──────────│─────────────┐
-│ purpose e2e │ tab  shift-tab  switch panebranch feat/x         │             │
+└─────────────│ enter  →  l     open detail                      │─────────────┘
+┌ lab-a · held│ ←  h            back to the device list          │─────────────┐
+│ purpose e2e │ tab  shift-tab  switch pane                      │             │
 │ reach up  ch│ a               show or hide all keys            │             │
-│ line  #1 dev│ p               pause or resume02s  eta ~3m00s   │             │
-│       #2 dev│ r               refresh nowng 20s  eta ~5m00s    │             │
+│ line  #1 dev│ p               pause or resume                  │             │
+│       #2 dev│ r               refresh now                      │             │
 │       dead t│ ?               this help                        │             │
-│ Runs (24h: 3│ esc             close help, back, then quit max l│ne 3)        │
-│ 10:37 device│ q  ctrl-c       quit ███████████▋           0s  4│00s running  │
+│ Runs (24h: 3│ esc             close help, back, then quit      │ne 3)        │
+│ 10:37 device│ q  ctrl-c       quit                             │00s running  │
 │ 10:31 device└──────────────────────────────────────────────────┘10s ok       │
 │ 10:22 dev#3 with npx rooibos       ░░░░░░██████▏       2m00s  2m05s ok       │
 │ 10:15 device-qa#2 with e2e.sh      ███                    0s  1m01s lost     │

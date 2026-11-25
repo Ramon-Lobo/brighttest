@@ -43,17 +43,45 @@ describe('renderToString layout goldens (ANSI stripped)', () => {
     if (!have()) return ctx.skip();
     expect(strip(viewOut('none', 50, 10))).toContain('terminal too small (need 60x16)');
   });
-  it('a hostile purpose never reaches the output as an escape', (ctx) => {
+  it('hostile board text reaches neither the view model nor the output as a control sequence', (ctx) => {
     if (!have()) return ctx.skip();
     const { ink, React } = mods;
+    const evil = (t) => `${t}\x9b31m\x1b[31m\x1b]0;pwned\x07\x9d0;x\x9cEND`;
     const b = makeBoard();
-    b.devices[0].holder.purpose = 'x \x1b]0;pwned\x07 y';
+    b.devices[0].holder.purpose = evil('purpose');
+    b.devices[0].holder.agent = evil('agent');
+    b.devices[0].label = evil('label');
+    b.devices[0].queue[0].purpose = evil('queued');
     const ui = W.initialUi({ cols: 120, rows: 30 }, {}, b);
-    const View = A.createWatchView({ ink, React, level: 'none' });
     const model = W.renderModel(b, ui, { cols: 120, rows: 30 }, NOW, { level: 'none', utc: true });
+    const spans = [model.header, model.footer, model.devices.lines, model.detail.lines].flat(2).filter((x) => x && typeof x === 'object');
+    for (const sp of [...spans, ...model.devices.title, ...model.detail.title]) expect(sp.t).not.toMatch(/[\u0000-\u001f\u007f-\u009f]/);
+    const View = A.createWatchView({ ink, React, level: 'none' });
     const out = ink.renderToString(React.createElement(View, { model, ui, size: { cols: 120, rows: 30 } }), { columns: 120 });
-    expect(out).not.toMatch(/\x1b\]/);
-    expect(out).not.toContain('pwned\x07');
+    expect(out).not.toMatch(/[\u0080-\u009f]/);
+    expect(out).not.toMatch(/\x1b\[(?:\d+;)*(?:3\d|4\d|9\d|10\d)m/); // level none paints no color, so a color SGR could only come from the text
+    expect(out).not.toMatch(/\x1b\](?!8;)|\x1b\[31m/);
+    expect(out).toContain('purpose');
+  });
+  it('no help overlay row lets the panes underneath show through (16 colors and none)', async (ctx) => {
+    if (!have()) return ctx.skip();
+    for (const level of ['16', 'none']) {
+      for (const [cols, rows] of [[80, 24], [120, 30]]) {
+        const text = strip(viewOut(level, cols, rows, { help: true }));
+        const lines = text.split('\n');
+        // every help row must appear padded to the full box width between two border characters
+        const bw = Math.min(cols - 4, 52);
+        const b = makeBoard();
+        const ui = W.initialUi({ cols, rows }, {}, b);
+        const help = W.renderModel(b, { ...ui, help: true }, { cols, rows }, NOW, { level, utc: true }).help;
+        expect(help.length).toBeGreaterThan(5);
+        for (const l of help) {
+          const t = T.toPlain([l])[0];
+          expect(lines.some((x) => x.includes(`│${t}${' '.repeat(bw - 2 - T.width(t))}│`))).toBe(true);
+        }
+        await expect(text + '\n').toMatchFileSnapshot(GOLD(`help-${level}-${cols}x${rows}.txt`));
+      }
+    }
   });
 });
 
@@ -143,8 +171,11 @@ describe('mountWatchApp on fake streams', () => {
     expect(code).toBe(1);
     expect(t.err.join('')).toContain('boom');
     expect(v.closed).toBe(1);
-    expect(t.raw.every((x) => x === false) || t.raw[t.raw.length - 1] === false).toBe(true);
-    expect(t.out()).not.toContain('\x1b[?1049h\x1b[?1049h');
+    const o = t.out();
+    expect(o.lastIndexOf('\x1b[?1049l')).toBeGreaterThan(o.indexOf('\x1b[?1049h'));
+    expect(o.indexOf('\x1b[?1049h')).toBeGreaterThanOrEqual(0);
+    expect(t.raw.every((x) => x === false)).toBe(true); // the error happens before raw mode was ever turned on
+    expect(t.proc.listenerCount('SIGTERM')).toBe(0);
   });
   it('SIGTERM unmounts, restores the terminal and returns 143', async (ctx) => {
     if (!have()) return ctx.skip();
@@ -225,9 +256,16 @@ describe('only lib/tui-ink.js imports ink', () => {
   const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => {
     const p = path.join(d, e.name);
     if (e.isDirectory()) return e.name === 'node_modules' || e.name === 'web' ? [] : walk(p);
-    return e.name.endsWith('.js') ? [p] : [];
+    return /\.(?:js|mjs|cjs)$/.test(e.name) ? [p] : [];
   });
-  const IMPORTS = [/\brequire\s*\(\s*['"](?:ink|react)(?:\/[^'"]*)?['"]/, /\bimport\s*\(\s*['"](?:ink|react)['"]/, /\bfrom\s+['"](?:ink|react)(?:\/[^'"]*)?['"]/, /\bimporter\s*\(\s*['"](?:ink|react)['"]/];
+  const Q = '[\'"`]'; const MOD = '(?:ink|react)(?:\\/[^\'"`]*)?';
+  const IMPORTS = [`\\brequire\\s*\\(\\s*${Q}${MOD}${Q}`, `\\bimport\\s*\\(\\s*${Q}${MOD}${Q}`, `\\bfrom\\s+${Q}${MOD}${Q}`, `\\bimporter\\s*\\(\\s*${Q}${MOD}${Q}`].map((r) => new RegExp(r));
+  it('the import patterns catch template-literal and subpath forms', () => {
+    for (const src of ['import(`ink`)', "import('react/jsx-runtime')", "require('ink/build/x')", "import x from 'react'", 'importer(`ink`)']) {
+      expect(IMPORTS.some((re) => re.test(src))).toBe(true);
+    }
+    expect(IMPORTS.some((re) => re.test("T.inkColor('ink', level)"))).toBe(false);
+  });
   it('no other file under bin/ and lib/ names ink or react as a module', () => {
     const files = [...walk(path.join(ROOT, 'lib')), path.join(ROOT, 'bin', 'cli.js')];
     const offenders = files.filter((f) => !f.endsWith(path.join('lib', 'tui-ink.js'))).filter((f) => { const s = fs.readFileSync(f, 'utf8'); return IMPORTS.some((re) => re.test(s)); });

@@ -169,9 +169,11 @@ describe('brighttest device', () => {
     await h.done
   })
 
-  it('watch rejects a bad --interval with exit 2', async () => {
-    const r = await bt(['device', 'watch', '--interval', '10ms']).done
-    expect(r.code).toBe(2)
-    expect(r.err).toContain('--interval')
+  it('watch rejects a bad, empty or missing --interval with exit 2', async () => {
+    for (const args of [['--interval', '10ms'], ['--interval='], ['--interval'], ['--once', '--interval']]) {
+      const r = await bt(['device', 'watch', ...args]).done
+      expect(r.code, args.join(' ')).toBe(2)
+      expect(r.err).toContain('--interval')
+    }
   })
 })

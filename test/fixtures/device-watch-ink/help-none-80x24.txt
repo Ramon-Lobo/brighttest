@@ -1,0 +1,24 @@
+ brighttest  device watch        lease dir ~/.brighttest/leases · 10:41:03 · 2s
+┌ Devices ─────────────────────────────────────────────────────────────────────┐
+│> ● lab-a held    device-qa#1           4m12s  ≡2 up                          │
+│  ● lab-b free    -                         -  ≡0 ⚠ unreach                   │
+│  ● lab-c STALE   dev#9                50m00s  ≡0 ·                           │
+│  ◌ pool  lin┌──────────────────────────────────────────────────┐             │
+│ runs ▅▁▁▇▁▂▂│ ↑ ↓  k j        move selection                   │             │
+│ 50 hidden (l│ PgUp PgDn  g G  page, first, last                │             │
+└─────────────│ enter  →  l     open detail                      │─────────────┘
+┌ lab-a · held│ ←  h            back to the device list          │─────────────┐
+│ purpose e2e │ tab  shift-tab  switch pane                      │             │
+│ reach up  ch│ a               show or hide all keys            │             │
+│ line  #1 dev│ p               pause or resume                  │             │
+│       #2 dev│ r               refresh now                      │             │
+│       dead t│ ?               this help                        │             │
+│ Runs (24h: 3│ esc             close help, back, then quit      │ne 3)        │
+│ 10:37 device│ q  ctrl-c       quit                             │00s running  │
+│ 10:31 device└──────────────────────────────────────────────────┘10s ok       │
+│ 10:22 dev#3 with npx rooibos       ░░░░░░██████▏       2m00s  2m05s ok       │
+│ 10:15 device-qa#2 with e2e.sh      ███                    0s  1m01s lost     │
+│ 10:08 device-qa#1 e2e run smoke    ░████▍                30s  1m30s exit 1   │
+│ 10:01 device-qa#1 e2e run smoke    ██▎                    0s    45s reclaimed│
+└──────────────────────────────────────────────────────────────────────────────┘
+ ↑↓ select  enter detail  tab pane  a all  p pause  r refresh  ? help  q quit
