@@ -32,9 +32,21 @@ sub main()
     h1 = BT_dwHash(g)
     BT_dwEmit(g, "dispatchAction", { type: "user/upgraded", payload: { tier: "premium", authToken: "dummy-secret" } }, h0)
     print "H:" + FormatJson({ same: h0 = h1, len: Len(h0) > 0 })
-    print "E:" + g.__btEv
     BT_dwEmit(g, "other", invalid, h1)
-    print "E2:" + g.__btEv
+    d0 = BT_dwDrain(g, "s1").split(Chr(10))
+    print "E:" + d0[0]
+    print "E2:" + d0[1]
+    print "E3:" + FormatJson({ n: d0.count(), empty: BT_dwDrain(g, "s1") = "" })
+    for i = 1 to 13
+        BT_dwEmit(g, "burst", { type: "k" + i.toStr() }, h0)
+    end for
+    d1 = BT_dwDrain(g, "s1").split(Chr(10))
+    print "Q1:" + FormatJson({ n: d1.count() - 1, first: ParseJson(d1[0]), last: ParseJson(d1[12]) })
+    for i = 1 to 70
+        BT_dwEmit(g, "flood", { type: "f" + i.toStr() }, h0)
+    end for
+    d2 = BT_dwDrain(g, "s1").split(Chr(10))
+    print "Q2:" + FormatJson({ n: d2.count() - 1, first: ParseJson(d2[0]), last: ParseJson(d2[63]), second: ParseJson(d2[1]) })
     m.alpha = 1
     m.nested = { k: "v" }
     BT_taskSnap(g, "Poller", "entry", m)
@@ -71,13 +83,32 @@ describe('focus op', () => {
 describe('dispatch wrap runtime', () => {
   it('the hash follows the global state and the event carries type, payload, both hashes and the source', () => {
     expect(tag('H:')).toEqual({ same: false, len: true })
-    const e = tag('E:')
+    const e = tag('E:').data
+    expect(tag('E:')).toMatchObject({ kind: 'state.action', session: 's1' })
     expect(e).toMatchObject({ source: 'wrap:dispatchAction', type: 'user/upgraded' })
     expect(e.hashBefore).not.toBe(e.hashAfter)
     expect(e.payload.tier).toBe('premium')
     expect(e.payload.authToken).toMatch(/^<redacted:/)
-    expect(tag('E2:')).toMatchObject({ source: 'wrap:other' })
-    expect(tag('E2:')).not.toHaveProperty('type')
+    expect(tag('E2:').data).toMatchObject({ source: 'wrap:other' })
+    expect(tag('E2:').data).not.toHaveProperty('type')
+  })
+
+  it('keeps every event of a burst between ticks (13 of 13) and drains to empty', () => {
+    expect(tag('E3:')).toEqual({ n: 3, empty: true }) // two lines plus the trailing empty piece
+    const q = tag('Q1:')
+    expect(q.n).toBe(13)
+    expect(q.first.data.type).toBe('k1')
+    expect(q.last.data.type).toBe('k13')
+    expect(q.first.data).not.toHaveProperty('dropped')
+  })
+
+  it('a 64-entry FIFO drops the oldest on overflow and reports the drop count on the next event', () => {
+    const q = tag('Q2:')
+    expect(q.n).toBe(64)
+    expect(q.first.data.type).toBe('f7')
+    expect(q.first.data.dropped).toBe(6)
+    expect(q.second.data).not.toHaveProperty('dropped')
+    expect(q.last.data.type).toBe('f70')
   })
 })
 
@@ -85,7 +116,7 @@ describe('hash with a node in the global fields (H3)', () => {
   it('the hash still follows the state and no FormatJSON error is logged', () => {
     expect(out).not.toMatch(/FormatJSON/i)
     expect(out).not.toMatch(/ERROR/)
-    const e = tag('E:')
+    const e = tag('E:').data
     expect(e.hashBefore).not.toBe(e.hashAfter)
     expect(e.hashBefore.length).toBeGreaterThan(0)
   })

@@ -556,8 +556,38 @@ sub BT_dwEmit(g as object, fn as string, a as dynamic, hb as string)
         dat.type = a.type
         dat.payload = BT_serialize(a.payload, BT_capsFrom(BT_config()), "payload", 0, [], invalid)
     end if
-    g.setField("__btEv", FormatJson(dat))
+    q = BT_dwQ(g)
+    q.q.push(dat)
+    while q.q.count() > 64
+        q.q.shift()
+        q.d = q.d + 1
+    end while
+    g.setField("__btEv", FormatJson(q))
 end sub
+
+function BT_dwQ(g as object) as object
+    q = invalid
+    if g.__btEv <> "" then q = ParseJson(g.__btEv)
+    if type(q) <> "roAssociativeArray" then q = { q: [], d: 0 }
+    return q
+end function
+
+' Takes the queued wrap events out of `__btEv` as NDJSON state.action lines ("" when none). The first event carries
+' `dropped` when the 64-entry queue overflowed since the last drain.
+function BT_dwDrain(g as object, session as string) as string
+    q = BT_dwQ(g)
+    if q.q.count() = 0 then return ""
+    g.setField("__btEv", "")
+    out = ""
+    for each e in q.q
+        if q.d > 0 then
+            e.dropped = q.d
+            q.d = 0
+        end if
+        out = out + FormatJson({ v: 1, kind: "state.action", session: session, data: e }) + Chr(10)
+    end for
+    return out
+end function
 
 sub BT_taskSnap(g as object, name as string, ev as string, mm as object)
     k = "__btTask_" + name
