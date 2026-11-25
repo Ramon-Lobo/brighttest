@@ -66,7 +66,7 @@ What the reports flag for these apps:
 
 ## Headless spec run
 
-For silo-roku only, the project's own specs were run headless in an isolated, stripped environment (an owner-approved exception to
+For silo-roku only, the project's own specs were run headless in an isolated, stripped environment (a deliberate exception to
 the read-only rule). 18 shards ran in 223 s; 17 passed with 2746 of 2746 tests passing, and one shard errored before producing
 results, so its tests are not counted. jellyrock and playlet specs need a Roku device, and jellyfin-roku has no headless runner, so
 those were not run.
