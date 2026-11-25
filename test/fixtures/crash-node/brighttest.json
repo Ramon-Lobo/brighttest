@@ -1,0 +1,6 @@
+{
+  "rootDir": ".",
+  "sourceGlobs": ["manifest", "source/**/*", "components/**/*"],
+  "testsFilePattern": "**/*.spec.bs",
+  "stagingDir": ".brighttest"
+}
