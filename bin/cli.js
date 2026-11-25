@@ -53,6 +53,7 @@ function parseArgs(argv) {
     else if (a.startsWith('--net-record=')) opts.netRecord = a.slice(13);
     else if (a === '--net-unmatched') opts.netUnmatched = argv[++i];
     else if (a.startsWith('--net-unmatched=')) opts.netUnmatched = a.slice(16);
+    else if (a === '--instrument') opts.instrument = true;
   }
   return opts;
 }
@@ -609,6 +610,8 @@ Options:
       --net-record [file]       Headless: pass requests through to instrument.net.upstreamHosts and record a HAR
                                 (default .brighttest/net/<run>.har)
       --net-unmatched <policy>  Headless: fail (599, default with fixtures) or passthrough for requests no rule matches
+      --instrument              Headless: build with the instrument plugin (state agent; net too when configured) and
+                                the run's hub; same as "instrument": {"enabled": true} for one run
       --wait <dur>      Device lease: how long to queue for the device (default 30m; 0 = fail if busy)
       --as <agent>      Device lease: holder label (or BRIGHTTEST_AGENT)
       --purpose <text>  Device lease: what this run is for (shown in \`brighttest device status\`)
@@ -827,6 +830,10 @@ async function main() {
   }
   if (opts.netUnmatched !== undefined && opts.netUnmatched !== 'fail' && opts.netUnmatched !== 'passthrough') {
     console.error('[brighttest] --net-unmatched must be "fail" or "passthrough".');
+    process.exit(2);
+  }
+  if (opts.instrument && (opts.device || opts.crossCheck)) {
+    console.error('[brighttest] --instrument applies to the headless lanes only (for a device build use: brighttest instrument build --sideload)');
     process.exit(2);
   }
   let lane, label;

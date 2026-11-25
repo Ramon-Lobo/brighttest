@@ -260,7 +260,8 @@ by hand, because the plugin only rewrites `setUrl` and `getUrl` on `roUrlTransfe
 ## In headless tests
 
 `instrument.enabled` (boolean, default `false`) turns the instrument on for the headless lanes (`brighttest`,
-`brighttest --coverage`, the scene lanes). `instrument build` ignores it.
+`brighttest --coverage`, the scene lanes). `instrument build` ignores it. `brighttest --instrument` sets it to `true` for one run, even when the config says `false`;
+with `--device` or `--cross-check` it exits 2.
 
 ```json
 "instrument": {
