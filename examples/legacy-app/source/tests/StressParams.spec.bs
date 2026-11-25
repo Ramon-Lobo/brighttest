@@ -44,6 +44,12 @@ namespace tests
       m.assertEqual(m.countStress(), 100)
     end function
 
+    @it("adds 1,000 stress_ fields")
+    function _()
+      m.assertEqual(m.top.callFunc("growGlobal", 1000, 64), 1000)
+      m.assertEqual(m.countStress(), 1000)
+    end function
+
     @describe("buildTree")
 
     @it("builds the single 1,500-node tree")
