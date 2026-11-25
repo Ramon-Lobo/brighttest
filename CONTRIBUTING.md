@@ -85,6 +85,10 @@ checkout, so you can test changes against a real Roku project. Run `npm unlink -
    npm run docs:dev      # local preview at http://localhost:5173
    npm run docs:build    # confirm the static build succeeds
    ```
+   The published site is versioned. The latest release is at
+   <https://ramon-lobo.github.io/brighttest/>, older minors are under `/vX.Y/`, and the unreleased docs from
+   `main` are at <https://ramon-lobo.github.io/brighttest/next/>. Once your PR is merged, your change shows up
+   in that `/next/` preview and reaches the root when the next release is tagged.
 
 ## Commit & PR conventions
 

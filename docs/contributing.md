@@ -74,6 +74,9 @@ real Roku project. Run `npm unlink -g brighttest` when you're done.
    ```
 5. **If you touched `skills/`,** run `npm run skills:manifest`.
 6. **If you touched docs,** run `npm run docs:dev` to preview and `npm run docs:build` to confirm the build.
+   The latest release is at the site root, older minors are under `/vX.Y/`, and the unreleased docs from `main` are
+   under [`/next/`](https://ramon-lobo.github.io/brighttest/next/). A merged docs change appears there first and
+   reaches the root with the next release.
 
 ## Commit & PR conventions
 
