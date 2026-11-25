@@ -54,6 +54,7 @@ function parseArgs(argv) {
     else if (a === '--net-unmatched') opts.netUnmatched = argv[++i];
     else if (a.startsWith('--net-unmatched=')) opts.netUnmatched = a.slice(16);
     else if (a === '--instrument') opts.instrument = true;
+    else if (a.startsWith('--instrument=')) opts.instrumentValue = a.slice(13);
   }
   return opts;
 }
@@ -830,6 +831,10 @@ async function main() {
   }
   if (opts.netUnmatched !== undefined && opts.netUnmatched !== 'fail' && opts.netUnmatched !== 'passthrough') {
     console.error('[brighttest] --net-unmatched must be "fail" or "passthrough".');
+    process.exit(2);
+  }
+  if (opts.instrumentValue !== undefined) {
+    console.error('[brighttest] --instrument takes no value (use --instrument alone)');
     process.exit(2);
   }
   if (opts.instrument && (opts.device || opts.crossCheck)) {

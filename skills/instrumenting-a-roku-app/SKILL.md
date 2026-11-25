@@ -66,7 +66,7 @@ limit is researched from Roku's public docs, not verified here (see `references/
 `"instrument": { "enabled": true }` in `brighttest.json` makes the headless lanes (`brighttest`, `brighttest --coverage`)
 build with the instrument plugin and the run's own loopback hub: the state agent is baked in, so the run takes the scene
 lane (net too when configured). Set `"state": false` for net only. `--no-sgnode` then exits 2. `--device` and
-`--cross-check` ignore the key (one note). A bad block exits 2 only when enabled; otherwise it warns and is ignored.
+`--cross-check` ignore the key (one note). `brighttest --instrument` enables it for one run (exits 2 with those lanes). A bad block exits 2 only when enabled; otherwise it warns and is ignored.
 Guide: `docs/guide/instrument.md`, "In headless tests".
 
 ## Exit codes at a glance

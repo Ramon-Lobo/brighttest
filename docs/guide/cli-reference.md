@@ -49,6 +49,7 @@ feature; nothing on this page is a claim of device verification.
 | `--idle-timeout <sec>` | Device idle watchdog: abort after this many seconds with no device output (default 120, `0` disables; config `deviceIdleTimeout`; the flag wins). See [troubleshooting](/guide/troubleshooting#device-run-aborted-no-device-output-for-ns-idle-watchdog) |
 | `--net-record [file]` | Headless only: pass requests through to `instrument.net.upstreamHosts` and record a HAR (default `.brighttest/net/<run>.har`) |
 | `--net-unmatched <fail\|passthrough>` | Headless only: what to do with a request no rule matches (`fail` is the default when fixtures exist). The two net flags with `--device` or `--cross-check` exit 2 |
+| `--instrument` | Headless only: same as `instrument.enabled: true` for one run (state agent; net only when configured). Takes no value. With `--device` or `--cross-check` it exits 2; with `--no-sgnode` on the default lane it exits 2 |
 | `--wait <dur>` | Device lease: queue time (default 30m, `0` = fail if busy, exit 75) |
 | `--as <agent>`, `--purpose <text>` | Device lease: holder label and purpose (`BRIGHTTEST_AGENT`, `BRIGHTTEST_PURPOSE`) |
 | `--no-lease` | Skip the lease (warns, audited; not for agents) |
