@@ -220,3 +220,77 @@ describe('session renewal and stale cache', () => {
     expect(fs.existsSync(path.join(dir, L.keyFromIdentity('D2'), 'holder.json'))).toBe(false);
   });
 });
+
+describe('port-safe key recall and missing key directories', () => {
+  const holdInChild = (dir, port, serial) => {
+    const { spawn } = require('node:child_process');
+    const script = `const L=require(${JSON.stringify(path.resolve('lib/device-lease.js'))});` +
+      `L.acquire({dir:${JSON.stringify(dir)},host:'127.0.0.1',port:${port},deviceId:${JSON.stringify(serial)},waitMs:0}).then(()=>{console.log('held');setTimeout(()=>process.exit(0),20000);});`;
+    const child = spawn(process.execPath, ['-e', script], { stdio: ['ignore', 'pipe', 'ignore'] });
+    return new Promise((resolve, reject) => {
+      const t = setTimeout(() => { child.kill('SIGKILL'); reject(new Error('child did not acquire')); }, 15000);
+      child.stdout.on('data', () => { clearTimeout(t); resolve(child); });
+      child.on('error', reject);
+    });
+  };
+  const alive = (pid) => { try { process.kill(pid, 0); return true; } catch { return false; } };
+
+  it('status and unlock --force --kill by the default-port host leave a lane on another port alone', async () => {
+    const dir = mk();
+    process.env.BRIGHTTEST_LEASE_DIR = dir;
+    delete process.env.ROKU_ECP_PORT;
+    const idB = L.keyFromIdentity('DEV-B');
+    const child = await holdInChild(dir, 9201, 'DEV-B');
+    try {
+      ID.rememberKey(dir, '127.0.0.1', idB, 9201); // also writes the bare-host alias
+      const st = JSON.parse(await logs(() => C.run({ deviceAction: 'status', host: '127.0.0.1', json: true }, {})));
+      expect(st.filter((x) => x.holder)).toEqual([]);
+      const code = await quiet(() => C.run({ deviceAction: 'unlock', force: true, reason: 't', kill: true, host: '127.0.0.1' }, {}));
+      expect(code).toBe(0);
+      await new Promise((r) => setTimeout(r, 300));
+      expect(alive(child.pid)).toBe(true);
+      expect(fs.existsSync(path.join(dir, idB, 'holder.json'))).toBe(true);
+    } finally { child.kill('SIGKILL'); }
+  });
+  it('a lane reached by hostname-like address is still found by the other address through the shared hold', async () => {
+    const dir = mk();
+    process.env.BRIGHTTEST_LEASE_DIR = dir;
+    delete process.env.ROKU_ECP_PORT;
+    // lane holds (identity, 127.0.0.1); the host recorded in the record differs from the unlock target only by form
+    const a = await L.acquire({ dir, lookup, host: '127.0.0.1', deviceId: 'DEV-C', waitMs: 0, timers: false });
+    ID.rememberKey(dir, '127.0.0.1', L.keyFromIdentity('DEV-C'));
+    // rewrite the identity holder's recorded host so only the shared lease id (sameHold) can link the keys
+    const hp = path.join(dir, L.keyFromIdentity('DEV-C'), 'holder.json');
+    const rec = JSON.parse(fs.readFileSync(hp, 'utf8'));
+    rec.device.host = 'roku.local';
+    fs.writeFileSync(hp, JSON.stringify(rec));
+    const st = JSON.parse(await logs(() => C.run({ deviceAction: 'status', host: '127.0.0.1', json: true }, {})));
+    expect(st.filter((x) => x.holder).map((x) => x.key)).toContain(L.keyFromIdentity('DEV-C'));
+    const out = await logs(() => C.run({ deviceAction: 'unlock', force: true, reason: 't', host: '127.0.0.1' }, {}));
+    expect(out).toContain(`released ${L.keyFromIdentity('DEV-C')}`);
+    expect(L.createStore({ dir }).findTokenKeys(a.leaseId)).toEqual([]);
+  });
+  it('unlock --force exit codes: missing address dir, never-leased host, live lease without a reason', async () => {
+    const dir = mk();
+    process.env.BRIGHTTEST_LEASE_DIR = dir;
+    delete process.env.ROKU_ECP_PORT;
+    const idKey = L.keyFromIdentity('DEV-D');
+    const a = await L.acquire({ dir, lookup, host: '127.0.0.1', deviceId: 'DEV-D', waitMs: 0, timers: false });
+    ID.rememberKey(dir, '127.0.0.1', idKey);
+    // live lease, no --reason: usage error with both keys held
+    expect(await quiet(() => C.run({ deviceAction: 'unlock', force: true, host: '127.0.0.1' }, {}))).toBe(2);
+    expect(L.createStore({ dir }).findTokenKeys(a.leaseId)).toHaveLength(2);
+    // identity dir held, address dir missing: released, exit 0
+    a.secondary.release();
+    fs.rmSync(path.join(dir, '127.0.0.1'), { recursive: true, force: true });
+    let code;
+    const out = await logs(async () => { code = await C.run({ deviceAction: 'unlock', force: true, reason: 't', host: '127.0.0.1' }, {}); });
+    expect(code).toBe(0);
+    expect(out).toContain(`released ${idKey}`);
+    // never-leased host: not held, exit 0
+    const out2 = await logs(async () => { code = await C.run({ deviceAction: 'unlock', force: true, reason: 't', host: '127.0.0.9' }, {}); });
+    expect(code).toBe(0);
+    expect(out2).toContain('was not held');
+    a.release();
+  });
+});
