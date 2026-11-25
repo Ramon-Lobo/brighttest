@@ -51,7 +51,11 @@ function runBrs(main) {
   child.stdout.on('data', (d) => { out += d }); child.stderr.on('data', (d) => { out += d })
   return new Promise((resolve) => child.on('close', () => { clearTimeout(timer); resolve(out) }))
 }
-const tagged = (out, tag) => out.split(/\r?\n/).filter((l) => l.startsWith(tag)).map((l) => JSON.parse(l.slice(tag.length)))
+const tagged = (out, tag) => {
+  const hits = out.split(/\r?\n/).map((l) => l.trim()).filter((l) => l.startsWith(tag)).map((l) => JSON.parse(l.slice(tag.length)))
+  if (!hits.length) throw new Error(`no ${tag} line in engine output:\n${out}`)
+  return hits
+}
 
 describe('flow snapshot nodes then restore (headless, fork engine)', () => {
   it('parses to args.nodes with the repeat dropped', () => {
