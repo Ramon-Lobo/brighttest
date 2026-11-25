@@ -180,7 +180,7 @@ studio --simulator [--port 8700] [--flows-dir flows] [--open]
 8701-8709; an explicit busy `--port` fails), `--app <id>` (default `dev`), `--flows-dir <dir>` (default `./flows`),
 `-o`, `--open` (open the browser). Studio takes the [device lease](/guide/device-lease#studio) while you use it. See the [Studio guide](/guide/studio).
 
-`--simulator` runs Studio against the local brs-node simulator instead of a device (state-only; see [Simulator target](/guide/studio#simulator-target-no-device)). It uses the stock engine (`npm i brs-node`) unless `engines.brsNode` or `BRIGHTTEST_ENGINES` says otherwise, takes no value, and exits 2 when combined with `--host` or a device pool. `--password` is ignored with it. Exit codes: 2 usage error or UI not built, 1 other failures.
+`--simulator` runs Studio against the local brs-node simulator instead of a device (state-only; see [Simulator target](/guide/studio#simulator-target-no-device)). It uses the stock engine (`brs-node`, shipped as a brighttest dependency) unless `engines.brsNode` or `BRIGHTTEST_ENGINES` says otherwise, takes no value, and exits 2 when combined with `--host` or a device pool. `--password` is ignored with it. Exit codes: 2 usage error or UI not built, 1 other failures.
 
 ## `brighttest net convert`
 
