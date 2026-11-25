@@ -12,6 +12,7 @@ brighttest e2e <action>          on-device UI flows
 brighttest studio                local web app mirroring a device
 brighttest net convert           HAR to net rules
 brighttest assess [<dir>]        read-only project assessment
+brighttest features graph        dependency graph of an app's files and components
 brighttest doctor                device capability check
 brighttest mcp                   MCP stdio server for AI agents
 brighttest devices               discover Rokus, cache credentials
@@ -196,6 +197,18 @@ Read-only, offline assessment of a project (default: the current directory). `--
 `brighttest-assess/v1` document; `--out <dir>` also writes `assess.json`, `assess.md`, `census.json`, `census.md`
 (refused inside `source/` or `components/`). Exit codes: `0` report produced (findings never change it), `1` internal
 error, `2` usage error, missing `<dir>`, bad config or refused `--out`. See [Assess a project](/guide/assess).
+
+## `brighttest features`
+
+```text
+features graph [<dir>] [--out <dir>] [--json] [-c|--config <config>]
+```
+
+Read-only, offline map of an app (default: the current directory). Writes `graph.json`
+(`brighttest-feature-graph/v1`) to `<stagingDir>/features/` (default `.brighttest/features/`)
+or to `--out`, and prints a short summary; `--json` prints the graph instead. Exit codes: `0` graph produced, `1` internal error, `2` usage error,
+missing `<dir>`, bad config or refused `--out` (inside `source/` or `components/`). See
+[Map the app](/guide/feature-tree).
 
 ## `brighttest doctor`
 
