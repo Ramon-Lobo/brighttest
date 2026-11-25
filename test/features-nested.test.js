@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 
 const require = createRequire(import.meta.url)
 const { buildGraph } = require('../lib/features/graph')
-const { nestedManifests, nestedHint } = require('../lib/features/nested')
+const { nestedManifests, nestedHint, nestedNextStep } = require('../lib/features/nested')
 const assess = require('../lib/assess')
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -51,7 +51,15 @@ describe('nested manifest folders', () => {
     expect(g.uncertainty.counts['nested-manifests']).toBeUndefined()
   })
 
-  it('control characters in folder names are replaced in the graph and in assess', async () => {
+  it('nestedHint and nestedNextStep replace control characters in names', () => {
+    const names = ['app\u001b[31m-x', 'b\u0007']
+    for (const t of [nestedHint(names), nestedNextStep(names)]) {
+      expect(t).not.toMatch(/[\u0000-\u001f\u007f-\u009f]/)
+      expect(t).toContain('app?[31m-x, b?')
+    }
+  })
+
+  it.skipIf(process.platform === 'win32')('control characters in on-disk folder names are replaced in the graph and in assess', async () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'nested-esc-'))
     try {
       const dir = path.join(tmp, 'app\u001b[31m-x')
