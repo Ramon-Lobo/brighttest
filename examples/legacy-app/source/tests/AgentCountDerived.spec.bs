@@ -1,0 +1,23 @@
+namespace tests
+  ' Scene chain with init at both levels (DerivedScene extends BaseScene).
+  ' Counts the BT_Agent children of the hosting Scene: zero without instrumentation, one with it. Two (a base init plus a
+  ' derived init each bootstrapping) is the failure this suite catches. The count is printed as
+  ' BTFIX:agent-count=<scene>:<n> so a run log carries it.
+  @suite("AgentCountDerived")
+  @SGNode("DerivedScene")
+  class AgentCountDerivedTests extends rooibos.BaseTestSuite
+
+    @describe("BT_Agent nodes")
+
+    @it("has at most one agent")
+    function _()
+      n = 0
+      for each child in m.top.getChildren(-1, 0)
+        if child.subtype() = "BT_Agent" or child.id = "__bt_agent" then n = n + 1
+      end for
+      print "BTFIX:agent-count=" + m.top.subtype() + ":" + n.toStr()
+      m.assertTrue(n <= 1)
+    end function
+
+  end class
+end namespace
