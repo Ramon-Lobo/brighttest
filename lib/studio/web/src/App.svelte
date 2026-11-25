@@ -19,6 +19,7 @@
   import Placeholder from './lib/pages/Placeholder.svelte';
   import Profile from './lib/pages/Profile.svelte';
   import PromptModal from './lib/PromptModal.svelte';
+  import { isSim, simText, simCls, simTail, simPollMs, mergeDevice, shouldPoll } from './lib/simbadge.js';
 
   const ic = {
     inspect: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="6"/><circle cx="10" cy="10" r="1.5" fill="currentColor" stroke="none"/><path d="M10 1v3M10 16v3M1 10h3M16 10h3"/></svg>',
@@ -54,13 +55,7 @@
   let treeBusy = false, shotBusy = false;
 
   // Simulator target: Studio runs the app in the local engine, no device. Device-only panels say so.
-  const sim = $derived(studio.device?.target === 'simulator');
-  const SIM_STATES = { starting: 'starting', settling: 'settling', running: 'running', 'no-hello': 'no hello from the app', exited: 'engine exited' };
-  const simText = (d) => {
-    const e = d?.engine;
-    return `simulator · ${e ? `${e.name}@${e.version} (${e.flavor})` : 'engine'} · ${SIM_STATES[d?.state] || d?.state || 'starting'}`;
-  };
-  const simCls = (d) => (d?.state === 'running' ? 'mine' : d?.state === 'no-hello' || d?.state === 'exited' ? 'other' : 'wait');
+  const sim = $derived(isSim(studio.device));
 
   async function grabTree() {
     if (treeBusy || sim || studio.lease || !studio.live || (studio.page !== 'inspect' && studio.page !== 'record')) return;
@@ -213,15 +208,14 @@
     if (h && !h.mine) return `Device in use by ${h.agent} — "${h.purpose}" (since ${new Date(h.since).toTimeString().slice(0, 5)})`;
     return l?.error || 'Studio released the device';
   };
-  async function refreshDevice() { studio.device = await api.device().catch(() => ({ connected: false })); }
+  async function refreshDevice() { studio.device = mergeDevice(studio.device, await api.device().catch(() => null)); }
 
   onMount(() => {
-    api.device().then((d) => (studio.device = d)).catch(() => {});
     loadFlows();
     let t1, t2;
     const treeLoop = async () => { await grabTree(); t1 = setTimeout(treeLoop, 300); };
     const shotLoop = async () => { await grabShot(); t2 = setTimeout(shotLoop, 900); };
-    const simLoop = async () => { if (sim) await refreshDevice(); t4 = setTimeout(simLoop, 1000); };
+    const simLoop = async () => { if (shouldPoll(studio.device)) await refreshDevice(); t4 = setTimeout(simLoop, simPollMs(studio.device)); };
     const leaseLoop = async () => { await leaseCheck(); t3 = setTimeout(leaseLoop, 3000); };
     let t3, t4;
     treeLoop(); shotLoop(); leaseLoop(); simLoop();
@@ -235,9 +229,14 @@
     <span class="device">{sim ? 'no device' : studio.device?.connected ? `${studio.device.model} · fw ${studio.device.firmware}` : studio.device ? 'no device' : 'connecting…'}</span>
     <div class="spacer"></div>
     {#if sim}
-      <span class="leasebadge simbadge {simCls(studio.device)}" title={studio.device.tail?.length ? studio.device.tail.join('\n') : 'Studio is running the app in the local simulator; no device is used'}>
-        <span class="ldot"></span><span class="simtext">{simText(studio.device)}</span>
-      </span>
+      <details class="leasebadge simbadge {simCls(studio.device)}">
+        <summary><span class="ldot"></span><span class="simtext" aria-live="polite">{simText(studio.device)}</span></summary>
+        {#if simTail(studio.device).length}
+          <pre class="simtail" aria-label="engine output">{simTail(studio.device).join('\n')}</pre>
+        {:else}
+          <p class="simnote">The app runs in the local simulator; no device is used.</p>
+        {/if}
+      </details>
     {:else if studio.leaseInfo?.host || studio.leaseInfo?.pool}
       {@const b = badge(studio.leaseInfo)}
       <details class="leasebadge {b.cls}">
@@ -410,8 +409,7 @@
   .leasebadge.other .ldot { background: #d29922; }
   .leasebadge .lqueue { position: absolute; right: 0; z-index: 5; margin: 4px 0 0; padding: 6px 10px 6px 26px; background: var(--color-panel); border: 1px solid var(--color-haze); white-space: nowrap; }
   .needsdev { padding: 16px; font-size: 12px; color: var(--color-haze); }
-  .simbadge { display: flex; align-items: center; gap: 6px; }
-  .simbadge.wait .ldot { background: #d29922; }
+  .simtail, .simnote { position: absolute; right: 0; z-index: 5; margin: 4px 0 0; padding: 6px 10px; max-width: 60vw; max-height: 40vh; overflow: auto; background: var(--color-panel); border: 1px solid var(--color-haze); font-size: 11px; white-space: pre-wrap; }
   .leasebar .queued { color: var(--color-haze); }
   .status { font-family: var(--font-mono); font-size: 11px; color: var(--color-haze); min-width: 68px; text-align: right; }
 
