@@ -20,6 +20,9 @@
 // POSIX only (signal handling and the fixture tests assume it). Env: BRIGHTTEST_DOCS_BASE overrides the base
 // prefix (otherwise read from docs/.vitepress/config.mts, then /brighttest/); --base-prefix beats both.
 //
+// Tags v0.7.0 and older (or any tag without docs/changelog.md) also get docs/changelog.md, cut to that tag from
+// the working tree's changelog by `changelog.js slice`; links to pages missing in that tree become text.
+//
 // Testing hooks: --repo <dir>, --next-ref <ref>, --no-install, --vitepress-bin <path>.
 
 const fs = require('node:fs')
@@ -28,12 +31,23 @@ const path = require('node:path')
 const { spawn, spawnSync } = require('node:child_process')
 
 const DEFAULT_BASE = '/brighttest/'
+// Tags up to this version predate docs/changelog.md; they get a sliced copy written before the build.
+const CHANGELOG_OVERLAY_MAX = { major: 0, minor: 7, patch: 0 }
 
 // ---------- pure helpers ----------
 
 function parseTag(tag) {
   const m = /^v(\d+)\.(\d+)\.(\d+)$/.exec(String(tag).trim())
   return m ? { tag: String(tag).trim(), major: +m[1], minor: +m[2], patch: +m[3], id: `${m[1]}.${m[2]}` } : null
+}
+
+// True when a tag's own tree should be given a sliced changelog: v0.7.0 and older, or a tag with no changelog.
+function needsChangelogOverlay(tag, hasOwn) {
+  const p = parseTag(tag)
+  if (!p) return false
+  if (!hasOwn) return true
+  const m = CHANGELOG_OVERLAY_MAX
+  return (p.major - m.major || p.minor - m.minor || p.patch - m.patch) <= 0
 }
 
 function parseMinor(s) {
@@ -365,6 +379,13 @@ async function cmdBuild(o) {
         fs.cpSync(themeSrc, path.join(wt, 'docs', '.vitepress', 'theme'), { recursive: true })
         say(`overlaid theme on ${g.tag}`)
       }
+      if (g.tag && needsChangelogOverlay(g.tag, fs.existsSync(path.join(wt, 'docs', 'changelog.md')))) {
+        const src = path.join(repo, 'docs', 'changelog.md')
+        const dest = path.join(wt, 'docs', 'changelog.md')
+        const sl = spawnSync(process.execPath, [path.join(__dirname, 'changelog.js'), 'slice', '--upto', g.tag, '--tree', wt, '--file', src, '--out', dest], { encoding: 'utf8' })
+        if (sl.status === 0) say(`overlaid changelog on ${g.tag} (sliced to ${g.tag})`)
+        else say(`warning: changelog overlay failed for ${g.tag}: ${shortReason(sl.stderr)}`)
+      }
       if (!o['no-install']) {
         const t0 = Date.now()
         const inst = await run('npm', g.tag ? ['ci', '--ignore-scripts', '--no-audit', '--no-fund'] : ['ci', '--no-audit', '--no-fund'], { cwd: wt })
@@ -412,4 +433,4 @@ if (require.main === module) {
   )
 }
 
-module.exports = { parseTag, plan, orderBuilds, versionsJson, groupByRef, buildArgs, buildEnv, fatalFailures, assemble, summaryMarkdown, defaultBase, parseArgs }
+module.exports = { parseTag, needsChangelogOverlay, plan, orderBuilds, versionsJson, groupByRef, buildArgs, buildEnv, fatalFailures, assemble, summaryMarkdown, defaultBase, parseArgs }

@@ -142,6 +142,33 @@ describe('ordering and F1 guard', () => {
   })
 })
 
+describe('changelog overlay rule', () => {
+  test('v0.7.0 and older, or a tag without its own changelog', () => {
+    expect(ds.needsChangelogOverlay('v0.7.0', true)).toBe(true)
+    expect(ds.needsChangelogOverlay('v0.3.0', true)).toBe(true)
+    expect(ds.needsChangelogOverlay('v0.7.1', true)).toBe(false)
+    expect(ds.needsChangelogOverlay('v0.8.0', true)).toBe(false)
+    expect(ds.needsChangelogOverlay('v0.8.0', false)).toBe(true)
+    expect(ds.needsChangelogOverlay('junk', false)).toBe(false)
+  })
+})
+
+describe('version switcher and banner', () => {
+  const theme = path.resolve(__dirname, '../docs/.vitepress/theme')
+  const sw = fs.readFileSync(path.join(theme, 'VersionSwitcher.vue'), 'utf8')
+  const bn = fs.readFileSync(path.join(theme, 'VersionBanner.vue'), 'utf8')
+  test('every build gets a fixed Changelog item linking its own base', () => {
+    expect(sw).toMatch(/<a :href="site\.base \+ 'changelog'">Changelog<\/a>/)
+    expect(sw).toContain('data-testid="version-changelog"')
+  })
+  test('next banner links to its changelog when Unreleased has entries, else the compare', () => {
+    expect(bn).toContain('`${current.value.path}changelog#unreleased`')
+    expect(bn).toMatch(/cfg\?\.unreleased && current\.value/)
+    expect(bn).toContain('return compareUrl.value')
+    expect(bn).toContain(':href="changesUrl"')
+  })
+})
+
 describe('summary and base', () => {
   test('failure text is escaped in the table; skipped reason is one line without temp paths', () => {
     const p = ds.plan(['v0.7.0'], {})
@@ -176,6 +203,12 @@ describe.skipIf(process.platform === 'win32')('real script path on a fixture rep
     if (r.status !== 0) throw new Error(r.stderr)
     return r.stdout
   }
+  const CHANGELOG = [
+    '# Changelog', '', 'Intro.', '',
+    '## Unreleased {#unreleased}', '', '- new thing [new page](./guide-new.md)', '',
+    '## v0.7.0 - 2026-01-02 {#v0-7-0}', '', '- seven [old page](./index.md) and [new page](./guide-new.md)', '',
+    '## v0.6.0 - 2026-01-01 {#v0-6-0}', '', '- six', '',
+  ].join('\n')
   function fixture({ breakTag } = {}) {
     const repo = tmp()
     git(repo, 'init', '-q', '-b', 'main')
@@ -188,6 +221,8 @@ describe.skipIf(process.platform === 'win32')('real script path on a fixture rep
     git(repo, 'add', '-A'); git(repo, 'commit', '-qm', 'two')
     git(repo, 'tag', 'v0.7.0')
     fs.writeFileSync(path.join(repo, 'docs/.vitepress/theme/index.ts'), 'export default {}')
+    fs.writeFileSync(path.join(repo, 'docs/guide-new.md'), 'x')
+    fs.writeFileSync(path.join(repo, 'docs/changelog.md'), CHANGELOG)
     fs.writeFileSync(path.join(repo, 'docs/index.md'), 'main')
     git(repo, 'add', '-A'); git(repo, 'commit', '-qm', 'three')
     const bin = path.join(tmp(), 'vp.js')
@@ -198,6 +233,7 @@ const md = fs.readFileSync('docs/index.md', 'utf8')
 if (md === 'BREAK') { console.error('boom'); process.exit(1) }
 fs.rmSync(out, { recursive: true, force: true }); fs.mkdirSync(out, { recursive: true })
 const theme = fs.existsSync('docs/.vitepress/theme/index.ts')
+if (fs.existsSync('docs/changelog.md')) fs.writeFileSync(path.join(out, 'changelog.txt'), fs.readFileSync('docs/changelog.md', 'utf8'))
 fs.writeFileSync(path.join(out, 'latest.txt'), String(process.env.BRIGHTTEST_DOCS_LATEST))
 fs.writeFileSync(path.join(out, 'index.html'), [md, base, process.env.BRIGHTTEST_DOCS_CHANNEL, 'theme=' + theme].join('|'))
 `)
@@ -225,6 +261,27 @@ fs.writeFileSync(path.join(out, 'index.html'), [md, base, process.env.BRIGHTTEST
     expect(v.versions.map((x) => x.id)).toEqual(['next', '0.7', '0.6'])
     expect(v.skipped).toEqual([])
     expect(git(repo, 'worktree', 'list').trim().split('\n')).toHaveLength(1)
+  })
+
+  test('old tags get a changelog sliced to the tag, dead links become text; main keeps its own', () => {
+    const { repo, bin } = fixture()
+    const out = path.join(tmp(), 'site')
+    const r = runScript(repo, bin, out)
+    expect(r.status).toBe(0)
+    expect(r.stderr).toContain('overlaid changelog on v0.7.0')
+    expect(r.stderr).toContain('overlaid changelog on v0.6.0')
+    const v07 = read(out, 'v0.7/changelog.txt')
+    expect(v07).toContain('## v0.7.0')
+    expect(v07).toContain('## v0.6.0')
+    expect(v07).not.toContain('Unreleased')
+    expect(v07).toContain('[old page](./index.md)')
+    expect(v07).toMatch(/and new page(?!\()/)
+    expect(v07).not.toContain('guide-new.md')
+    const v06 = read(out, 'v0.6/changelog.txt')
+    expect(v06).toContain('## v0.6.0')
+    expect(v06).not.toContain('## v0.7.0')
+    expect(read(out, 'changelog.txt')).toBe(v07)
+    expect(read(out, 'next/changelog.txt')).toBe(CHANGELOG)
   })
 
   test('a broken older tag is skipped, exit 0; a broken latest fails', () => {
