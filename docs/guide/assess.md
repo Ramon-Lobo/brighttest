@@ -99,4 +99,5 @@ Host, project, bsconfig, manifest, engines, census, CI, `.gitignore`, devices, r
 
 ## Next
 
-To see how the app's files, components and calls connect, run `brighttest features graph`; see [Map the app](/guide/feature-tree).
+To see how the app's files, components and calls connect, run `brighttest features graph`;
+see [Map the app](/guide/feature-tree).

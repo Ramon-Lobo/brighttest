@@ -87,3 +87,53 @@ describe('features graph: output and self-ignore', () => {
     expect(JSON.parse(r.out).schema).toBe('brighttest-feature-graph/v1')
   })
 })
+
+describe('features graph: review fixes', () => {
+  it('--out . never overwrites the project .gitignore', async () => {
+    fs.writeFileSync(path.join(proj, '.gitignore'), 'node_modules/\n')
+    const r = await run(['graph', proj, '--out', proj])
+    expect(r.code).toBe(0)
+    expect(fs.readFileSync(path.join(proj, '.gitignore'), 'utf8')).toBe('node_modules/\n')
+  })
+  it('keeps an existing .gitignore in a custom --out folder', async () => {
+    fs.mkdirSync(path.join(proj, 'docs'), { recursive: true })
+    fs.writeFileSync(path.join(proj, 'docs', '.gitignore'), 'keep-me\n')
+    expect((await run(['graph', proj, '--out', path.join(proj, 'docs')])).code).toBe(0)
+    expect(fs.readFileSync(path.join(proj, 'docs', '.gitignore'), 'utf8')).toBe('keep-me\n')
+  })
+  it('honours brighttest.json rootDir when refusing --out', async () => {
+    const app = path.join(tmp, 'rooted')
+    fs.mkdirSync(path.join(app, 'src'), { recursive: true })
+    fs.cpSync(path.join(proj, 'source'), path.join(app, 'src', 'source'), { recursive: true })
+    fs.cpSync(path.join(proj, 'components'), path.join(app, 'src', 'components'), { recursive: true })
+    fs.copyFileSync(path.join(proj, 'manifest'), path.join(app, 'src', 'manifest'))
+    fs.writeFileSync(path.join(app, 'brighttest.json'), JSON.stringify({ rootDir: 'src' }))
+    const r = await run(['graph', app, '--out', path.join(app, 'src', 'source', 'gen')])
+    expect(r.code).toBe(2)
+    expect(fs.existsSync(path.join(app, 'src', 'source', 'gen'))).toBe(false)
+  })
+  it('exits 2 for a malformed brighttest.json and for a missing -c file', async () => {
+    fs.writeFileSync(path.join(proj, 'brighttest.json'), '{ nope')
+    expect((await run(['graph', proj])).code).toBe(2)
+    fs.rmSync(path.join(proj, 'brighttest.json'))
+    const r = await run(['graph', proj, '-c', 'nope.json'])
+    expect(r.code).toBe(2)
+    expect(r.err).toContain('nope.json')
+  })
+  it('resolves -c against the current directory and uses its stagingDir', async () => {
+    const sib = path.join(tmp, 'sib')
+    fs.mkdirSync(sib)
+    fs.writeFileSync(path.join(sib, 'alt.json'), JSON.stringify({ stagingDir: 'from-root' }))
+    const prev = process.cwd()
+    process.chdir(sib)
+    try { expect((await run(['graph', proj, '-c', 'alt.json'])).code).toBe(0) } finally { process.chdir(prev) }
+    expect(fs.existsSync(path.join(proj, 'from-root', 'features', 'graph.json'))).toBe(true)
+  })
+  it('names the staging directory, not --out, when it lies inside source/', async () => {
+    fs.writeFileSync(path.join(proj, 'brighttest.json'), JSON.stringify({ stagingDir: 'source/stage' }))
+    const r = await run(['graph', proj])
+    expect(r.code).toBe(2)
+    expect(r.err).toContain('staging directory')
+    expect(r.err).not.toContain('--out source')
+  })
+})
