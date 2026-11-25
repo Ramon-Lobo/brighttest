@@ -478,8 +478,7 @@ republished (only when the command asked for `ack: reflected`). A session mismat
 - `instrument.state.dispatch: ["fn"]` wraps each non-excluded function with that name: the build renames the original to
   `__bt_orig_<fn>` and appends a wrapper with the original name and parameters (defaulted parameters keep their default
   expression, so omitting an argument behaves as before). Around each call the wrapper hashes the global fields and
-  publishes a `state.action` event with `type` and `payload` (first argument, when it is an object), `hashBefore` and
-  `hashAfter`. Events are queued (up to 64 between agent ticks) and any dropped on overflow are counted in a `dropped`
+  publishes a `state.action` event (fields below). Events are queued (up to 64 between agent ticks) and any dropped on overflow are counted in a `dropped`
   field on the next event. The queue is one global field updated read-modify-write, so events emitted from Task threads
   at the same moment can occasionally be duplicated or lost; this is acceptable for a debug log.
   Limitation: the wrapper is a plain function, so a target used as a value (`store = { dispatch: fn }`,
@@ -499,6 +498,18 @@ republished (only when the command asked for `ack: reflected`). A session mismat
   action. On a device the event keys arrive lowercased (`hashbefore`, `hashafter`); Studio accepts both spellings and
   shows camelCase. `payload` is read only under that key: an app that passes the data under another key (for example
   `value`) shows a null payload.
+  Action event fields, as the wrapper emits them:
+  - `source`: `wrap:<function name>`, the wrapped function that produced the event.
+  - `type`: the `type` key of the first argument. Only present when that argument is an associative array; a call whose
+    first argument is a string, number or missing carries no `type` and no `payload`, and Studio shows both as null.
+  - `payload`: the `payload` key of the first argument, serialized with the same depth, array and string caps as state
+    reads. Keys that look secret (token, password and similar) are replaced with `<redacted:...>` on the device before the
+    event leaves the app, so the secret never reaches the hub or the log. Studio masks again by key name and by
+    `redact.paths`; `?raw=1` skips only that Studio masking, not the on-device one.
+  - `hashBefore`, `hashAfter`: CRC32 (hex) of the global fields before and after the call. Studio derives `changed` from
+    them; it is null when either is missing.
+  - `dropped`: only on the first event of a batch, the number of events lost to the 64-entry queue limit.
+  Studio lists the newest 200 events. The wrapper does not log the function's return value or any argument after the first.
 - `instrument.state.tasks: ["TaskComponent"]` wraps the Task's entry function (the name assigned with
   `m.top.functionName = "..."` in `init`) and publishes the Task's `m` at entry and exit under the `task` layer
   (the Studio layer view hides these fields, but `get --layer global` does return the raw `__btEv` and `__btTask_*`
