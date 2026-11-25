@@ -30,7 +30,7 @@ Uncertainty section filled in. Result: an automatic skeleton with 5 features.
 
 [See results](../mapping-results/feature-tree-app/index.html){target="_blank" rel="noopener"}
 
-![Feature report for the feature-tree-app example, automatic skeleton](/images/mapping-results/feature-tree-app.png)
+![Feature tree section of the report for the feature-tree-app example: named features with kind, risk and test classes, expanded to show what each depends on](/images/mapping-results/feature-tree-app.png)
 
 ## Greenfield Sample (`examples/greenfield-app`)
 
@@ -40,7 +40,7 @@ an automatic skeleton with 6 features.
 
 [See results](../mapping-results/greenfield-app/index.html){target="_blank" rel="noopener"}
 
-![Feature report for the greenfield-app example, automatic skeleton](/images/mapping-results/greenfield-app.png)
+![Feature tree section of the report for the greenfield-app example: named features with kind, risk and test classes, expanded to show what each depends on](/images/mapping-results/greenfield-app.png)
 
 ## Open Cinema (`examples/streaming-app`)
 
@@ -49,7 +49,7 @@ look at how the report separates what can run headless from what needs a device.
 
 [See results](../mapping-results/streaming-app/index.html){target="_blank" rel="noopener"}
 
-![Feature report for the streaming-app example, automatic skeleton](/images/mapping-results/streaming-app.png)
+![Feature tree section of the report for the streaming-app example: named features with kind, risk and test classes, expanded to show what each depends on](/images/mapping-results/streaming-app.png)
 
 ## Maps of real projects
 

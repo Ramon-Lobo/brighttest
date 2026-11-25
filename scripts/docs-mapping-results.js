@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 // Regenerates the mapping reports published under docs/public/mapping-results/<app>/index.html, and (with --screenshots)
-// the page screenshots under docs/public/images/mapping-results/<app>.png.
+// the page screenshots (framed on the Feature tree section) under docs/public/images/mapping-results/<app>.png.
 //
 //   node scripts/docs-mapping-results.js                 write the three reports
 //   node scripts/docs-mapping-results.js --check         exit 1 if a committed report differs from a fresh render
