@@ -52,6 +52,8 @@ See `references/decision-tree.md` for the full table.
      next step is `npx brighttest init`, not `init --greenfield` (that edits the manifest and writes into `source/`).
    - `not-a-roku-app`: stop and ask the human; run assess from the folder with the manifest.
    New app with nothing written yet: `npx brighttest init --greenfield`.
+   Existing app: after assess, map it (`mapping-a-roku-app`: features, test order, headless versus device) before
+   writing specs.
    Read every entry in `recommendation.blockers` before step 3 (what each one means and does:
    `references/decision-tree.md`). A blocker means brighttest cannot see, or does not honor, part of the app.
    Do not edit bsconfig or move folders to clear one without the human's OK.

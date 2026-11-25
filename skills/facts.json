@@ -185,6 +185,7 @@
     "assessing-a-roku-app",
     "debugging-failing-tests",
     "instrumenting-a-roku-app",
+    "mapping-a-roku-app",
     "mocking-network-and-store",
     "setting-up-brighttest",
     "testing-app-state",

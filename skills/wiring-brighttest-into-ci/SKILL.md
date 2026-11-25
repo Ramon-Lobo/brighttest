@@ -25,6 +25,10 @@ and `e2e --help`; the workflow shapes against this repo's own `.github/workflows
 3. Look at what exists: `ls .github/workflows`. `npx brighttest assess . --json` lists the detected CI systems
    under its `ci` section. This skill writes GitHub Actions only; for any other system, say so and stop.
 
+If a feature report exists (`mapping-a-roku-app`, `npx brighttest features render`), its numbered CI checklist says
+which of these jobs the app needs (headless gate, nightly device job, release verify). Follow it, with the same
+asks and rules as below.
+
 ## Which jobs, in order
 
 | Job | Runs on | Trigger | Gate |

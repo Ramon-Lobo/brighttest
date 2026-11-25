@@ -19,6 +19,12 @@ Read the blockers, the instrumentation census, and any secrets or risky patterns
 before going on: may app code be edited, and is a real device available. Neither is required. Headless runs need
 no device, and instrumentation works without editing the app.
 
+For an existing app you can also map it before writing tests: `brighttest features graph` computes the dependency
+graph, and an agent with the `mapping-a-roku-app` skill groups it into named features and writes a `tree.json`.
+`brighttest features render` then produces one HTML report with a leaf-first and a base-first test order, what runs
+headless versus on a device, and a CI checklist. See [Map the app](./feature-tree.md). Mapping edits nothing and
+uses no device.
+
 ## 2. Install
 
 ```sh

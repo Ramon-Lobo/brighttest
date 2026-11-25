@@ -10,6 +10,7 @@ plus `references/`), and the content is authored once and adapted to whichever a
 | Skill | Teaches |
 |---|---|
 | `adopting-brighttest` | The router: where to start, whether brighttest fits, the existing-app or new-app path, the hard rules, and what "adopted" means. |
+| `mapping-a-roku-app` | Turning an existing app into named features with `brighttest features graph`, `check` and `render`: a feature tree, the leaf-first and base-first test paths, headless versus device and a CI checklist, without editing the app. |
 | `assessing-a-roku-app` | Running the read-only `brighttest assess`, reading its output (path, blockers, census, secrets, risky patterns), and filling an assessment report without editing the app. |
 | `adopting-brighttest-brownfield` | Adding brighttest to an existing, long-lived Roku app, with or without permission to edit its code: mapping bsconfig.json into brighttest.json, the first green headless run, characterization tests, seam extraction, the no-edit path, exclusions and the strict ramp. |
 | `adopting-brighttest-greenfield` | Starting a new Roku channel that is testable from day one: `init --greenfield`, BTStore and BTHttp and their limits, ids on nodes, thin Tasks, the spec-first loop, and when a feature needs a device. |
@@ -67,7 +68,7 @@ The four bundled agents, each preloaded with the skills it needs:
 
 | Agent | What it does | Skills it loads |
 |---|---|---|
-| `adoption-assessor` | Read-only assessment of an app: does brighttest fit, what state is it in, which path. Never edits files or touches a device. | `assessing-a-roku-app`, `adopting-brighttest` |
+| `adoption-assessor` | Read-only assessment and feature map of an app: does brighttest fit, what state is it in, which path, which features to test first. Edits no app file (it writes only `tree.json` and the report in the features folder) and never touches a device. | `assessing-a-roku-app`, `adopting-brighttest`, `mapping-a-roku-app` |
 | `ci-integrator` | Adds brighttest to CI, including the release-verify step. Edits CI files and package.json scripts only; never pushes. | `wiring-brighttest-into-ci`, `instrumenting-a-roku-app` |
 | `device-debugger` | Leased, bounded investigation on a real Roku. Needs a `BRIGHTTEST_AGENT` name and reports NOT VERIFIED when no device is reachable. | `using-a-roku-device-safely`, `using-brighttest-mcp`, `debugging-failing-tests` |
 | `test-author` | Writes Rooibos specs, e2e flows, fixtures and csfake mocks, and proves each new test can fail. Headless unless given a lease name and purpose. | `writing-rooibos-tests`, `writing-e2e-flows`, `mocking-network-and-store` |
