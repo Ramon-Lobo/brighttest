@@ -59,13 +59,13 @@ copies named runtime files only.
     BT_unurl(u) strips the hub prefix again so app code that compares getUrl() keeps working.
     This file lives under source/bt/ (never rewritten), so the SetUrl calls below talk to the real roUrlTransfer.
     
-    The first call per thread does one bounded hello (at most 1.5 s). roUrlTransfer has no total timeout on a device
+    The first call per thread does one bounded hello (at most 1.5 s). The hello carries ?role=net, so the hub counts it as a net hello and does not resync the agent session. roUrlTransfer has no total timeout on a device
     [DV], so the hello is asynchronous, sets SetMinimumTransferRate and runs its own timer that calls AsyncCancel.
-    A failed hello is cached as "no hub" for 30 s, then retried; a successful one is cached for the thread's lifetime.
+    A failed hello is cached as "no hub" for 3 s, then retried; a successful one is cached for the thread's lifetime.
     The cache is per thread (GetGlobalAA()), so each Task does its own hello. The hub host comes from BT_config().hub.host;
     "auto" means the build did not bake a host, so the build stays inactive (identity).
     CreateObject("roUrlTransfer") returns invalid on the render thread on some firmware [DV fw 16.0.4], so a BT_url call
-    from a Scene init before any Task has run gets a failed hello (identity, retried after 30 s) instead of a crash.
+    from a Scene init before any Task has run gets a failed hello (identity, retried after 3 s) instead of a crash.
     The build reports hand-written BT_url calls that run on the render thread as the informational net-render-thread kind.
 
 ## `m` layer (btop/BT_mOp.brs)

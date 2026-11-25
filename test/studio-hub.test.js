@@ -44,6 +44,45 @@ async function boot(env, instrumentExtra = {}, loadedCfg = null) {
 beforeEach(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-studio-hub-')) })
 afterEach(() => { if (server) server.close(); server = null })
 
+describe('studio starts the hub before the app launches', () => {
+  it('does not launch until the hub start has resolved (/api/launch)', async () => {
+    const ecpHits = []
+    const ecp = http.createServer((rq, rs) => { ecpHits.push(`${rq.method} ${rq.url}`); rs.end('') })
+    await new Promise((r) => ecp.listen(0, '127.0.0.1', r))
+    const prevEcp = process.env.ROKU_ECP_PORT
+    process.env.ROKU_ECP_PORT = String(ecp.address().port)
+    try {
+      let release
+      const gate = new Promise((r) => { release = r })
+      const log = createEventLog({ sessionId: 'fake' })
+      const hub = { host: '0.0.0.0', port: 8790, events: new EventEmitter(), log, stop: async () => {} }
+      started = []; logs = []
+      server = await studio.start({
+        host: '127.0.0.1', password: 'rokudev-test', port: 0, rootDir: dir, cfg: { instrument: { hub: { host: '10.0.0.5', port: 8791 } }, rootDir: dir },
+        hubOpts: { startLanHub: async (o) => { started.push(o); await gate; return hub }, env: { BRIGHTTEST_HUB_TOKEN: TOKEN } },
+        leaseOpts: { acquireOpts: { dir, timers: false, identity: {} }, tickMs: 20, log: (s) => logs.push(s) },
+      })
+      port = server.address().port
+      const launch = new Promise((resolve, reject) => {
+        const body = JSON.stringify({ app: 'dev' })
+        const rq = http.request({ host: '127.0.0.1', port, path: '/api/launch', method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) } }, (res) => { res.resume(); res.on('end', () => resolve(res.statusCode)) })
+        rq.on('error', reject); rq.end(body)
+      })
+      const t0 = Date.now()
+      while (started.length === 0 && Date.now() - t0 < 5000) await new Promise((r) => setTimeout(r, 10))
+      expect(started).toHaveLength(1)
+      await new Promise((r) => setTimeout(r, 250))
+      expect(ecpHits.filter((h) => h.includes('/launch/'))).toEqual([]) // hub still starting: no launch yet
+      release()
+      await launch
+      expect(ecpHits.filter((h) => h.includes('/launch/')).length).toBe(1)
+    } finally {
+      if (prevEcp === undefined) delete process.env.ROKU_ECP_PORT; else process.env.ROKU_ECP_PORT = prevEcp
+      await new Promise((r) => ecp.close(r))
+    }
+  })
+})
+
 describe('studio hub lifecycle', () => {
   it('starts the hub with the configured port and the env token once the lease is held', async () => {
     await boot({ BRIGHTTEST_HUB_TOKEN: TOKEN })

@@ -344,6 +344,11 @@ describe('BT_url / BT_unurl identity rules (TP-NET-02, fork engine)', () => {
     expect(src).toMatch(/SetMinimumTransferRate\(1, 1\)/)
     expect(src).toMatch(/left = 1500 - clock\.TotalMilliseconds\(\)/)
     expect(src).toMatch(/x\.AsyncCancel\(\)/)
-    expect(src).toMatch(/retryAt = now \+ 30000/)
+    expect(src).toMatch(/retryAt = now \+ 3000\b/)
+  })
+
+  it('the hello URL carries role=net so the hub does not resync the agent session', () => {
+    const src = fs.readFileSync(NET_BRS, 'utf8')
+    expect(src).toMatch(/x\.SetUrl\(origin \+ "\/bt\/" \+ token \+ "\/hello\?role=net"\)/)
   })
 })
