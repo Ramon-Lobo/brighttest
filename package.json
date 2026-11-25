@@ -83,5 +83,9 @@
         "esbuild": "0.21.5"
       }
     }
+  },
+  "optionalDependencies": {
+    "ink": "~8.0.0",
+    "react": "~19.3.1"
   }
 }
