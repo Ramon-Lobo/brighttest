@@ -252,8 +252,10 @@ prints `device identity not read (<reason>); leasing by address <host>` every ti
 that holds the device by identity is still met; with nothing remembered it holds the address key only.
 
 Status, `log` and `unlock --force` with `--host` use the remembered identity key only when its holder was reached
-by that same host (or both keys are one hold), so a stale cache entry after a host changed address never touches
-another device's lane. A lane that holds a lease for one device (under `BRIGHTTEST_LEASE`) and then locks a
+by that same host and ECP port (or both keys are one hold), so a stale cache entry after a host changed address never touches
+another device's lane. A key that is not held prints `<key> was not held` and `unlock --force` still exits 0; an
+unreadable lease directory is an error (exit 78). Two ECP ports of one fake device are two devices to this lookup:
+`status --host` by the second port can under-report a holder, which fails closed (nothing is released). A lane that holds a lease for one device (under `BRIGHTTEST_LEASE`) and then locks a
 second device queues for it while still holding the first; two lanes doing this in opposite order wait for each
 other until `--wait` times out (exit 75). Lock one device at a time.
 

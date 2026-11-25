@@ -224,7 +224,7 @@ describe('session renewal and stale cache', () => {
 describe('port-safe key recall and missing key directories', () => {
   const holdInChild = (dir, port, serial) => {
     const { spawn } = require('node:child_process');
-    const script = `const L=require(${JSON.stringify(path.resolve('lib/device-lease.js'))});` +
+    const script = `const L=require(${JSON.stringify(path.resolve(__dirname, '..', 'lib', 'device-lease.js'))});` +
       `L.acquire({dir:${JSON.stringify(dir)},host:'127.0.0.1',port:${port},deviceId:${JSON.stringify(serial)},waitMs:0}).then(()=>{console.log('held');setTimeout(()=>process.exit(0),20000);});`;
     const child = spawn(process.execPath, ['-e', script], { stdio: ['ignore', 'pipe', 'ignore'] });
     return new Promise((resolve, reject) => {
@@ -233,6 +233,12 @@ describe('port-safe key recall and missing key directories', () => {
       child.on('error', reject);
     });
   };
+  const stop = (child) => new Promise((resolve) => {
+    if (child.exitCode !== null || child.signalCode !== null) return resolve();
+    const t = setTimeout(resolve, 5000);
+    child.once('exit', () => { clearTimeout(t); resolve(); });
+    child.kill('SIGKILL');
+  });
   const alive = (pid) => { try { process.kill(pid, 0); return true; } catch { return false; } };
 
   it('status and unlock --force --kill by the default-port host leave a lane on another port alone', async () => {
@@ -250,7 +256,39 @@ describe('port-safe key recall and missing key directories', () => {
       await new Promise((r) => setTimeout(r, 300));
       expect(alive(child.pid)).toBe(true);
       expect(fs.existsSync(path.join(dir, idB, 'holder.json'))).toBe(true);
-    } finally { child.kill('SIGKILL'); }
+    } finally { await stop(child); }
+  });
+  it('a holder record without a port, a non-default-port address key and the bare-host alias: default-port unlock leaves it alone', async () => {
+    const dir = mk();
+    process.env.BRIGHTTEST_LEASE_DIR = dir;
+    delete process.env.ROKU_ECP_PORT;
+    const idKey = L.keyFromIdentity('DEV-E');
+    const child = await holdInChild(dir, 9202, 'DEV-E');
+    try {
+      ID.rememberKey(dir, '127.0.0.1', idKey, 9202);
+      const hp = path.join(dir, idKey, 'holder.json');
+      const rec = JSON.parse(fs.readFileSync(hp, 'utf8'));
+      delete rec.device.port;
+      fs.writeFileSync(hp, JSON.stringify(rec));
+      expect(await quiet(() => C.run({ deviceAction: 'unlock', force: true, reason: 't', kill: true, host: '127.0.0.1' }, {}))).toBe(0);
+      await new Promise((r) => setTimeout(r, 300));
+      expect(alive(child.pid)).toBe(true);
+      expect(fs.existsSync(hp)).toBe(true);
+    } finally { await stop(child); }
+  });
+  it('an unreadable lease directory is an error, not "not held"', async () => {
+    if (process.platform === 'win32' || (process.getuid && process.getuid() === 0)) return;
+    const dir = mk();
+    process.env.BRIGHTTEST_LEASE_DIR = dir;
+    delete process.env.ROKU_ECP_PORT;
+    const a = await L.acquire({ dir, lookup, host: '127.0.0.1', deviceId: 'DEV-F', waitMs: 0, timers: false });
+    const hp = path.join(dir, L.keyFromIdentity('DEV-F'), 'holder.json');
+    fs.chmodSync(dir, 0o000);
+    try {
+      expect(await quiet(() => C.run({ deviceAction: 'unlock', force: true, reason: 't', host: '127.0.0.1' }, {}))).toBe(78);
+    } finally { fs.chmodSync(dir, 0o700); }
+    expect(fs.existsSync(hp)).toBe(true);
+    a.release();
   });
   it('a lane reached by hostname-like address is still found by the other address through the shared hold', async () => {
     const dir = mk();
