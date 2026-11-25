@@ -38,6 +38,9 @@ function defaultRun(cmd, args, opts) {
 
 // ---- Version helpers ----
 const VER_RE = /^v?(\d+)\.(\d+)\.(\d+)$/;
+// A prerelease (0.8.0-rc.0) gets no changelog section: stamp leaves Unreleased alone, check does not require a section
+// for it, and its release notes are the Unreleased body. The stable release that follows stamps the section.
+const PRE_RE = /^v?\d+\.\d+\.\d+-[0-9A-Za-z.-]+$/;
 function cmpVer(a, b) {
   const pa = VER_RE.exec(a), pb = VER_RE.exec(b);
   for (let i = 1; i <= 3; i++) {
@@ -348,7 +351,7 @@ function check(text, opts) {
     }
   });
 
-  if (opts && opts.version) {
+  if (opts && opts.version && !PRE_RE.test(opts.version)) {
     const v = opts.version.replace(/^v/, '');
     const s = sections.find((x) => sectionVersion(x) === v);
     if (!s) f(`no section for v${v}`);
@@ -449,7 +452,7 @@ function sliceText(text, upto, treeDir) {
 function notesOf(text, version) {
   const v = version.replace(/^v/, '');
   const { sections } = splitSections(text);
-  const s = sections.find((x) => sectionVersion(x) === v);
+  const s = PRE_RE.test(v) ? sections.find((x) => UNRELEASED_HEADING.test(x.heading)) : sections.find((x) => sectionVersion(x) === v);
   if (!s) return null;
   return s.lines.join('\n').replace(/^\s+|\s+$/g, '') + '\n';
 }
@@ -580,6 +583,7 @@ function main(argv, env) {
   if (cmd === 'stamp') {
     const version = opts.version || e.env.npm_package_version;
     if (!version) { err('stamp needs --version X.Y.Z (or npm_package_version)'); return 2; }
+    if (PRE_RE.test(version)) { out(`changelog: v${version.replace(/^v/, '')} is a prerelease; Unreleased left in place`); return 0; }
     const date = opts.date || e.today();
     const dm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
     const dt = dm && new Date(Date.UTC(+dm[1], +dm[2] - 1, +dm[3]));
@@ -627,7 +631,7 @@ function main(argv, env) {
   }
 
   if (cmd === 'notes') {
-    if (opts._.length !== 1 || !VER_RE.test(opts._[0])) { err(`notes needs one version like v0.7.0\n${USAGE}`); return 2; }
+    if (opts._.length !== 1 || !(VER_RE.test(opts._[0]) || PRE_RE.test(opts._[0]))) { err(`notes needs one version like v0.7.0\n${USAGE}`); return 2; }
     const body = notesOf(text, opts._[0]);
     if (body === null) { err(`changelog: no section for ${opts._[0]}`); return 1; }
     out(body);

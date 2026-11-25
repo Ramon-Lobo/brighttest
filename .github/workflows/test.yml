@@ -6,6 +6,9 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Lets the Prepare release workflow start the suites on the release PR branch: PRs opened with GITHUB_TOKEN
+  # do not trigger `pull_request` runs, and a dispatched run attaches its checks to the branch head commit.
+  workflow_dispatch: {}
 
 jobs:
   # Fast unit suite across the supported Node versions (22 LTS + 24 current). Required to merge.
