@@ -516,3 +516,19 @@ describe('hub write path relay (STA-S-T6)', () => {
     expect(hub.stats).toMatchObject({ cmdPolls: 3, eventPosts: 1, peakWaiters: 1, waiters: 0 });
   });
 });
+
+describe('quiet push (internal reads)', () => {
+  it('gives an sr- id, tracks it, and writes no cmd.sent', async () => {
+    const hub = await startHub({ mode: 'headless', host: '127.0.0.1', port: 0, lease: localLease(), tokens: ['a'.repeat(32)] })
+    try {
+      const before = hub.log.since(0).length
+      const full = hub.push({ op: 'snapshot', args: {} }, { ack: 'applied', quiet: true })
+      expect(full.id).toMatch(/^sr-/)
+      expect(hub.stateOps.get(full.id).status).toBe('pending')
+      expect(hub.log.since(0).length).toBe(before)
+      const loud = hub.push({ op: 'snapshot', args: {} }, { ack: 'applied' })
+      expect(loud.id).toMatch(/^c-/)
+      expect(hub.log.since(0).some((e) => e.kind === 'cmd.sent')).toBe(true)
+    } finally { await hub.stop() }
+  })
+})
