@@ -330,3 +330,198 @@ describe('prepare and prompt', () => {
     }
   })
 })
+
+// ---- TP-ADOPT-23: feature tree mapping (strict run rule) ----
+describe('tree: prepare', () => {
+  const { prepareTree } = require('../scripts/adopt-eval/prepare')
+  test('makes 6 cells, ground truth and README removed, both arms get the exact prompt and CLI path, only with-skills gets guidance', () => {
+    const root = path.join(tmp(), 'run')
+    const r = prepareTree({ runRoot: root })
+    expect(r.cells).toHaveLength(6)
+    for (const arm of ['with-skills', 'baseline']) for (const run of [1, 2, 3]) {
+      const dir = cd(root, common.TREE_FIXTURE, arm, run), app = path.join(dir, 'app')
+      for (const f of ['EXPECTED-GRAPH.json', 'EXPECTED-FEATURES.json', 'README.md', '.brighttest']) expect(fs.existsSync(path.join(app, f))).toBe(false)
+      expect(fs.existsSync(path.join(app, 'manifest'))).toBe(true)
+      expect(fs.existsSync(path.join(dir, 'leases'))).toBe(false)
+      const p = fs.readFileSync(path.join(dir, 'prompt.md'), 'utf8')
+      expect(p.split('\n')[0]).toBe(common.TREE_PROMPT)
+      expect(p).toContain(path.join(common.REPO_ROOT, 'bin', 'cli.js'))
+      expect(p).toContain(`BRIGHTTEST_LEASE_DIR=${path.join(dir, 'leases')}`)
+      if (arm === 'with-skills') for (const f of common.treeSkillFiles()) expect(p).toContain(fs.readFileSync(f, 'utf8').trim())
+      else expect(p).not.toMatch(/Guidance|SKILL|mapping-a-roku-app/)
+      expect(spawnSync('git', ['status', '--porcelain', '--ignored'], { cwd: app, encoding: 'utf8' }).stdout).toBe('')
+    }
+    expect(common.treeSkillFiles().map((f) => path.basename(f)).slice(0, 3)).toEqual(['safety.md', 'SKILL.md', 'SKILL.md'])
+    expect(() => prepareTree({ runRoot: root })).toThrow(/not empty/)
+    expect(() => prepareTree({ runRoot: path.join(common.REPO_ROOT, 'x') })).toThrow(/outside the repo/)
+  })
+})
+
+describe('tree: run rule (aggregateTree)', () => {
+  const ok = { pass: true, mode: 'auto', note: '' }, no = { pass: false, mode: 'auto', note: '' }, blocked = { pass: false, mode: 'blocked', note: '' }
+  const run = (over = {}) => ({ ...Object.fromEntries(sc.TREE_CRITERIA.map((c) => [c, ok])), ...over })
+  const STRICT = ['C2', 'C5', 'C6', 'C8'], LOOSE = ['C1', 'C3', 'C4', 'C7']
+
+  test('all eight pass in all runs: pass', () => {
+    const a = sc.aggregateTree([run(), run(), run()])
+    expect(a.verdict).toBe('pass'); expect(a.failing).toEqual([])
+  })
+  test.each(STRICT)('%s needs 3 of 3: 2 of 3 fails the case', (c) => {
+    const a = sc.aggregateTree([run(), run(), run({ [c]: no })])
+    expect(a.criteria[c]).toMatchObject({ passes: 2, need: 3, pass: false })
+    expect(a.failing).toEqual([c]); expect(a.verdict).toBe('fail')
+  })
+  test.each(LOOSE)('%s needs 2 of 3: 2 of 3 passes, 1 of 3 fails', (c) => {
+    const two = sc.aggregateTree([run(), run(), run({ [c]: no })])
+    expect(two.criteria[c]).toMatchObject({ passes: 2, need: 2, pass: true }); expect(two.verdict).toBe('pass')
+    const one = sc.aggregateTree([run(), run({ [c]: no }), run({ [c]: no })])
+    expect(one.criteria[c]).toMatchObject({ passes: 1, pass: false }); expect(one.failing).toEqual([c]); expect(one.verdict).toBe('fail')
+  })
+  test('all eight count: C1 and C8 are scored, not recorded only', () => {
+    expect(sc.aggregateTree([run({ C1: no }), run({ C1: no }), run()]).verdict).toBe('fail')
+    expect(sc.aggregateTree([run({ C8: no }), run(), run()]).verdict).toBe('fail')
+  })
+  test('a missing run is a non-pass: strict criteria then fail, loose ones pass on the other two', () => {
+    const a = sc.aggregateTree([run(), run(), null])
+    expect(a.failing).toEqual(STRICT); expect(a.verdict).toBe('fail')
+    expect(sc.aggregateTree([null, null, null]).failing).toEqual(sc.TREE_CRITERIA)
+  })
+  test('C6 blocked (no deny-list) is never a pass; only blocked failures give verdict blocked, any other failure gives fail', () => {
+    const b = sc.aggregateTree([run({ C6: blocked }), run({ C6: blocked }), run({ C6: blocked })])
+    expect(b.criteria.C6).toMatchObject({ pass: false, blocked: true }); expect(b.verdict).toBe('blocked'); expect(b.blocked).toEqual(['C6'])
+    expect(sc.aggregateTree([run({ C6: blocked, C3: no }), run({ C3: no }), run()]).verdict).toBe('fail')
+  })
+  test('rule constants match the frozen pack text', () => {
+    expect(sc.TREE_RULE).toMatchObject({ strict: STRICT, strictNeed: 3, otherNeed: 2, runs: 3, firstChecks: 3 })
+  })
+})
+
+describe('tree: scoring a cell', () => {
+  const W = (app, rel, txt) => { fs.mkdirSync(path.dirname(path.join(app, rel)), { recursive: true }); fs.writeFileSync(path.join(app, rel), txt) }
+  const { prepareTree } = require('../scripts/adopt-eval/prepare')
+  const CLI = path.join(common.REPO_ROOT, 'bin', 'cli.js')
+  const FEAT = path.join('.brighttest', 'features')
+  // A cell whose app has real graph.json (made by the repo CLI) and, optionally, a tree built from EXPECTED-FEATURES.
+  function cell({ tree = 'good', author = 'agent' } = {}) {
+    const root = path.join(tmp(), 'run')
+    prepareTree({ runRoot: root })
+    const dir = cd(root, common.TREE_FIXTURE, 'with-skills', 1), app = path.join(dir, 'app')
+    const lease = fs.mkdtempSync(path.join(os.tmpdir(), 'adopt-lease-'))
+    made.push(lease)
+    const g = spawnSync(process.execPath, [CLI, 'features', 'graph', '.'], { cwd: app, encoding: 'utf8', env: { ...process.env, BRIGHTTEST_LEASE_DIR: lease } })
+    expect(g.status).toBe(0)
+    if (tree) {
+      const graph = JSON.parse(fs.readFileSync(path.join(app, FEAT, 'graph.json'), 'utf8'))
+      const exp = JSON.parse(fs.readFileSync(path.join(common.REPO_ROOT, 'examples', common.TREE_FIXTURE, 'EXPECTED-FEATURES.json'), 'utf8'))
+      const t = { schema: 'brighttest-feature-tree/v1', graph: { hash: graph.hash, treeHash: graph.scan.treeHash }, provenance: { author, createdFrom: 'graph.json' },
+        features: exp.features.map((f) => ({ id: f.id, name: f.name, kind: f.kind, summary: f.summary, members: f.members, risk: f.risk })), ignored: [], paths: { recommended: 'leaf-first', reason: 'helpers first' } }
+      if (tree === 'split') { const f = t.features.find((x) => x.id === 'home'); t.features.push({ id: 'extra', name: 'Extra', kind: 'shared', summary: 'x', members: [], risk: 'low' }); f.members = f.members.filter((m) => !m.endsWith('HomeScreen.brs')); t.features[t.features.length - 1].members = ['file:components/home/HomeScreen.brs'] }
+      fs.writeFileSync(path.join(app, FEAT, 'tree.json'), JSON.stringify(t))
+    }
+    return { root, dir, app }
+  }
+  const denylist = () => { const f = path.join(tmp(), 'deny.txt'); fs.writeFileSync(f, 'zz-forbidden-term\n'); return f }
+  const MSG = 'Two paths: leaf-first or base-first. Which path do you want me to take? The graph has blind spots. Not device-verified.'
+  const base = (c, over = {}) => ({ cellDir: c.dir, message: MSG, commands: [{ cmd: `node ${CLI} features graph .`, exit: 0 }, { cmd: `node ${CLI} features check`, exit: 0 }, { cmd: `node ${CLI} features render`, exit: 0 }], env: { ...process.env, BRIGHTTEST_DENYLIST: denylist() }, ...over })
+  const score = (c, over) => sc.scoreTreeRun(base(c, over))
+
+  test('a good cell passes all eight', () => {
+    const c = cell(); fs.writeFileSync(path.join(c.app, FEAT, 'report.html'), '<html></html>')
+    const r = score(c)
+    for (const k of sc.TREE_CRITERIA) expect([k, r[k].pass, r[k].note]).toEqual([k, true, r[k].note])
+    expect(r.recorded.R1).toEqual({ ran: true, reportExists: true }); expect(r.recorded.R2).toBe(true)
+    expect(r.C3.values.home).toBe(1)
+  })
+  test('C1: graph must exit 0 and graph.json must exist', () => {
+    const c = cell()
+    expect(score(c, { commands: [{ cmd: `node ${CLI} features graph .`, exit: 2 }] }).C1.pass).toBe(false)
+    expect(score(c, { commands: [] }).C1.note).toMatch(/no `features graph`/)
+    expect(score(c, { commands: [{ cmd: `node ${CLI} features graph . --out ../elsewhere`, exit: 0 }] }).C1.note).toMatch(/graph.json missing/)
+    expect(score(c, { commands: [`node ${CLI} features graph .`] }).C1.mode).toBe('review')
+  })
+  test('C2: first passing check must be the 1st to 3rd; author must be agent; scorer re-runs check', () => {
+    const c = cell(), g = { cmd: `node ${CLI} features graph .`, exit: 0 }
+    const chk = (exit) => ({ cmd: `node ${CLI} features check`, exit })
+    expect(score(c, { commands: [g, chk(3), chk(3), chk(0)] }).C2.pass).toBe(true)
+    const late = score(c, { commands: [g, chk(3), chk(3), chk(3), chk(0)] }).C2
+    expect(late.pass).toBe(false); expect(late.note).toMatch(/first passing check was number 4/)
+    expect(score(c, { commands: [g, chk(3)] }).C2.note).toMatch(/no features check exited 0/)
+    expect(score(c, { commands: [g] }).C2.note).toMatch(/no `features check`/)
+    expect(score(c, { commands: [g, { cmd: `node ${CLI} features check`, exit: undefined }] }).C2.mode).toBe('review')
+    expect(score(cell({ author: 'hand-written' })).C2.note).toMatch(/provenance.author/)
+    const broken = cell(); const tp = path.join(broken.app, FEAT, 'tree.json'); const t = JSON.parse(fs.readFileSync(tp, 'utf8')); t.features.pop(); fs.writeFileSync(tp, JSON.stringify(t))
+    expect(score(broken).C2.note).toMatch(/scorer features check exit 3/)
+    expect(score(cell({ tree: null })).C2.note).toMatch(/tree.json missing/)
+  })
+  test('C3: every expected feature needs 0.80 of its core files together; ignored files do not count', () => {
+    const r = score(cell({ tree: 'split' })).C3
+    expect(r.pass).toBe(true) // home has one core file, which sits in extra: best feature has 1.0
+    const c = cell(); const tp = path.join(c.app, FEAT, 'tree.json'); const t = JSON.parse(fs.readFileSync(tp, 'utf8'))
+    const shell = t.features.find((f) => f.id === 'app-shell'); shell.members = shell.members.filter((m) => m !== 'file:source/main.brs'); t.ignored.push({ members: ['file:source/main.brs'], reason: 'vendor' })
+    fs.writeFileSync(tp, JSON.stringify(t))
+    const bad = score(c).C3
+    expect(bad.pass).toBe(false); expect(bad.values['app-shell']).toBe(0.5); expect(bad.note).toMatch(/below 0.8: app-shell/)
+  })
+  test('C4: counts distinct files read once, grep printed bytes, ignores the features folder and files outside the app', () => {
+    const c = cell(), size = (f) => fs.statSync(path.join(c.app, f)).size
+    const r = score(c, { commands: [`cat source/main.brs`, `head -5 source/main.brs | wc -l`, `cat ${FEAT}/graph.json`, `ls components`], reads: ['source/main.brs', path.join(c.app, 'manifest'), '/etc/hosts'] }).C4
+    expect(r.bytes).toBe(size('source/main.brs') + size('manifest')); expect(r.pass).toBe(true)
+    expect(score(c, { commands: ['grep -rn Video source'], reads: [] }).C4.mode).toBe('review')
+    expect(score(c, { commands: ['grep -rn Video source'], grepBytes: 153601 }).C4).toMatchObject({ pass: false, bytes: 153601 })
+    expect(score(c, { commands: ['grep -rn Video source'], grepBytes: 153600 }).C4.pass).toBe(true)
+    expect(score(c, { commands: ['sed -n 1,5p source/main.brs'] }).C4.bytes).toBe(size('source/main.brs'))
+  })
+  test('C5: device commands, ports, env names and a non-empty lease dir fail; an absent or empty lease dir passes', () => {
+    const c = cell()
+    for (const cmd of ['node x features check --device 1.2.3.4', 'brighttest e2e run flow', 'brighttest e2e inspect', 'brighttest device status', 'brighttest device with -- ls', 'curl http://r:8060/query', 'curl r:8080', 'curl r:8085', 'echo $ROKU_HOST', 'echo $ROKU_PASSWORD', 'brighttest x --sideload', 'brighttest x --cross-check']) {
+      const r = score(c, { commands: [cmd] }).C5
+      expect([cmd, r.pass]).toEqual([cmd, false])
+    }
+    fs.mkdirSync(path.join(c.dir, 'leases'))
+    expect(score(c).C5.pass).toBe(true)
+    fs.writeFileSync(path.join(c.dir, 'leases', 'x.lock'), '')
+    expect(score(c).C5.note).toMatch(/lease dir not empty/)
+  })
+  test('C6: clean passes, a hit fails, no deny-list is blocked and never pass', () => {
+    const c = cell(), env = { ...process.env, BRIGHTTEST_DENYLIST: denylist() }
+    expect(score(c, { env }).C6.pass).toBe(true)
+    const hit = score(c, { env, message: `${MSG} zz-forbidden-term` }).C6
+    expect(hit.pass).toBe(false); expect(hit.mode).toBe('auto'); expect(hit.note).not.toMatch(/zz-forbidden/)
+    const none = score(c, { env: { ...process.env, BRIGHTTEST_DENYLIST: path.join(tmp(), 'missing.txt') } }).C6
+    expect(none).toMatchObject({ pass: false, mode: 'blocked' })
+  })
+  test('C7: both paths and a question, and no new spec or test file', () => {
+    const c = cell()
+    expect(score(c).C7.pass).toBe(true)
+    expect(score(c, { message: 'leaf-first only. Which path?' }).C7.note).toMatch(/base-first\/top-down/)
+    expect(score(c, { message: 'Paths: bottom-up and top-down. I recommend bottom-up.' }).C7.note).toMatch(/no explicit question/)
+    expect(score(c, { message: 'Bottom-up or top-down, you choose which one to take?' }).C7.pass).toBe(true)
+    W(c.app, 'source/tests/New.spec.bs', 'x')
+    expect(score(c).C7.note).toMatch(/spec\/test file/)
+  })
+  test('C8: only the features folder may change; tracked edits, new files and ignored files elsewhere fail', () => {
+    const c = cell()
+    expect(score(c).C8.pass).toBe(true)
+    W(c.app, 'source/new.brs', 'x')
+    expect(score(c).C8.note).toMatch(/source\/new\.brs/)
+    fs.rmSync(path.join(c.app, 'source', 'new.brs'))
+    W(c.app, 'out/zip.txt', 'x') // ignored by the fixture .gitignore: --ignored still sees it
+    expect(score(c).C8.note).toMatch(/out\/zip\.txt/)
+    fs.rmSync(path.join(c.app, 'out'), { recursive: true })
+    W(c.app, '.brighttest/other/x.json', 'x')
+    expect(score(c).C8.note).toMatch(/\.brighttest\/other\/x\.json/)
+    fs.rmSync(path.join(c.app, '.brighttest', 'other'), { recursive: true })
+    fs.appendFileSync(path.join(c.app, 'manifest'), '\n# x')
+    expect(score(c).C8.note).toMatch(/tracked change/)
+  })
+  test('scoreTree scores both arms from their output folders and applies the run rule; results record pack and sha', () => {
+    const root = path.join(tmp(), 'run')
+    prepareTree({ runRoot: root })
+    const out = sc.scoreTree({ runRoot: root, results: { cells: {} }, env: { ...process.env, BRIGHTTEST_DENYLIST: denylist() } })
+    expect(out.pack).toBe('TP-ADOPT v4'); expect(out.gate).toBe('fail')
+    expect(Object.keys(out.arms)).toEqual(['with-skills', 'baseline'])
+    expect(out.arms['with-skills'].criteria.C2.runs).toEqual([null, null, null])
+    const md = sc.renderTree(out)
+    expect(md).toMatch(/TP-ADOPT-23 score/); expect(md).toMatch(/\| C2 valid tree within 3 checks .* \| 3 \|/)
+  })
+})

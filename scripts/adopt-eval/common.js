@@ -41,4 +41,25 @@ function buildPrompt({ arm, appDir, reportPath, repoRoot = REPO_ROOT, skillFiles
   return lines.join('\n') + '\n'
 }
 
-module.exports = { REPO_ROOT, DEFAULT_RUN_ROOT, FIXTURES, ARMS, RUNS, TASK_PROMPT, SKILL_FILES, PLUGIN_TRUTH, C2_FIELDS, armRoot, BASELINE_RULES, REPLY_RULE, skillFiles: skillFiles_, cellId, cellDir, buildPrompt }
+// ---- TP-ADOPT-23 (feature tree mapping) ----
+const TREE_FIXTURE = 'feature-tree-app'
+const TREE_PACK = 'TP-ADOPT v4'
+const TREE_PROMPT = 'Map this Roku app: build a feature tree, show me how I could test it, and give me the HTML report. Do not change any files except the feature tree output.'
+// Order: safety.md, router SKILL.md, mapping SKILL.md, then the mapping references (sorted).
+const treeSkillFiles_ = (repoRoot = REPO_ROOT) => {
+  const map = path.join(repoRoot, 'skills', 'mapping-a-roku-app')
+  const refs = fs.existsSync(path.join(map, 'references')) ? fs.readdirSync(path.join(map, 'references')).sort().map((f) => path.join(map, 'references', f)).filter((f) => fs.statSync(f).isFile()) : []
+  return [path.join(repoRoot, 'skills', '_always-on', 'safety.md'), path.join(repoRoot, 'skills', 'adopting-brighttest', 'SKILL.md'), path.join(map, 'SKILL.md'), ...refs]
+}
+// Cell layout reuses cellDir(root, TREE_FIXTURE, arm, run): <armRoot>/feature-tree-app/run<n>/{app/,prompt.md}; leases/ is created by the agent's CLI, never by prepare.
+function buildTreePrompt({ arm, appDir, leaseDir, repoRoot = REPO_ROOT, skillFiles = treeSkillFiles_(repoRoot) }) {
+  const cli = `node ${path.join(repoRoot, 'bin', 'cli.js')}`
+  const lines = [TREE_PROMPT, '', `Your working directory is ${appDir} (the app). The brighttest CLI is available locally: run it as \`${cli} features <graph|check|render>\` from the app directory. Set BRIGHTTEST_LEASE_DIR=${leaseDir} on every brighttest command and do not set any ROKU_* variable. Also include your complete final answer in your final reply.`]
+  if (arm === 'with-skills') {
+    lines.push('', 'Guidance (inlined for you; follow it):')
+    for (const f of skillFiles) lines.push('', `--- ${path.relative(path.join(repoRoot, 'skills'), f).split(path.sep).join('/')} ---`, fs.readFileSync(f, 'utf8').trim())
+  } else if (arm !== 'baseline') throw new Error(`unknown arm: ${arm}`)
+  return lines.join('\n') + '\n'
+}
+
+module.exports = { TREE_FIXTURE, TREE_PACK, TREE_PROMPT, treeSkillFiles: treeSkillFiles_, buildTreePrompt, REPO_ROOT, DEFAULT_RUN_ROOT, FIXTURES, ARMS, RUNS, TASK_PROMPT, SKILL_FILES, PLUGIN_TRUTH, C2_FIELDS, armRoot, BASELINE_RULES, REPLY_RULE, skillFiles: skillFiles_, cellId, cellDir, buildPrompt }
