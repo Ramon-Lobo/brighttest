@@ -37,7 +37,11 @@ state, network and robustness checks.
   other values ignored; `m.global.stressTree`). With `bs_const STRESS=true` the defaults apply (500 fields, both trees)
   unless launch params override them. Matrix example: `stress=1 stressfields=1000 stresskb=64 stresstree=6000`.
 - No-`roInput` mode: launch param `noinput=1`. Build variant without `supports_input_launch`: `manifest.noinput`.
-- Specs (`source/tests`): `AgentCount`, `AgentSerializer`, `AgentWrite` (`@SGNode`), `StressParams`
+- Agent-count specs: `AgentCountDerived` (`@SGNode("DerivedScene")`, the base+derived chain, init at both levels) and
+  `AgentCountNoInit` (`@SGNode("BareScene")`, no init) each print `BTFIX:agent-count=<suite>:<n>` and assert `n <= 1`
+  (0 on a plain build). They host the Scene inside the spec, so no `bs_const` is needed to select it; `bs_const` cannot
+  carry a Scene name, and at run time the launch param `scene=<Name>` is the only selector.
+- Specs (`source/tests`): `AgentCount`, `AgentCountDerived`, `AgentCountNoInit`, `AgentSerializer`, `AgentWrite` (`@SGNode`), `StressParams`
   (`@SGNode`: 100- and 1,000-field cases, single 1,000, 1,500 and 6,000-node trees), `StressArgs` (pure launch-param parser).
   The spec counts nodes with an iterative walk (a recursive count of the 600-deep tree overflows the engine stack),
   so the 6,000-node case runs on both engines. `InducedCrash` is
