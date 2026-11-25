@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; style-src &#39;sha256-7b+UyT5PDHmB0/W5o1+OwNC3qNpzaxAG+6zThNWjp7o=&#39;; script-src &#39;sha256-Or6Qf8YjkclaRalaYZq4JOrAb23cZIL7PFxFn9lJVzY=&#39;; img-src data:; base-uri &#39;none&#39;; form-action &#39;none&#39;">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Feature tree: Open Cinema</title>
+<style>
+:root{--bg:#ffffff;--fg:#1b1f24;--muted:#4a5560;--link:#0b5cad;--surface:#f3f5f8;--border:#8b95a1;--c-headless-unit-bg:#d5eedb;--c-headless-unit-fg:#0f4a1c;--c-headless-scene-bg:#d3e9f4;--c-headless-scene-fg:#0a405a;--c-headless-fixtures-bg:#e2dff6;--c-headless-fixtures-fg:#31256f;--c-device-bg:#fde5c4;--c-device-fg:#6a3800;--c-e2e-bg:#f7d6e2;--c-e2e-fg:#7a1a3d;--c-unknown-bg:#ffffff;--c-unknown-fg:#3a434d;--r-low-bg:#e4f2e8;--r-low-fg:#17491f;--r-medium-bg:#fff1c7;--r-medium-fg:#5a4100;--r-high-bg:#fbd9d9;--r-high-fg:#7a1212;--rec-bg:#1b1f24;--rec-fg:#ffffff;--warn-bg:#fff1c7;--warn-fg:#4d3700}
+:root[data-theme=light]{--bg:#ffffff;--fg:#1b1f24;--muted:#4a5560;--link:#0b5cad;--surface:#f3f5f8;--border:#8b95a1;--c-headless-unit-bg:#d5eedb;--c-headless-unit-fg:#0f4a1c;--c-headless-scene-bg:#d3e9f4;--c-headless-scene-fg:#0a405a;--c-headless-fixtures-bg:#e2dff6;--c-headless-fixtures-fg:#31256f;--c-device-bg:#fde5c4;--c-device-fg:#6a3800;--c-e2e-bg:#f7d6e2;--c-e2e-fg:#7a1a3d;--c-unknown-bg:#ffffff;--c-unknown-fg:#3a434d;--r-low-bg:#e4f2e8;--r-low-fg:#17491f;--r-medium-bg:#fff1c7;--r-medium-fg:#5a4100;--r-high-bg:#fbd9d9;--r-high-fg:#7a1212;--rec-bg:#1b1f24;--rec-fg:#ffffff;--warn-bg:#fff1c7;--warn-fg:#4d3700}
+@media (prefers-color-scheme: dark){:root:not([data-theme=light]){--bg:#12161b;--fg:#e6e9ed;--muted:#a9b3be;--link:#7db7f0;--surface:#1b2129;--border:#6b7683;--c-headless-unit-bg:#1c3d27;--c-headless-unit-fg:#c5ecd0;--c-headless-scene-bg:#183748;--c-headless-scene-fg:#c3e3f4;--c-headless-fixtures-bg:#2d2a4f;--c-headless-fixtures-fg:#d8d4f7;--c-device-bg:#4a3412;--c-device-fg:#fbdca8;--c-e2e-bg:#4a1f33;--c-e2e-fg:#f6cfdf;--c-unknown-bg:#12161b;--c-unknown-fg:#c9d0d8;--r-low-bg:#1c3d27;--r-low-fg:#c5ecd0;--r-medium-bg:#4a3d12;--r-medium-fg:#fbe9a8;--r-high-bg:#4d1d1d;--r-high-fg:#f8cccc;--rec-bg:#e6e9ed;--rec-fg:#12161b;--warn-bg:#4a3d12;--warn-fg:#fbe9a8}}
+:root[data-theme=dark]{--bg:#12161b;--fg:#e6e9ed;--muted:#a9b3be;--link:#7db7f0;--surface:#1b2129;--border:#6b7683;--c-headless-unit-bg:#1c3d27;--c-headless-unit-fg:#c5ecd0;--c-headless-scene-bg:#183748;--c-headless-scene-fg:#c3e3f4;--c-headless-fixtures-bg:#2d2a4f;--c-headless-fixtures-fg:#d8d4f7;--c-device-bg:#4a3412;--c-device-fg:#fbdca8;--c-e2e-bg:#4a1f33;--c-e2e-fg:#f6cfdf;--c-unknown-bg:#12161b;--c-unknown-fg:#c9d0d8;--r-low-bg:#1c3d27;--r-low-fg:#c5ecd0;--r-medium-bg:#4a3d12;--r-medium-fg:#fbe9a8;--r-high-bg:#4d1d1d;--r-high-fg:#f8cccc;--rec-bg:#e6e9ed;--rec-fg:#12161b;--warn-bg:#4a3d12;--warn-fg:#fbe9a8}
+*{box-sizing:border-box}
+html{color-scheme:light dark}
+:root[data-theme=light]{color-scheme:light}
+:root[data-theme=dark]{color-scheme:dark}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header,nav,main{max-width:1180px;margin:0 auto;padding:0 20px}
+header{padding-top:20px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+main{padding-top:8px;padding-bottom:48px}
+h1{font-size:1.7rem;margin:.2em 0}
+h2{font-size:1.3rem;margin:1.8em 0 .5em;padding-top:.4em;border-top:1px solid var(--border)}
+h3{font-size:1.1rem;margin:1.3em 0 .4em}
+h4{font-size:1rem;margin:1.1em 0 .3em;color:var(--muted)}
+a{color:var(--link)}
+a:focus-visible,button:focus-visible,input:focus-visible,summary:focus-visible,.scroll:focus-visible{outline:3px solid var(--link);outline-offset:2px}
+.skip{position:absolute;left:-999px;top:0;background:var(--bg);color:var(--fg);padding:8px 12px;z-index:10}
+.skip:focus{left:8px;top:8px}
+nav{padding-top:8px;padding-bottom:8px}
+nav ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:4px 14px}
+#tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px}
+#tools[hidden]{display:none}
+#tools input{font:inherit;padding:4px 8px;border:1px solid var(--border);background:var(--bg);color:var(--fg);border-radius:4px}
+#tools button{font:inherit;padding:4px 10px;border:1px solid var(--border);background:var(--surface);color:var(--fg);border-radius:4px;cursor:pointer}
+#tools button[aria-pressed=true]{background:var(--fg);color:var(--bg)}
+code{font:.88em ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;overflow-wrap:anywhere}
+.badge{display:inline-block;padding:0 .5em;border-radius:.8em;border:1px solid var(--border);font-size:.82rem;line-height:1.5;white-space:nowrap;margin:0 .15em}
+.c-headless-unit{background:var(--c-headless-unit-bg);color:var(--c-headless-unit-fg)}
+.c-headless-scene{background:var(--c-headless-scene-bg);color:var(--c-headless-scene-fg)}
+.c-headless-fixtures{background:var(--c-headless-fixtures-bg);color:var(--c-headless-fixtures-fg)}
+.c-device{background:var(--c-device-bg);color:var(--c-device-fg)}
+.c-e2e{background:var(--c-e2e-bg);color:var(--c-e2e-fg)}
+.c-unknown{background:var(--c-unknown-bg);color:var(--c-unknown-fg)}
+.c-unknown{border-style:dashed}
+.r-low{background:var(--r-low-bg);color:var(--r-low-fg)}
+.r-medium{background:var(--r-medium-bg);color:var(--r-medium-fg)}
+.r-high{background:var(--r-high-bg);color:var(--r-high-fg)}
+.rec{background:var(--rec-bg);color:var(--rec-fg)}
+.banner{background:var(--warn-bg);color:var(--warn-fg);border:1px solid var(--border);border-radius:6px;padding:8px 14px;margin:10px 0}
+.banner ul{margin:.3em 0 0;padding-left:1.2em}
+.muted{color:var(--muted)}
+.scroll{overflow-x:auto;margin:.5em 0}
+table{border-collapse:collapse;width:100%;font-size:.93rem}
+caption{text-align:left;color:var(--muted);padding:4px 0}
+th,td{border:1px solid var(--border);padding:4px 8px;text-align:left;vertical-align:top}
+thead th{background:var(--surface)}
+tbody th{font-weight:600;background:var(--surface)}
+td.n,th.n{text-align:right}
+dl.kv{display:grid;grid-template-columns:max-content 1fr;gap:2px 16px;margin:.5em 0}
+dl.kv dt{color:var(--muted)}
+dl.kv dd{margin:0;overflow-wrap:anywhere}
+ul.tree,ul.tree ul{list-style:none;margin:.2em 0;padding-left:1.4em}
+ul.tree{padding-left:0}
+ul.tree details{margin:.2em 0}
+summary{cursor:pointer}
+article{border:1px solid var(--border);border-radius:6px;padding:4px 16px 12px;margin:14px 0;background:var(--surface)}
+article h3{margin-top:.6em}
+ol.steps>li{margin:.8em 0}
+ol.steps ul{margin:.2em 0}
+section[hidden]{display:none}
+@media (prefers-reduced-motion: no-preference){html{scroll-behavior:smooth}}
+@media print{.skip,nav,#tools{display:none}body{background:#fff;color:#000}details:not([open])>*:not(summary){display:block}a{color:#000}article{break-inside:avoid}}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to the report</a>
+<header>
+<h1>Feature tree: Open Cinema</h1>
+<dl class="kv"><dt>brighttest</dt><dd>0.7.0</dd><dt>Graph hash</dt><dd><code>f301151724daaf85a7fadeb95b8b160d543068a023af0467017b822266612edf</code></dd><dt>Project tree hash</dt><dd><code>c21faef06cadfbabae6875a5a3c06e44a5f323bf5a6f7822c6e7d2089a02fe59</code></dd><dt>Tree author</dt><dd>brighttest</dd></dl>
+
+</header>
+<nav aria-label="Report sections"><ul><li><a href="#summary">Summary</a></li><li><a href="#tree">Feature tree</a></li><li><a href="#panels">Feature details</a></li><li><a href="#paths">Test paths</a></li><li><a href="#matrix">Headless versus device</a></li><li><a href="#ci">CI checklist</a></li><li><a href="#uncertainty">Uncertainty</a></li><li><a href="#method">Method and provenance</a></li></ul><div id="tools" hidden></div></nav>
+<main id="main">
+<section id="summary" aria-labelledby="h-summary"><h2 id="h-summary">Summary</h2>
+<dl class="kv">
+<dt>Features</dt><dd>3</dd>
+<dt>Graph</dt><dd>25 files, 6 components, 149 edges</dd>
+<dt>Call sites resolved</dt><dd>97%</dd>
+<dt>Unresolved sites</dt><dd>0 of 0 callFunc sites, 2 of 6 observeField sites</dd>
+<dt>Class mix</dt><dd><span class="badge c-headless-unit">headless-unit</span> 7 <span class="badge c-headless-scene">headless-scene</span> 8 <span class="badge c-headless-fixtures">headless-fixtures</span> 3 <span class="badge c-e2e">e2e</span> 1 <span class="badge c-unknown" title="unknown">not classified</span> 1</dd>
+<dt>Headless-testable</dt><dd>18 nodes (unit, scene, fixtures)</dd>
+<dt>Needs a device</dt><dd>1 nodes (device, e2e)</dd>
+<dt>Recommended path</dt><dd><span class="badge rec">recommended</span> leaf-first: default: shared code is tested first so the screens that depend on it start from tested parts</dd>
+<dt>Assess path</dt><dd>brownfield</dd>
+<dt>Assess blockers</dt><dd>none</dd>
+</dl>
+<p class="banner" role="note">1 nodes not classified: the agent or a human must classify them.</p>
+</section>
+<section id="tree" aria-labelledby="h-tree"><h2 id="h-tree">Feature tree</h2><p class="muted">Each feature is listed once. A dependency already shown is a link.</p><ul class="tree"><li data-f="f-app-shell"><details open><summary>App shell <span class="badge">app-shell</span><span class="badge r-medium">risk: medium</span> <span class="badge c-headless-scene">headless-scene</span><span class="badge c-headless-fixtures">headless-fixtures</span><span class="badge c-e2e">e2e</span></summary><p>dominated only by the entry. 4 files, 1 components; predicted classes: headless-scene 1, headless-fixtures 2, e2e 1.</p><p><a href="#f-app-shell">Open the details panel</a></p><p class="muted">Depends on:</p><ul><li data-f="f-shared-source-lib"><details><summary>Shared source/lib <span class="badge">shared</span><span class="badge r-low">risk: low</span> <span class="badge c-headless-unit">headless-unit</span></summary><p>shared: used by 2 scopes. 7 files, 0 components; predicted classes: headless-unit 4.</p><p><a href="#f-shared-source-lib">Open the details panel</a></p></details></li></ul></details></li>
+<li data-f="f-unreached"><details open><summary>Unreached code <span class="badge">shared</span><span class="badge r-medium">risk: medium</span> <span class="badge c-headless-unit">headless-unit</span><span class="badge c-headless-scene">headless-scene</span><span class="badge c-headless-fixtures">headless-fixtures</span><span class="badge c-unknown" title="unknown">not classified</span></summary><p>unreached: no path from the entry. 14 files, 5 components; predicted classes: headless-unit 3, headless-scene 7, headless-fixtures 1, unknown 1.</p><p><a href="#f-unreached">Open the details panel</a></p><p class="muted">Depends on:</p><ul><li>&rarr; <a href="#f-shared-source-lib">Shared source/lib</a> (shared), see above</li></ul></details></li></ul></section>
+<section id="panels" aria-labelledby="h-panels"><h2 id="h-panels">Feature details</h2>
+<article id="f-app-shell" data-f="f-app-shell" aria-labelledby="h-f-app-shell">
+<h3 id="h-f-app-shell">App shell</h3>
+<p><span class="badge">app-shell</span><span class="badge r-medium">risk: medium</span> <span class="badge c-headless-scene">headless-scene</span> 1 <span class="badge c-headless-fixtures">headless-fixtures</span> 2 <span class="badge c-e2e">e2e</span> 1</p>
+<p>dominated only by the entry. 4 files, 1 components; predicted classes: headless-scene 1, headless-fixtures 2, e2e 1.</p>
+<h4>Members and testability</h4>
+<div class="scroll" role="region" tabindex="0" aria-label="Members of App shell"><table><caption>Members of App shell</caption><thead><tr><th scope="col">Node</th><th scope="col">Class</th><th scope="col">Rule</th><th scope="col">Evidence</th><th scope="col">Needs and also needs</th><th scope="col">Notes</th></tr></thead><tbody>
+<tr><th scope="row"><span id="n-c10b6d9d63"><code>comp:MainScene</code></span></th><td><span class="badge c-headless-fixtures">headless-fixtures</span></td><td>F6</td><td>rule</td><td>registry (F6), e2e (focus-and-keys), e2e (launch)</td><td></td></tr>
+<tr><th scope="row"><span id="n-affa4768e9"><code>entry:main</code></span></th><td><span class="badge c-e2e">e2e</span></td><td>E2</td><td>rule</td><td></td><td></td></tr>
+<tr><th scope="row"><span id="n-1db15b5629"><code>file:components/MainScene.brs</code></span></th><td><span class="badge c-headless-fixtures">headless-fixtures</span></td><td>F6</td><td>rule</td><td>registry (F6), e2e (focus-and-keys)</td><td></td></tr>
+<tr><th scope="row"><span id="n-03509fef25"><code>file:components/MainScene.xml</code></span></th><td><span class="muted">n/a</span></td><td></td><td></td><td></td><td></td></tr>
+<tr><th scope="row"><span id="n-c85a6cd171"><code>file:manifest</code></span></th><td><span class="muted">n/a</span></td><td></td><td></td><td></td><td></td></tr>
+<tr><th scope="row"><span id="n-d8841aa05d"><code>file:source/main.brs</code></span></th><td><span class="badge c-headless-scene">headless-scene</span></td><td>S0</td><td>rule</td><td></td><td></td></tr>
+</tbody></table></div>
+<h4>Depends on and used by</h4>
+<div class="scroll" role="region" tabindex="0" aria-label="Dependencies of App shell"><table><caption>Dependencies of App shell</caption><thead><tr><th scope="col">Direction</th><th scope="col">Node</th><th scope="col">Feature</th><th scope="col">Edge</th><th scope="col">Confidence</th><th scope="col">At</th></tr></thead><tbody>
+<tr><td>depends on</td><td><code>file:source/lib/BTState.brs</code></td><td><a href="#f-shared-source-lib">Shared source/lib</a></td><td>calls</td><td>name</td><td>components/MainScene.brs:21</td></tr>
+<tr><td>depends on</td><td><code>file:source/lib/BTState.brs</code></td><td><a href="#f-shared-source-lib">Shared source/lib</a></td><td>calls</td><td>name</td><td>components/MainScene.brs:23</td></tr>
+<tr><td>depends on</td><td><code>file:source/lib/BTState.brs</code></td><td><a href="#f-shared-source-lib">Shared source/lib</a></td><td>script</td><td>exact</td><td>components/MainScene.xml:8</td></tr>
+<tr><td>depends on</td><td><code>file:source/lib/Feed.brs</code></td><td><a href="#f-shared-source-lib">Shared source/lib</a></td><td>calls</td><td>name</td><td>components/MainScene.brs:10</td></tr>
+<tr><td>depends on</td><td><code>file:source/lib/Feed.brs</code></td><td><a href="#f-shared-source-lib">Shared source/lib</a></td><td>calls</td><td>name</td><td>components/MainScene.brs:110</td></tr>
+<tr><td>depends on</td><td><code>file:source/lib/Feed.brs</code></td><td><a href="#f-shared-source-lib">Shared source/lib</a></td><td>calls</td><td>name</td><td>components/MainScene.brs:44</td></tr>
+<tr><td>depends on</td><td><code>file:source/lib/Feed.brs</code></td><td><a href="#f-shared-source-lib">Shared source/lib</a></td><td>script</td><td>exact</td><td>components/MainScene.xml:5</td></tr>
+<tr><td>depends on</td><td><code>file:source/lib/Format.brs</code></td><td><a href="#f-shared-source-lib">Shared source/lib</a></td><td>calls</td><td>name</td><td>components/MainScene.brs:12</td></tr>
+<tr><td>depends on</td><td><code>file:source/lib/Format.brs</code></td><td><a href="#f-shared-source-lib">Shared source/lib</a></td><td>script</td><td>exact</td><td>components/MainScene.xml:6</td></tr>
+<tr><td>depends on</td><td><code>file:source/lib/Watchlist.brs</code></td><td><a href="#f-shared-source-lib">Shared source/lib</a></td><td>calls</td><td>name</td><td>components/MainScene.brs:103</td></tr>
+<tr><td>depends on</td><td><code>file:source/lib/Watchlist.brs</code></td><td><a href="#f-shared-source-lib">Shared source/lib</a></td><td>calls</td><td>name</td><td>components/MainScene.brs:76</td></tr>
+<tr><td>depends on</td><td><code>file:source/lib/Watchlist.brs</code></td><td><a href="#f-shared-source-lib">Shared source/lib</a></td><td>script</td><td>exact</td><td>components/MainScene.xml:7</td></tr>
+<tr><td>depends on</td><td><span class="muted">(no single target)</span></td><td><span class="muted">dynamic</span></td><td>creates</td><td>dynamic</td><td>components/MainScene.brs:36</td></tr>
+<tr><td>depends on</td><td><span class="muted">(no single target)</span></td><td><span class="muted">unresolved</span></td><td>observes</td><td>unresolved</td><td>components/MainScene.brs:37</td></tr>
+<tr><td>depends on</td><td><span class="muted">(no single target)</span></td><td><span class="muted">unresolved</span></td><td>observes</td><td>unresolved</td><td>components/MainScene.brs:38</td></tr>
+</tbody></table></div>
+<h4>Existing specs</h4>
+<p class="muted">None found in the graph.</p>
+<h4>Proposed tests</h4>
+<p class="muted">None authored. The test paths below list what the rules suggest for each step.</p>
+<h4>CI jobs</h4>
+<p><span class="badge c-headless-scene">headless-scene</span> headless gate; <span class="badge c-headless-fixtures">headless-fixtures</span> headless gate; <span class="badge c-e2e">e2e</span> e2e job</p>
+<h4>Uncertainty here</h4><ul><li>dynamic-createobject at <code>components/MainScene.brs:36</code>: CreateObject with a variable component name</li><li>dynamic-observe at <code>components/MainScene.brs:37</code>: panel</li><li>dynamic-observe at <code>components/MainScene.brs:38</code>: panel</li></ul>
+</article>
+<article id="f-shared-source-lib" data-f="f-shared-source-lib" aria-labelledby="h-f-shared-source-lib">
+<h3 id="h-f-shared-source-lib">Shared source/lib</h3>
+<p><span class="badge">shared</span><span class="badge r-low">risk: low</span> <span class="badge c-headless-unit">headless-unit</span> 4</p>
+<p>shared: used by 2 scopes. 7 files, 0 components; predicted classes: headless-unit 4.</p>
+<h4>Members and testability</h4>
+<div class="scroll" role="region" tabindex="0" aria-label="Members of Shared source/lib"><table><caption>Members of Shared source/lib</caption><thead><tr><th scope="col">Node</th><th scope="col">Class</th><th scope="col">Rule</th><th scope="col">Evidence</th><th scope="col">Needs and also needs</th><th scope="col">Notes</th></tr></thead><tbody>
+<tr><th scope="row"><span id="n-a8aae9e515"><code>file:source/lib/BTState.brs</code></span></th><td><span class="badge c-headless-unit">headless-unit</span></td><td>U1</td><td>rule</td><td></td><td></td></tr>
+<tr><th scope="row"><span id="n-9a52d4c26e"><code>file:source/lib/Feed.brs</code></span></th><td><span class="badge c-headless-unit">headless-unit</span></td><td>U1</td><td>rule</td><td></td><td></td></tr>
+<tr><th scope="row"><span id="n-aa8b4ddfe4"><code>file:source/lib/Format.brs</code></span></th><td><span class="badge c-headless-unit">headless-unit</span></td><td>U1</td><td>rule</td><td></td><td></td></tr>
+<tr><th scope="row"><span id="n-ad39c0c1c5"><code>file:source/lib/Watchlist.brs</code></span></th><td><span class="badge c-headless-unit">headless-unit</span></td><td>U1</td><td>rule</td><td></td><td></td></tr>
+<tr><th scope="row"><span id="n-2bb4eb6e32"><code>file:source/tests/Feed.spec.bs</code></span></th><td><span class="muted">n/a</span></td><td></td><td></td><td></td><td></td></tr>
+<tr><th scope="row"><span id="n-9d42f37f2a"><code>file:source/tests/Format.spec.bs</code></span></th><td><span class="muted">n/a</span></td><td></td><td></td><td></td><td></td></tr>
+<tr><th scope="row"><span id="n-87c938cc98"><code>file:source/tests/Watchlist.spec.bs</code></span></th><td><span class="muted">n/a</span></td><td></td><td></td><td></td><td></td></tr>
+</tbody></table></div>
+<h4>Depends on and used by</h4>
+<div class="scroll" role="region" tabindex="0" aria-label="Dependencies of Shared source/lib"><table><caption>Dependencies of Shared source/lib</caption><thead><tr><th scope="col">Direction</th><th scope="col">Node</th><th scope="col">Feature</th><th scope="col">Edge</th><th scope="col">Confidence</th><th scope="col">At</th></tr></thead><tbody>
+<tr><td>used by</td><td><code>file:components/MainScene.brs</code></td><td><a href="#f-app-shell">App shell</a></td><td>calls</td><td>name</td><td>components/MainScene.brs:10</td></tr>
+<tr><td>used by</td><td><code>file:components/MainScene.brs</code></td><td><a href="#f-app-shell">App shell</a></td><td>calls</td><td>name</td><td>components/MainScene.brs:103</td></tr>
+<tr><td>used by</td><td><code>file:components/MainScene.brs</code></td><td><a href="#f-app-shell">App shell</a></td><td>calls</td><td>name</td><td>components/MainScene.brs:110</td></tr>
+<tr><td>used by</td><td><code>file:components/MainScene.brs</code></td><td><a href="#f-app-shell">App shell</a></td><td>calls</td><td>name</td><td>components/MainScene.brs:12</td></tr>
+<tr><td>used by</td><td><code>file:components/MainScene.brs</code></td><td><a href="#f-app-shell">App shell</a></td><td>calls</td><td>name</td><td>components/MainScene.brs:21</td></tr>
+<tr><td>used by</td><td><code>file:components/MainScene.brs</code></td><td><a href="#f-app-shell">App shell</a></td><td>calls</td><td>name</td><td>components/MainScene.brs:23</td></tr>
+<tr><td>used by</td><td><code>file:components/MainScene.brs</code></td><td><a href="#f-app-shell">App shell</a></td><td>calls</td><td>name</td><td>components/MainScene.brs:44</td></tr>
+<tr><td>used by</td><td><code>file:components/MainScene.brs</code></td><td><a href="#f-app-shell">App shell</a></td><td>calls</td><td>name</td><td>components/MainScene.brs:76</td></tr>
+<tr><td>used by</td><td><code>file:components/MainScene.xml</code></td><td><a href="#f-app-shell">App shell</a></td><td>script</td><td>exact</td><td>components/MainScene.xml:5</td></tr>
+<tr><td>used by</td><td><code>file:components/MainScene.xml</code></td><td><a href="#f-app-shell">App shell</a></td><td>script</td><td>exact</td><td>components/MainScene.xml:6</td></tr>
+<tr><td>used by</td><td><code>file:components/MainScene.xml</code></td><td><a href="#f-app-shell">App shell</a></td><td>script</td><td>exact</td><td>components/MainScene.xml:7</td></tr>
+<tr><td>used by</td><td><code>file:components/MainScene.xml</code></td><td><a href="#f-app-shell">App shell</a></td><td>script</td><td>exact</td><td>components/MainScene.xml:8</td></tr>
+<tr><td>used by</td><td><code>file:components/StateProbe.xml</code></td><td><a href="#f-unreached">Unreached code</a></td><td>script</td><td>exact</td><td>components/StateProbe.xml:10</td></tr>
+</tbody></table></div>
+<h4>Existing specs</h4>
+<ul><li><code>file:source/tests/Feed.spec.bs</code> covers <code>file:source/lib/Feed.brs</code></li><li><code>file:source/tests/Format.spec.bs</code> covers <code>file:source/lib/Format.brs</code></li><li><code>file:source/tests/StateProbe.spec.bs</code> covers <code>file:source/lib/BTState.brs</code></li><li><code>file:source/tests/Watchlist.spec.bs</code> covers <code>file:source/lib/Watchlist.brs</code></li></ul>
+<h4>Proposed tests</h4>
+<p class="muted">None authored. The test paths below list what the rules suggest for each step.</p>
+<h4>CI jobs</h4>
+<p><span class="badge c-headless-unit">headless-unit</span> fast gate</p>
+</article>
+<article id="f-unreached" data-f="f-unreached" aria-labelledby="h-f-unreached">
+<h3 id="h-f-unreached">Unreached code</h3>
+<p><span class="badge">shared</span><span class="badge r-medium">risk: medium</span> <span class="badge c-headless-unit">headless-unit</span> 3 <span class="badge c-headless-scene">headless-scene</span> 7 <span class="badge c-headless-fixtures">headless-fixtures</span> 1 <span class="badge c-unknown" title="unknown">not classified</span> 1</p>
+<p>unreached: no path from the entry. 14 files, 5 components; predicted classes: headless-unit 3, headless-scene 7, headless-fixtures 1, unknown 1.</p>
+<h4>Members and testability</h4>
+<div class="scroll" role="region" tabindex="0" aria-label="Members of Unreached code"><table><caption>Members of Unreached code</caption><thead><tr><th scope="col">Node</th><th scope="col">Class</th><th scope="col">Rule</th><th scope="col">Evidence</th><th scope="col">Needs and also needs</th><th scope="col">Notes</th></tr></thead><tbody>
+<tr><th scope="row"><span id="n-f43ffb7107"><code>comp:DetailsPanel</code></span></th><td><span class="badge c-headless-scene">headless-scene</span></td><td>S1</td><td>rule</td><td>device (network), e2e (focus-and-keys)</td><td></td></tr>
+<tr><th scope="row"><span id="n-ebf517bc83"><code>comp:HomePanel</code></span></th><td><span class="badge c-headless-scene">headless-scene</span></td><td>S1</td><td>rule</td><td>device (network), e2e (focus-and-keys)</td><td></td></tr>
+<tr><th scope="row"><span id="n-02ec8d8d4e"><code>comp:PlayerPanel</code></span></th><td><span class="badge c-headless-fixtures">headless-fixtures</span></td><td>F5</td><td>rule</td><td>media (F5), device (playback), e2e (focus-and-keys)</td><td></td></tr>
+<tr><th scope="row"><span id="n-189ab11644"><code>comp:SearchPanel</code></span></th><td><span class="badge c-headless-scene">headless-scene</span></td><td>S1</td><td>rule</td><td>device (network), e2e (focus-and-keys)</td><td></td></tr>
+<tr><th scope="row"><span id="n-36c750f778"><code>comp:StateProbe</code></span></th><td><span class="badge c-headless-scene">headless-scene</span></td><td>S1</td><td>rule</td><td></td><td></td></tr>
+<tr><th scope="row"><span id="n-4becdbec9f"><code>file:components/StateProbe.brs</code></span></th><td><span class="badge c-headless-unit">headless-unit</span></td><td>U1</td><td>rule</td><td></td><td></td></tr>
+<tr><th scope="row"><span id="n-0b5b677aa9"><code>file:components/StateProbe.xml</code></span></th><td><span class="muted">n/a</span></td><td></td><td></td><td></td><td></td></tr>
+<tr><th scope="row"><span id="n-f889d21132"><code>file:components/panels/DetailsPanel.brs</code></span></th><td><span class="badge c-headless-scene">headless-scene</span></td><td>S0</td><td>rule</td><td>device (network), e2e (focus-and-keys)</td><td></td></tr>
+<tr><th scope="row"><span id="n-3f0befb8d4"><code>file:components/panels/DetailsPanel.xml</code></span></th><td><span class="muted">n/a</span></td><td></td><td></td><td></td><td></td></tr>
+<tr><th scope="row"><span id="n-61ae91e75f"><code>file:components/panels/HomePanel.brs</code></span></th><td><span class="badge c-headless-unit">headless-unit</span></td><td>U1</td><td>rule</td><td>device (network), e2e (focus-and-keys)</td><td></td></tr>
+<tr><th scope="row"><span id="n-027dfeba5c"><code>file:components/panels/HomePanel.xml</code></span></th><td><span class="muted">n/a</span></td><td></td><td></td><td></td><td></td></tr>
+<tr><th scope="row"><span id="n-dd1d4cfcc4"><code>file:components/panels/PlayerPanel.brs</code></span></th><td><span class="badge c-headless-scene">headless-scene</span></td><td>S0</td><td>rule</td><td>e2e (focus-and-keys)</td><td></td></tr>
+<tr><th scope="row"><span id="n-0b39375d08"><code>file:components/panels/PlayerPanel.xml</code></span></th><td><span class="muted">n/a</span></td><td></td><td></td><td></td><td></td></tr>
+<tr><th scope="row"><span id="n-9f8cbb8225"><code>file:components/panels/SearchPanel.brs</code></span></th><td><span class="badge c-headless-scene">headless-scene</span></td><td>S0</td><td>rule</td><td>device (network), e2e (focus-and-keys)</td><td></td></tr>
+<tr><th scope="row"><span id="n-13f246e800"><code>file:components/panels/SearchPanel.xml</code></span></th><td><span class="muted">n/a</span></td><td></td><td></td><td></td><td></td></tr>
+<tr><th scope="row"><span id="n-3fcab836cd"><code>file:source/lib/BTLayout.brs</code></span></th><td><span class="badge c-unknown" title="unknown">not classified</span></td><td>none</td><td>none</td><td></td><td>not classified: no rule fired and no override; [object Object]</td></tr>
+<tr><th scope="row"><span id="n-e087e2b789"><code>file:source/lib/Search.brs</code></span></th><td><span class="badge c-headless-unit">headless-unit</span></td><td>U1</td><td>rule</td><td></td><td></td></tr>
+<tr><th scope="row"><span id="n-f8c7f5a47a"><code>file:source/tests/Search.spec.bs</code></span></th><td><span class="muted">n/a</span></td><td></td><td></td><td></td><td></td></tr>
+<tr><th scope="row"><span id="n-526fe4a5f2"><code>file:source/tests/StateProbe.spec.bs</code></span></th><td><span class="muted">n/a</span></td><td></td><td></td><td></td><td></td></tr>
+</tbody></table></div>
+<h4>Depends on and used by</h4>
+<div class="scroll" role="region" tabindex="0" aria-label="Dependencies of Unreached code"><table><caption>Dependencies of Unreached code</caption><thead><tr><th scope="col">Direction</th><th scope="col">Node</th><th scope="col">Feature</th><th scope="col">Edge</th><th scope="col">Confidence</th><th scope="col">At</th></tr></thead><tbody>
+<tr><td>depends on</td><td><code>file:source/lib/BTState.brs</code></td><td><a href="#f-shared-source-lib">Shared source/lib</a></td><td>script</td><td>exact</td><td>components/StateProbe.xml:10</td></tr>
+</tbody></table></div>
+<h4>Existing specs</h4>
+<ul><li><code>file:source/tests/Search.spec.bs</code> covers <code>file:source/lib/Search.brs</code></li><li><code>file:source/tests/StateProbe.spec.bs</code> covers <code>comp:StateProbe</code></li></ul>
+<h4>Proposed tests</h4>
+<p class="muted">None authored. The test paths below list what the rules suggest for each step.</p>
+<h4>CI jobs</h4>
+<p><span class="badge c-headless-unit">headless-unit</span> fast gate; <span class="badge c-headless-scene">headless-scene</span> headless gate; <span class="badge c-headless-fixtures">headless-fixtures</span> headless gate; <span class="badge c-unknown" title="unknown">not classified</span> classify first</p>
+</article></section>
+<section id="paths" aria-labelledby="h-paths"><h2 id="h-paths">Test paths</h2>
+<div class="scroll" role="region" tabindex="0" aria-label="Leaf-first compared with base-first"><table><caption>Leaf-first compared with base-first</caption><thead><tr><th scope="col"></th><th scope="col">Leaf-first (bottom-up)</th><th scope="col">Base-first (top-down)</th></tr></thead><tbody>
+<tr><th scope="row">Order</th><td>reverse topological order of the condensed feature graph; shared first, then cheaper class, fewer files</td><td>from the entry: the app shell, then features by distance from the entry</td></tr>
+<tr><th scope="row">First tests</th><td>characterization unit specs on pure functions of the leaves, then scene specs</td><td>launch smoke (an e2e flow if a device is available, else a headless spec of the root Scene init), then one scene spec per screen</td></tr>
+<tr><th scope="row">Dependencies below the step</th><td>already tested</td><td>stubbed with test doubles; network and store faked</td></tr>
+<tr><th scope="row">Device needed early?</th><td>no; device and e2e steps come last</td><td>yes, if the launch smoke is a flow (the headless fallback is listed)</td></tr>
+<tr><th scope="row">Best when</th><td>a big shared core has no tests, refactors are planned, or there is no device</td><td>the product wants journey coverage fast, a device is available, or the code is screen-heavy</td></tr>
+<tr><th scope="row">Risk</th><td>slow to show user-visible value</td><td>stubs hide integration bugs until the lower layers get tests</td></tr>
+</tbody></table></div>
+<p class="muted">The same steps are listed twice below. Without JavaScript both paths are shown in sequence.</p>
+<section id="path-leaf-first" data-path="leaf-first" aria-labelledby="h-path-leaf-first"><h3 id="h-path-leaf-first">Leaf-first (bottom-up) <span class="badge rec">recommended</span></h3>
+<p>default: shared code is tested first so the screens that depend on it start from tested parts</p>
+<ol class="steps">
+<li><strong>Step 1</strong>: <a href="#f-shared-source-lib">Shared source/lib</a>
+<ul>
+<li>Nodes: headless-unit 4</li>
+<li>First tests: <a href="#n-a8aae9e515"><code>file:source/lib/BTState.brs</code></a>, <a href="#n-9a52d4c26e"><code>file:source/lib/Feed.brs</code></a>, <a href="#n-aa8b4ddfe4"><code>file:source/lib/Format.brs</code></a>, <a href="#n-ad39c0c1c5"><code>file:source/lib/Watchlist.brs</code></a></li>
+<li>Proposed tests (from the rules): <a href="#n-a8aae9e515"><code>file:source/lib/BTState.brs</code></a> <span class="badge c-headless-unit">headless-unit</span>; <a href="#n-9a52d4c26e"><code>file:source/lib/Feed.brs</code></a> <span class="badge c-headless-unit">headless-unit</span>; <a href="#n-aa8b4ddfe4"><code>file:source/lib/Format.brs</code></a> <span class="badge c-headless-unit">headless-unit</span>; <a href="#n-ad39c0c1c5"><code>file:source/lib/Watchlist.brs</code></a> <span class="badge c-headless-unit">headless-unit</span></li>
+<li>Command and CI job: <code>npx brighttest --no-sgnode --junit reports/unit.xml</code> (fast gate)</li>
+<li>Done when: the new specs fail when the behaviour is broken, then pass.</li>
+</ul></li>
+<li><strong>Step 2</strong>: <a href="#f-unreached">Unreached code</a>
+<ul>
+<li>Nodes: headless-unit 3, headless-scene 7, headless-fixtures 1, not classified 1</li>
+<li>First tests: <a href="#n-4becdbec9f"><code>file:components/StateProbe.brs</code></a>, <a href="#n-61ae91e75f"><code>file:components/panels/HomePanel.brs</code></a>, <a href="#n-e087e2b789"><code>file:source/lib/Search.brs</code></a>, <a href="#n-f43ffb7107"><code>comp:DetailsPanel</code></a>, <a href="#n-ebf517bc83"><code>comp:HomePanel</code></a>, <a href="#n-189ab11644"><code>comp:SearchPanel</code></a>, <a href="#n-36c750f778"><code>comp:StateProbe</code></a>, <a href="#n-f889d21132"><code>file:components/panels/DetailsPanel.brs</code></a> and 2 more</li>
+<li>Proposed tests (from the rules): <a href="#n-4becdbec9f"><code>file:components/StateProbe.brs</code></a> <span class="badge c-headless-unit">headless-unit</span>; <a href="#n-61ae91e75f"><code>file:components/panels/HomePanel.brs</code></a> <span class="badge c-headless-unit">headless-unit</span>; <a href="#n-e087e2b789"><code>file:source/lib/Search.brs</code></a> <span class="badge c-headless-unit">headless-unit</span>; <a href="#n-f43ffb7107"><code>comp:DetailsPanel</code></a> <span class="badge c-headless-scene">headless-scene</span>; <a href="#n-ebf517bc83"><code>comp:HomePanel</code></a> <span class="badge c-headless-scene">headless-scene</span>; <a href="#n-189ab11644"><code>comp:SearchPanel</code></a> <span class="badge c-headless-scene">headless-scene</span>; <a href="#n-36c750f778"><code>comp:StateProbe</code></a> <span class="badge c-headless-scene">headless-scene</span>; <a href="#n-f889d21132"><code>file:components/panels/DetailsPanel.brs</code></a> <span class="badge c-headless-scene">headless-scene</span>; <a href="#n-dd1d4cfcc4"><code>file:components/panels/PlayerPanel.brs</code></a> <span class="badge c-headless-scene">headless-scene</span>; <a href="#n-9f8cbb8225"><code>file:components/panels/SearchPanel.brs</code></a> <span class="badge c-headless-scene">headless-scene</span>; <a href="#n-02ec8d8d4e"><code>comp:PlayerPanel</code></a> <span class="badge c-headless-fixtures">headless-fixtures</span></li>
+<li>Command and CI job: <code>npx brighttest --no-sgnode --junit reports/unit.xml</code> (fast gate); <code>npx brighttest --coverage --lcov coverage/lcov.info --junit reports/junit.xml</code> (headless gate)</li>
+<li>Not classified: needs the agent or a human: <a href="#n-3fcab836cd"><code>file:source/lib/BTLayout.brs</code></a></li>
+<li>Done when: the new specs fail when the behaviour is broken, then pass.</li>
+</ul></li>
+<li><strong>Step 3</strong>: <a href="#f-app-shell">App shell</a>
+<ul>
+<li>Nodes: headless-scene 1, headless-fixtures 2, e2e 1</li>
+<li>First tests: <a href="#n-d8841aa05d"><code>file:source/main.brs</code></a></li>
+<li>Proposed tests (from the rules): <a href="#n-d8841aa05d"><code>file:source/main.brs</code></a> <span class="badge c-headless-scene">headless-scene</span>; <a href="#n-c10b6d9d63"><code>comp:MainScene</code></a> <span class="badge c-headless-fixtures">headless-fixtures</span>; <a href="#n-1db15b5629"><code>file:components/MainScene.brs</code></a> <span class="badge c-headless-fixtures">headless-fixtures</span>; <a href="#n-affa4768e9"><code>entry:main</code></a> <span class="badge c-e2e">e2e</span></li>
+<li>Command and CI job: <code>npx brighttest --coverage --lcov coverage/lcov.info --junit reports/junit.xml</code> (headless gate); <code>npx brighttest e2e run flows/...</code> (e2e job)</li>
+<li>Done when: the new specs fail when the behaviour is broken, then pass.</li>
+</ul></li>
+</ol></section>
+<section id="path-base-first" data-path="base-first" aria-labelledby="h-path-base-first"><h3 id="h-path-base-first">Base-first (top-down)</h3>
+<ol class="steps">
+<li><strong>Step 1</strong>: <a href="#f-app-shell">App shell</a>
+<ul>
+<li>Launch smoke: e2e flow if a device is available; otherwise headless-scene spec of the root Scene init with globalFields seeded.</li>
+<li>Nodes: headless-scene 1, headless-fixtures 2, e2e 1</li>
+<li>First tests: <a href="#n-d8841aa05d"><code>file:source/main.brs</code></a></li>
+<li>Proposed tests (from the rules): <a href="#n-d8841aa05d"><code>file:source/main.brs</code></a> <span class="badge c-headless-scene">headless-scene</span>; <a href="#n-c10b6d9d63"><code>comp:MainScene</code></a> <span class="badge c-headless-fixtures">headless-fixtures</span>; <a href="#n-1db15b5629"><code>file:components/MainScene.brs</code></a> <span class="badge c-headless-fixtures">headless-fixtures</span>; <a href="#n-affa4768e9"><code>entry:main</code></a> <span class="badge c-e2e">e2e</span></li>
+<li>Command and CI job: <code>npx brighttest --coverage --lcov coverage/lcov.info --junit reports/junit.xml</code> (headless gate); <code>npx brighttest e2e run flows/...</code> (e2e job)</li>
+<li>Stub: <code>shared-source-lib</code> (test doubles; network and store faked)</li>
+<li>Done when: the new specs fail when the behaviour is broken, then pass.</li>
+</ul></li>
+<li><strong>Step 2</strong>: <a href="#f-shared-source-lib">Shared source/lib</a>
+<ul>
+<li>Nodes: headless-unit 4</li>
+<li>First tests: <a href="#n-a8aae9e515"><code>file:source/lib/BTState.brs</code></a>, <a href="#n-9a52d4c26e"><code>file:source/lib/Feed.brs</code></a>, <a href="#n-aa8b4ddfe4"><code>file:source/lib/Format.brs</code></a>, <a href="#n-ad39c0c1c5"><code>file:source/lib/Watchlist.brs</code></a></li>
+<li>Proposed tests (from the rules): <a href="#n-a8aae9e515"><code>file:source/lib/BTState.brs</code></a> <span class="badge c-headless-unit">headless-unit</span>; <a href="#n-9a52d4c26e"><code>file:source/lib/Feed.brs</code></a> <span class="badge c-headless-unit">headless-unit</span>; <a href="#n-aa8b4ddfe4"><code>file:source/lib/Format.brs</code></a> <span class="badge c-headless-unit">headless-unit</span>; <a href="#n-ad39c0c1c5"><code>file:source/lib/Watchlist.brs</code></a> <span class="badge c-headless-unit">headless-unit</span></li>
+<li>Command and CI job: <code>npx brighttest --no-sgnode --junit reports/unit.xml</code> (fast gate)</li>
+<li>Done when: the new specs fail when the behaviour is broken, then pass.</li>
+</ul></li>
+<li><strong>Step 3</strong>: <a href="#f-unreached">Unreached code</a>
+<ul>
+<li>Nodes: headless-unit 3, headless-scene 7, headless-fixtures 1, not classified 1</li>
+<li>First tests: <a href="#n-4becdbec9f"><code>file:components/StateProbe.brs</code></a>, <a href="#n-61ae91e75f"><code>file:components/panels/HomePanel.brs</code></a>, <a href="#n-e087e2b789"><code>file:source/lib/Search.brs</code></a>, <a href="#n-f43ffb7107"><code>comp:DetailsPanel</code></a>, <a href="#n-ebf517bc83"><code>comp:HomePanel</code></a>, <a href="#n-189ab11644"><code>comp:SearchPanel</code></a>, <a href="#n-36c750f778"><code>comp:StateProbe</code></a>, <a href="#n-f889d21132"><code>file:components/panels/DetailsPanel.brs</code></a> and 2 more</li>
+<li>Proposed tests (from the rules): <a href="#n-4becdbec9f"><code>file:components/StateProbe.brs</code></a> <span class="badge c-headless-unit">headless-unit</span>; <a href="#n-61ae91e75f"><code>file:components/panels/HomePanel.brs</code></a> <span class="badge c-headless-unit">headless-unit</span>; <a href="#n-e087e2b789"><code>file:source/lib/Search.brs</code></a> <span class="badge c-headless-unit">headless-unit</span>; <a href="#n-f43ffb7107"><code>comp:DetailsPanel</code></a> <span class="badge c-headless-scene">headless-scene</span>; <a href="#n-ebf517bc83"><code>comp:HomePanel</code></a> <span class="badge c-headless-scene">headless-scene</span>; <a href="#n-189ab11644"><code>comp:SearchPanel</code></a> <span class="badge c-headless-scene">headless-scene</span>; <a href="#n-36c750f778"><code>comp:StateProbe</code></a> <span class="badge c-headless-scene">headless-scene</span>; <a href="#n-f889d21132"><code>file:components/panels/DetailsPanel.brs</code></a> <span class="badge c-headless-scene">headless-scene</span>; <a href="#n-dd1d4cfcc4"><code>file:components/panels/PlayerPanel.brs</code></a> <span class="badge c-headless-scene">headless-scene</span>; <a href="#n-9f8cbb8225"><code>file:components/panels/SearchPanel.brs</code></a> <span class="badge c-headless-scene">headless-scene</span>; <a href="#n-02ec8d8d4e"><code>comp:PlayerPanel</code></a> <span class="badge c-headless-fixtures">headless-fixtures</span></li>
+<li>Command and CI job: <code>npx brighttest --no-sgnode --junit reports/unit.xml</code> (fast gate); <code>npx brighttest --coverage --lcov coverage/lcov.info --junit reports/junit.xml</code> (headless gate)</li>
+<li>Not classified: needs the agent or a human: <a href="#n-3fcab836cd"><code>file:source/lib/BTLayout.brs</code></a></li>
+<li>Done when: the new specs fail when the behaviour is broken, then pass.</li>
+</ul></li>
+</ol></section>
+</section>
+<section id="matrix" aria-labelledby="h-matrix"><h2 id="h-matrix">Headless versus device</h2><p class="muted">Node counts by effective class. Nodes that are not classified are counted only in their own column, never in a headless or device total.</p><div class="scroll" role="region" tabindex="0" aria-label="Node counts per feature and class"><table><caption>Node counts per feature and class</caption><thead><tr><th scope="col">Feature</th><th scope="col" class="n">Headless total</th><th scope="col" class="n">Device total</th><th scope="col" class="n">headless-unit</th><th scope="col" class="n">headless-scene</th><th scope="col" class="n">headless-fixtures</th><th scope="col" class="n">device</th><th scope="col" class="n">e2e</th><th scope="col" class="n">Not classified</th></tr></thead><tbody>
+<tr><th scope="row"><a href="#f-app-shell">App shell</a></th><td class="n">3</td><td class="n">1</td><td class="n">0</td><td class="n">1</td><td class="n">2</td><td class="n">0</td><td class="n">1</td><td class="n">0</td></tr>
+<tr><th scope="row"><a href="#f-shared-source-lib">Shared source/lib</a></th><td class="n">4</td><td class="n">0</td><td class="n">4</td><td class="n">0</td><td class="n">0</td><td class="n">0</td><td class="n">0</td><td class="n">0</td></tr>
+<tr><th scope="row"><a href="#f-unreached">Unreached code</a></th><td class="n">11</td><td class="n">0</td><td class="n">3</td><td class="n">7</td><td class="n">1</td><td class="n">0</td><td class="n">0</td><td class="n">1</td></tr>
+<tr><th scope="row">All features</th><td class="n">18</td><td class="n">1</td><td class="n">7</td><td class="n">8</td><td class="n">3</td><td class="n">0</td><td class="n">1</td><td class="n">1</td></tr>
+</tbody></table></div></section>
+<section id="ci" aria-labelledby="h-ci"><h2 id="h-ci">CI checklist</h2><p>Get the tests running in CI:</p><ol><li>No CI configuration found. Add the headless gate job (docs/guide/ci.md, section &#39;GitHub Actions — headless gate (with coverage)&#39;).</li><li>2 features have pure-function nodes: run the fast gate (npx brighttest --no-sgnode --junit reports/unit.xml) on every push.</li><li>18 headless-testable nodes: run the headless gate (npx brighttest --coverage --lcov coverage/lcov.info --junit reports/junit.xml).</li><li>1 of 3 features have a device or e2e node: add the nightly device job only when you have a self-hosted runner on the device network.</li><li>1 nodes not classified: classify first. No CI job is suggested for them until the agent or a human gives them a class.</li><li>This report does not generate workflow files: copy the templates from the CI guide so there is one source.</li></ol><div class="scroll" role="region" tabindex="0" aria-label="CI job per class"><table><caption>CI job per class</caption><thead><tr><th scope="col">Class</th><th scope="col">Runner</th><th scope="col">Job</th><th scope="col">Command</th><th scope="col">Lease</th></tr></thead><tbody>
+<tr><th scope="row"><span class="badge c-headless-unit">headless-unit</span></th><td>hosted (plain runner)</td><td>fast gate</td><td><code>npx brighttest --no-sgnode --junit reports/unit.xml</code></td><td>none</td></tr>
+<tr><th scope="row"><span class="badge c-headless-scene">headless-scene</span></th><td>hosted</td><td>headless gate</td><td><code>npx brighttest --coverage --lcov coverage/lcov.info --junit reports/junit.xml</code></td><td>none</td></tr>
+<tr><th scope="row"><span class="badge c-headless-fixtures">headless-fixtures</span></th><td>hosted</td><td>headless gate</td><td><code>npx brighttest --coverage --lcov coverage/lcov.info --junit reports/junit.xml</code></td><td>none</td></tr>
+<tr><th scope="row"><span class="badge c-device">device</span></th><td>self-hosted runner on the device&#39;s network</td><td>nightly device job</td><td><code>npx brighttest --cross-check --host &quot;$ROKU_HOST&quot; --password &quot;$ROKU_PASSWORD&quot;</code></td><td>takes the lease itself; set BRIGHTTEST_AGENT=ci:&lt;run id&gt; and BRIGHTTEST_LEASE_WAIT, use a concurrency group, exit 75 on timeout (ci.md, Sharing the device with local agents)</td></tr>
+<tr><th scope="row"><span class="badge c-e2e">e2e</span></th><td>self-hosted</td><td>e2e job</td><td><code>npx brighttest e2e run flows/...</code></td><td>takes the lease itself; set BRIGHTTEST_AGENT=ci:&lt;run id&gt; and BRIGHTTEST_LEASE_WAIT, use a concurrency group, exit 75 on timeout (ci.md, Sharing the device with local agents)</td></tr>
+<tr><th scope="row"><span class="badge c-unknown" title="unknown">not classified</span></th><td>none</td><td>classify first</td><td><code>none: classify the node first (a human or the agent), then pick its job</code></td><td>none</td></tr>
+</tbody></table></div><p class="muted">Commands and sections are from docs/guide/ci.md.</p></section>
+<section id="uncertainty" aria-labelledby="h-uncertainty"><h2 id="h-uncertainty">Uncertainty</h2>
+<div class="scroll" role="region" tabindex="0" aria-label="Uncertainty by kind"><table><caption>Uncertainty by kind</caption><thead><tr><th scope="col">Kind</th><th scope="col" class="n">Count</th></tr></thead><tbody>
+<tr><th scope="row">dynamic-createobject</th><td class="n">1</td></tr>
+<tr><th scope="row">dynamic-observe</th><td class="n">2</td></tr>
+</tbody></table></div>
+<h3 id="h-unc-items">Top items</h3><ul><li>dynamic-createobject at <code>components/MainScene.brs:36</code>: CreateObject with a variable component name</li><li>dynamic-observe at <code>components/MainScene.brs:37</code>: panel</li><li>dynamic-observe at <code>components/MainScene.brs:38</code>: panel</li></ul>
+<h3 id="h-device">What cannot be known without a device</h3>
+<p>Static analysis predicts the lane of each node. These need a device to confirm:</p><ul>
+<li>network: 6 nodes with a device-only aspect</li>
+<li>playback: 1 node with a device-only aspect</li>
+<li>bsc plugins that generate code are not run; generated functions and components are not in the graph</li>
+<li>ropm prefix rewriting is not modelled; renamed library components appear as unresolved names</li>
+<li>component names built at runtime from strings are only reported as dynamic</li>
+<li>functions passed as strings to observeField in other components are not followed</li>
+<li>Real wall-clock timing, rendering, key handling and platform behaviour that the headless engine does not emulate.</li></ul>
+</section>
+<section id="method" aria-labelledby="h-method"><h2 id="h-method">Method and provenance</h2>
+<p>Rules: the graph, the edges, the call confidence and each node's predicted class come from a deterministic analysis of the project files (rule ids are in the member tables). Agent judgement: the grouping into features, the names and summaries, the risk, the proposed tests and any class override are written by brighttest and validated against the graph. Feature dependencies are computed from graph edges and are never authored.</p>
+<dl class="kv"><dt>Tree author</dt><dd>brighttest</dd><dt>Created from</dt><dd>graph.suggested</dd><dt>Tree schema</dt><dd>brighttest-feature-tree/v1</dd><dt>Graph schema</dt><dd>brighttest-feature-graph/v1</dd><dt>Overrides</dt><dd>0</dd><dt>Overrides on unclassified nodes (agent judgement)</dt><dd>0</dd></dl></section>
+</main>
+<script>
+(function () {
+  var d = document, r = d.documentElement;
+  function theme() { var m = /theme=(dark|light)/.exec(location.hash); if (m) r.setAttribute('data-theme', m[1]); }
+  theme(); addEventListener('hashchange', theme);
+  var bar = d.getElementById('tools');
+  if (!bar) return;
+  function el(tag, text, attrs) { var e = d.createElement(tag); if (text) e.textContent = text; for (var k in (attrs || {})) e.setAttribute(k, attrs[k]); return e; }
+  var q = el('input', '', { type: 'search', id: 'filter', 'aria-label': 'Filter features' });
+  var lab = el('label', 'Filter features ', { 'for': 'filter' });
+  var count = el('span', '', { role: 'status', 'class': 'muted' });
+  function items() { return Array.prototype.slice.call(d.querySelectorAll('[data-f]')); }
+  q.addEventListener('input', function () {
+    var t = q.value.toLowerCase(), shown = 0, all = items();
+    all.forEach(function (e) { var ok = !t || e.textContent.toLowerCase().indexOf(t) >= 0; e.hidden = !ok; if (ok && e.tagName === 'ARTICLE') shown++; });
+    count.textContent = t ? shown + ' features match' : '';
+  });
+  function all(open) { Array.prototype.forEach.call(d.querySelectorAll('#tree details'), function (x) { x.open = open; }); }
+  var ex = el('button', 'Expand all', { type: 'button' }), co = el('button', 'Collapse all', { type: 'button' });
+  ex.addEventListener('click', function () { all(true); }); co.addEventListener('click', function () { all(false); });
+  var th = el('button', 'Toggle theme', { type: 'button' });
+  th.addEventListener('click', function () {
+    var cur = r.getAttribute('data-theme');
+    if (!cur) cur = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    r.setAttribute('data-theme', cur === 'dark' ? 'light' : 'dark');
+  });
+  bar.appendChild(lab); bar.appendChild(q); bar.appendChild(count); bar.appendChild(ex); bar.appendChild(co);
+  var paths = Array.prototype.slice.call(d.querySelectorAll('[data-path]'));
+  if (paths.length) {
+    var tabs = [['both', 'Both paths'], ['leaf-first', 'Leaf-first'], ['base-first', 'Base-first']].map(function (p) {
+      var b = el('button', p[1], { type: 'button', 'aria-pressed': p[0] === 'both' ? 'true' : 'false' });
+      b.addEventListener('click', function () {
+        tabs.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
+        paths.forEach(function (s) { s.hidden = p[0] !== 'both' && s.getAttribute('data-path') !== p[0]; });
+      });
+      return b;
+    });
+    tabs.forEach(function (b) { bar.appendChild(b); });
+  }
+  bar.appendChild(th);
+  bar.hidden = false;
+})();
+</script>
+</body>
+</html>

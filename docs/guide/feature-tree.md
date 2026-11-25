@@ -10,6 +10,8 @@ npx brighttest features graph ./my-app --out ./out
 npx brighttest features graph --json     # print the graph instead of the summary
 ```
 
+See [Mapping results](/guide/mapping-results) for rendered reports from the example apps in this repository.
+
 ## What it writes
 
 | File | Content |
