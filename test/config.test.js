@@ -108,10 +108,13 @@ describe('writeBsConfig coverage key by rooibos version', () => {
 })
 
 describe('writeBsConfig', () => {
+  // the coverage key follows the resolved rooibos version (5.16.x: isRecordingCodeCoverage, 5.17.0 and later: codeCoverage)
+  const enginesMod = createRequire(import.meta.url)('../lib/engines.js')
+  const covOf = (bs) => bs.rooibos[enginesMod.supportsOption(enginesMod.engineFor('rooibos', cfgAt(tmp)), 'codeCoverage') ? 'codeCoverage' : 'isRecordingCodeCoverage']
   it('headless-scene lane: no coverage, excludes deviceOnly, no LCOV', () => {
     const { bsconfigPath } = writeBsConfig(cfgAt(tmp), 'headless-scene')
     const bs = readBsConfig(bsconfigPath)
-    expect(bs.rooibos.isRecordingCodeCoverage).toBe(false)
+    expect(covOf(bs)).toBe(false)
     expect(bs.rooibos.failFast).toBe(false)
     expect(bs.rooibos.tags).toEqual(['!deviceOnly'])
     expect(bs.rooibos.printLcov).toBeUndefined()
@@ -121,14 +124,14 @@ describe('writeBsConfig', () => {
 
   it('headless-coverage lane: coverage on and LCOV printed', () => {
     const bs = readBsConfig(writeBsConfig(cfgAt(tmp), 'headless-coverage').bsconfigPath)
-    expect(bs.rooibos.isRecordingCodeCoverage).toBe(true)
+    expect(covOf(bs)).toBe(true)
     expect(bs.rooibos.printLcov).toBe(true)
     expect(bs.rooibos.tags).toEqual(['!deviceOnly'])
   })
 
   it('device lane: coverage on, keeps deviceOnly tests, LCOV only when requested', () => {
     const noLcov = readBsConfig(writeBsConfig(cfgAt(tmp), 'device').bsconfigPath)
-    expect(noLcov.rooibos.isRecordingCodeCoverage).toBe(true)
+    expect(covOf(noLcov)).toBe(true)
     expect(noLcov.rooibos.tags).toBeUndefined()
     expect(noLcov.rooibos.printLcov).toBeUndefined()
 

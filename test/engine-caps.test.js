@@ -21,8 +21,14 @@ describe('compareCaps', () => {
     expect(r.rows.find((x) => x.id === 'BRS-02')).toMatchObject({ metadata: true, probe: true, nonDevice: true })
   })
   it('flags a claimed capability the probe does not show (also unprobed ids)', () => {
-    const r = C.compareCaps(eng({ caps: ['BRS-07'] }), probe({}))
-    expect(r.mismatches.map((x) => x.id)).toEqual(['BRS-07'])
+    const r = C.compareCaps(eng({ caps: ['BRS-06'] }), probe({}))
+    expect(r.mismatches.map((x) => x.id)).toEqual(['BRS-06'])
+  })
+  it('BRS-07 and BRS-08 are CLI-level: metadata only, no probe column, never a mismatch', () => {
+    const r = C.compareCaps(eng({ caps: ['BRS-07', 'BRS-08'] }), probe({}))
+    expect(r.mismatches).toEqual([])
+    expect(r.rows.find((x) => x.id === 'BRS-07')).toMatchObject({ metadata: true, probe: null })
+    expect(r.rows.find((x) => x.id === 'BRS-08')).toMatchObject({ metadata: true, probe: null })
   })
   it('flags a capability the probe shows but metadata lacks', () => {
     const r = C.compareCaps(eng({ caps: [] }), probe({ 'BRS-03': 1 }))

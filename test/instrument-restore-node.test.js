@@ -17,7 +17,17 @@ const strip = (f) => fs.readFileSync(path.join(SRC, f), 'utf8').split('\n').filt
 const RUNTIME = `${strip('BT_core.brs')}\n${strip('BT_write.brs')}`
 
 let tmp
-beforeAll(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-restore-node-')) })
+// findNode only resolves a tree owned by a component (a detached Node tree answers Invalid on engine 2.7.x, and on a
+// device), so the scene stand-in is a real component, loaded from a one-component package root in the temp dir.
+const writeHostPkg = (dir) => {
+  fs.mkdirSync(path.join(dir, 'components'), { recursive: true })
+  fs.writeFileSync(path.join(dir, 'manifest'), 'title=bt-host\nmajor_version=1\nminor_version=0\nbuild_version=0\n')
+  fs.writeFileSync(path.join(dir, 'components', 'BtHost.xml'), '<?xml version="1.0" encoding="utf-8" ?>\n<component name="BtHost" extends="Node"></component>\n')
+}
+beforeAll(() => {
+  tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-restore-node-'))
+  writeHostPkg(tmp)
+})
 afterAll(() => fs.rmSync(tmp, { recursive: true, force: true }))
 
 const flow = parseFlow([
@@ -39,13 +49,13 @@ function runBrs(main) {
     RUNTIME,
     'sub main()',
     '    g = CreateObject("roSGNode", "Node")',
-    '    sc = CreateObject("roSGNode", "Node")',
+    '    sc = CreateObject("roSGNode", "BtHost")',
     '    t = CreateObject("roSGNode", "Label") : t.id = "tierLabel" : t.text = "Tier: free" : sc.appendChild(t)',
     '    ctx = { global: g, scene: sc, cfg: BT_config(), state: { subscribed: false } }',
     main,
     'end sub',
   ].join('\n'))
-  const child = spawn(process.execPath, [brsCli, file], { stdio: ['ignore', 'pipe', 'pipe'] })
+  const child = spawn(process.execPath, [brsCli, '-r', '.', path.basename(file)], { cwd: tmp, stdio: ['ignore', 'pipe', 'pipe'] })
   let out = ''
   const timer = setTimeout(() => child.kill('SIGKILL'), 60000)
   child.stdout.on('data', (d) => { out += d }); child.stderr.on('data', (d) => { out += d })
