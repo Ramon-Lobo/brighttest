@@ -21,6 +21,23 @@ The graph is a pure function of the project tree: running it twice on the same t
 display-only `app` field). Edges carry a confidence (`exact`, `name`, `ambiguous`, `dynamic`, `unresolved`, `builtin`),
 and everything the analysis cannot resolve is listed under `uncertainty` rather than guessed.
 
+## Where specs are found
+
+Specs inside `source/` and `components/` are found as before. Specs outside them (so `spec-covers` edges exist) are
+read from these top-level folders, matched ignoring case, with the folder's real name in the node ids:
+
+- `test`, `tests`, `spec` and `specs`;
+- the static leading folders of `testsFilePattern`, for example `qa/unit` for `qa/unit/**/*.spec.bs`.
+
+Every `.brs` and `.bs` file under such a folder counts as a spec. `node_modules`, `roku_modules`, vendor and
+`instrument.exclude` paths are skipped, symlinks are never followed, and a folder that is a symlink to the project root,
+to `source/` or `components/`, or to somewhere outside the project is ignored. At most 5000 files are read; beyond that
+the graph reports a `truncated` item.
+
+Limits: a pattern that starts with a wildcard, brace, `..` or an absolute path (for example `**/qa/*.bs`) names no
+folder, so such specs are only found under the four conventional folders. Folders that `sourceGlobs` maps from
+elsewhere into the package (its `src`/`dest` form) are not read.
+
 ## Where files go
 
 Without `--out`, output goes to `<stagingDir>/features/`, which is `.brighttest/features/` unless `brighttest.json`
