@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
+import os from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { makeProject, makeEmptyDir, runCli, readFile, exists, cleanupTemp } from './helpers.js'
 
@@ -290,5 +291,60 @@ describe('a crashed scene run fails instead of dropping cases', () => {
     const xml = readFile(dir, 'reports/junit.xml')
     expect(xml).toContain('tests="3" failures="1"')
     expect(xml).toMatch(/<testcase name="crashing case"><failure>the run crashed \(EXIT_BRIGHTSCRIPT_CRASH\)/)
+  })
+})
+
+describe('instrument.enabled on a scratch copy of the legacy example app', () => {
+  const EXAMPLE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'examples', 'legacy-app')
+  const scratch = []
+  afterAll(() => { for (const d of scratch) fs.rmSync(d, { recursive: true, force: true }) })
+  function copyLegacy(patch) {
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-inst-'))
+    scratch.push(d)
+    fs.cpSync(EXAMPLE, d, { recursive: true, filter: (f) => !/[\\/](\.brighttest|coverage)$/.test(f) })
+    const file = path.join(d, 'brighttest.json')
+    const cfg = JSON.parse(fs.readFileSync(file, 'utf8'))
+    patch(cfg)
+    fs.writeFileSync(file, JSON.stringify(cfg, null, 2))
+    return d
+  }
+
+  it('default lane: specs pass on the scene lane with the state agent baked in', () => {
+    const dir = copyLegacy((c) => { c.instrument.enabled = true })
+    const res = runCli(dir)
+    expect(res.status).toBe(0)
+    expect(res.output).toContain('15 passed, 0 failed')
+    expect(exists(dir, '.brighttest/headless-scene/build/components/bt/BT_Agent.brs')).toBe(true)
+  })
+
+  it('--coverage: specs pass and the LCOV lists no injected tool files', () => {
+    const dir = copyLegacy((c) => { c.instrument.enabled = true })
+    const res = runCli(dir, ['--coverage'])
+    expect(res.status).toBe(0)
+    expect(res.output).toContain('15 passed, 0 failed')
+    expect(exists(dir, '.brighttest/headless-coverage/build/components/bt/BT_Agent.brs')).toBe(true)
+    const lcov = readFile(dir, 'coverage/lcov.info')
+    expect(lcov).toContain('SF:')
+    expect(lcov).not.toMatch(/SF:.*(source|components)\/bt\//)
+  })
+
+  it('a bad block does not fail a run that is not enabled; it fails an enabled one (exit 2)', () => {
+    const off = runCli(copyLegacy((c) => { c.instrument.enabled = 'yes' }))
+    expect(off.status).toBe(0)
+    expect(off.output).toContain('[brighttest] instrument: instrument.enabled must be true or false (got "yes")')
+    const stateOnly = runCli(copyLegacy((c) => { c.instrument.state = 'x' }))
+    expect(stateOnly.status).toBe(0)
+    const bad = copyLegacy((c) => { c.instrument.enabled = true; c.instrument.state = 'x' })
+    const res = runCli(bad)
+    expect(res.status).toBe(2)
+    expect(res.output).toContain('[brighttest] instrument: instrument.state must be true, false or an object')
+  })
+
+  it('--no-sgnode with the state agent exits 2 before anything is built', () => {
+    const dir = copyLegacy((c) => { c.instrument.enabled = true })
+    const res = runCli(dir, ['--no-sgnode'])
+    expect(res.status).toBe(2)
+    expect(res.output).toContain('--no-sgnode runs no SceneGraph')
+    expect(exists(dir, '.brighttest')).toBe(false)
   })
 })

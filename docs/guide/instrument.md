@@ -259,7 +259,41 @@ by hand, because the plugin only rewrites `setUrl` and `getUrl` on `roUrlTransfe
 
 ## In headless tests
 
-`instrument.enabled` (boolean, default `false`) is reserved for the headless lanes: `instrument build` ignores it. The config loader validates it together with `state` (`true`, `false` or an object), `net` and `exclude`, and a bad value is an `InstrumentConfigError`. The headless lanes do not apply it yet, so setting it has no effect on a run today.
+`instrument.enabled` (boolean, default `false`) turns the instrument on for the headless lanes (`brighttest`,
+`brighttest --coverage`, the scene lanes). `instrument build` ignores it.
+
+```json
+"instrument": {
+  "enabled": true,
+  "state": true,
+  "net": { "fixtures": [] },
+  "exclude": ["source/vendor/**"]
+}
+```
+
+What `enabled: true` does:
+
+- **Scene lane.** The run builds with the instrument plugin and the run's in-process loopback hub (the same hub the
+  network fixtures use). The state agent needs a SceneGraph scene, so the default lane runs through the scene runner
+  instead of the faster SceneGraph-off driver, even when the project has no `@SGNode` specs.
+- **State agent baked in.** `state` is `true` (default), `false` or an options object (`redact`, `callable`, `publish`,
+  `caps`, `registrySections`), the same options as `instrument build`. With `state: false` the run is net only and
+  `enabled` needs `net` to be active; otherwise it exits 2 with "nothing to instrument". `net` keeps its own activation
+  rules: `enabled` never turns it on.
+- **Coverage differs.** Scene-lane runs are slower than the SceneGraph-off driver, and the LCOV and the coverage percent
+  count only your app's files: the injected `source/bt/**` and `components/bt/**` runtime is dropped from the report.
+  This also applies to net-only runs.
+- **`--no-sgnode` exits 2** on the default lane (`--no-sgnode runs no SceneGraph; the instrument state agent needs a scene
+  lane`), before the hub starts or anything is built. Drop the flag or set `state` to `false`.
+- **`--device` and `--cross-check` ignore it.** They print one line, `instrument.enabled applies to the headless lanes
+  only; ignored by <lane>`, and run as before. For a device build use `instrument build --sideload`.
+
+Validation. A bad block (not an object, `enabled` or `state` of the wrong type, an invalid `state` options object, an
+`exclude` that is not an array of strings) is checked strictly only when the run is instrumented, that is when
+`enabled` is `true`. It then exits 2 with `[brighttest] instrument: <message>` and nothing is built. When the run is not
+instrumented the same problem prints one warning (`[brighttest] instrument: <message> (ignored: instrument is not
+enabled for this run)`) and the run goes on as a plain headless run. `instrument build`, Studio and `doctor` never fail on
+these keys.
 
 ## Headless network fixtures: flags, config and run records
 

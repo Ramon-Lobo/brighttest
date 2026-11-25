@@ -20,7 +20,7 @@ const cfgOf = (instrument, extra = {}) => {
   fs.writeFileSync(path.join(tmp, 'brighttest.json'), JSON.stringify(raw))
   return loadConfig(tmp)
 }
-const msg = (cfg, opts) => { try { resolveHeadlessInstrument(cfg, opts) } catch (e) { expect(e).toBeInstanceOf(InstrumentConfigError); expect(e.name).toBe('InstrumentConfigError'); return e.message } return null }
+const msg = (cfg, opts = { instrument: true }) => { try { resolveHeadlessInstrument(cfg, opts) } catch (e) { expect(e).toBeInstanceOf(InstrumentConfigError); expect(e.name).toBe('InstrumentConfigError'); return e.message } return null }
 
 describe('resolveHeadlessInstrument: valid and defaults', () => {
   it('no block: off, state defaults, net off', () => {
@@ -86,8 +86,15 @@ describe('resolveHeadlessInstrument: invalid', () => {
   it('loadConfig never throws for bad values; only resolveHeadlessInstrument does (D6)', () => {
     for (const inst of [{ enabled: 'x' }, { state: 'x' }, { exclude: 'x' }, { state: { redact: 'x' } }, 'yes', null, [1]]) {
       const cfg = cfgOf(inst)
-      expect(() => resolveHeadlessInstrument(cfg)).toThrow(InstrumentConfigError)
+      expect(() => resolveHeadlessInstrument(cfg, { instrument: true })).toThrow(InstrumentConfigError)
     }
+  })
+  it('a bad block does not throw when the run is not enabled: it returns a warning', () => {
+    for (const [inst, text] of [[{ enabled: 'x' }, 'instrument.enabled must be true or false (got "x")'], [{ state: 'x' }, 'instrument.state must be true, false or an object (got "x")'], [{ exclude: 'x' }, 'instrument.exclude must be an array of glob strings'], ['yes', 'instrument must be an object (got "yes")']]) {
+      const r = resolveHeadlessInstrument(cfgOf(inst), {})
+      expect(r).toMatchObject({ enabled: false, state: false, warning: text })
+    }
+    expect(resolveHeadlessInstrument(cfgOf({ enabled: false, state: false }), {}).warning).toBeUndefined()
   })
   it('the raw block is not enumerable on the loaded config', () => {
     expect(Object.keys(cfgOf({ enabled: true }))).not.toContain('_rawInstrument')

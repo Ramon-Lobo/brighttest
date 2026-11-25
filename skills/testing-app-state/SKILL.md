@@ -92,6 +92,10 @@ line in the Rooibos output (verify the path). Guide: `docs/writing-tests/state-f
 Registry writes go only to `registrySections`. Secret-looking keys (`token`, `password`, and similar) are always
 published as `<redacted:key>`. Wrong types or out-of-range numbers fail the instrument build, naming the key.
 
+Headless specs can run against the real state agent: set `"instrument": { "enabled": true }` (the `state` options above
+then apply to the headless build too). The run takes the scene lane, and `--no-sgnode` exits 2. Coverage counts only the
+app's files, not the injected `bt` runtime. A device or `--cross-check` run ignores `enabled`.
+
 ## Errors
 
 A failed step prints its code first, for example `STATE_ACK_TIMEOUT: setState: no applied ack within 10s`.

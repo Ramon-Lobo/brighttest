@@ -61,6 +61,14 @@ limit is researched from Roku's public docs, not verified here (see `references/
    `BRIGHTTEST_DOCTOR_HUB_PROBE=1` (with `ROKU_PASSWORD` exported, never printed) proves reach by sideloading a no-icon
    probe package; it replaces the dev channel slot and takes the lease. Firewall problems are the human's to fix.
 
+## Headless tests
+
+`"instrument": { "enabled": true }` in `brighttest.json` makes the headless lanes (`brighttest`, `brighttest --coverage`)
+build with the instrument plugin and the run's own loopback hub: the state agent is baked in, so the run takes the scene
+lane (net too when configured). Set `"state": false` for net only. `--no-sgnode` then exits 2. `--device` and
+`--cross-check` ignore the key (one note). A bad block exits 2 only when enabled; otherwise it warns and is ignored.
+Guide: `docs/guide/instrument.md`, "In headless tests".
+
 ## Exit codes at a glance
 
 | Command | Code | Meaning |
