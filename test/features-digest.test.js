@@ -58,6 +58,25 @@ describe('digest budget', () => {
     expect(d.length).toBeLessThanOrEqual(900)
     expect(d).toMatch(/components \(\d+\)/)
   })
+  it('a 400-cluster app at a tiny budget still lists the clusters, rolled up by folder, in one Clusters line', () => {
+    const g = wide(400); const s = suggest(g)
+    const d = buildDigest(g, s, { budget: 500 })
+    expect(d.length).toBeLessThanOrEqual(500)
+    expect(d).toMatch(/^Clusters \(401\) rolled up by folder, cluster counts: components \(401\)$/m)
+    expect(d).toMatch(/Truncated to fit the 500 character budget/)
+  })
+  it('a rollup with 50+ top-level folders is cut at a whole entry at a budget of about 900', () => {
+    const comps = []; const edges = []
+    for (let i = 0; i < 120; i++) { comps.push({ name: `Screen${i}`, dir: `area${i}/s${i}` }); edges.push(['comp:S', `comp:Screen${i}`, 'child']) }
+    const g = mk({ comps, edges }); const s = suggest(g)
+    const d = buildDigest(g, s, { budget: 900 })
+    expect(d.length).toBeLessThanOrEqual(900)
+    const line = d.split('\n').find((l) => l.startsWith('Clusters ('))
+    const entries = line.slice(line.indexOf(': ') + 2).split(', ')
+    expect(entries.length).toBeGreaterThan(10); expect(entries.length).toBeLessThan(120)
+    for (const e of entries) expect(e).toMatch(/^area\d+ \(1\)$/)
+    expect(d).toMatch(/Truncated to fit the 900 character budget/)
+  })
   it('the default budget is 48,000 characters: a table that needs more than 20,000 stays full by default', () => {
     expect(DEFAULT_BUDGET).toBe(48000)
     const g = wide(300); const s = suggest(g)
@@ -71,6 +90,11 @@ describe('digest budget', () => {
     const g = wide(5); const s = suggest(g)
     expect(buildDigest(g, s, { budget: 200 }).length).toBeLessThanOrEqual(200)
     expect(buildDigest(g, s, { budget: 10 }).length).toBeLessThanOrEqual(200)
+    // the floor is exactly 200: a header larger than that is cut to 200, not to the smaller request
+    const big = wide(300); const bs = suggest(big)
+    expect(buildDigest(big, bs, { budget: 10 }).length).toBe(200)
+    expect(buildDigest(big, bs, { budget: 199 }).length).toBe(200)
+    expect(buildDigest(big, bs, { budget: 200 }).length).toBe(200)
   })
   it('switches the cluster table to folder rollups when the full table does not fit', () => {
     const g = wide(300); const s = suggest(g)
