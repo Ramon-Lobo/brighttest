@@ -62,7 +62,8 @@ Host, project, bsconfig, manifest, engines, census, CI, `.gitignore`, devices, r
 `bsconfig` and `manifestKeys`), `brighttest` (config and `engines`), `census`, `secrets`, `risky`, `scans`, `ci`,
 `gitignore`, `devices`, `recommendation` (`path`, `editPermission`, `blockers`, `nextSteps`, `unknowns`) and `scan`.
 
-- `recommendation.path`: `not-a-roku-app` without a manifest; `greenfield` with a manifest, fewer than 5 components and
+- `recommendation.path`: `not-a-roku-app` without a manifest (when folders below the root hold a `manifest` plus a `source/` or
+  `src/` tree, a blocker and the first next step name up to 5 of them: run assess from one, or set `rootDir`); `greenfield` with a manifest, fewer than 5 components and
   no spec files; otherwise `brownfield`.
 - `recommendation.editPermission` is always `"unknown"`: only a person can say whether app code may be edited.
 - `recommendation.blockers` names things brighttest does not honor: bsconfig `plugins`, `manifest.bs_const`, a bsconfig
