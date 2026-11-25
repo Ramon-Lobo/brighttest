@@ -37,6 +37,9 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
   redaction (including masking of `redact.paths` state in Studio's live tree and saved run traces) and a publish rate
   cap. `census` redacts absolute and home paths from errors and report text
   ([guide](./guide/instrument.md), [app state](./e2e/app-state.md)).
+- **Studio simulator:** `brs-node` (stock, `~2.7.1`) now ships as a brighttest dependency, so `brighttest studio
+  --simulator` works with no extra install. A `brs-node` in your own project still wins. A fresh install grows by about
+  50 MB ([guide](./guide/studio.md)).
 - **Studio:** state inspector with edit in place, snapshots, diff and export/import; action log with time travel;
   network panel; lease badge, queue and device pool (uses `deviceLease.pool` when configured) ([guide](./guide/studio.md)).
 - **Studio Profile page:** performance sampling, `.bsprof` profiler pull and import, a Perfetto system trace (kept per

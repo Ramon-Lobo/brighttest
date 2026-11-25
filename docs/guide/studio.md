@@ -138,6 +138,9 @@ performance) answer 409 `SIMULATOR_TARGET`, and the Network panel needs a device
 - **Engine**: the stock engine (`brs-node`, shipped as a brighttest dependency) unless `engines.brsNode` or `BRIGHTTEST_ENGINES` picks another one.
   An explicit `patched` choice is allowed, with a warning on stderr, because the patched 2.2.0 engine can hang on Tasks.
   If the engine is missing from `node_modules` it exits 1 and prints the `npm i brs-node` hint.
+  A `brs-node` installed in your own project wins over the bundled one, and the banner shows its version.
+  Both engines declare the `brs-cli` bin, so `npx brs-cli` may run either one; brighttest itself reads each engine's
+  path from its package, so it is not affected.
 - **Conflicts**: `--simulator` with `--host`, or with a `deviceLease.pool`, exits 2. `--simulator=<value>` exits 2
   (the flag takes no value). `--password` is ignored, with a warning.
 - **Exit codes**: 2 for a usage error or a missing UI bundle, 1 for any other start failure.
