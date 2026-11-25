@@ -75,18 +75,36 @@ permission, make it a separate small change. Without it, write the proposal as a
 never apply it. See `references/seams-cookbook.md`. Do not test Task nodes through `@SGNode`: test request
 building and response parsing.
 
-## Step 6: e2e and instrumentation without editing the app
+## Step 6: e2e and instrumentation without editing the app (no-edit path, in this order)
+
+1. Copy the app outside its repository (`references/no-edit-path.md`, section 1). Never work in the original.
+2. Run `npx brighttest init --brownfield` in the copy, before any build. It writes `brighttest.json` (the `instrument`
+   block) and appends `.brighttest/` and `*.bt-instrumented.zip` to `.gitignore`. Nothing else: no spec, no npm script.
+3. Check the instrument-build rule below, then `npx brighttest instrument build --out app-debug.bt-instrumented.zip`.
+4. Prove it cannot ship: `npx brighttest instrument verify app-debug.bt-instrumented.zip` exits 3 (markers found),
+   and `npx brighttest instrument verify <plain package or folder>` exits 0. A missing path exits 2.
 
 `e2e stamp <src> -o <dir>` copies the project and adds ids to nodes that lack one; build and run from the copy.
-`instrument build` never modifies the source tree. The debug package must never ship: `instrument verify` exits 3
-when instrumentation markers are found and 0 when clean. See `references/no-edit-path.md`. Anything that touches
-a device is optional here, needs the human's OK from Step 0, and goes through `using-a-roku-device-safely`.
+`instrument build` never modifies the source tree. Anything that touches a device is optional here, needs the human's
+OK from Step 0, and goes through `using-a-roku-device-safely`.
+
+Instrument-build rule: read the app's `brighttest.json` `sourceGlobs`, `instrument.include` and `instrument.exclude`
+first. They are often written for test lanes (they leave out `source/main.brs`, or include `certs/**`), which does not
+suit an instrument build. Say so plainly in your reply. Do not edit the app's file: write a separate config next to
+the copy and pass it, for example `npx brighttest instrument build --config bt-instrument.json --out app-debug.bt-instrumented.zip`.
 
 ## Step 7: exclusions and the strict ramp
 
 Exclude vendored code with `instrument.exclude`. Strict (`--strict`, exit 4 when something could not be
-instrumented) is off by default: explain it, enable it in CI only after the census is clean. See
-`references/no-edit-path.md`.
+instrumented) is off by default. Say so in the report-back, in two or three sentences: strict makes the build fail
+with exit 4 and write no package when any entry counts as "could not instrument"; it stays off for the first run so a
+first build always produces a package and lists every entry; turn it on later, in CI, with `--strict` or
+`"strict": true` under `instrument`, only once the build with `--strict` exits 0. See `references/no-edit-path.md`.
+
+## Final reply
+
+List every command you ran with its exit code (init, build, verify on the debug zip, verify on the plain package),
+the strict explanation above, any test-lane glob finding, and the files you wrote (copy only).
 
 ## Hard rules
 

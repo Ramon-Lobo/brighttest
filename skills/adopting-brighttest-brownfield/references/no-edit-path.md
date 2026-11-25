@@ -47,6 +47,16 @@ settings are kept; `--force` replaces the `instrument` block. Excerpt of the res
 
 Review the proposed registry sections with the human: they decide what state tests may read.
 
+## 2b. Check the app's globs before building
+
+Read `sourceGlobs`, `instrument.include` and `instrument.exclude` in the app's `brighttest.json`. If they were written
+for test lanes (for example they exclude `source/main.brs` or include `certs/**`), say so plainly: they do not suit an
+instrument build. Do not edit the app's file. Write a second file in the copy and pass it:
+
+```bash
+npx brighttest instrument build --config bt-instrument.json --out app-debug.bt-instrumented.zip
+```
+
 ## 3. Exclusions
 
 Vendored and generated code goes into `instrument.exclude`, a list of globs relative to `rootDir`:
