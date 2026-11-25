@@ -25,7 +25,11 @@ end function
 ' Net-secrets probe: launch parameter netsecrets=1 makes the app send one extra GET to <base>/echo carrying dummy
 ' credential-looking values (header and query only), so redaction can be checked. Off by default.
 function Config_isNetSecrets(args as object) as boolean
-    return type(args) = "roAssociativeArray" and args.netsecrets = "1"
+    ' Nested ifs: "and" does not short-circuit, and comparing a non-string to "1" raises Type Mismatch on device.
+    if type(args) <> "roAssociativeArray" then return false
+    value = args.netsecrets
+    if type(value) <> "String" and type(value) <> "roString" then return false
+    return value = "1"
 end function
 
 ' Adds m.global.btNetSecrets (true) to the given global node when netsecrets=1. Main() passes screen.getGlobalNode(),
