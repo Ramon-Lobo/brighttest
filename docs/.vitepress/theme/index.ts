@@ -6,6 +6,7 @@ import VersionBanner from './VersionBanner.vue'
 import NotFoundFallback from './NotFoundFallback.vue'
 import PageBadge from './PageBadge.vue'
 import './badges.css'
+import './layout.css'
 
 export default {
   extends: DefaultTheme,
