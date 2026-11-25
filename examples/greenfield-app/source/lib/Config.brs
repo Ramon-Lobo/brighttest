@@ -26,6 +26,14 @@ function Config_isNetSecrets(args as object) as boolean
     return type(args) = "roAssociativeArray" and args.netsecrets = "1"
 end function
 
+' Adds m.global.btNetSecrets (true) to the given global node when netsecrets=1. Main() passes screen.getGlobalNode(),
+' because m.global is not available there. Adds nothing otherwise.
+sub Config_applyNetSecrets(globalNode as object, args as object)
+    if not Config_isNetSecrets(args) then return
+    globalNode.addField("btNetSecrets", "boolean", false)
+    globalNode.btNetSecrets = true
+end sub
+
 ' Shape of the extra request. The values are dummies, not real credentials.
 function Config_netSecretsRequest() as object
     return {
