@@ -1,0 +1,24 @@
+brighttest device watch · lease dir ~/.brighttest/leases (this machine, this user) · 10:41:03
+DEVICE  STATE  HOLDER       PURPOSE        FOR     LINE  REACH
+lab-a   held   device-qa#1  e2e run smoke  4m12s   2     up
+lab-b   free   -            -              -       0     unreachable (checked 10:40)
+  note: address now points at a different device
+lab-c   STALE  dev#9        with old.sh    50m00s  0     not probed
+pool    -                                          1     (2 devices)
+
+lab-a line: #1 dev#3 "with npx rooibos" waiting 1m02s (eta ~3m00s) · #2 device-qa#2 "with e2e.sh" waiting 20s (eta ~5m00s) · dead ticket (will be swept)
+Recent runs (lab-a):
+  10:37 device-qa#1 "e2e run smoke" waited 0s held 4m00s running
+  10:31 device-qa#1 "e2e run smoke" waited 0s held 6m10s ok
+  10:22 dev#3 "with npx rooibos" waited 2m00s held 2m05s ok
+  10:15 device-qa#2 "with e2e.sh" waited 0s held 1m01s lost
+  10:08 device-qa#1 "e2e run smoke" waited 30s held 1m30s exit 1
+  10:01 device-qa#1 "e2e run smoke" waited 0s held 45s reclaimed
+  09:54 device-qa#1 "e2e run smoke" waited 5s held 5m00s ok
+  09:46 device-qa#1 "e2e run smoke" waited 10m00s gave up
+  09:40 device-qa#1 "e2e run smoke" waited 0s held 15s ok
+  09:31 device-qa#1 "e2e run smoke" waited 1s held 3m20s ok
+Recent runs (lab-b):
+  08:41 device-qa#1 "e2e run smoke" waited 0s held 1m00s ok
+Last 24h: lab-a 31 runs, hold median 2m40s / p90 7m00s, wait median 12s, longest line 3 · lab-b 4 runs, hold median 1m00s / p90 1m30s, wait median 0s, longest line 1
+50 hidden (loopback or idle > 7d); --all shows them

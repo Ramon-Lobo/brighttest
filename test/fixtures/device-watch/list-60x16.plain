@@ -1,0 +1,16 @@
+ brighttest  device watch                     10:41:03 · 2s 
+┌ Devices ─────────────────────────────────────────────────┐
+│> ● lab-a held    device-qa#1          4m12s  ≡2 up       │
+│  ● lab-b free    -                        -  ≡0 ⚠ unreach│
+│  ● lab-c STALE   dev#9               50m00s  ≡0 ·        │
+│ runs ▅▁▁▇▁▂▂▃█▆  (lab-a, last 10)                        │
+│ 50 hidden (loopback or idle > 7d) · a: all               │
+└──────────────────────────────────────────────────────────┘
+┌ lab-a · held by device-qa#1 for 4m12s ───────────────────┐
+│ purpose e2e run smoke   deadline 10:58   branch feat/x   │
+│ line  #1 dev#3 "with npx rooibos"  waiting 1m02s  eta ~3…│
+│ Runs (24h: 31 · hold p50 2m40s p90 7m00s · wait p50 12s …│
+│ 10:37 device-qa#1 e2e… ██████▌        0s  4m00s running  │
+│ 10:31 device-qa#1 e2e… ██████████     0s  6m10s ok       │
+└──────────────────────────────────────────────────────────┘
+ ↑↓ select  tab pane  p pause  ? help  q quit               
