@@ -83,6 +83,10 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
 - **Headless lane:** warns when it meets a Task component.
 - **E2E:** the `snapshot` step takes `nodes`, a list of node ids, so `restore` can write node fields back
   ([flows](./e2e/flows.md), [app state](./e2e/app-state.md)).
+- **Engines:** the headless engine and the Rooibos fork are pinned to exact `-bt.1` builds (`@ramonlobo/brs-node`
+  2.7.1-bt.1, `@ramonlobo/rooibos-roku` 5.17.0-bt.1, Rooibos 5.17). The engine's undocumented `rt-http-fixtures.json`
+  hook is removed (use the network fault proxy, see [net faults](./guide/net-faults.md)), and floats now print the way
+  a device prints them, so output that compared against the old float text may differ.
 
 ### Fixes
 - **E2E:** focus navigation keeps pressing through a keyboard-style control whose cursor moves inside one focused
