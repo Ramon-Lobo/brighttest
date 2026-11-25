@@ -37,6 +37,8 @@ jobs:
           node-version: "22"
           cache: npm
       - run: npm ci
+      # Stock engine for the Studio simulator integration test (skipped without it); --no-save keeps package files untouched.
+      - run: npm install --no-save brs-node@~2.7.1
       - run: npm run test:integration
 
   # Windows unit pass. Non-required (continue-on-error) until it has been green for a while; unit suite only
