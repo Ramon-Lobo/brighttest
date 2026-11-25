@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { createRequire } from 'node:module'
+import { execFileSync } from 'node:child_process'
 
 const require = createRequire(import.meta.url)
 const { ProgramBuilder } = require('brighterscript')
@@ -18,8 +19,9 @@ async function build(name, instrument, extra = {}) {
   const pb = new ProgramBuilder()
   pb.plugins.add(plugin)
   const dir = path.join(tmp, name)
+  fs.mkdirSync(dir, { recursive: true })
   await pb.run({
-    cwd: lineshift, rootDir: lineshift, stagingDir: path.join(dir, 'staging'), createPackage: false, copyToStaging: true,
+    cwd: dir, rootDir: lineshift, stagingDir: path.join(dir, 'staging'), createPackage: false, copyToStaging: true,
     files: ['manifest', 'source/**/*'], plugins: [], logLevel: 'error', autoImportComponentScript: false,
     diagnosticFilters: [1107, 1140, 1009], ...(instrument === undefined ? {} : { instrument }), ...extra,
   })
@@ -33,7 +35,7 @@ describe('instrument.lineMap', () => {
     const off = await build('default')
     expect(off.errors).toEqual([])
     expect(off.result.lineMap).toBeUndefined()
-    expect(fs.existsSync(path.join(off.dir, 'bt-linemap.json'))).toBe(false)
+    expect(fs.existsSync(path.join(off.dir, 'out', 'bt-linemap.json'))).toBe(false)
     const explicit = await build('explicit-false', { lineMap: false })
     expect(fs.readFileSync(path.join(explicit.staging, 'source/net.brs'), 'utf8')).toBe(fs.readFileSync(path.join(off.staging, 'source/net.brs'), 'utf8'))
   })
@@ -41,7 +43,7 @@ describe('instrument.lineMap', () => {
   it('writes the map outside the staging dir for rewritten files only, and maps the crash line to the source line', async () => {
     const on = await build('on', { lineMap: true })
     expect(on.errors).toEqual([])
-    const mapFile = path.join(on.dir, 'bt-linemap.json')
+    const mapFile = path.join(on.dir, 'out', 'bt-linemap.json')
     expect(on.result.lineMap).toBe(mapFile)
     const map = JSON.parse(fs.readFileSync(mapFile, 'utf8'))
     expect(map.schema).toBe(1)
@@ -69,11 +71,28 @@ describe('instrument.lineMap', () => {
     }
   })
 
-  it('a string value is a path relative to the project root', async () => {
+  it('a relative path resolves against cwd (not rootDir) and the file is written there', async () => {
+    const on = await build('rel', { lineMap: 'maps/m.json' })
+    expect(on.errors).toEqual([])
+    const target = path.join(on.dir, 'maps', 'm.json')
+    expect(on.result.lineMap).toBe(target)
+    expect(JSON.parse(fs.readFileSync(target, 'utf8')).files['source/net.brs'].length).toBeGreaterThan(0)
+    expect(fs.existsSync(path.join(lineshift, 'maps'))).toBe(false)
+  })
+
+  it('an absolute path is used as given', async () => {
     const target = path.join(tmp, 'custom', 'map.json')
-    const on = await build('path', { lineMap: target })
+    const on = await build('abs', { lineMap: target })
     expect(on.errors).toEqual([])
     expect(JSON.parse(fs.readFileSync(target, 'utf8')).files['source/net.brs'].length).toBeGreaterThan(0)
+  })
+
+  it('every staged line from the first mapped one on has an entry (fill forward) and entries are ascending', async () => {
+    const on = await build('fill', { lineMap: true })
+    const staged = fs.readFileSync(path.join(on.staging, 'source/net.brs'), 'utf8').replace(/\n$/, '').split('\n')
+    const e = JSON.parse(fs.readFileSync(on.result.lineMap, 'utf8')).files['source/net.brs']
+    expect(e.map((x) => x[0])).toEqual(staged.map((_, i) => i + 1).slice(e[0][0] - 1))
+    for (let i = 1; i < e.length; i++) expect(e[i][1]).toBeGreaterThanOrEqual(e[i - 1][1])
   })
 
   it.each([[42], ['  '], [{}], [['x']]])('an invalid value %j is a clear BT9006 error', async (value) => {
@@ -81,6 +100,7 @@ describe('instrument.lineMap', () => {
     const d = b.errors.filter((e) => e.code === 'BT9006')
     expect(d.length).toBe(1)
     expect(d[0].message).toMatch(/instrument\.lineMap must be true, false or a non-empty file path/)
+    expect(b.result.lineMap).toBeUndefined()
   })
 
   it('a path inside the staging dir is rejected (it would be packaged)', async () => {
@@ -88,5 +108,73 @@ describe('instrument.lineMap', () => {
     const b = await build('inside', { lineMap: path.join(dir, 'staging', 'bt-linemap.json') })
     expect(b.errors.filter((e) => e.code === 'BT9006')[0].message).toMatch(/inside the staging dir/)
     expect(fs.existsSync(path.join(dir, 'staging', 'bt-linemap.json'))).toBe(false)
+  })
+
+  it('a relative path into the staging dir is rejected', async () => {
+    const b = await build('inside-rel', { lineMap: 'staging/x/bt-linemap.json' })
+    expect(b.errors.filter((e) => e.code === 'BT9006')[0].message).toMatch(/inside the staging dir/)
+  })
+
+  it('a sibling dir sharing the staging name prefix is allowed (no string-prefix match)', async () => {
+    const dir = path.join(tmp, 'prefix')
+    const b = await build('prefix', { lineMap: path.join(dir, 'staging-maps', 'm.json') })
+    expect(b.errors).toEqual([])
+    expect(fs.existsSync(path.join(dir, 'staging-maps', 'm.json'))).toBe(true)
+  })
+
+  it('a symlink into the staging dir is rejected', async () => {
+    const dir = path.join(tmp, 'sym')
+    fs.mkdirSync(path.join(dir, 'staging'), { recursive: true })
+    fs.symlinkSync(path.join(dir, 'staging'), path.join(dir, 'maps'))
+    const b = await build('sym', { lineMap: 'maps/bt-linemap.json' })
+    expect(b.errors.filter((e) => e.code === 'BT9006')[0].message).toMatch(/inside the staging dir/)
+    expect(fs.readdirSync(path.join(dir, 'staging'))).not.toContain('bt-linemap.json')
+  })
+
+  it.runIf(process.platform === 'darwin' || process.platform === 'win32')('a case variant of the staging dir is rejected', async () => {
+    const dir = path.join(tmp, 'case')
+    const b = await build('case', { lineMap: path.join(dir, 'STAGING', 'bt-linemap.json') })
+    expect(b.errors.filter((e) => e.code === 'BT9006')[0].message).toMatch(/inside the staging dir/)
+  })
+
+  it('a path inside rootDir (outside the output dir) is rejected: the next build would package it', async () => {
+    const root = fs.mkdtempSync(path.join(tmp, 'root-'))
+    fs.cpSync(lineshift, root, { recursive: true })
+    const plugin = createPlugin()
+    const pb = new ProgramBuilder()
+    pb.plugins.add(plugin)
+    await pb.run({
+      cwd: root, rootDir: root, stagingDir: path.join(root, 'build', 'staging'), createPackage: false, files: ['**/*'], plugins: [],
+      logLevel: 'error', autoImportComponentScript: false, diagnosticFilters: [1107, 1140, 1009], instrument: { lineMap: 'bt-linemap.json' },
+    })
+    expect(pb.program.getDiagnostics().filter((d) => d.code === 'BT9006')[0].message).toMatch(/inside rootDir/)
+    expect(fs.existsSync(path.join(root, 'bt-linemap.json'))).toBe(false)
+  })
+
+  it('true with createPackage and an outFile writes the map beside the zip and not into it', async () => {
+    const dir = path.join(tmp, 'zip')
+    const outFile = path.join(dir, 'dist', 'app.zip')
+    const on = await build('zip', { lineMap: true }, { createPackage: true, outFile })
+    expect(on.errors).toEqual([])
+    expect(on.result.lineMap).toBe(path.join(dir, 'dist', 'bt-linemap.json'))
+    expect(fs.existsSync(on.result.lineMap)).toBe(true)
+    const listing = execFileSync('unzip', ['-Z1', outFile]).toString().split('\n')
+    expect(listing).toContain('source/net.brs')
+    expect(listing.filter((l) => /linemap/i.test(l))).toEqual([])
+  })
+
+  it('with no stagingDir the map goes to the output dir and is claimed only once written', async () => {
+    const dir = path.join(tmp, 'nostage')
+    fs.mkdirSync(dir, { recursive: true })
+    const plugin = createPlugin()
+    const pb = new ProgramBuilder()
+    pb.plugins.add(plugin)
+    await pb.run({
+      cwd: dir, rootDir: lineshift, createPackage: false, retainStagingDir: false, files: ['manifest', 'source/**/*'], plugins: [],
+      logLevel: 'error', autoImportComponentScript: false, diagnosticFilters: [1107, 1140, 1009], instrument: { lineMap: true },
+    })
+    const r = plugin.getResult()
+    expect(r.lineMap).toBe(path.join(dir, 'out', 'bt-linemap.json'))
+    expect(fs.existsSync(r.lineMap)).toBe(true)
   })
 })
