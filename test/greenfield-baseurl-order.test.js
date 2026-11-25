@@ -34,3 +34,31 @@ describe('greenfield sample: BT_BASE_URL is applied before the first request', (
     expect(read('components', 'screens', 'MainScene.xml')).toMatch(/id="ready"[^>]*onChange="onReady"/);
   });
 });
+
+describe('greenfield sample: BT_BASE_URL reaches HttpTask and is validated', () => {
+  const config = read('source', 'lib', 'Config.brs');
+
+  // Evaluate Config_baseUrl's decision rule as written in the .brs (http/https only, else default).
+  function baseUrl(args) {
+    const fn = /function Config_baseUrl[\s\S]*?end function/.exec(config)[0];
+    expect(fn).toMatch(/type\(args\.BT_BASE_URL\) = "roString"/);
+    expect(fn).toMatch(/left\(lCase\(v\), 7\) = "http:\/\/" or left\(lCase\(v\), 8\) = "https:\/\/"/);
+    const def = /Config_defaultBaseUrl\(\) as string\n\s+return "([^"]+)"/.exec(config)[1];
+    const v = args && args.BT_BASE_URL;
+    if (typeof v === 'string' && /^https?:\/\//i.test(v)) return v;
+    return def;
+  }
+
+  it('honours an http URL and ignores anything else; default unchanged', () => {
+    expect(baseUrl({ BT_BASE_URL: 'http://192.168.2.5:9000' })).toBe('http://192.168.2.5:9000');
+    expect(baseUrl({})).toBe('http://127.0.0.1:8787');
+    expect(baseUrl({ BT_BASE_URL: 'ftp://x' })).toBe('http://127.0.0.1:8787');
+    expect(baseUrl({ BT_BASE_URL: '' })).toBe('http://127.0.0.1:8787');
+  });
+
+  it('the value flows Main() -> MainScene.baseUrl -> HttpTask.baseUrl -> request URL', () => {
+    expect(read('source', 'main.brs')).toMatch(/scene\.baseUrl = Config_baseUrl\(args\)/);
+    expect(read('components', 'screens', 'MainScene.brs')).toMatch(/task\.baseUrl = m\.top\.baseUrl/);
+    expect(read('components', 'net', 'HttpTask.brs')).toMatch(/Http_join\(m\.top\.baseUrl, req\.path\)/);
+  });
+});
