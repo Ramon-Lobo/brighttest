@@ -15,6 +15,9 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
   [Upgrade notes](#upgrade-0-8-0)
 - **Reporting:** a run where an `@async` case inside an `@SGNode` suite never finishes, so the later cases are dropped, used
   to exit 0 with fewer cases counted. It now fails and lists the dropped cases. [Upgrade notes](#upgrade-0-8-0)
+- **Reporting:** a headless scene run where the engine crashed partway (`EXIT_BRIGHTSCRIPT_CRASH`) used to exit 0 with the
+  cases streamed so far counted as passed. It now fails, says the run crashed, and reports the case that was running as
+  failed (also in JUnit). [Upgrade notes](#upgrade-0-8-0)
 - **Studio:** with several cached devices and no `--host`, `brighttest studio` now refuses to start instead of
   connecting to the last device used. It also needs a dev password whenever it connects to a device, including with an
   explicit `--host`. [Upgrade notes](#upgrade-0-8-0)

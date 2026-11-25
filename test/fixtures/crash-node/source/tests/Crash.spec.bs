@@ -1,0 +1,36 @@
+' The integration test swaps the engine for one that replays a crashed run (see headless.test.js), so the
+' third case is where the engine "crashes": it streams It: with no END, then EXIT_BRIGHTSCRIPT_CRASH.
+namespace tests
+  @suite("Widget crash")
+  @SGNode("Widget")
+  class WidgetCrashTests extends rooibos.BaseTestSuite
+
+    @describe("cases around a crash")
+
+    @it("sync 1")
+    function _()
+      m.assertTrue(true)
+    end function
+
+    @it("sync 2")
+    function _()
+      m.assertTrue(true)
+    end function
+
+    @it("crashing case")
+    function _()
+      m.assertTrue(true)
+    end function
+
+    @it("sync after crash 1")
+    function _()
+      m.assertTrue(true)
+    end function
+
+    @it("sync after crash 2")
+    function _()
+      m.assertTrue(true)
+    end function
+
+  end class
+end namespace
