@@ -139,6 +139,7 @@
     "--screenshots-mode",
     "--show-serial",
     "--sideload",
+    "--simulator",
     "--skill",
     "--skills-dir",
     "--skip-sgnode",
