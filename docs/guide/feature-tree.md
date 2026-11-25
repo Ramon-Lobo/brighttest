@@ -34,7 +34,7 @@ The deterministic commands need no agent. To have an agent group the graph into 
 (`npx brighttest skills install`) and ask it to map the app: the `mapping-a-roku-app` skill runs `features graph`,
 reads the graph in slices, writes `tree.json` next to `graph.json`, runs `features check` (at most three fix rounds),
 runs `features render`, then presents both test paths and asks which to take before any spec is written. The
-`adoption-assessor` agent may write `tree.json` and the report in the features folder and nothing else in the
+`adoption-assessor` agent may write `graph.json`, `tree.json`, `report.html` and that folder's `.gitignore` in the features folder and nothing else in the
 project; `test-author` takes its next target from the path you chose. The agent never edits the app and never uses a
 device; every class in the report is a prediction until a run proves it.
 
