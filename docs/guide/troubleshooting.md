@@ -34,6 +34,13 @@ Several distinct causes, all handled by the tool now:
   driver loads **only `source/**`** (plus itself).
 - **Line endings.** brs-node separates lines with `\r`; the result parser splits on `\r\n|\r|\n`.
 
+## Headless run says "RUN CRASHED (EXIT_BRIGHTSCRIPT_CRASH)"
+
+The engine hit a runtime error it cannot catch (for example `invalid.method()` in a node's `init()`) and stopped, so
+the run is incomplete and fails. The case that was running is listed as failed (and in the JUnit file); cases that had
+not started are not listed, because nothing names them. Find the error line just above the crash in the output, fix it,
+and re-run.
+
 ## `assertEqual` fails on equal-looking numbers
 
 `expected "2147483647 (Float)" to equal "2147483647 (Double)"` — Rooibos's `assertEqual` is

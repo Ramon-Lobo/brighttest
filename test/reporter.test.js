@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { palette, relLoc, lineSplitter, parseSummary, laneFailures, treeFailures, treeCases, droppedCases, failureMessages, makeReporter } from '../lib/reporter.js'
+import { palette, relLoc, lineSplitter, parseSummary, laneFailures, treeFailures, treeCases, droppedCases, engineCrash, failureMessages, makeReporter } from '../lib/reporter.js'
 
 describe('palette', () => {
   it('wraps strings in ANSI codes when enabled', () => {
@@ -346,5 +346,33 @@ describe('droppedCases (async timeout in a node suite)', () => {
 
   it('adds the dropped count to the streamed failures rather than taking the larger', () => {
     expect(laneFailures(stopped, 2).failed).toBe(5)
+  })
+})
+
+describe('engineCrash: a run the engine killed must not read as green', () => {
+  const head = '> SUITE: S>>>>>>>>>>\n>>>>>> It: a>>>>>>\n<<<< END It: a (PASS) <<<<\n>>>>>> It: b>>>>>>\n<<<< END It: b (PASS) <<<<\n'
+  const fin = "pkg:/components/W.brs(4,4-6): 'Dot' Operator attempted with invalid BrightScript Component or interface reference.\n------ Finished 'x.zip' execution [EXIT_BRIGHTSCRIPT_CRASH] ------\n"
+
+  it('is null for a clean run, and for a test name that merely mentions the exit reason', () => {
+    expect(engineCrash(head + 'RESULT: Success\n')).toBeNull()
+    expect(engineCrash(head + '>>>>>> It: EXIT_BRIGHTSCRIPT_CRASH handling>>>>>>\n<<<< END It: EXIT_BRIGHTSCRIPT_CRASH handling (PASS) <<<<\n')).toBeNull()
+  })
+
+  it('names the case that was running when the engine died', () => {
+    const c = engineCrash(head + '>>>>>> It: c>>>>>>\n' + fin)
+    expect(c.reason).toBe('EXIT_BRIGHTSCRIPT_CRASH')
+    expect(c.cases).toHaveLength(1)
+    expect(c.cases[0].name).toBe('c')
+    expect(c.cases[0].reason).toMatch(/crashed \(EXIT_BRIGHTSCRIPT_CRASH\)/)
+  })
+
+  it('falls back to one "run crashed" entry when no case was open', () => {
+    expect(engineCrash(head + fin).cases.map((x) => x.name)).toEqual(['run crashed'])
+  })
+
+  it('counts the crash as a failure even though every streamed case passed and there is no summary', () => {
+    expect(laneFailures(head + '>>>>>> It: c>>>>>>\n' + fin, 0).failed).toBe(1)
+    expect(laneFailures(head + fin, 0).failed).toBe(1)
+    expect(laneFailures(head + 'Total: 2\n  Passed: 2\nRESULT: Success\n' + fin, 0).failed).toBe(1)
   })
 })

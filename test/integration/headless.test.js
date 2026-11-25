@@ -254,3 +254,41 @@ describe('@async cases in an @SGNode suite are never silently dropped', () => {
     expect(res.output).not.toMatch(/✗ sync [135]\n/)
   })
 })
+
+describe('a crashed scene run fails instead of dropping cases', () => {
+  // The real engine cannot be made to crash on demand, so the project gets a stand-in brs-node that replays what
+  // the real one prints when a run dies mid-suite: two cases pass, a third starts, then EXIT_BRIGHTSCRIPT_CRASH.
+  // No Rooibos summary is ever printed.
+  const LOG = [
+    '> SUITE: Widget crash>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>',
+    '>>>> Describe: cases around a crash>>>>>>>>>>>>>>>>>>>>',
+    '>>>>>> It: sync 1>>>>>>>>>>>>>>>>>>>>',
+    '<<<< END It: sync 1 (PASS) <<<<<<<<<<<<<<<<<<<<',
+    '>>>>>> It: sync 2>>>>>>>>>>>>>>>>>>>>',
+    '<<<< END It: sync 2 (PASS) <<<<<<<<<<<<<<<<<<<<',
+    '>>>>>> It: crashing case>>>>>>>>>>>>>>>>>>>>',
+    "pkg:/components/Widget.brs(4,4-6): 'Dot' Operator attempted with invalid BrightScript Component or interface reference.",
+    "------ Finished 'pkg.zip' execution [EXIT_BRIGHTSCRIPT_CRASH] ------",
+  ].join('\n')
+
+  function crashProject() {
+    const dir = makeProject('crash-node')
+    const eng = path.join(dir, 'node_modules', '@ramonlobo', 'brs-node')
+    fs.mkdirSync(path.join(eng, 'bin'), { recursive: true })
+    fs.writeFileSync(path.join(eng, 'package.json'), JSON.stringify({ name: '@ramonlobo/brs-node', version: '2.7.0', bin: { 'brs-cli': 'bin/cli.js' } }))
+    fs.writeFileSync(path.join(eng, 'bin', 'cli.js'), `console.log(${JSON.stringify(LOG)})\n`)
+    return dir
+  }
+
+  it('exits non-zero, says the run crashed, and lists the open case as failed in JUnit', () => {
+    const dir = crashProject()
+    const res = runCli(dir, ['--junit', 'reports/junit.xml'])
+    expect(res.status).not.toBe(0)
+    expect(res.output).toContain('RUN CRASHED (EXIT_BRIGHTSCRIPT_CRASH)')
+    expect(res.output).toContain('2 passed, 1 failed')
+    expect(res.output).toMatch(/✗ crashing case\n\s+the run crashed/)
+    const xml = readFile(dir, 'reports/junit.xml')
+    expect(xml).toContain('tests="3" failures="1"')
+    expect(xml).toMatch(/<testcase name="crashing case"><failure>the run crashed \(EXIT_BRIGHTSCRIPT_CRASH\)/)
+  })
+})
