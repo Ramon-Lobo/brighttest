@@ -26,8 +26,11 @@ let dir, file
 beforeEach(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-clrel-')); file = path.join(dir, 'changelog.md') })
 afterEach(() => { fs.rmSync(dir, { recursive: true, force: true }) })
 
-const run = (args, env = {}) =>
-  spawnSync(process.execPath, [SCRIPT, ...args, '--file', file], { encoding: 'utf8', env: { ...process.env, npm_package_version: '', ...env } })
+// Windows env names are case-insensitive: drop every case variant before setting ours so the outer npm run's value cannot win.
+const run = (args, env = {}) => {
+  const base = Object.fromEntries(Object.entries(process.env).filter(([k]) => k.toLowerCase() !== 'npm_package_version'))
+  return spawnSync(process.execPath, [SCRIPT, ...args, '--file', file], { encoding: 'utf8', env: { ...base, npm_package_version: '', ...env } })
+}
 
 describe('changelog release gate', () => {
   it('stamp refuses an empty Unreleased and leaves the file alone', () => {
