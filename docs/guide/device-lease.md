@@ -48,6 +48,31 @@ While a command waits, it prints (on stderr, once and then every 30 s):
 
 Waiters are served first come, first served. There is no priority and no preemption.
 
+## A live board: `device watch`
+
+```bash
+npx brighttest device watch                 # interactive screen (needs a terminal)
+npx brighttest device watch --once          # one static board, then exit
+npx brighttest device watch --json          # the same board as JSON (schema brighttest-lease-board/v1)
+npx brighttest device watch --plain         # one static board every interval, no screen control (for tee and logs)
+npx brighttest device watch --host 192.168.1.50 --interval 5s --tail 20 --all
+```
+
+`watch` is read-only. It lists every known device with its state (held, free, stale), holder, how long, the
+waiting line with estimates, and the recent runs with wait time, hold time and how each ended. It never takes,
+changes or cleans a lease and makes no network call (`--no-probe` is accepted for forward compatibility; the
+reachability column reads "not probed" until probing lands).
+
+The interactive screen keeps Studio's look (alternate screen, the Studio palette in truecolor with 256 and 16 color
+fallbacks, `NO_COLOR` honoured). Keys: arrows or `j`/`k` move, `enter` or `tab` switch pane, `a` shows all keys,
+`p` pauses, `r` refreshes, `?` lists the keys, `q`, `Esc` or Ctrl-C quits and restores your terminal.
+
+The screen is drawn with [ink](https://github.com/vadimdemedes/ink), an **optional** dependency installed with
+brighttest by default and loaded only when the interactive screen starts. If it is missing (for example after
+`npm install --omit=optional`, or when the optional install failed), `device watch` prints one line to stderr and
+shows the plain live view instead, with exit code 0. `--once`, `--json`, `--plain` and any run without a terminal
+never load it. To add it later: `npm i ink react`.
+
 ## Wrapping anything else: `device with`
 
 ```bash
