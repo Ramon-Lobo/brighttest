@@ -63,6 +63,9 @@ jobs:
       # with `--ignore-scripts`), writes versions.json and the step summary.
       - name: Build docs
         run: node scripts/docs-site.js build --out _site
+      # Every release tag must have a matching changelog section (full history above fetched the tags).
+      - name: Check changelog against tags
+        run: node scripts/changelog.js check --tags
       - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
