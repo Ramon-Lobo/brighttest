@@ -594,9 +594,9 @@ shows a neutral "Versions" label and there is no banner.
 Pages get a "New" or "Updated" tag (page header and sidebar) between releases. The tag is text, not colour alone.
 
 - **New:** the page exists in this build but not in the baseline release's page list. Renamed pages show as New.
-- **Updated:** the page is linked from a line of the coming release's changelog section (`## Unreleased` on `/next/`, the
-  build's own version section on a release build). A page that is New shows New only. To drop a wrong "Updated", edit
-  or remove the link in `docs/changelog.md`; linking many pages makes many tags.
+- **Updated:** the page is linked from a line of the coming release's changelog section (`## Unreleased` on `/next/`,
+  the build's own version section on a release build). A page that is New shows New only. To drop a wrong "Updated", edit
+  or remove the link in `docs/changelog.md`; linking many pages makes many tags. The tag also shows in the prev/next pager at the bottom of a page.
 - **Baseline:** the previous release. It comes from `docs/.vitepress/release-pages.json` (the last two releases' page
   lists), so builds need no git history or tags. The tags go away on their own when the next release is cut.
 - **Where:** `/next/`, and the latest release (root and its `/vX.Y/` alias; `docs-site.js` passes
@@ -604,7 +604,7 @@ Pages get a "New" or "Updated" tag (page header and sidebar) between releases. T
   `docs:dev` and a plain `docs:build` show them. A missing or malformed data file means no tags and one log line, never
   a failed build.
 - **Release step:** `node scripts/changelog.js stamp` also appends the working tree's page list to
-  `release-pages.json` (`--no-pages` skips it); stage that file together with `docs/changelog.md` in the release commit.
+  `release-pages.json` (`--no-pages` skips it); the `version` script stages it with `docs/changelog.md`, so there is nothing to stage by hand.
   To (re)create an entry from an existing tag: `node scripts/changelog.js pages --from-tag vX.Y.Z --write` (needs the
   tag locally).
 
@@ -617,10 +617,10 @@ once so its `node_modules` is populated.
 
 Changelog first. Every release needs a curated section in `docs/changelog.md`, and `npm version` and `npm publish` refuse to continue without one:
 
-1. `node scripts/changelog.js draft --prs > draft.md` prints a draft from the conventional commits between the latest tag and `HEAD`. It is raw material, never paste it as is.
+1. `node scripts/changelog.js draft --prs > /tmp/draft.md` prints a draft from the conventional commits between the latest tag and `HEAD`. It is raw material, never paste it as is.
 2. Curate: move the useful lines into `## Unreleased` in `docs/changelog.md`, rewrite them for users, keep the breaking and security lines already there, and add upgrade notes. Aim for 10 to 30 lines on a normal release.
-3. Commit it (`docs(changelog): ...`), then run `npm run skills:manifest` and `npm version <level>` as below. The `version` script runs `node scripts/changelog.js stamp`, which turns Unreleased into the new release section and leaves a fresh empty Unreleased; it aborts before any commit or tag when Unreleased has no entries. The stamped file is staged into the release commit. The `prepublishOnly` script runs `check --version` so a version with no entry cannot be published.
-4. After pushing the tag (optional, owner-gated): `node scripts/changelog.js notes vX.Y.Z > notes.md`, then `gh release create vX.Y.Z --notes-file notes.md --verify-tag`.
+3. Commit it (`docs(changelog): ...`), then run `npm run skills:manifest` and `npm version <level>` as below. The `version` script runs `node scripts/changelog.js stamp`, which turns Unreleased into the new release section and leaves a fresh empty Unreleased; it aborts before any commit or tag when Unreleased has no entries. The stamped changelog and release page list are staged into the release commit. If `npm version` fails after the stamp (for example the empty-Unreleased abort), run `git checkout package.json package-lock.json docs/changelog.md docs/.vitepress/release-pages.json` before retrying, so the version is not bumped twice. The `prepublishOnly` script runs `check --version-env` (the version comes from `npm_package_version`, so it works on Windows too) so a version with no entry cannot be published; `check --version` also runs the full changelog lint, so any lint finding blocks the publish.
+4. After pushing the tag (optional, owner-gated): `node scripts/changelog.js notes vX.Y.Z > /tmp/notes.md`, then `gh release create vX.Y.Z --notes-file /tmp/notes.md --verify-tag`.
 
 Release flow: `skills/facts.json` carries `cliVersion`, so `npm version` alone leaves it stale. Run `npm run skills:manifest` after any version bump, dependency range change, CLI flag/subcommand/help change or lease/instrument default change, and commit the result (`brighttest skills --check` fails on drift). Bump with `npm version <patch|minor|major>` (commits + tags `vX.Y.Z` on `main`; regenerate and commit facts before it, or amend the release commit before tagging), push the
 branch **and the tag**, then `npm publish --access public`. The npm account has **2FA enabled**, so publish

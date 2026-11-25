@@ -1,11 +1,11 @@
 'use strict';
 // Changelog helper for docs/changelog.md (design: docs-changelog, ADR 0037). Plain Node, no dependencies.
 //   node scripts/changelog.js draft [--from <tag>] [--to <ref>] [--prs]   print a Markdown draft from conventional commits
-//   node scripts/changelog.js check [--tags] [--version X.Y.Z] [--file F]  validate the changelog (exit 0 clean, 1 findings, 2 usage)
+//   node scripts/changelog.js check [--tags] [--version X.Y.Z | --version-env] [--file F]  validate the changelog (exit 0 clean, 1 findings, 2 usage)
 //   node scripts/changelog.js stamp [--version X.Y.Z] [--date D] [--file F]  turn Unreleased into a release section
 //   node scripts/changelog.js slice --upto vX.Y.Z --tree <dir> [--out F]   changelog cut to a tag, for old versioned builds
 //   node scripts/changelog.js notes vX.Y.Z                                 print one section's body
-//   node scripts/changelog.js pages [--from-tag vX.Y.Z] [--write]          page list for the New/Updated badges
+//   node scripts/changelog.js pages [--from-tag vX.Y.Z] [--write] [--version X.Y.Z]  page list for the New/Updated badges
 // git and gh go through an injected run(cmd, args) => { status, stdout, stderr } so tests can mock them.
 const fs = require('fs');
 const path = require('path');
@@ -469,9 +469,9 @@ function parseArgs(argv, valueFlags, boolFlags) {
   return opts;
 }
 
-const USAGE = `usage: changelog.js <draft|check|stamp|slice|notes> [options]
+const USAGE = `usage: changelog.js <draft|check|stamp|slice|notes|pages> [options]
   draft [--from <tag>] [--to <ref>] [--prs]
-  check [--tags] [--version X.Y.Z] [--file F]
+  check [--tags] [--version X.Y.Z | --version-env] [--file F]
   stamp [--version X.Y.Z] [--date YYYY-MM-DD] [--file F]
   slice --upto vX.Y.Z --tree <dir> [--out F] [--file F]
   notes vX.Y.Z [--file F]
@@ -497,7 +497,7 @@ function main(argv, env) {
     const rest = argv.slice(1);
     switch (cmd) {
       case 'draft': opts = parseArgs(rest, ['--from', '--to'], ['--prs']); break;
-      case 'check': opts = parseArgs(rest, ['--version', '--file'], ['--tags']); break;
+      case 'check': opts = parseArgs(rest, ['--version', '--file'], ['--tags', '--version-env']); break;
       case 'stamp': opts = parseArgs(rest, ['--version', '--date', '--file'], ['--no-pages']); break;
       case 'pages': opts = parseArgs(rest, ['--from-tag', '--version'], ['--write']); break;
       case 'slice': opts = parseArgs(rest, ['--upto', '--tree', '--out', '--file'], []); break;
@@ -563,7 +563,12 @@ function main(argv, env) {
       if (r.status !== 0) { err('git tag failed'); return 2; }
       tags = (r.stdout || '').split('\n').map((s) => s.trim()).filter(Boolean);
     }
-    const findings = check(text, { tags, version: opts.version });
+    let version = opts.version;
+    if (opts['version-env']) {
+      version = e.env.npm_package_version;
+      if (!version) { err('check --version-env needs npm_package_version (run it from an npm script)'); return 2; }
+    }
+    const findings = check(text, { tags, version });
     if (findings.length) {
       for (const x of findings) err(`changelog: ${x}`);
       return 1;
@@ -591,6 +596,11 @@ function main(argv, env) {
       if (!opts['no-pages'] && fs.existsSync(docsDir)) {
         const pages = badges.listPages(docsDir);
         const pagesFile = pagesFileOf(e.root);
+        if (fs.existsSync(pagesFile)) {
+          try { JSON.parse(fs.readFileSync(pagesFile, 'utf8')); } catch (ex) {
+            err(`changelog: warning: ${path.relative(e.root, pagesFile)} does not parse (${ex.message}); starting its list over`);
+          }
+        }
         writePagesFile(pagesFile, withEntry(readPagesFile(pagesFile), version, pages));
         out(`changelog: recorded ${pages.length} pages for v${version.replace(/^v/, '')} in ${path.relative(e.root, pagesFile)}`);
       }
