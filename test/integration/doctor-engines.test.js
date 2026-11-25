@@ -56,12 +56,24 @@ describe('doctor --engines', () => {
     expect(r.out).toMatch(/BRS-02\s+absent\s+absent\s+.*NON-DEVICE/)
   })
 
+  it('stamp without BRS-06 (detached findNode dropped) and with CLI-level BRS-07/BRS-08: metadata-only rows, exit 0', () => {
+    const dir = makeEmptyDir()
+    const { 'BRS-06': _drop, ...patches } = STAMP.patches
+    fakeEngine(dir, '@ramonlobo/brs-node', { stamp: { ...STAMP, patches: { ...patches, 'BRS-07': 1, 'BRS-08': 1 } }, caps: { ...PATCHED, 'BRS-06': 0 } })
+    const r = doctor(dir)
+    expect(r.status).toBe(0)
+    expect(r.out).toMatch(/BRS-06\s+absent\s+absent/)
+    expect(r.out).toMatch(/BRS-07\s+yes\s+n\/a/)
+    expect(r.out).toMatch(/BRS-08\s+yes\s+n\/a/)
+    expect(r.out).toContain('metadata and probe agree')
+  })
+
   it('metadata claims a patch the probe lacks: hard failure naming both values (TP-ENG-11)', () => {
     const dir = makeEmptyDir()
-    fakeEngine(dir, '@ramonlobo/brs-node', { stamp: { ...STAMP, patches: { ...STAMP.patches, 'BRS-07': 1 } }, caps: PATCHED })
+    fakeEngine(dir, '@ramonlobo/brs-node', { stamp: { ...STAMP, patches: { ...STAMP.patches, 'BRS-06': 1 } }, caps: { ...PATCHED, 'BRS-06': 0 } })
     const r = doctor(dir)
     expect(r.status).not.toBe(0)
-    expect(r.err).toContain('MISMATCH BRS-07: metadata says yes, probe says absent')
+    expect(r.err).toContain('MISMATCH BRS-06: metadata says yes, probe says absent')
   })
 
   it('code lost a patch the metadata still claims: hard failure (TP-ENG-11)', () => {

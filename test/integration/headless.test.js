@@ -3,9 +3,15 @@ import fs from 'node:fs'
 import path from 'node:path'
 import os from 'node:os'
 import { fileURLToPath } from 'node:url'
+import { createRequire } from 'node:module'
 import { makeProject, makeEmptyDir, runCli, readFile, exists, cleanupTemp } from './helpers.js'
 
 afterAll(cleanupTemp)
+
+// rooibos before 5.17.0 stalls every case after a timed-out @async case; 5.17.0 and later keep running them and
+// fail only the timed-out case ("Test execution exceeded 500ms").
+const require = createRequire(import.meta.url)
+const rooibosStalls = require('../../lib/engines.js').cmpVersion(require('@ramonlobo/rooibos-roku/package.json').version, '5.17.0') < 0
 
 describe('default headless lane (compiles + runs on the simulator, incl. @SGNode)', () => {
   let res
@@ -209,6 +215,19 @@ describe('@async cases in an @SGNode suite are never silently dropped', () => {
     const dir = makeProject('async-node')
     const res = runCli(dir, ['--junit', 'reports/junit.xml'])
     expect(res.status).not.toBe(0)
+    if (!rooibosStalls) {
+      // rooibos >= 5.17.0: only the timed-out case fails; the rest run and pass.
+      expect(res.output).toContain('12 passed, 1 failed')
+      expect(res.output).toContain('Failures (1)')
+      expect(res.output).toMatch(/✗ (Widget async › )?async never done/)
+      expect(res.output).toContain('Test execution exceeded 500ms')
+      expect(res.output).not.toContain('never ran')
+      for (const n of ['sync 6', 'sync 7', 'sync 8', 'async done 1', 'async done 4']) expect(res.output).toContain(`✓ ${n}`)
+      const xml = readFile(dir, 'reports/junit.xml')
+      expect(xml).toContain('tests="13" failures="1"')
+      expect(xml.match(/<failure/g)).toHaveLength(1)
+      return
+    }
     // 5 ran and passed; the timed-out case + the 7 after it are reported failed: 13 counted in all.
     expect(res.output).toContain('5 passed, 8 failed')
     expect(res.output).toContain('Failures (8)')
@@ -234,9 +253,18 @@ describe('@async cases in an @SGNode suite are never silently dropped', () => {
       `namespace tests\n  @suite("Plain")\n  class PlainTests extends rooibos.BaseTestSuite\n    @describe("p")\n    @it("p1")\n    function _()\n      m.assertTrue(true)\n    end function\n\n${ignored}\n  end class\nend namespace\n`)
     const res = runCli(dir, ['--junit', 'reports/junit.xml'])
     expect(res.status).not.toBe(0)
-    expect(res.output).toMatch(/✗ async never done\n\s+started but never finished/)
-    expect(res.output).toContain('✗ async done 4')
-    expect(readFile(dir, 'reports/junit.xml')).toMatch(/<testcase name="async never done"><failure>started but never finished/)
+    if (rooibosStalls) {
+      expect(res.output).toMatch(/✗ async never done\n\s+started but never finished/)
+      expect(res.output).toContain('✗ async done 4')
+      expect(readFile(dir, 'reports/junit.xml')).toMatch(/<testcase name="async never done"><failure>started but never finished/)
+    } else {
+      // rooibos >= 5.17.0: the timed-out case alone fails, and the @ignore'd suite does not hide it.
+      expect(res.output).toContain('13 passed, 1 failed')
+      expect(res.output).toMatch(/✗ async never done\n/)
+      expect(res.output).toContain('Test execution exceeded 500ms')
+      expect(res.output).not.toContain('✗ async done 4')
+      expect(readFile(dir, 'reports/junit.xml')).toMatch(/<testcase name="async never done"[^>]*><failure>Test execution exceeded 500ms/)
+    }
   })
 
   it('does not blame a passing long-named or @params case before the stall', () => {
@@ -249,7 +277,8 @@ describe('@async cases in an @SGNode suite are never silently dropped', () => {
       '@it("sync 3")', `@it("${long} again")\n    function _()\n      m.assertTrue(true)\n    end function\n\n    @it("sync 3")`))
     const res = runCli(dir)
     expect(res.status).not.toBe(0)
-    expect(res.output).toMatch(/✗ async never done\n\s+started but never finished/)
+    if (rooibosStalls) expect(res.output).toMatch(/✗ async never done\n\s+started but never finished/)
+    else expect(res.output).toMatch(/✗ async never done\n/)
     expect(res.output).not.toMatch(/✗ sync 2/)
     expect(res.output).not.toMatch(/✗ \[[13],[24]\]/)
     expect(res.output).not.toMatch(/✗ sync [135]\n/)

@@ -15,7 +15,17 @@ const strip = (f) => fs.readFileSync(path.join(SRC, f), 'utf8').split('\n').filt
 const RUNTIME = ['bt/BT_core.brs', 'bt/BT_write.brs', 'btop/BT_mOp.brs'].map(strip).join('\n')
 
 let tmp
-beforeAll(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-op-')) })
+// findNode only resolves a tree owned by a component (a detached Node tree answers Invalid on engine 2.7.x, and on a
+// device), so the scene stand-in is a real component, loaded from a one-component package root in the temp dir.
+const writeHostPkg = (dir) => {
+  fs.mkdirSync(path.join(dir, 'components'), { recursive: true })
+  fs.writeFileSync(path.join(dir, 'manifest'), 'title=bt-host\nmajor_version=1\nminor_version=0\nbuild_version=0\n')
+  fs.writeFileSync(path.join(dir, 'components', 'BtHost.xml'), '<?xml version="1.0" encoding="utf-8" ?>\n<component name="BtHost" extends="Node"></component>\n')
+}
+beforeAll(() => {
+  tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-op-'))
+  writeHostPkg(tmp)
+})
 afterAll(() => fs.rmSync(tmp, { recursive: true, force: true }))
 
 function runBrs(main) {
@@ -28,7 +38,7 @@ function runBrs(main) {
     `sub main()\n${main}\nend sub`,
   ].join('\n'))
   return new Promise((resolve) => {
-    const child = spawn(process.execPath, [brsCli, file], { stdio: ['ignore', 'pipe', 'pipe'] })
+    const child = spawn(process.execPath, [brsCli, '-r', '.', path.basename(file)], { cwd: tmp, stdio: ['ignore', 'pipe', 'pipe'] })
     let out = ''
     const timer = setTimeout(() => child.kill('SIGKILL'), 60000)
     child.stdout.on('data', (d) => { out += d })
@@ -68,7 +78,7 @@ describe('BT_mOp and the m layer (headless, fork engine)', () => {
       op('S10', '{ op: "set", path: ["rowIndex"], value: 1.5 }'),
       op('P1', 'invalid'),
       // host side against plain nodes
-      '    g = CreateObject("roSGNode", "Node") : sc = CreateObject("roSGNode", "Node")',
+      '    g = CreateObject("roSGNode", "Node") : sc = CreateObject("roSGNode", "BtHost")',
       '    p = CreateObject("roSGNode", "Node") : p.id = "panel" : sc.appendChild(p)',
       '    ctx = { global: g, scene: sc, cfg: BT_config(), state: { subscribed: false } }',
       '    print "H1:" + FormatJson(BT_wApply({ op: "get", args: { layer: "m", node: { id: "panel" }, path: "rowIndex" } }, ctx))',
