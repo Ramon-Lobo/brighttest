@@ -94,16 +94,33 @@ describe('studio server simulator branch', () => {
     try { await studio.start({ port: 0, simulator: true, simStart: async () => { throw Object.assign(new Error('nope'), { code: 'ENGINE_MISSING' }) } }) } catch (e) { err = e }
     expect(err.code).toBe('ENGINE_MISSING')
   })
-  it('a synchronous throw in the inner start reaches the catch path and stops the simulator', async () => {
+  it('a synchronous throw in the inner start awaits the simulator stop before start() rejects', async () => {
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-sim-'))
     stops = 0
-    // The inner start throws synchronously (reading net off the started simulator throws).
-    const sim = { get net() { throw new Error('boom') }, info: () => ({}), stop: () => { stops++ } }
-    const opts = { port: 0, rootDir: dir, simulator: true, simStart: async () => sim }
+    let stopped = false
+    // The inner start throws synchronously (reading net off the started simulator throws); stop is async.
+    const sim = { get net() { throw new Error('boom') }, info: () => ({}), stop: () => { stops++; return new Promise((r) => setTimeout(() => { stopped = true; r() }, 30)) } }
     let err
-    try { await studio.start(opts) } catch (e) { err = e }
+    try { await studio.start({ port: 0, rootDir: dir, simulator: true, simStart: async () => sim }) } catch (e) { err = e }
     expect(err && err.message).toBe('boom')
+    expect(stopped).toBe(true)
     expect(stops).toBe(1)
+  })
+  it('a rejecting simulator stop still rejects start() with the original error, with no unhandled rejection', async () => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-sim-'))
+    stops = 0
+    const unhandled = []
+    const onUnhandled = (r) => unhandled.push(r)
+    process.on('unhandledRejection', onUnhandled)
+    try {
+      const sim = { get net() { throw new Error('boom') }, info: () => ({}), stop: () => { stops++; return Promise.reject(new Error('stop failed')) } }
+      let err
+      try { await studio.start({ port: 0, rootDir: dir, simulator: true, simStart: async () => sim }) } catch (e) { err = e }
+      await new Promise((r) => setTimeout(r, 20))
+      expect(err && err.message).toBe('boom')
+      expect(stops).toBe(1)
+      expect(unhandled).toEqual([])
+    } finally { process.off('unhandledRejection', onUnhandled) }
   })
   it('a malformed deviceLease.pool with --simulator is a USAGE error, not a crash', () => {
     let err
