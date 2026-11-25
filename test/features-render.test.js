@@ -269,7 +269,7 @@ describe('render size caps', () => {
   it('warns when the page is over the size threshold and still renders', () => {
     const r = render.renderReport(skeleton, graph, { ...FIXED, maxBytes: 1000 })
     expect(r.warnings.length).toBe(1)
-    expect(r.warnings[0]).toContain('MB')
+    expect(r.warnings[0]).toMatch(/the report is [\d.]+ KB, over the 1000 bytes limit/)
     expect(r.html.length).toBeGreaterThan(1000)
     expect(golden.warnings).toEqual([])
   })
@@ -329,5 +329,103 @@ describe('features render command', () => {
       expect((await run(['render', '--auto', 'tree.json'], dir)).code).toBe(2)
       expect((await run(['check', '--auto'], dir)).code).toBe(2)
     } finally { fs.rmSync(dir, { recursive: true, force: true }) }
+  })
+
+  it('creates no .gitignore in the folder of a tree outside the staging folder', async () => {
+    const dir = project()
+    try {
+      await run(['graph'], dir)
+      const fdir = path.join(dir, '.brighttest', 'features')
+      const g = JSON.parse(fs.readFileSync(path.join(fdir, 'graph.json'), 'utf8'))
+      fs.mkdirSync(path.join(dir, 'mapping'))
+      fs.writeFileSync(path.join(dir, 'mapping', 'tree.json'), JSON.stringify(buildSkeleton(g, suggest(g))))
+      const r = await run(['render', 'mapping/tree.json', '--graph', '.brighttest/features/graph.json'], dir)
+      expect(r.code).toBe(0)
+      expect(fs.existsSync(path.join(dir, 'mapping', 'report.html'))).toBe(true)
+      expect(fs.existsSync(path.join(dir, 'mapping', '.gitignore'))).toBe(false)
+    } finally { fs.rmSync(dir, { recursive: true, force: true }) }
+  })
+  it('refuses a default output folder that holds source/, and a tree owned by another project', async () => {
+    const dir = project()
+    const other = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-render-other-'))
+    try {
+      await run(['graph'], dir)
+      const fdir = path.join(dir, '.brighttest', 'features')
+      const g = JSON.parse(fs.readFileSync(path.join(fdir, 'graph.json'), 'utf8'))
+      fs.writeFileSync(path.join(dir, 'tree.json'), JSON.stringify(buildSkeleton(g, suggest(g))))
+      expect((await run(['render', 'tree.json', '--graph', '.brighttest/features/graph.json'], dir)).code).toBe(2)
+      expect(fs.existsSync(path.join(dir, 'report.html'))).toBe(false)
+      fs.writeFileSync(path.join(dir, 'source', 'tree.json'), JSON.stringify(buildSkeleton(g, suggest(g))))
+      const r = await run(['render', path.join(dir, 'source', 'tree.json'), '--graph', path.join(fdir, 'graph.json'), '--out', path.join(dir, 'source', 'r.html')], other)
+      expect(r.code).toBe(2)
+      expect(fs.existsSync(path.join(dir, 'source', 'r.html'))).toBe(false)
+      expect((await run(['render', path.join(dir, 'source', 'tree.json'), '--graph', path.join(fdir, 'graph.json')], other)).code).toBe(2)
+    } finally { fs.rmSync(dir, { recursive: true, force: true }); fs.rmSync(other, { recursive: true, force: true }) }
+  })
+  it('refuses --out that is an input, a symlink (also dangling) or a non-HTML file', async () => {
+    const dir = project()
+    try {
+      await run(['graph'], dir)
+      const fdir = path.join(dir, '.brighttest', 'features')
+      const graphText = fs.readFileSync(path.join(fdir, 'graph.json'), 'utf8')
+      expect((await run(['render', '--auto', '--out', '.brighttest/features/graph.json'], dir)).code).toBe(2)
+      expect(fs.readFileSync(path.join(fdir, 'graph.json'), 'utf8')).toBe(graphText)
+      fs.symlinkSync(path.join(dir, 'source', 'planted.html'), path.join(dir, 'out.html'))
+      expect((await run(['render', '--auto', '--out', 'out.html'], dir)).code).toBe(2)
+      expect(fs.existsSync(path.join(dir, 'source', 'planted.html'))).toBe(false)
+      fs.writeFileSync(path.join(dir, 'notes.txt'), 'keep me')
+      expect((await run(['render', '--auto', '--out', 'notes.txt'], dir)).code).toBe(2)
+      expect(fs.readFileSync(path.join(dir, 'notes.txt'), 'utf8')).toBe('keep me')
+      expect((await run(['render', '--auto', '--out', 'ok.html'], dir)).code).toBe(0)
+      expect((await run(['render', '--auto', '--out', 'ok.html'], dir)).code).toBe(0) // an HTML report is replaced
+      expect(fs.readdirSync(dir).filter((f) => f.endsWith('.tmp'))).toEqual([])
+    } finally { fs.rmSync(dir, { recursive: true, force: true }) }
+  })
+  it('warns about the size threshold given through the command context, with real sizes, and exits 0', async () => {
+    const dir = project()
+    try {
+      await run(['graph'], dir)
+      const prev = process.cwd(); process.chdir(dir)
+      let err = ''; let code
+      try {
+        const { runRender } = require('../lib/features/render')
+        code = await runRender({ auto: true, out: 'big.html' }, { root: dir, stagingDir: path.join(dir, '.brighttest'), baseRel: '.', stdout: () => {}, stderr: (s) => { err += s }, maxBytes: 2048 }, require('../lib/assess').UsageError)
+      } finally { process.chdir(prev) }
+      expect(code).toBe(0)
+      expect(err).toMatch(/warning: the report is [\d.]+ KB, over the 2\.0 KB limit/)
+      expect(err).not.toContain('0 MB')
+      expect(fs.existsSync(path.join(dir, 'big.html'))).toBe(true)
+    } finally { fs.rmSync(dir, { recursive: true, force: true }) }
+  })
+  it('rejects a hand-edited graph with a valid hash and malformed parts with exit 2, not 1', async () => {
+    const dir = project()
+    try {
+      await run(['graph'], dir)
+      const fdir = path.join(dir, '.brighttest', 'features')
+      const { hashGraph } = require('../lib/features/graph')
+      const base = JSON.parse(fs.readFileSync(path.join(fdir, 'graph.json'), 'utf8'))
+      const variants = {
+        uncNull: (x) => { x.uncertainty = { items: [null], counts: {} } },
+        alsoObj: (x) => { x.nodes.find((n) => n.testability).testability.alsoNeeds = {} },
+        nodeNull: (x) => { x.nodes.push(null) },
+        edgeStr: (x) => { x.edges.push('x') },
+        blind: (x) => { x.uncertainty.blindSpots = 5 },
+        needsStr: (x) => { x.nodes.find((n) => n.testability).testability.primary.needs = 'net' },
+      }
+      for (const [k, f] of Object.entries(variants)) {
+        const x = JSON.parse(JSON.stringify(base)); f(x); x.hash = hashGraph(x)
+        fs.writeFileSync(path.join(dir, `g-${k}.json`), JSON.stringify(x))
+        const r = await run(['render', '--auto', '--graph', `g-${k}.json`, '--out', `o-${k}.html`], dir)
+        expect(r.code, k).toBe(2)
+        expect(r.err, k).toContain('malformed graph')
+        expect(fs.existsSync(path.join(dir, `o-${k}.html`))).toBe(false)
+      }
+    } finally { fs.rmSync(dir, { recursive: true, force: true }) }
+  })
+  it('renderReport does not throw on odd uncertainty items or alsoNeeds', () => {
+    const g = JSON.parse(JSON.stringify(graph))
+    g.uncertainty = { items: [null, 5, { kind: 'k', at: 'a.brs:1' }], counts: {}, blindSpots: [] }
+    g.nodes.find((n) => n.testability).testability.alsoNeeds = {}
+    expect(() => render.renderReport(skeleton, g, FIXED)).not.toThrow()
   })
 })
