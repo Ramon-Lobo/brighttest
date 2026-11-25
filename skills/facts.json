@@ -212,6 +212,7 @@
     "e2e stamp",
     "features check",
     "features graph",
+    "features render",
     "init",
     "instrument build",
     "instrument census",

@@ -224,6 +224,16 @@ feature ids, testability overrides, proposed tests, plain text, and the recommen
 assigned. Exit codes: `0` valid (warnings allowed), `1` internal error, `2` usage error or unreadable input, `3` tree
 invalid or stale.
 
+```text
+features render [<tree.json>] [--graph <graph.json>] [--out <file.html>] [--auto]
+```
+
+Validates the tree like `check`, then writes one self-contained `report.html` (default: beside the tree). `--auto`
+renders the generated skeleton tree, so no agent is needed; do not combine it with `<tree.json>`. Run it from the
+project root: the CI checklist and the "code changed since the graph" banner read the project in the current
+directory. Exit codes: `0` written, `1` internal error, `2` usage error, unreadable input or `--out` refused (inside
+`source/` or `components/`), `3` tree invalid or stale (nothing is written). See [Map the app](/guide/feature-tree).
+
 ## `brighttest doctor`
 
 ```text
