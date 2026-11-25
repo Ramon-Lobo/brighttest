@@ -1,16 +1,16 @@
-# adopt-eval: T1 brownfield assessment harness (ADOPT-21a)
+# adopt-eval: T1 brownfield assessment harness
 
-Prepares, and scores, in-session Agent-tool subagent runs of TP-ADOPT-11 (T1). It never launches an agent and never
+Prepares, and scores, in-session Agent-tool subagent runs of the T1 brief. It never launches an agent and never
 calls a model API. The main session launches one subagent per cell from `prompt.md`.
 
 ## Flow
 1. `node scripts/adopt-eval/prepare.js --run-root <dir> [--clean]` makes 12 cells
-   `<dir>/<fixture>/<arm>/run<1..3>/` with `app/` (fresh fixture copy, `git init` + one commit, ground truth file
-   `EXPECTED-CENSUS.json` removed) and `prompt.md`. Default root: `~/brighttest-pack-runs/ADOPT-21a-C112`. Refuses
+   `<dir>/<fixture>/run<1..3>/` (with-skills) and `<dir>-baseline/<fixture>/run<1..3>/` (baseline; a separate root so walking up from a baseline cell never reaches the with-skills prompts or reports) with `app/` (fresh fixture copy, `git init` + one commit, ground truth file
+   `EXPECTED-CENSUS.json` removed) and `prompt.md`. Default root: `~/adopt-eval-runs/t1`. Refuses
    a non-empty root without `--clean`; refuses a root inside the repo. Use a root whose path has no "brighttest" in it
    if you want the baseline to see no brighttest word beyond the task prompt (paths appear in the prompt).
 2. The main session launches a subagent per cell with that cell's `prompt.md`; the agent writes `<cell>/report.md`.
-3. The main session writes a results JSON: `{ "cells": { "<fixture>/<arm>/run<n>": { "finalMessage": "...",
+3. The main session writes a results JSON: `{ "cells": { "<fixture>/<arm>/run<n>" (cell id, not a path): { "finalMessage": "...",
    "commands": ["node .../bin/cli.js assess ..."], "toolCalls": 12, "tokens": 40000, "wallMs": 90000 } } }`.
    `commands` is optional (assess commands the agent ran, if the Agent tool exposes them); otherwise C1 falls back to
    the message text and is marked review.
@@ -32,7 +32,7 @@ the run: `score.js` flags a baseline cell as contaminated and excludes it from t
 mention such as "add a README section" is not contamination). Excluded runs leave the denominator (2 of 3 is scored as 2 of 2, 1 of 1);
 if every run of a baseline group is excluded it is reported n/a. Cells are listed in `SCORE.md` / `SCORE.json` (`contaminated`). Baseline is not gated either way.
 
-## Criteria (TP-ADOPT-11 T1)
+## Criteria (T1)
 C1 assess run; C2 counts match ground truth (legacy-app: `EXPECTED-CENSUS.json`; plugin app: brs/xml file counts
 from `assess`); C3 bsconfig caveat (plugin app only); C4 inline CDATA + vendor + render-thread all named (legacy-app only; not
 applicable on the plugin app, which has none of them); C5 asks
@@ -53,5 +53,6 @@ pass; baseline is reported for comparison and is not gated.
 - The baseline is NOT fully isolated: it may inherit the user's global instructions and global skills and any project
   instructions found in the working directory's ancestors. A scratch dir outside the repo reduces this; it cannot
   switch those off.
+- The fixtures contain brighttest hints (for example files and comments written for the tool), and both arms see them; the baseline is therefore not a clean no-tool measurement.
 - N=3 is small; a 2-of-3 pass is a weak bar.
 - Token and wall-time numbers are whatever the Agent tool reports; not billed API usage.
