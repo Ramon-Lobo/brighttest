@@ -56,3 +56,15 @@ pass; baseline is reported for comparison and is not gated.
 - The fixtures contain brighttest hints (for example files and comments written for the tool), and both arms see them; the baseline is therefore not a clean no-tool measurement.
 - N=3 is small; a 2-of-3 pass is a weak bar.
 - Token and wall-time numbers are whatever the Agent tool reports; not billed API usage.
+
+## T2 and T3 (no-edit tasks, `t23.js`)
+
+One run per task and arm; same arm-root layout as T1 (`<root>` with-skills, `<root>-baseline` baseline).
+
+```
+node scripts/adopt-eval/t23.js prepare --run-root <dir> [--clean] [--tasks t3]
+node scripts/adopt-eval/t23.js score   --run-root <dir> --results <json> [--tasks t3]
+```
+
+Cells: `<root>[-baseline]/legacy-app/<task>/{app/,out/,prompt.md}`. Results JSON keys are `legacy-app/<arm>/<task>`, each
+`{ finalMessage, commands, reads, exitCodes }`. Baseline cells are contamination-checked; only with-skills gates.
