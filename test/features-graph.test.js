@@ -406,3 +406,28 @@ describe('feature graph: census hook and hash', () => {
     } finally { fs.rmSync(tmp, { recursive: true, force: true }) }
   })
 })
+
+describe('feature graph: spec roots outside source/ and components/', () => {
+  const SR = path.join(ROOT, 'test', 'fixtures', 'feature-graph', 'spec-roots')
+  const coversOf = (g, file) => g.edges.filter((e) => e.kind === 'spec-covers' && e.from === `file:${file}`)
+  it('finds specs under conventional test/ and specs/ dirs', async () => {
+    const g = await buildGraph(SR)
+    expect(coversOf(g, 'test/RootSpec.bs').map((e) => e.to).sort()).toEqual(['comp:SrWidget', 'file:source/util.brs'])
+    expect(coversOf(g, 'specs/Plain.brs').map((e) => e.to)).toEqual(['file:source/util.brs'])
+    expect(g.nodes.find((n) => n.id === 'file:test/RootSpec.bs').spec).toBe(true)
+  })
+  it('does not walk a spec root the config pattern does not name or the conventions do not cover', async () => {
+    const g = await buildGraph(SR)
+    expect(coversOf(g, 'qa/unit/Pattern.spec.bs')).toEqual([])
+  })
+  it('adds the leading directory of testsFilePattern from the config', async () => {
+    const g = await buildGraph(SR, { config: { testsFilePattern: 'qa/unit/**/*.spec.bs' } })
+    expect(coversOf(g, 'qa/unit/Pattern.spec.bs').map((e) => e.to)).toEqual(['file:source/util.brs'])
+    expect(coversOf(g, 'test/RootSpec.bs').length).toBeGreaterThan(0)
+  })
+  it('keeps the default layout: source/ and components/ specs still resolve', async () => {
+    expect(find(app, 'spec-covers').length).toBeGreaterThan(0)
+    const rels = (await buildGraph(SR)).nodes.filter((n) => n.kind === 'file' && n.spec).map((n) => n.id)
+    expect(rels).toEqual(expect.arrayContaining(['file:test/RootSpec.bs', 'file:specs/Plain.brs']))
+  })
+})
