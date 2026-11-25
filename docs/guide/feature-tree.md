@@ -117,17 +117,22 @@ npx brighttest features render --auto --junit reports/junit.xml --lcov coverage/
 
 `--junit <file>` and `--lcov <file>` (both repeatable) overlay what actually ran onto the report.
 
-- The JUnit file has to come from brighttest, or carry `file` attributes. brighttest's headless JUnit names each case by
-  its Rooibos `@suite("...")` title and has no file attribute, so the graph records each spec file's suite titles and a
-  case maps to the one spec that has that title. A title used by more than one spec is reported as not mapped (the
-  warning gives a count). A `file` attribute, or a classname that is a spec path, is matched by whole trailing path
-  segments; a bare name maps only when exactly one spec has it.
+- The JUnit file has to come from brighttest, or carry `file` attributes. Both the headless lanes and the device lane
+  write each case with its Rooibos `@suite("...")` title as the classname and, where the spec file is known, a `file`
+  attribute (the spec path relative to the project root). A case maps to its spec by that `file`, so a graph without
+  `specSuites` needs no rebuild. For an older JUnit with no `file` attribute, a case maps by the one spec that has its
+  `@suite` title (the graph records each spec file's suite titles); in that case `render` prints one hint to re-run
+  `brighttest features graph` when the graph has no `specSuites`. A title used by more than one spec is reported as not
+  mapped (the warning gives a count). A classname that is a spec path is matched by whole trailing path segments; a
+  bare name maps only when exactly one spec has it.
 - A spec whose mapped cases all pass marks itself and the nodes it covers `ran-headless`. A failing or skipped-only spec
   marks nothing.
-- `ran-device` comes only from a JUnit marked `brighttest.lane=device` (a `<property>` inside the `<testsuite>`, or at
-  the file level) or from the e2e suite name. No brighttest reporter writes that marker yet, and e2e flows are not graph
-  spec nodes, so today `ran-device` appears only for a JUnit you mark by hand. The marker applies to its own suite, so a
-  merged file can hold a headless and a device suite.
+- Every brighttest JUnit carries a `<property name="brighttest.lane" value="headless|device"/>` on its `<testsuite>`.
+  `ran-device` comes only from a JUnit marked `device`: the device lane writes one when you pass `--junit` (for example
+  `npx brighttest --device --host <ip> --password <pw> --junit reports/device.xml`), and the e2e suite name also counts
+  (e2e flows are not graph spec nodes). A JUnit with no marker is headless. The marker applies to its own suite, so a
+  merged file can hold a headless and a device suite. The device-lane file has not been checked against a real device
+  run yet.
 - LCOV carries no lane, so it never adds a level. A node whose lines executed shows `executed (lcov N% of M lines)`;
   `--lcov` output from a device run is not told apart from a headless one. Paths are matched after removing `pkg:/` and
   the project root; a bare file name with more than one match, and paths that climb out of the project, are ignored.

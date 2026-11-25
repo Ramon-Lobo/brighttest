@@ -44,7 +44,7 @@ feature; nothing on this page is a claim of device verification.
 | `--host <ip>` (also `ip:pw`) | Device IP. Else `ROKU_HOST`, a project `.env`, then the device cache. Several cached devices and none chosen is an error, not a guess |
 | `--password <pw>` (`--pass`) | Dev password. Else `ROKU_PASSWORD`, the device cache |
 | `--lcov [path]` | Write LCOV (default `coverage/lcov.info`); headless `--coverage` and device lanes |
-| `--junit <path>` | Write JUnit XML (headless lanes) |
+| `--junit <path>` | Write JUnit XML (headless and device lanes); each file carries a `brighttest.lane` property |
 | `--timeout <sec>` | Overall watchdog (headless 300 s, device 900 s by default) |
 | `--idle-timeout <sec>` | Device idle watchdog: abort after this many seconds with no device output (default 120, `0` disables; config `deviceIdleTimeout`; the flag wins). See [troubleshooting](/guide/troubleshooting#device-run-aborted-no-device-output-for-ns-idle-watchdog) |
 | `--net-record [file]` | Headless only: pass requests through to `instrument.net.upstreamHosts` and record a HAR (default `.brighttest/net/<run>.har`) |
@@ -239,10 +239,10 @@ directory. Exit codes: `0` written, `1` internal error, `2` usage error, unreada
 `source/` or `components/`), `3` tree invalid or stale (nothing is written). See [Map the app](/guide/feature-tree).
 
 `--junit` and `--lcov` (repeatable) overlay run evidence. The JUnit must come from brighttest (cases map to specs by
-`@suite` title) or carry `file` attributes. A spec whose cases pass marks its nodes `ran-headless`; `ran-device` only
-comes from a JUnit marked `brighttest.lane=device` (per suite) or the e2e suite name, and no brighttest reporter writes
-that marker yet (e2e flows are not graph spec nodes). LCOV shows `executed (lcov N% of M lines)` and gives no level,
-because it carries no lane. See [Map the app](/guide/feature-tree#run-evidence-from-junit-and-lcov).
+their `file` attribute, or by `@suite` title for an older file) or carry `file` attributes. A spec whose cases pass marks
+its nodes `ran-headless`; `ran-device` comes from a JUnit marked `brighttest.lane=device` (per suite), which the device
+lane now writes with `--junit`, or from the e2e suite name (e2e flows are not graph spec nodes). LCOV shows
+`executed (lcov N% of M lines)` and gives no level, because it carries no lane. See [Map the app](/guide/feature-tree#run-evidence-from-junit-and-lcov).
 
 ## `brighttest doctor`
 

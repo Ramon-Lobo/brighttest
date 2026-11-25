@@ -32,6 +32,7 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
 - **Devices:** the credential cache is written atomically with owner-only permissions.
 
 ### Features
+- **JUnit:** every JUnit report now has a `brighttest.lane` property (`headless` or `device`), the suite title as each case's classname and the spec path as its `file` attribute. The device lane writes the report when you pass `--junit`. `features render --junit` uses these to show `ran-headless` and `ran-device` ([guide](./guide/feature-tree.md#run-evidence-from-junit-and-lcov)).
 - **Instrumentation and app state:** `brighttest instrument build | verify | census` builds an instrumented copy of
   your app (no source edits) with a state agent that reads and writes scene, global, node, `m` and registry state, with
   redaction (including masking of `redact.paths` state in Studio's live tree and saved run traces) and a publish rate
