@@ -52,7 +52,9 @@ function runBrs(main) {
   return new Promise((resolve) => child.on('close', () => { clearTimeout(timer); resolve(out) }))
 }
 const tagged = (out, tag) => {
-  const hits = out.split(/\r?\n/).map((l) => l.trim()).filter((l) => l.startsWith(tag)).map((l) => JSON.parse(l.slice(tag.length)))
+  // Windows: the engine's font warning has no trailing newline, so the next print is glued onto it.
+  const clean = out.replace(/couldn't load font[^\r\n]*?expect ugly output\./g, '\n')
+  const hits = clean.split(/\r?\n/).map((l) => l.trim()).filter((l) => l.startsWith(tag)).map((l) => JSON.parse(l.slice(tag.length)))
   if (!hits.length) throw new Error(`no ${tag} line in engine output:\n${out}`)
   return hits
 }
