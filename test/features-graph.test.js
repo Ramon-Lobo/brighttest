@@ -449,11 +449,11 @@ describe('feature graph: spec roots outside source/ and components/', () => {
     expect(coversOf(g, 'qa/unit/Pattern.spec.bs').length).toBe(1)
   })
   it('prunes vendor dirs under spec roots and applies the vendor matcher to files', async () => {
-    const d = mk({ 'tests/Real.spec.bs': SPEC, 'tests/e2e/node_modules/rooibos/dist/lib.brs': SPEC, 'tests/roku_modules/x/y.brs': SPEC, 'tests/lib/rooibos-helper.brs': SPEC, 'tests/skipme/z.brs': SPEC })
+    const d = mk({ 'tests/Real.spec.bs': SPEC, 'tests/e2e/node_modules/rooibos/dist/lib.brs': SPEC, 'tests/roku_modules/x/y.brs': SPEC, 'tests/lib/rooibos-helper/h.brs': SPEC, 'tests/skipme/z.brs': SPEC })
     try {
       const g = await buildGraph(d, { config: { instrument: { exclude: ['tests/skipme/**'] } } })
       expect(hasNode(g, 'file:tests/Real.spec.bs')).toBe(true)
-      for (const id of ['file:tests/e2e/node_modules/rooibos/dist/lib.brs', 'file:tests/roku_modules/x/y.brs', 'file:tests/lib/rooibos-helper.brs', 'file:tests/skipme/z.brs']) expect(hasNode(g, id), id).toBe(false)
+      for (const id of ['file:tests/e2e/node_modules/rooibos/dist/lib.brs', 'file:tests/roku_modules/x/y.brs', 'file:tests/lib/rooibos-helper/h.brs', 'file:tests/skipme/z.brs']) expect(hasNode(g, id), id).toBe(false)
     } finally { cleanup(d) }
   })
   it('matches convention dirs case-insensitively and uses the real dir name in ids, without double counting', async () => {
@@ -478,8 +478,7 @@ describe('feature graph: spec roots outside source/ and components/', () => {
       expect(coversOf(g, 'test/T.spec.bs').length).toBe(1)
     } finally { cleanup(d) }
   })
-  it('adds no not-read items for non-brs symlinks in a spec root', async () => {
-    if (win) return
+  it.skipIf(win)('adds no not-read items for non-brs symlinks in a spec root', async () => {
     const d = mk({ 'test/T.spec.bs': SPEC, 'test/data.json': '{}' })
     try {
       fs.symlinkSync(path.join(d, 'test', 'data.json'), path.join(d, 'test', 'link.json'))
@@ -489,8 +488,7 @@ describe('feature graph: spec roots outside source/ and components/', () => {
       expect(nr).toEqual(['test/link.bs'])
     } finally { cleanup(d) }
   })
-  it('rejects spec roots that are symlinks to the project root, to source/, or outside; survives symlink loops', async () => {
-    if (win) return
+  it.skipIf(win)('rejects spec roots that are symlinks to the project root, to source/, or outside; survives symlink loops', async () => {
     const out = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-specroots-out-'))
     fs.writeFileSync(path.join(out, 'O.spec.bs'), SPEC)
     const d = mk({ 'components/W.brs': 'sub W()\nend sub\n', 'real/R.spec.bs': SPEC })
@@ -508,13 +506,71 @@ describe('feature graph: spec roots outside source/ and components/', () => {
       expect(coversOf(g, 'test/T.spec.bs').length).toBe(1)
     } finally { cleanup(d); cleanup(out) }
   })
-  it('does not double count a spec root reached through two names', async () => {
-    if (win) return
+  it.skipIf(win)('does not double count a spec root reached through two names', async () => {
     const d = mk({ 'real/R.spec.bs': SPEC })
     try {
       fs.symlinkSync(path.join(d, 'real'), path.join(d, 'tests'))
       const g = await buildGraph(d, { config: { testsFilePattern: 'real/**/*.bs' } })
       expect(g.nodes.filter((n) => /^file:(real|tests)\/R\.spec\.bs$/.test(n.id)).length).toBe(1)
+    } finally { cleanup(d) }
+  })
+
+  it('counts only .brs/.bs files toward the cap: many data files sorted first do not starve a real spec', async () => {
+    const d = mk({ 'tests/unit/Real.spec.bs': SPEC })
+    try {
+      fs.mkdirSync(path.join(d, 'tests', 'fixtures'), { recursive: true })
+      for (let i = 0; i < 5001; i++) fs.writeFileSync(path.join(d, 'tests', 'fixtures', `d${String(i).padStart(5, '0')}.json`), '{}')
+      const g = await buildGraph(d)
+      expect(hasNode(g, 'file:tests/unit/Real.spec.bs')).toBe(true)
+      expect(g.uncertainty.items.some((u) => u.kind === 'truncated')).toBe(false)
+    } finally { cleanup(d) }
+  }, 60000)
+  it('reports truncated and keeps exactly 5000 spec nodes when the spec roots hold more', async () => {
+    const d = mk({})
+    try {
+      fs.mkdirSync(path.join(d, 'tests', 'many'), { recursive: true })
+      for (let i = 0; i < 5001; i++) fs.writeFileSync(path.join(d, 'tests', 'many', `s${String(i).padStart(5, '0')}.spec.bs`), 'sub S()\nend sub\n')
+      const g = await buildGraph(d)
+      expect(g.nodes.filter((n) => n.id.startsWith('file:tests/many/')).length).toBe(5000)
+      expect(g.uncertainty.items.some((u) => u.kind === 'truncated' && /spec roots/.test(u.detail))).toBe(true)
+    } finally { cleanup(d) }
+  }, 60000)
+  it('considers every case-variant entry (stubbed fs for case-sensitive disks)', () => {
+    const readdir = fs.readdirSync; const realpath = fs.realpathSync
+    const d = mk({ 'Tests/A.spec.bs': SPEC, 'alt/B.spec.bs': SPEC })
+    const rd = fs.realpathSync(d)
+    const spyR = vi.spyOn(fs, 'readdirSync').mockImplementation((p, o) => (String(p) === d && !o ? ['Tests', 'alt', 'manifest', 'source', 'tests'] : readdir.call(fs, p, o)))
+    const spyP = vi.spyOn(fs, 'realpathSync').mockImplementation((p, o) => (String(p) === path.join(d, 'tests') ? path.join(rd, 'alt') : realpath.call(fs, p, o)))
+    try {
+      const { resolveSpecRoots } = require('../lib/features/graph')
+      expect(resolveSpecRoots(d, {}, () => false).sort()).toEqual(['Tests', 'tests'])
+    } finally { spyR.mockRestore(); spyP.mockRestore(); cleanup(d) }
+  })
+  it.skipIf(win)('walks both Tests and tests when the disk keeps them apart', async () => {
+    const d = mk({ 'Tests/A.spec.bs': SPEC })
+    try {
+      try { fs.mkdirSync(path.join(d, 'tests')) } catch (e) { return }
+      if (fs.readdirSync(d).filter((n) => n.toLowerCase() === 'tests').length < 2) return // case-insensitive disk
+      fs.writeFileSync(path.join(d, 'tests', 'B.spec.bs'), SPEC)
+      const g = await buildGraph(d)
+      expect(hasNode(g, 'file:Tests/A.spec.bs') && hasNode(g, 'file:tests/B.spec.bs')).toBe(true)
+    } finally { cleanup(d) }
+  })
+  it('keeps spec files named after rooibos in a spec root while still pruning rooibos folders', async () => {
+    const d = mk({ 'tests/RooibosConfig.spec.bs': SPEC, 'tests/rooibos-lib/x.spec.bs': SPEC, 'source/tests/RooibosSrc.spec.bs': SPEC })
+    try {
+      const g = await buildGraph(d)
+      expect(hasNode(g, 'file:tests/RooibosConfig.spec.bs')).toBe(true)
+      expect(hasNode(g, 'file:tests/rooibos-lib/x.spec.bs')).toBe(false)
+    } finally { cleanup(d) }
+  })
+  it.skipIf(win)('rejects a spec root whose real path is inside node_modules or a vendor-excluded folder', async () => {
+    const d = mk({ 'node_modules/pkg/P.spec.bs': SPEC, 'vendorx/V.spec.bs': SPEC })
+    try {
+      fs.symlinkSync(path.join(d, 'node_modules', 'pkg'), path.join(d, 'tests'))
+      fs.symlinkSync(path.join(d, 'vendorx'), path.join(d, 'specs'))
+      const g = await buildGraph(d, { config: { instrument: { exclude: ['vendorx/**'] } } })
+      expect(g.nodes.some((n) => /^file:(tests|specs|node_modules|vendorx)\//.test(n.id))).toBe(false)
     } finally { cleanup(d) }
   })
 })
