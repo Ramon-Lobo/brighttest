@@ -1,6 +1,8 @@
 <script>
   import { studio } from '../store.svelte.js';
   import { api } from '../api.js';
+  import LeaseBoard from '../LeaseBoard.svelte';
+  import { onMount } from 'svelte';
   let { onconnected, askPassword } = $props();
 
   const dev = $derived(studio.device);
@@ -8,6 +10,20 @@
   let scanning = $state(false);
   let msg = $state('');
   let connecting = $state(null); // host being connected
+
+  // The lease board: polled every 3 s only while this page is mounted; leaving the page clears the timer.
+  let board = $state(null);
+  let boardError = $state('');
+  onMount(() => {
+    let alive = true;
+    const load = async () => {
+      try { const b = await api.leaseBoard(); if (alive) { board = b; boardError = ''; } }
+      catch (e) { if (alive) boardError = 'lease board unavailable'; }
+    };
+    load();
+    const timer = setInterval(load, 3000);
+    return () => { alive = false; clearInterval(timer); };
+  });
 
   async function scan() {
     scanning = true; msg = '';
@@ -62,6 +78,8 @@
   {:else if !scanning}
     <p class="hint">Hit <b>Discover</b> to find Rokus on your network. If one isn't cached, you'll be asked for its dev password once.</p>
   {/if}
+
+  <LeaseBoard {board} error={boardError} />
 </div>
 
 <style>
