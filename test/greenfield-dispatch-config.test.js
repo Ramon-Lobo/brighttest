@@ -41,7 +41,7 @@ describe('greenfield example: action log config', () => {
     let rt = ''
     for (const f of Object.values(z.files).filter((e) => /\.brs$/.test(e.name))) rt += await f.async('string')
     expect(rt).toMatch(/dat = \{ source: "wrap:" \+ fn, hashBefore: hb, hashAfter: BT_dwHash\(g\) \}/)
-    expect(rt).toMatch(/g\.setField\("__btEv", FormatJson\(dat\)\)/)
+    expect(rt).toMatch(/g\.setField\("__btEv", FormatJson\(q\)\)/)
   })
 
   it('without the dispatch list the same build emits no wrapper (opt-in by design)', async () => {

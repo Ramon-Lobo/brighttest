@@ -25,10 +25,16 @@ sub init()
 end sub
 
 sub BT_agentOnEv(ev as object)
-    m.task.acks = FormatJson({ v: 1, kind: "state.action", session: m.task.session, data: ParseJson(ev.getData()) }) + Chr(10)
+    BT_agentFlushEv()
+end sub
+
+sub BT_agentFlushEv()
+    o = BT_dwDrain(m.global, m.task.session)
+    if o <> "" then m.task.acks = o
 end sub
 
 sub BT_agentOnTick()
+    BT_agentFlushEv()
     BT_agentPublish()
 end sub
 
