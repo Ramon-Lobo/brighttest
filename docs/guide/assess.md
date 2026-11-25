@@ -96,3 +96,7 @@ Host, project, bsconfig, manifest, engines, census, CI, `.gitignore`, devices, r
   command exits 2 and writes nothing. Without `--out` nothing is written.
 - The 20,000-file cap is reported once: `scan.truncated` for the scan, and a single `census skipped` message when
   `source/` and `components/` alone pass the cap.
+
+## Next
+
+To see how the app's files, components and calls connect, run `brighttest features graph`; see [Map the app](/guide/feature-tree).

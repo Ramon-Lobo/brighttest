@@ -560,6 +560,7 @@ Usage:
   brighttest studio --host <ip>                      Visual studio to author/debug flows on a device (see: studio --help)
   brighttest net convert <file.har> [-o <rules.json>]  Turn a recorded HAR into hand-editable net rules
   brighttest assess [<dir>] [--json] [--out <dir>]   Read-only assessment of a Roku project (see: assess --help)
+  brighttest features graph [<dir>] [--out <dir>]    Map an app's files, components and calls into a graph (see: features --help)
   brighttest doctor --host <ip> [--json]             Check a device's capabilities and print exact fixes
   brighttest mcp                                     Serve e2e primitives to an AI agent over MCP stdio (see: mcp --help)
   brighttest devices                                 Discover Rokus on the network and cache one's credentials
@@ -743,6 +744,11 @@ async function main() {
   }
   if (argv[0] === 'assess') {
     const code = await require('../lib/assess').run(argv.slice(1));
+    process.stdout.write('', () => process.exit(code));
+    return;
+  }
+  if (argv[0] === 'features') {
+    const code = await require('../lib/features').run(argv.slice(1));
     process.stdout.write('', () => process.exit(code));
     return;
   }
