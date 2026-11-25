@@ -251,6 +251,12 @@ prints `device identity not read (<reason>); leasing by address <host>` every ti
 `identity-cache.json` in the lease directory, hashes only, mode 0600) in addition to the address key, so a lane
 that holds the device by identity is still met; with nothing remembered it holds the address key only.
 
+Status, `log` and `unlock --force` with `--host` use the remembered identity key only when its holder was reached
+by that same host (or both keys are one hold), so a stale cache entry after a host changed address never touches
+another device's lane. A lane that holds a lease for one device (under `BRIGHTTEST_LEASE`) and then locks a
+second device queues for it while still holding the first; two lanes doing this in opposite order wait for each
+other until `--wait` times out (exit 75). Lock one device at a time.
+
 Known limits: the same device can still end up with two unrelated holders when an address-only holder (Studio,
 MCP, a pool pick, a lane whose read failed with nothing remembered) uses a different address or port than an
 identity-keyed lane; and a host name that does not resolve is leased by name (brighttest prints a warning).

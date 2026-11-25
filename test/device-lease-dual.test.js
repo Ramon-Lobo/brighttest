@@ -179,3 +179,44 @@ describe('identity cache', () => {
     expect(r.decision).toBe('deny');
   });
 });
+
+describe('session renewal and stale cache', () => {
+  it('nested re-entrant use renews both keys of a session (fake clock)', async () => {
+    const dir = mk();
+    let t = Date.parse('2026-01-01T00:00:00Z');
+    const seam = { dir, lookup, now: () => t, timers: false, pidStart: () => null };
+    const s = await L.acquire({ ...seam, host: '127.0.0.1', port: 9101, deviceId: SERIAL, mode: 'session', idleMs: 60000, waitMs: 0 });
+    for (let i = 0; i < 6; i++) {
+      t += 30000;
+      const r = await L.acquire({ ...seam, host: '127.0.0.1', port: 9101, deviceId: SERIAL, token: s.leaseId, waitMs: 0 });
+      expect(r.reentrant).toBe(true);
+    }
+    expect(L.tokenValid(s.leaseId, seam)).toBe(true);
+    const store = L.createStore(seam);
+    for (const k of [L.keyFromIdentity(SERIAL), addrKey(9101)]) expect(store.staleReason(store.readHolder(k))).toBeFalsy();
+    await expect(L.acquire({ ...seam, host: '127.0.0.1', port: 9102, deviceId: SERIAL, waitMs: 0 })).rejects.toMatchObject({ code: 'BUSY' });
+  });
+  it('a stale identity-cache entry never lets unlock --force or status touch another device', async () => {
+    const dir = mk();
+    process.env.BRIGHTTEST_LEASE_DIR = dir;
+    const idKey = L.keyFromIdentity('D1');
+    ID.rememberKey(dir, '10.0.0.5', idKey); // stale: 10.0.0.5 once was D1
+    const a = await L.acquire({ dir, lookup, host: '10.0.0.9', deviceId: 'D1', waitMs: 0, timers: false });
+    const st = JSON.parse(await logs(() => C.run({ deviceAction: 'status', host: '10.0.0.5', json: true }, {})));
+    expect(st.filter((x) => x.holder)).toEqual([]);
+    const out = await logs(() => C.run({ deviceAction: 'unlock', force: true, reason: 't', kill: true, host: '10.0.0.5' }, {}));
+    expect(out).not.toContain('released id-');
+    expect(L.createStore({ dir }).findTokenKeys(a.leaseId)).toHaveLength(2);
+    a.release();
+  });
+  it('unlock --force still releases the identity key when the address key has no directory', async () => {
+    const dir = mk();
+    process.env.BRIGHTTEST_LEASE_DIR = dir;
+    const a = await L.acquire({ dir, lookup, host: '10.0.0.9', deviceId: 'D2', waitMs: 0, timers: false });
+    ID.rememberKey(dir, '10.0.0.9', L.keyFromIdentity('D2'));
+    a.secondary.release(); fs.rmSync(path.join(dir, '10.0.0.9'), { recursive: true, force: true });
+    const out = await logs(() => C.run({ deviceAction: 'unlock', force: true, reason: 't', host: '10.0.0.9' }, {}));
+    expect(out).toContain(`released ${L.keyFromIdentity('D2')}`);
+    expect(fs.existsSync(path.join(dir, L.keyFromIdentity('D2'), 'holder.json'))).toBe(false);
+  });
+});
