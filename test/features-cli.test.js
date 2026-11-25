@@ -36,10 +36,12 @@ describe('features command: dispatch and help', () => {
     expect(c.status).toBe(0)
     expect(c.stdout).toContain('brighttest features graph')
   })
-  it('lists the command once in the top-level help', () => {
+  it('lists each features subcommand once in the top-level help', () => {
     const c = cli(['--help'])
     const lines = (c.stdout + c.stderr).split('\n').filter((l) => /brighttest features/.test(l))
-    expect(lines).toHaveLength(1)
+    expect(lines).toHaveLength(2)
+    expect(lines.filter((l) => /features graph/.test(l))).toHaveLength(1)
+    expect(lines.filter((l) => /features check/.test(l))).toHaveLength(1)
   })
   it('exits 2 on unknown flags, unknown or missing subcommands and extra arguments', async () => {
     for (const a of [['graph', '--nope'], ['bogus'], [], ['graph', 'a', 'b'], ['graph', '--out']]) {

@@ -561,6 +561,7 @@ Usage:
   brighttest net convert <file.har> [-o <rules.json>]  Turn a recorded HAR into hand-editable net rules
   brighttest assess [<dir>] [--json] [--out <dir>]   Read-only assessment of a Roku project (see: assess --help)
   brighttest features graph [<dir>] [--out <dir>]    Map an app's files, components and calls into a graph (see: features --help)
+  brighttest features check [<tree.json>]            Validate a feature tree against its graph; exit 3 when invalid (see: features --help)
   brighttest doctor --host <ip> [--json]             Check a device's capabilities and print exact fixes
   brighttest mcp                                     Serve e2e primitives to an AI agent over MCP stdio (see: mcp --help)
   brighttest devices                                 Discover Rokus on the network and cache one's credentials

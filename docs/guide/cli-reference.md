@@ -13,6 +13,7 @@ brighttest studio                local web app mirroring a device
 brighttest net convert           HAR to net rules
 brighttest assess [<dir>]        read-only project assessment
 brighttest features graph        dependency graph of an app's files and components
+brighttest features check        validate a feature tree against its graph
 brighttest doctor                device capability check
 brighttest mcp                   MCP stdio server for AI agents
 brighttest devices               discover Rokus, cache credentials
@@ -210,6 +211,18 @@ or to `--out`, and prints a short summary; `--json` prints the graph instead.
 Exit codes: `0` graph produced, `1` internal error, `2` usage error (missing `<dir>`,
 bad config or refused `--out` inside `source/` or `components/`). See
 [Map the app](/guide/feature-tree).
+
+```text
+features check [<tree.json>] [--graph <graph.json>] [--json] [--partial]
+```
+
+Read-only. Validates a `brighttest-feature-tree/v1` document against its graph with rules V1 to V9: shape and
+caps, binding to this exact graph, every file in exactly one feature or in `ignored`, a component with its XML file,
+feature ids, testability overrides, proposed tests, plain text, and the recommended path. `<tree.json>` defaults to
+`<stagingDir>/features/tree.json` and `--graph` to the `graph.json` beside it. `--json` prints
+`{ ok, errors, warnings, findings[{severity, rule, code, pointer, message}] }`; `--partial` allows files not yet
+assigned. Exit codes: `0` valid (warnings allowed), `1` internal error, `2` usage error or unreadable input, `3` tree
+invalid or stale.
 
 ## `brighttest doctor`
 

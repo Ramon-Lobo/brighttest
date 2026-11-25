@@ -17,6 +17,71 @@
     "leaseLost": 77,
     "verifyInstrumented": 3
   },
+  "featureTree": {
+    "caps": {
+      "features": 400,
+      "name": 60,
+      "notes": 300,
+      "proposedTestsPerFeature": 20,
+      "reason": 300,
+      "summary": 400,
+      "why": 300
+    },
+    "checkSchema": "brighttest-feature-check/v1",
+    "exitCodes": {
+      "internal": 1,
+      "invalid": 3,
+      "ok": 0,
+      "usage": 2
+    },
+    "graphSchema": "brighttest-feature-graph/v1",
+    "idPattern": "^[a-z0-9][a-z0-9-]{0,47}$",
+    "kinds": [
+      "app-shell",
+      "screen",
+      "flow",
+      "service",
+      "widget",
+      "shared",
+      "platform",
+      "vendor"
+    ],
+    "lanes": [
+      "headless-unit",
+      "headless-scene",
+      "headless-fixtures",
+      "device",
+      "e2e"
+    ],
+    "needs": [
+      "net",
+      "state",
+      "store",
+      "media",
+      "registry"
+    ],
+    "paths": [
+      "leaf-first",
+      "base-first"
+    ],
+    "risks": [
+      "low",
+      "medium",
+      "high"
+    ],
+    "rules": [
+      "V1",
+      "V2",
+      "V3",
+      "V4",
+      "V5",
+      "V6",
+      "V7",
+      "V8",
+      "V9"
+    ],
+    "schema": "brighttest-feature-tree/v1"
+  },
   "flags": [
     "--agent",
     "--app",
@@ -145,6 +210,7 @@
     "e2e record",
     "e2e run",
     "e2e stamp",
+    "features check",
     "features graph",
     "init",
     "instrument build",
