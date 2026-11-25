@@ -652,5 +652,12 @@ other kept minor at `/vX.Y/` (built from its highest patch tag), and `main` at `
 - `lastUpdated` needs full git history, so CI must check out with `fetch-depth: 0` (the script warns on a shallow
   clone but still builds).
 
+- The `Deploy Docs` workflow (`.github/workflows/docs.yml`) runs on a push to `main` that touches `docs/**`,
+  `package.json`, `package-lock.json` or the workflow, on every `v*` tag push, and on manual `workflow_dispatch`. It
+  always checks out `main` with full history, runs `npm ci`, `docs-site.js plan` and `docs-site.js build --out _site`,
+  then `node scripts/changelog.js check --tags` (the release gate: every release tag needs a changelog section, so a
+  tag without one fails the job before the artifact is uploaded). A separate `deploy` job publishes `_site` to GitHub
+  Pages. The build also refuses to publish when no release tag matches the config (no latest release).
+
 Release flow: pushing the `vX.Y.Z` tag redeploys the site and the root moves to the new release; there is no extra
 step. To retire or hide a minor, add it to `exclude` (or lower `keep`) and redeploy.
