@@ -14,3 +14,10 @@
     max-width: 1040px !important;
   }
 }
+
+/* Images keep their native aspect ratio at any column width, even if one is given width or height attributes. */
+.vp-doc img {
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+}
