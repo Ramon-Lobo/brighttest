@@ -65,7 +65,7 @@ waiting sessions, whether the device answers, a table of recent runs, a bar stri
 the last 24 hours in numbers. It is the same board as [`brighttest device watch`](/guide/device-lease). It reads
 `GET /api/lease/board`, which needs no lease, takes none and never waits on the device: the reachability check runs in the
 background, at most one small request per device every 30 seconds. The page refreshes every 3 seconds only while the Devices page
-is open. Studio's own hold shows like any other holder, as `studio`.
+is open. Studio's own hold shows like any other holder, with the purpose `studio :<port>` and the agent from `BRIGHTTEST_AGENT`, or `<user>@pid<N>` when that is not set.
 
 ## State inspector
 

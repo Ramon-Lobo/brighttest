@@ -31,4 +31,13 @@ describe('lease roles (Studio copy of lib/tui.js ROLES)', () => {
   it('formats durations', () => {
     expect(R.fmtDur(42000)).toBe('42s'); expect(R.fmtDur(185000)).toBe('3m 05s'); expect(R.fmtDur(3720000)).toBe('1h 02m'); expect(R.fmtDur(null)).toBe('-');
   });
+  it('clean() strips control, invisible and direction-changing characters, with the same classes as lib/tui.js', () => {
+    expect(R.clean('e2e\u202Egnp.exe')).toBe('e2egnp.exe'); // U+202E right-to-left override
+    expect(R.clean('a\u200Bb\u0007c\u2066d')).toBe('abcd');
+    expect(R.clean('two\nlines\there')).toBe('two lines here');
+    expect(R.clean(null)).toBe('');
+    const src = fs.readFileSync(path.join(import.meta.dirname, '..', 'lib', 'tui.js'), 'utf8');
+    expect(src).toContain(`const RE_CTRL = ${R.RE_CTRL.toString()};`);
+    expect(src).toContain(`const RE_INVISIBLE = ${R.RE_INVISIBLE.toString()};`);
+  });
 });

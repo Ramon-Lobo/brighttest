@@ -19,7 +19,7 @@ const NOW = Date.now(); // real time: the CLI run below reads the same dir with 
 const ago = (ms) => new Date(NOW - ms).toISOString();
 
 describe('Studio lease board route', () => {
-  let dir, fake, server, port, prevPort;
+  let dir, fake, server, port, prevPort, prober;
   const get = (p) => new Promise((resolve, reject) => {
     http.get({ host: '127.0.0.1', port, path: p }, (res) => {
       let b = ''; res.on('data', (c) => (b += c)); res.on('end', () => resolve({ status: res.statusCode, text: b, json: (() => { try { return JSON.parse(b); } catch { return null; } })() }));
@@ -27,7 +27,14 @@ describe('Studio lease board route', () => {
   });
   const strip = (b) => JSON.parse(JSON.stringify(b, (k, v) => (k === 'at' || k === 'heldMs' || k === 'waitingMs' || k === 'etaMs' || k === 'expiresAt' ? undefined : v)));
 
+  // A fake reach prober: records calls, never touches the network (no DNS or GET for the fixture host names).
+  const fakeProber = () => {
+    const p = { wanted: [], stops: 0, wantAfterStop: 0, stopped: false,
+      want(h) { if (p.stopped) p.wantAfterStop++; p.wanted.push(h); }, get: () => ({ state: 'unknown', at: null }), settle: async () => {}, stop() { p.stops++; p.stopped = true; } };
+    return p;
+  };
   beforeEach(async () => {
+    prober = fakeProber();
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-board-'));
     const key = L.keyFromAddress('lab-a');
     fs.mkdirSync(path.join(dir, key, 'queue'), { recursive: true });
@@ -41,7 +48,7 @@ describe('Studio lease board route', () => {
     prevPort = process.env.ROKU_ECP_PORT; process.env.ROKU_ECP_PORT = String(a.ecpPort);
     process.env.BRIGHTTEST_LEASE_DIR = dir;
     process.env.BRIGHTTEST_CACHE = path.join(dir, 'devices.json');
-    server = await studio.start({ host: '127.0.0.1', password: 'rokudev-test', port: 0, rootDir: dir, cfg: null, leaseOpts: { tickMs: 50 } });
+    server = await studio.start({ host: '127.0.0.1', password: 'rokudev-test', port: 0, rootDir: dir, cfg: null, leaseOpts: { tickMs: 50, createProber: () => prober } });
     port = server.address().port;
   });
   afterEach(async () => {
@@ -61,6 +68,23 @@ describe('Studio lease board route', () => {
     expect(fs.readdirSync(dir).sort()).toEqual(before);
     expect(JSON.parse(fs.readFileSync(path.join(dir, L.keyFromAddress('lab-a'), 'holder.json'), 'utf8')).holder.agent).toBe('fixture-agent');
     expect(r.json.devices.every((d) => !d.holder || d.holder.agent !== 'studio')).toBe(true);
+    // design assertion: no `acquired` event with a studio purpose was written because of the request
+    for (const k of fs.readdirSync(dir)) {
+      const f = path.join(dir, k, 'events.log');
+      if (!fs.existsSync(f)) continue;
+      const bad = fs.readFileSync(f, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)).filter((e) => e.ev === 'acquired' && /^studio/.test(e.purpose || ''));
+      expect(bad).toEqual([]);
+    }
+  });
+
+  it('closing the server stops the prober, and nothing asks it afterwards', async () => {
+    await get('/api/lease/board');
+    expect(prober.wanted.length).toBeGreaterThan(0);
+    expect(prober.stops).toBe(0);
+    await new Promise((r) => server.close(r));
+    expect(prober.stops).toBeGreaterThan(0);
+    await new Promise((r) => setTimeout(r, 150));
+    expect(prober.wantAfterStop).toBe(0);
   });
 
   it('equals the view snapshot of the same dir (same clock)', async () => {

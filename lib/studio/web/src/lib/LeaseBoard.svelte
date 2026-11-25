@@ -1,5 +1,5 @@
 <script>
-  import { textClass, bgClass, runOutcome, fmtDur } from './leaseRoles.js';
+  import { textClass, bgClass, runOutcome, fmtDur, clean } from './leaseRoles.js';
   let { board = null, error = '' } = $props();
 
   const devices = $derived(board?.devices || []);
@@ -21,7 +21,7 @@
       const hh = Math.max(2, (holdOf(r) / max) * (H - 2));
       const wh = (waitOf(r) / max) * (H - 2);
       const x = i * (W / rs.length) + 1;
-      return { x, w: Math.max(2, bw), hh, wh, y: H - hh, wy: H - hh - wh, role: runOutcome(r).role, tip: `${r.agent || '?'}: held ${fmtDur(r.heldMs)}, waited ${fmtDur(r.waitedMs)}` };
+      return { x, w: Math.max(2, bw), hh, wh, y: H - hh, wy: H - hh - wh, role: runOutcome(r).role, tip: `${clean(r.agent) || '?'}: held ${fmtDur(r.heldMs)}, waited ${fmtDur(r.waitedMs)}` };
     });
   }
 </script>
@@ -36,25 +36,23 @@
     <article class="card">
       <header>
         <span class="sdot {bgClass(stateRole(d.state))}"></span>
-        <span class="label">{d.label}</span>
+        <span class="label">{clean(d.label)}</span>
         <span class="state {textClass(stateRole(d.state))}">{d.state}</span>
         <span class="reach {textClass(d.reach?.state || 'unknown')}">{reachText(d.reach)}</span>
       </header>
 
       {#if d.holder}
         <div class="holder">
-          <span class={textClass('held')}>{d.holder.agent || 'unknown'}</span>
-          <span class={textClass('meta')}>{d.holder.purpose || ''} · held {fmtDur(d.holder.heldMs)}{d.holder.foreign ? ` · on ${d.holder.hostname}` : ''}</span>
-          {#if d.holder.staleReason}<div class={textClass('stale')}>stale: {d.holder.staleReason}</div>{/if}
+          <span class={textClass('held')}>{clean(d.holder.agent) || 'unknown'}</span>
+          <span class={textClass('meta')}>{clean(d.holder.purpose)} · held {fmtDur(d.holder.heldMs)}{d.holder.foreign ? ` · on ${clean(d.holder.hostname)}` : ''}</span>
+          {#if d.holder.staleReason}<div class={textClass('stale')}>stale: {clean(d.holder.staleReason)}</div>{/if}
         </div>
-      {:else if d.state === 'free'}
-        <div class="holder {textClass('free')}">free</div>
       {/if}
-      {#if d.error}<div class="holder {textClass('corrupt')}">{d.error}</div>{/if}
+      {#if d.error}<div class="holder {textClass('corrupt')}">{clean(d.error)}</div>{/if}
 
       {#if d.queue?.length}
         <div class="line {textClass('queued')}">
-          line: {d.queue.map((q) => `${q.dead ? 'x' : q.pos + '.'} ${q.agent || '?'} ${fmtDur(q.waitingMs)}`).join(' · ')}
+          line: {d.queue.map((q) => `${q.dead ? 'x' : q.pos + '.'} ${clean(q.agent) || '?'} ${fmtDur(q.waitingMs)}`).join(' · ')}
         </div>
       {/if}
 
@@ -71,7 +69,7 @@
             {#each d.runs as r}
               {@const o = runOutcome(r)}
               <tr>
-                <td>{(r.startedAt || '').slice(11, 19)}</td><td>{r.agent || '?'}</td><td class="purpose">{r.purpose || ''}</td>
+                <td>{(r.startedAt || '').slice(11, 19)}</td><td>{clean(r.agent) || '?'}</td><td class="purpose">{clean(r.purpose)}</td>
                 <td>{fmtDur(r.waitedMs)}</td><td>{r.ended === 'timeout' ? '-' : fmtDur(r.heldMs)}</td><td class={textClass(o.role)}>{o.text}</td>
               </tr>
             {/each}
@@ -81,7 +79,7 @@
 
       {#if d.stats}
         <div class="stats {textClass('meta')}">
-          {d.stats.window}: {d.stats.runs} runs · median hold {fmtDur(d.stats.medianHoldMs)} · p90 {fmtDur(d.stats.p90HoldMs)} · median wait {fmtDur(d.stats.medianWaitMs)} · longest line {d.stats.maxQueue} · {d.stats.timeouts} gave up
+          {d.stats.window}: {d.stats.runs} {d.stats.runs === 1 ? 'run' : 'runs'} · median hold {fmtDur(d.stats.medianHoldMs)} · p90 {fmtDur(d.stats.p90HoldMs)} · median wait {fmtDur(d.stats.medianWaitMs)} · longest line {d.stats.maxQueue} · {d.stats.timeouts} gave up
         </div>
       {/if}
     </article>

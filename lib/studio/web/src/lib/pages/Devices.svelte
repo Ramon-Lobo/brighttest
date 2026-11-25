@@ -16,9 +16,13 @@
   let boardError = $state('');
   onMount(() => {
     let alive = true;
+    let busy = false;
     const load = async () => {
+      if (busy) return; // skip a tick while the last request is still in flight
+      busy = true;
       try { const b = await api.leaseBoard(); if (alive) { board = b; boardError = ''; } }
       catch (e) { if (alive) boardError = 'lease board unavailable'; }
+      finally { busy = false; }
     };
     load();
     const timer = setInterval(load, 3000);
