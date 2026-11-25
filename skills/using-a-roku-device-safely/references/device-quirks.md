@@ -33,8 +33,10 @@ Both are device settings. Tell the human; do not guess at other settings.
 | 8085 | BrightScript console, log capture | exactly one client; `ROKU_LOG_PORT` changes the console port |
 | 8080 | debug port | one client (the debug ports 8080 and 8085 take one client each) |
 
-If capture fails with "Console connection is already in use", close the other client on 8085. Always use the
-device IP and the default ECP port: a host name or another ECP port gives the same device a second lease key.
+If capture fails with "Console connection is already in use", close the other client on 8085. A device lane
+keys the lease by the device identity (serial hash) and also holds the address key, so another address or port of
+the same device still queues; if the identity read fails the lane falls back to the address key and logs it.
+Still use the device IP and the default ECP port: Studio, MCP and pool picks lease by address only.
 
 ## Long runs stop at about 10 minutes
 

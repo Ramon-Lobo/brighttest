@@ -304,7 +304,7 @@ device log [--host <h>] [--tail <n>] [--json]
 | `--no-hygiene` | Skip the Home x2 press after acquiring |
 | `--keepalive[=sec]` | (`with`) send an ECP `Fwd` every `<sec>` (default 240, min 60, `0` off) while the command runs |
 | `--device any` | (`with`) first free device of `deviceLease.pool`; `lock` and the others reject it (exit 2) |
-| `--ecp-port <n>` | ECP port (`ROKU_ECP_PORT`); part of the lease key when not 8060 |
+| `--ecp-port <n>` | ECP port (`ROKU_ECP_PORT`); part of the address lease key when not 8060 (the identity key ignores it) |
 | `--force`, `--reason <text>`, `--kill` | (`unlock`) human override; `--reason` is required for a live holder, `--kill` also stops its processes. Audited |
 | `--tail <n>`, `--json` | (`log`) last `n` audit lines, as JSON; `--json` also applies to `status` and `lock` |
 

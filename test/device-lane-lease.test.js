@@ -141,7 +141,7 @@ describe('acquireForLane', () => {
     expect(process.stderr.write.mock.calls.flat().join('')).toMatch(/Home hygiene failed/)
     r.lease.release()
     const evs = fs.readFileSync(path.join(leaseDir, '127.0.0.1', 'events.log'), 'utf8').trim().split('\n').map((l) => JSON.parse(l).ev)
-    expect(evs).toEqual(['acquired', 'hygiene-failed', 'released'])
+    expect(evs).toEqual(['note', 'acquired', 'hygiene-failed', 'released']) // the note: identity not read, leased by address
   })
 
   it('maps a busy device to exit 75', async () => {

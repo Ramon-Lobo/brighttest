@@ -231,14 +231,30 @@ All optional, in `brighttest.json`:
 | `BRIGHTTEST_LEASE` | A held lease token; set by `device with` for its command (nested calls re-use it), or by you for a session from `device lock` |
 | `BRIGHTTEST_NO_LEASE=1` | Same as `--no-lease` |
 
-Leases live in `~/.brighttest/leases/<device>/` (`holder.json`, a `queue/` of tickets, `events.log`). The key
-is the device address (plus the ECP port when it is not 8060). Passwords and device serial numbers are never
-written there. The directory must be on a **local** file system (NFS is not supported).
+Leases live in `~/.brighttest/leases/<key>/` (`holder.json`, a `queue/` of tickets, `events.log`). Passwords and
+device serial numbers are never written there (only a hash). The directory must be on a **local** file system
+(NFS is not supported).
 
-The same device can end up with two keys, and then two holders at once: a host name that does not resolve
-is leased by name (brighttest prints a warning), while a process that resolves it, or uses the IP, leases by
-IP; and a lane run with a different `ROKU_ECP_PORT` than another lane gets a different key (the port is part of
-the key unless it is 8060). Always use the device IP and the default port for real devices. Both cases are also recorded as `note` events in
+**Keys.** A device lane (`device with|lock`, `e2e run`, `--device`, `--cross-check`) first reads the device's
+serial number (or device-id) from its device-info page, waiting at most 1.5 s, and takes **two** leases under one
+token: the identity key `id-<16 hex>` (a hash of the serial), then the address key (the host resolved to an IP,
+plus `_p<port>` when the ECP port is not 8060). Two addresses, a host name and its IP, or two ECP ports that
+reach the same device share the identity key, so they queue; two devices never share one. Everything that knows
+only an address (Studio, the MCP server, `--device any` pool picks) takes the address key alone, so it still
+collides with an identity-keyed lane that reached the device by the same address. `device status`, `log` and
+`unlock --force` with `--host` look at both keys; `unlock --lease` and `renew` cover both. Under a held
+`BRIGHTTEST_LEASE` the lane reuses the key it already holds and does not read the device again.
+
+If the device-info read fails (unreachable, error, timeout, for example while the device reboots), the lane
+prints `device identity not read (<reason>); leasing by address <host>` every time and writes the same line as a
+`note` event to `events.log`. It then uses the identity key last remembered for that host (kept in
+`identity-cache.json` in the lease directory, hashes only, mode 0600) in addition to the address key, so a lane
+that holds the device by identity is still met; with nothing remembered it holds the address key only.
+
+Known limits: the same device can still end up with two unrelated holders when an address-only holder (Studio,
+MCP, a pool pick, a lane whose read failed with nothing remembered) uses a different address or port than an
+identity-keyed lane; and a host name that does not resolve is leased by name (brighttest prints a warning).
+Use the device IP and the default port. Both are recorded as `note` events in
 `events.log`, as are Studio's profiling and Perfetto stops when it yields the device; `released` events carry the
 reason (idle, yielded to another agent, released from the UI).
 
