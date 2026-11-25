@@ -1,0 +1,16 @@
+/* Wider reading column: the default theme caps the doc body at 688px, which squeezes tables and screenshots. */
+:root {
+  --vp-layout-max-width: 1680px;
+}
+
+@media (min-width: 960px) {
+  .VPDoc.has-aside .content-container {
+    max-width: 960px !important;
+  }
+}
+
+@media (min-width: 1440px) {
+  .VPDoc.has-aside .content-container {
+    max-width: 1040px !important;
+  }
+}
