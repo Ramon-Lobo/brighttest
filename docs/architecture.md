@@ -171,7 +171,7 @@ sequenceDiagram
   participant A as instrumented app (device or brs-node)
   participant H as hub (host)
   participant T as test / Studio / MCP
-  B->>B: copy app to staging; bsc + instrument plugin<br/>rewrite setUrl call sites; inject BT_Agent; bake hub address + token
+  B->>B: copy app to staging#59; bsc + instrument plugin<br/>rewrite setUrl call sites#59; inject BT_Agent#59; bake hub address + token
   B-->>A: sideload under the lease (or run in brs-node)
   A->>H: hello (token)
   T->>H: queue state command / set network rules
