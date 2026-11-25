@@ -1,0 +1,6 @@
+{
+  // generic fixture: plugins and a custom files list
+  "rootDir": ".",
+  "files": ["source/**/*.*", "components/**/*.*", "extra/**/*.brs", "manifest"],
+  "plugins": ["@example/generator-plugin", { "name": "local-plugin" }],
+}
