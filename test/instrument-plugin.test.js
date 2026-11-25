@@ -753,3 +753,44 @@ describe('net receiver heuristic', () => {
     expect(new Set(sites.map((s) => s.cls))).toEqual(new Set(['confirmed', 'likely', 'unknown', 'excluded']))
   })
 })
+
+describe('R4 narrowing: a Rooibos-generated test node does not block the Scene under test', () => {
+  const mk = (name, childDir) => {
+    const root = path.join(tmp, 'r4n-' + name)
+    fs.mkdirSync(path.join(root, 'source'), { recursive: true })
+    fs.mkdirSync(path.join(root, 'components'), { recursive: true })
+    fs.mkdirSync(path.join(root, childDir), { recursive: true })
+    fs.writeFileSync(path.join(root, 'manifest'), 'title=r4n\nmajor_version=1\nminor_version=0\nbuild_version=1\n')
+    fs.writeFileSync(path.join(root, 'source/main.brs'), 'sub main()\nend sub\n')
+    fs.writeFileSync(path.join(root, 'components/Base.xml'), '<?xml version="1.0" encoding="utf-8" ?>\n<component name="Base" extends="Scene">\n  <script type="text/brightscript" uri="pkg:/components/base.brs" />\n</component>\n')
+    fs.writeFileSync(path.join(root, 'components/base.brs'), 'sub init()\n    print "base init"\nend sub\n')
+    fs.writeFileSync(path.join(root, childDir, 'Child.xml'), '<?xml version="1.0" encoding="utf-8" ?>\n<component name="Child" extends="Base">\n</component>\n')
+    return root
+  }
+  const run = async (name, childDir, instrument) => {
+    const root = mk(name, childDir)
+    const b = await build(root, path.join(tmp, 'out-' + name), [pluginPath], instrument ? { instrument } : {})
+    return { ...b, base: fs.readFileSync(path.join(b.staging, 'components/base.brs'), 'utf8') }
+  }
+  it('default rooibos-generated child: base init is wrapped, no skip', async () => {
+    const b = await run('gen', 'components/rooibos')
+    expect(b.errors.map((e) => e.message)).toEqual([])
+    expect(b.base).toMatch(/BT_bootstrap/)
+    expect(b.result.skipped.some((s) => s.kind === 'init-shared-with-excluded-scene')).toBe(false)
+  })
+  it('user-excluded child is still skipped', async () => {
+    const b = await run('user', 'components/excl', { exclude: ['components/excl/**'] })
+    expect(b.base).not.toMatch(/BT_bootstrap/)
+    expect(b.result.skipped.find((s) => s.kind === 'init-shared-with-excluded-scene')).toMatchObject({ via: 'extends', component: 'Child' })
+  })
+  it('child excluded by a non-rooibos default glob (vendor-style) is still skipped', async () => {
+    const b = await run('vendor', 'components/bt')
+    expect(b.base).not.toMatch(/BT_bootstrap/)
+    expect(b.result.skipped.find((s) => s.kind === 'init-shared-with-excluded-scene')).toMatchObject({ via: 'extends', component: 'Child' })
+  })
+  it('a rooibos-named child that a user glob also excludes is still skipped', async () => {
+    const b = await run('both', 'components/rooibos', { exclude: ['components/rooibos/**'] })
+    expect(b.base).not.toMatch(/BT_bootstrap/)
+    expect(b.result.skipped.some((s) => s.kind === 'init-shared-with-excluded-scene')).toBe(true)
+  })
+})
