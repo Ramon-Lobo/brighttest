@@ -135,3 +135,50 @@ describe('headless.withHub with a net session', () => {
     expect(seen.o.netProxy).toBe(proxy)
   })
 })
+
+describe('isActive only counts BTNet_ specs that would run', () => {
+  const suite = (ann, body = 'BTNet_mock({ url: "x" })') => `${ann}\nclass S\n  sub t()\n    ${body}\n  end sub\nend class\n`
+  const active = (over) => nh.isActive(cfgAt(tmp, over))
+  it('a non-ignored BTNet_ suite triggers', () => {
+    put('source/a.spec.bs', suite('@suite("A")'))
+    expect(active()).toBe(true)
+  })
+  it('an ignored suite does not trigger (either annotation order)', () => {
+    put('source/a.spec.bs', suite('@suite("A")\n@ignore'))
+    expect(active()).toBe(false)
+    put('source/a.spec.bs', suite('@ignore\n@suite("A")'))
+    expect(active()).toBe(false)
+    expect(findNetSpecs(cfgAt(tmp)).length).toBe(1) // the device lane still drops it
+  })
+  it('mixed file: ignored BTNet_ suite plus a running BTNet_ suite triggers; plus a running plain suite does not', () => {
+    put('source/a.spec.bs', suite('@suite("A")\n@ignore') + suite('@suite("B")'))
+    expect(active()).toBe(true)
+    put('source/a.spec.bs', suite('@suite("A")\n@ignore') + suite('@suite("B")', 'print 1'))
+    expect(active()).toBe(false)
+  })
+  it('@ignore in a comment or string is not a marker', () => {
+    put('source/a.spec.bs', suite("@suite(\"A\")\n' @ignore\n@tags(\"@ignore\")"))
+    expect(active()).toBe(true)
+  })
+  it('BTNet_ only in a comment or string does not trigger', () => {
+    put('source/a.spec.bs', suite('@suite("A")', "print \"BTNet_mock\" ' BTNet_fault"))
+    expect(active()).toBe(false)
+  })
+  it('handles CRLF line endings', () => {
+    put('source/a.spec.bs', suite('@suite("A")\n@ignore').replace(/\n/g, '\r\n'))
+    expect(active()).toBe(false)
+  })
+  it('honours testsFilePattern, with Windows separators in the pattern', () => {
+    put('source/a.spec.bs', suite('@suite("A")'))
+    put('other/b.spec.bs', suite('@suite("B")'))
+    expect(active({ testsFilePattern: 'other\\**\\*.spec.bs' })).toBe(true)
+    expect(active({ testsFilePattern: 'nowhere\\**\\*.spec.bs' })).toBe(false)
+    expect(active({ testsFilePattern: ['**/*.spec.bs', '!source/**'] })).toBe(true)
+    fs.rmSync(path.join(tmp, 'other'), { recursive: true })
+    expect(active({ testsFilePattern: ['**/*.spec.bs', '!source\\**'] })).toBe(false)
+  })
+  it('explicit instrument.net still activates', () => {
+    put('source/a.spec.bs', suite('@suite("A")\n@ignore'))
+    expect(active({ instrument: { net: true } })).toBe(true)
+  })
+})
