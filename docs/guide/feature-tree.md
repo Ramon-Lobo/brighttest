@@ -30,9 +30,10 @@ read from these top-level folders, matched ignoring case, with the folder's real
 - the static leading folders of `testsFilePattern`, for example `qa/unit` for `qa/unit/**/*.spec.bs`.
 
 Every `.brs` and `.bs` file under such a folder counts as a spec. `node_modules`, `roku_modules`, vendor and
-`instrument.exclude` paths are skipped, symlinks are never followed, and a folder that is a symlink to the project root,
-to `source/` or `components/`, or to somewhere outside the project is ignored. At most 5000 files are read; beyond that
-the graph reports a `truncated` item.
+`instrument.exclude` paths are skipped (a folder named after rooibos is skipped, but a spec file named after rooibos is
+kept), symlinks are never followed, and a folder that is a symlink to the project root, to `source/` or `components/`,
+to somewhere outside the project, or into `node_modules` or an excluded folder is ignored. At most 5000 `.brs`/`.bs`
+files are read (data files do not count); beyond that the graph reports a `truncated` item.
 
 Limits: a pattern that starts with a wildcard, brace, `..` or an absolute path (for example `**/qa/*.bs`) names no
 folder, so such specs are only found under the four conventional folders. Folders that `sourceGlobs` maps from
