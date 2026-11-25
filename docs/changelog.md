@@ -89,6 +89,8 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
   crashed; they used to count as passes. See [CI integration](./guide/ci.md).
 - If a run now fails on a CRASH or FAIL entry in Rooibos's final test report (for example a crash in an `@SGNode`
   `beforeEach`) while the totals said Success, fix that spec.
+- If a headless scene run now fails with RUN CRASHED, fix the runtime error printed just above the
+  `EXIT_BRIGHTSCRIPT_CRASH` line.
 - If a run now fails because an `@async` case in an `@SGNode` suite never finished, make that case call `m.done()` before
   its timeout. See [SceneGraph async tests](./writing-tests/scenegraph-async.md).
 - Studio: pass `--host <ip>` (or set `ROKU_HOST`) when several devices are cached, and make sure the dev password is

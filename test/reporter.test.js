@@ -358,6 +358,15 @@ describe('engineCrash: a run the engine killed must not read as green', () => {
     expect(engineCrash(head + '>>>>>> It: EXIT_BRIGHTSCRIPT_CRASH handling>>>>>>\n<<<< END It: EXIT_BRIGHTSCRIPT_CRASH handling (PASS) <<<<\n')).toBeNull()
   })
 
+  it('treats any exit reason except EXIT_USER_NAV as abnormal', () => {
+    const line = (r) => `------ Finished 'x.zip' execution [${r}] ------\n`
+    expect(engineCrash(head + line('EXIT_USER_NAV'))).toBeNull()
+    expect(laneFailures(head + line('EXIT_USER_NAV'), 0).failed).toBe(0)
+    expect(engineCrash(head + line('EXIT_BRIGHTSCRIPT_STOP')).reason).toBe('EXIT_BRIGHTSCRIPT_STOP')
+    expect(laneFailures(head + line('EXIT_BRIGHTSCRIPT_STOP'), 0).failed).toBe(1)
+    expect(engineCrash(head + '  ' + line('EXIT_USER_NAV').replace('USER_NAV', 'USER_NAV_X')).reason).toBe('EXIT_USER_NAV_X')
+  })
+
   it('names the case that was running when the engine died', () => {
     const c = engineCrash(head + '>>>>>> It: c>>>>>>\n' + fin)
     expect(c.reason).toBe('EXIT_BRIGHTSCRIPT_CRASH')

@@ -5,7 +5,9 @@ import os from 'node:os'
 import path from 'node:path'
 
 const require = createRequire(import.meta.url)
-const { report } = require('../lib/coverage-headless.js')
+const { report, flushUnread } = require('../lib/coverage-headless.js')
+
+const { lineSplitter } = require('../lib/reporter.js')
 
 function junitFor(out, killReason, timeout) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-junit-'))
@@ -38,5 +40,36 @@ describe('JUnit for a run that did not complete', () => {
     const { code, xml } = junitFor('', undefined)
     expect(code).toBe(1)
     expect(xml).toMatch(/<testcase name="run did not complete"><failure>no test result was printed/)
+  })
+})
+
+describe('JUnit for a crashed run', () => {
+  it('has one crash entry and no extra "did not complete" entry', () => {
+    const out = ">>>>>> It: a>>>>>>\n<<<< END It: a (PASS) <<<<\n------ Finished 'x.zip' execution [EXIT_BRIGHTSCRIPT_CRASH] ------\n"
+    const { code, xml } = junitFor(out, undefined)
+    expect(code).toBe(1)
+    expect(xml).toContain('name="run crashed"')
+    expect(xml).not.toContain('run did not complete')
+    expect(xml).toContain('failures="1"')
+  })
+})
+
+describe('flushUnread (end-of-run flush by byte offset)', () => {
+  it('streams the unread tail when earlier output has multibyte characters, and the unterminated last line', () => {
+    const first = 'a \u2014 b\n'
+    const lines = []
+    const sp = lineSplitter((l) => lines.push(l))
+    const raw = Buffer.from(first + 'last chunk before exit')
+    sp.push(first)
+    flushUnread(raw, Buffer.byteLength(first), sp)
+    expect(lines).toEqual(['a \u2014 b', 'last chunk before exit'])
+  })
+
+  it('still flushes a pending partial line when no new bytes arrived', () => {
+    const lines = []
+    const sp = lineSplitter((l) => lines.push(l))
+    sp.push('partial \u2014 line')
+    flushUnread(Buffer.from('partial \u2014 line'), Buffer.byteLength('partial \u2014 line'), sp)
+    expect(lines).toEqual(['partial \u2014 line'])
   })
 })
