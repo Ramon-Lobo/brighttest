@@ -1,0 +1,22 @@
+/* Sidebar labels written by the docs config. The word carries the meaning; colour only backs it up. */
+.bt-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  vertical-align: middle;
+}
+.bt-badge--new {
+  color: var(--vp-badge-tip-text);
+  background-color: var(--vp-badge-tip-bg);
+}
+.bt-badge--updated {
+  color: var(--vp-badge-info-text);
+  background-color: var(--vp-badge-info-bg);
+}
+.bt-page-badge {
+  margin-bottom: 8px;
+}

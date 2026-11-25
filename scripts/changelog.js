@@ -5,10 +5,12 @@
 //   node scripts/changelog.js stamp [--version X.Y.Z] [--date D] [--file F]  turn Unreleased into a release section
 //   node scripts/changelog.js slice --upto vX.Y.Z --tree <dir> [--out F]   changelog cut to a tag, for old versioned builds
 //   node scripts/changelog.js notes vX.Y.Z                                 print one section's body
+//   node scripts/changelog.js pages [--from-tag vX.Y.Z] [--write]          page list for the New/Updated badges
 // git and gh go through an injected run(cmd, args) => { status, stdout, stderr } so tests can mock them.
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const badges = require('./docs-badges.js');
 
 // ---- Tunables (edit here) ----
 const DROP_TYPES = ['docs', 'test', 'chore', 'ci', 'build', 'style', 'refactor'];
@@ -396,6 +398,31 @@ function compareBaseOf(text, run, cwd) {
   return slug.includes('{') ? null : `https://github.com/${slug}`;
 }
 
+// ---- release page list (docs/.vitepress/release-pages.json) ----
+const PAGES_KEEP = 2;
+const pagesFileOf = (root) => path.join(root, 'docs', '.vitepress', 'release-pages.json');
+
+function readPagesFile(file) {
+  try {
+    const j = JSON.parse(fs.readFileSync(file, 'utf8'));
+    if (j && j.schema === 1 && Array.isArray(j.releases)) return j;
+  } catch (ex) { /* missing or malformed: start over */ }
+  return { schema: 1, releases: [] };
+}
+
+// Add (or replace) the entry for `version`, sort by semver, keep the newest PAGES_KEEP.
+function withEntry(data, version, pages) {
+  const v = version.replace(/^v/, '');
+  const releases = data.releases.filter((r) => r && VER_RE.test(r.version) && r.version !== v).concat([{ version: v, pages }]);
+  releases.sort((a, b) => cmpVer(a.version, b.version));
+  return { schema: 1, releases: releases.slice(-PAGES_KEEP) };
+}
+
+const writePagesFile = (file, data) => {
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, JSON.stringify(data, null, 2) + '\n');
+};
+
 // ---- slice ----
 function sliceText(text, upto, treeDir) {
   const v = upto.replace(/^v/, '');
@@ -447,7 +474,9 @@ const USAGE = `usage: changelog.js <draft|check|stamp|slice|notes> [options]
   check [--tags] [--version X.Y.Z] [--file F]
   stamp [--version X.Y.Z] [--date YYYY-MM-DD] [--file F]
   slice --upto vX.Y.Z --tree <dir> [--out F] [--file F]
-  notes vX.Y.Z [--file F]`;
+  notes vX.Y.Z [--file F]
+  pages [--from-tag vX.Y.Z] [--write] [--version X.Y.Z]
+(stamp also appends the working tree's page list to docs/.vitepress/release-pages.json; --no-pages skips that)`;
 
 function main(argv, env) {
   const e = Object.assign({
@@ -469,7 +498,8 @@ function main(argv, env) {
     switch (cmd) {
       case 'draft': opts = parseArgs(rest, ['--from', '--to'], ['--prs']); break;
       case 'check': opts = parseArgs(rest, ['--version', '--file'], ['--tags']); break;
-      case 'stamp': opts = parseArgs(rest, ['--version', '--date', '--file'], []); break;
+      case 'stamp': opts = parseArgs(rest, ['--version', '--date', '--file'], ['--no-pages']); break;
+      case 'pages': opts = parseArgs(rest, ['--from-tag', '--version'], ['--write']); break;
       case 'slice': opts = parseArgs(rest, ['--upto', '--tree', '--out', '--file'], []); break;
       case 'notes': opts = parseArgs(rest, ['--file'], []); break;
       default: err(USAGE); return 2;
@@ -492,6 +522,31 @@ function main(argv, env) {
       err(ex.message);
       return ex.code === 'BADREF' || ex.message.startsWith('no v* tag') ? 2 : 1;
     }
+  }
+
+  if (cmd === 'pages') {
+    const pagesFile = pagesFileOf(e.root);
+    let pages, version;
+    if (opts['from-tag']) {
+      const tag = opts['from-tag'];
+      if (!VER_RE.test(tag) || tag.startsWith('-')) return usage2(`--from-tag must look like v0.7.0: ${tag}`);
+      const r = e.run('git', ['ls-tree', '-r', '--name-only', tag, 'docs'], { cwd: e.root });
+      if (r.status !== 0) { err(`git ls-tree ${tag} failed (${(r.stderr || '').trim() || 'unknown tag'}); fetch tags first`); return 1; }
+      const files = (r.stdout || '').split('\n').map((s) => s.trim()).filter((s) => s.startsWith('docs/')).map((s) => s.slice(5));
+      pages = badges.pagesFromFiles(files);
+      version = tag.replace(/^v/, '');
+    } else {
+      pages = badges.listPages(path.join(e.root, 'docs'));
+      version = opts.version || e.env.npm_package_version;
+      if (!version || !VER_RE.test(version)) return usage2('pages without --from-tag needs --version X.Y.Z (or npm_package_version)');
+      version = version.replace(/^v/, '');
+    }
+    if (!pages.length) { err('changelog: no pages found'); return 1; }
+    if (opts.write) {
+      writePagesFile(pagesFile, withEntry(readPagesFile(pagesFile), version, pages));
+      out(`changelog: wrote ${pages.length} pages for v${version} to ${path.relative(e.root, pagesFile)}`);
+    } else out(JSON.stringify({ version, pages }, null, 2));
+    return 0;
   }
 
   const file = path.resolve(e.cwd, opts.file || path.join(e.root, 'docs', 'changelog.md'));
@@ -532,6 +587,13 @@ function main(argv, env) {
       const next = stampText(text, version, date, compareBaseOf(text, e.run, e.root), firstRef || null);
       fs.writeFileSync(file, next);
       out(`changelog: stamped v${version.replace(/^v/, '')}`);
+      const docsDir = path.join(e.root, 'docs');
+      if (!opts['no-pages'] && fs.existsSync(docsDir)) {
+        const pages = badges.listPages(docsDir);
+        const pagesFile = pagesFileOf(e.root);
+        writePagesFile(pagesFile, withEntry(readPagesFile(pagesFile), version, pages));
+        out(`changelog: recorded ${pages.length} pages for v${version.replace(/^v/, '')} in ${path.relative(e.root, pagesFile)}`);
+      }
       return 0;
     } catch (ex) {
       err(`changelog: ${ex.message}`);
@@ -566,7 +628,7 @@ function main(argv, env) {
 
 module.exports = {
   main, draft, check, stampText, sliceText, notesOf, parseLog, parseSubject, classify, scrub, areaOf,
-  foldSeries, depLines, splitSections, cmpVer, resolvePrs,
+  foldSeries, depLines, splitSections, cmpVer, resolvePrs, withEntry,
 };
 
 if (require.main === module) process.exit(main(process.argv.slice(2)));
