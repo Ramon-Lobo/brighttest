@@ -184,7 +184,12 @@ Current limitations (the full design is not implemented yet):
 | `scene` | Bootstrap every non-excluded Scene `init` and ship the state agent. `false` also drops the agent components. | `true` |
 | `op` | Add the `BT_op` function to instrumented component chains (the `m` layer). | `true` |
 | `hub` | `host` and `port` the device dials. Unset `host` uses this machine's LAN address (the literal `"auto"` is rejected). `port` is an integer 1 to 65535. | LAN address, `8790` |
+| `lineMap` | `true` writes `bt-linemap.json` next to the output package; a string is the path to write (relative to the project root). Off by default. See "Line map" below. Any other value, an empty string, or a path inside the staging dir is `BT9006`. | `false` |
 | `state` | State agent settings: `registrySections`, `redact.paths`, `caps`, `publish.maxBytes`, `publish.intervalMs`, `callable`, `dispatch`, `tasks`. See [App state](../e2e/app-state.md) and "How the agent applies a write" below. A bad `redact`, `callable`, `dispatch`, `tasks` or `publish` value fails the build (exit 1) with a message naming the key; invalid `caps` values and `registrySections` entries fall back to defaults or are dropped. | `{}` |
+
+### Line map
+
+An instrumented build re-emits every file it rewrites, so its line numbers can differ from the source (blank lines are dropped, inline `if` and one-line AA literals expand). Files the plugin does not rewrite stay byte-identical. To read exact source lines for a crash in a rewritten file, set `instrument.lineMap`. The build then writes `{ "schema": 1, "files": { "<pkgPath>": [[stagedLine, sourceLine], ...] } }` for rewritten files only, derived from brighterscript's own source map. The map is written outside the package and never ships in the zip; the package itself is identical with or without it. Alternatively build with the plugin off to compare.
 
 `instrument.exclude` is the only spelling to use. A top-level `instrumentExclude` array is a deprecated alias that the config loader still merges into `instrument.exclude` (deduplicated), and `brighttest assess` lists it under `deprecatedKeys`; do not write it in new configs.
 
@@ -567,4 +572,4 @@ it through the same op allow-list as the hub path.
 - **`setUrl` in inline CDATA scripts** is invisible to brighterscript, so the plugin cannot rewrite or report it. Only the
   census lists it (a census-only section). `callFunc("setUrl", url)` is reported as the informational `callfunc-seturl`
   and is never rewritten (it cannot work on a real `roUrlTransfer`).
-- **Line numbers** of rewritten files are not the source's; map crash lines before you read them.
+- **Line numbers** of rewritten files are not the source's; map crash lines before you read them (see "Line map").
