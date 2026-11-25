@@ -110,6 +110,7 @@ export default withMermaid({
           { text: 'Adopting brighttest', link: '/guide/adopting' },
           { text: 'Assess a project', link: '/guide/assess' },
           { text: 'Map the app', link: '/guide/feature-tree' },
+          { text: 'Examples of mapping', link: '/guide/external-examples' },
           { text: 'Agent skills', link: '/guide/agent-skills' },
           { text: 'Agent surface (MCP)', link: '/guide/mcp' },
         ],
@@ -168,7 +169,6 @@ export default withMermaid({
           { text: 'Quick start', link: '/guide/getting-started' },
           { text: 'CLI reference', link: '/guide/cli-reference' },
           { text: 'Example apps', link: '/guide/examples' },
-          { text: 'External app examples', link: '/guide/external-examples' },
           { text: 'Troubleshooting & how it works', link: '/guide/troubleshooting' },
         ],
       },
@@ -179,6 +179,7 @@ export default withMermaid({
           { text: 'Adopting brighttest', link: '/guide/adopting' },
           { text: 'Assess a project', link: '/guide/assess' },
           { text: 'Map the app', link: '/guide/feature-tree' },
+          { text: 'Examples of mapping', link: '/guide/external-examples' },
           {
             text: 'Agents',
             collapsed: false,
