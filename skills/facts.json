@@ -109,6 +109,7 @@
     "--idle",
     "--idle-timeout",
     "--index",
+    "--instrument",
     "--json",
     "--junit",
     "--keepalive",
