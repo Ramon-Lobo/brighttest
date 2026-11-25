@@ -17,9 +17,12 @@ describe('release-check', () => {
     expect(rc.parseStageId('npm notice x\n+ brighttest@0.8.0-rc.0 (staged with id abC_12-9)\n')).toBe('abC_12-9')
     expect(rc.parseStageId('nothing here')).toBe('')
   })
-  it('hashes the file list independent of order and separators', () => {
-    expect(rc.packHash(['b', 'a/x'])).toBe(rc.packHash(['a\\x', 'b']))
-    expect(rc.packHash(['a'])).not.toBe(rc.packHash(['a', 'b']))
+  it('reads integrity and filename from npm pack json and rejects empty ones', () => {
+    const j = JSON.stringify([{ filename: 'brighttest-1.0.0.tgz', integrity: 'sha512-abc+/==', files: [] }])
+    expect(rc.packField(j, 'integrity')).toBe('sha512-abc+/==')
+    expect(rc.packField(j, 'filename')).toBe('brighttest-1.0.0.tgz')
+    expect(() => rc.packField(JSON.stringify([{ integrity: '' }]), 'integrity')).toThrow()
+    expect(() => rc.packField('[{}]', 'filename')).toThrow()
   })
   it('picks next for prereleases and latest otherwise', () => {
     expect(rc.distTagFor('0.8.0-rc.1')).toBe('next')
