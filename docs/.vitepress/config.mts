@@ -168,6 +168,7 @@ export default withMermaid({
           { text: 'Quick start', link: '/guide/getting-started' },
           { text: 'CLI reference', link: '/guide/cli-reference' },
           { text: 'Example apps', link: '/guide/examples' },
+          { text: 'External app examples', link: '/guide/external-examples' },
           { text: 'Troubleshooting & how it works', link: '/guide/troubleshooting' },
         ],
       },
