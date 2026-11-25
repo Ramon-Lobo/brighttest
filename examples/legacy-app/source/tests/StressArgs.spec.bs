@@ -1,0 +1,38 @@
+namespace tests
+  ' Pure launch-param parsing for the stress knobs (the function main.brs calls).
+  @suite("StressArgs")
+  class StressArgsTests extends rooibos.BaseTestSuite
+
+    @describe("Legacy_stressArgs")
+
+    @it("defaults to 500 fields, 256 KB, both trees")
+    function _()
+      a = Legacy_stressArgs({})
+      m.assertEqual(a.stress, false)
+      m.assertEqual(a.stressFields, 500)
+      m.assertEqual(a.stressKb, 256)
+      m.assertEqual(a.stressTree, "both")
+    end function
+
+    @it("accepts the documented values")
+    function _()
+      a = Legacy_stressArgs({ stress: "1", stressfields: "1000", stresskb: "64", stresstree: "6000" })
+      m.assertEqual(a.stress, true)
+      m.assertEqual(a.stressFields, 1000)
+      m.assertEqual(a.stressKb, 64)
+      m.assertEqual(a.stressTree, "6000")
+      m.assertEqual(Legacy_stressArgs({ stressfields: "100" }).stressFields, 100)
+      m.assertEqual(Legacy_stressArgs({ stresstree: "1500" }).stressTree, "1500")
+    end function
+
+    @it("ignores other values and non-AA args")
+    function _()
+      a = Legacy_stressArgs({ stressfields: "250", stresskb: "3", stresstree: "42" })
+      m.assertEqual(a.stressFields, 500)
+      m.assertEqual(a.stressKb, 256)
+      m.assertEqual(a.stressTree, "both")
+      m.assertEqual(Legacy_stressArgs(invalid).stressFields, 500)
+    end function
+
+  end class
+end namespace
