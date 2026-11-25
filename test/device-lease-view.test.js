@@ -74,6 +74,13 @@ describe('pure helpers exported from the lease', () => {
     expect(L.ticketState({ pid: 1, mtimeMs: NOW - 61000 }, ctx)).toBe('dead');
     expect(L.ticketState({ pid: 1, hostname: 'other', mtimeMs: 0 }, ctx)).toBe('live');
   });
+  it('ticketState: a reused pid (start time differs) is dead past the grace, and a cached mismatch is re-checked live', () => {
+    const t = { pid: LIVE_PID, pidStart: 'Mon Nov 24 10:00:00 2026', mtimeMs: NOW - 61000 };
+    expect(L.ticketState(t, { ...ctx, startOf: () => 'Tue Nov 25 09:00:00 2026' })).toBe('dead');
+    expect(L.ticketState({ ...t, mtimeMs: NOW - 1000 }, { ...ctx, startOf: () => 'Tue Nov 25 09:00:00 2026' })).toBe('live');
+    // the first (cached) read mismatches, the fresh read matches: still alive
+    expect(L.ticketState(t, { ...ctx, startOf: (pid, o) => (o && o.fresh ? t.pidStart : 'stale cache') })).toBe('live');
+  });
   it('computeEta: remaining hold of the holder plus the median of past holds per waiter', () => {
     const events = [{ ev: 'released', heldMs: 100, purpose: 'with x' }, { ev: 'released', heldMs: 300, purpose: 'with x' }];
     const holder = { acquiredAt: ago(50), expectMs: 150, holder: { purpose: 'a b' } };
@@ -143,7 +150,7 @@ describe('board from a fixture lease dir', () => {
     expect(c.holder.staleReason).toBe('dead');
     expect(b.pools).toEqual([{ size: null, queueLength: 1, queue: [expect.objectContaining({ agent: 'waiter', pos: 1 })] }]);
     expect(b.devices.some((d) => d.keys.some((k) => /^pool-/.test(k)))).toBe(false);
-    // 50 loopback dirs + the loopback fake + its identity-cache group + the old idle key
+    // 50 loopback dirs + the loopback fake's dir (its id key has no dir) + the old idle key
     expect(b.hidden.keys).toBe(50 + 1 + 1);
   });
 
@@ -256,6 +263,89 @@ describe('board from a fixture lease dir', () => {
   });
 });
 
+describe('review fixes', () => {
+  it('a device reached by host name is one device: dual-key runs join the keys, one run, no second row', () => {
+    const dir = mk();
+    const ID_X = L.keyFromIdentity('SERIAL-X');
+    fs.writeFileSync(path.join(dir, 'identity-cache.json'), JSON.stringify({ 'roku-lab.local': ID_X }));
+    const lines = [ev('acquired', 60000, { leaseId: 'dual1000000000aa', agent: 'a', purpose: 'p q', waitedMs: 0 }), ev('released', 10000, { leaseId: 'dual1000000000aa', agent: 'a', purpose: 'p q', heldMs: 50000 })];
+    putEvents(dir, ID_X, lines);
+    putEvents(dir, '192.0.2.7', lines);
+    const b = view(dir, { knownDevices: () => [{ host: 'roku-lab.local', name: 'lab-x' }] }).snapshot();
+    expect(b.devices).toHaveLength(1);
+    expect(b.devices[0]).toMatchObject({ label: 'lab-x', state: 'free' });
+    expect(b.devices[0].keys.sort()).toEqual([ID_X, '192.0.2.7', 'roku-lab.local'].sort());
+    expect(b.devices[0].runs).toHaveLength(1);
+    expect(b.devices[0].stats.runs).toBe(1);
+  });
+
+  it('crashed-test leftovers (stale holder, expired ticket) on loopback keys stay hidden and are counted', () => {
+    const dir = mk();
+    putHolder(dir, '127.0.0.1_p31000', holderRec({ key: '127.0.0.1_p31000', host: '127.0.0.1', port: 31000, leaseId: 'crash000000000001', pid: 1 }));
+    putTicket(dir, '127.0.0.1_p31000', { leaseId: 'crash000000000002', agent: 'x', queuedMs: 900000, waitUntilMs: -1000 });
+    putHolder(dir, '__ffff_127.0.0.1', holderRec({ key: '__ffff_127.0.0.1', host: '::ffff:127.0.0.1', leaseId: 'crash000000000003', pid: 1 }));
+    putTicket(dir, '__1', { leaseId: 'crash000000000004', agent: 'x', queuedMs: 900000, waitUntilMs: -1000 });
+    const b = view(dir).snapshot();
+    expect(b.devices).toEqual([]);
+    expect(b.hidden).toMatchObject({ keys: 3, staleLoopbackHolders: 2 });
+    // a live loopback holder is still shown, and --all shows the leftovers
+    putHolder(dir, '127.0.0.1_p31001', holderRec({ key: '127.0.0.1_p31001', host: '127.0.0.1', port: 31001, leaseId: 'live0000000000001' }));
+    expect(view(dir).snapshot().devices.map((d) => d.state)).toEqual(['held']);
+    expect(view(dir).snapshot({ all: true }).devices).toHaveLength(4);
+  });
+
+  it('an expired ticket alone does not make an idle old key busy', () => {
+    const dir = mk();
+    putTicket(dir, '192.0.2.60', { leaseId: 'dead0000000000001', agent: 'x', queuedMs: 900000, waitUntilMs: -1000 });
+    const old = new Date(NOW - 9 * 86400000);
+    fs.utimesSync(path.join(dir, '192.0.2.60', 'queue'), old, old);
+    expect(view(dir).snapshot().devices).toEqual([]);
+  });
+
+  it('a dual-key run: hold from the later leg, wait from the earliest waiting start', () => {
+    const dir = mk();
+    const id = 'dualwait00000000a';
+    putEvents(dir, ID_A, [ev('acquired', 100000, { leaseId: id, agent: 'a', purpose: 'p q', waitedMs: 30000 }), ev('released', 10000, { leaseId: id, agent: 'a', purpose: 'p q', heldMs: 90000 })]);
+    putEvents(dir, '192.0.2.8', [ev('acquired', 95000, { leaseId: id, agent: 'a', purpose: 'p q', waitedMs: 2000 }), ev('released', 10000, { leaseId: id, agent: 'a', purpose: 'p q', heldMs: 85000 })]);
+    putHolder(dir, ID_A, holderRec({ key: ID_A, host: '192.0.2.8', leaseId: 'other00000000000' }));
+    const r = view(dir).snapshot().devices[0].runs.find((x) => x.leaseId8 === 'dualwait');
+    expect(r).toMatchObject({ waitedMs: 35000, heldMs: 85000 });
+  });
+
+  it('a backwards clock step still pairs acquired and released (file order, not time order)', () => {
+    const dir = mk();
+    const id = 'backclock0000000a';
+    putEvents(dir, '192.0.2.9', [ev('acquired', 50000, { leaseId: id, agent: 'a', purpose: 'p q', waitedMs: 0 }), ev('released', 80000, { leaseId: id, agent: 'a', purpose: 'p q', heldMs: 4000 })]);
+    const r = view(dir, { knownDevices: () => [{ host: '192.0.2.9' }] }).snapshot().devices[0].runs[0];
+    expect(r).toMatchObject({ ended: 'released', heldMs: 4000 });
+  });
+
+  it('a corrupt holder on one key does not hide the valid holder on the other key', () => {
+    const dir = mk();
+    putHolder(dir, ID_A, holderRec({ key: ID_A, host: '192.0.2.11', leaseId: 'valid00000000001' }));
+    fs.mkdirSync(path.join(dir, '192.0.2.11', 'queue'), { recursive: true });
+    fs.writeFileSync(path.join(dir, '192.0.2.11', 'holder.json'), '{broken');
+    fs.writeFileSync(path.join(dir, 'identity-cache.json'), JSON.stringify({ '192.0.2.11': ID_A }));
+    const d = view(dir).snapshot().devices[0];
+    expect(d.state).toBe('held');
+    expect(d.holder.leaseId8).toBe('valid000');
+    expect(d.error).toMatch(/192\.0\.2\.11 is unreadable/);
+  });
+
+  it('values from lease files are bounded strings or numbers; worktree goes through the home shortener', () => {
+    const dir = mk();
+    const rec = holderRec({ key: '192.0.2.12', host: '192.0.2.12', leaseId: 'weird00000000001' });
+    rec.holder.agent = { x: 1 }; rec.holder.purpose = 'p'.repeat(5000); rec.holder.branch = 12; rec.holder.worktree = path.join(os.homedir(), 'wt1');
+    putHolder(dir, '192.0.2.12', rec);
+    const d = view(dir).snapshot().devices[0];
+    expect(d.holder.agent).toBeNull();
+    expect(d.holder.purpose).toHaveLength(300);
+    expect(d.holder.branch).toBe('12');
+    expect(d.holder.worktree).toBe(path.join('~', 'wt1'));
+    expect(JSON.stringify(d)).not.toContain('[object');
+  });
+});
+
 describe('event reader', () => {
   const key = '192.0.2.40';
   const idOf = (i) => `run${i}`.padEnd(16, '0');
@@ -319,15 +409,23 @@ describe('event reader', () => {
 });
 
 describe('performance smoke', () => {
-  it('3,000 loopback key dirs: a snapshot is fast and hides them', () => {
+  it('3,400 realistic loopback key dirs (queue/, dir.id, events.log): a steady snapshot is fast and hides them', () => {
     const dir = mk();
-    for (let i = 0; i < 3000; i++) fs.mkdirSync(path.join(dir, `127.0.0.1_p${10000 + i}`));
+    for (let i = 0; i < 3400; i++) {
+      const k = path.join(dir, `127.0.0.1_p${10000 + i}`);
+      fs.mkdirSync(path.join(k, 'queue'), { recursive: true });
+      fs.writeFileSync(path.join(k, 'dir.id'), 'abcdef0123456789');
+      fs.writeFileSync(path.join(k, 'events.log'), ev('acquired', 1000, { leaseId: `x${i}`, waitedMs: 0 }) + '\n');
+    }
     const v = view(dir);
     v.snapshot();
-    const t0 = process.hrtime.bigint();
-    const b = v.snapshot();
-    const ms = Number(process.hrtime.bigint() - t0) / 1e6;
-    expect(b.hidden.keys).toBe(3000);
-    expect(ms).toBeLessThan(1000); // the design target is 200 ms; the margin keeps loaded CI machines green
+    let best = Infinity; let b;
+    for (let i = 0; i < 3; i++) {
+      const t0 = process.hrtime.bigint();
+      b = v.snapshot();
+      best = Math.min(best, Number(process.hrtime.bigint() - t0) / 1e6);
+    }
+    expect(b.hidden.keys).toBe(3400);
+    expect(best).toBeLessThan(process.platform === 'win32' ? 1500 : 300); // best of 3, so one slow tick cannot fail it
   });
 });
