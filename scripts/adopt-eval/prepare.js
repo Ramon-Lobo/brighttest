@@ -47,11 +47,11 @@ function prepare({ runRoot = DEFAULT_RUN_ROOT, clean = false, repoRoot = REPO_RO
   return { runRoot, cells, warn }
 }
 
-// TP-ADOPT-23: <root>/feature-tree-app/run<n>/{app/,prompt.md} (with-skills) and <root>-baseline/... (baseline). Fixture copy minus ground truth, README and .brighttest.
-function prepareTree({ runRoot, clean = false, repoRoot = REPO_ROOT } = {}) {
+// Feature-tree case: <root>/feature-tree-app/run<n>/{app/,prompt.md} (with-skills) and <root>-baseline/... (baseline). Fixture copy minus ground truth, README and .brighttest.
+function prepareTree({ runRoot, clean = false, repoRoot = REPO_ROOT, arms = ARMS, runs = RUNS } = {}) {
   if (!runRoot) throw new Error('--run-root is required')
   runRoot = path.resolve(runRoot)
-  const roots = ARMS.map((arm) => armRoot(runRoot, arm))
+  const roots = arms.map((arm) => armRoot(runRoot, arm))
   for (const r of roots) {
     const rel = path.relative(repoRoot, r)
     if (rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel))) throw new Error('run root must be outside the repo')
@@ -61,7 +61,7 @@ function prepareTree({ runRoot, clean = false, repoRoot = REPO_ROOT } = {}) {
   for (const r of used) fs.rmSync(r, { recursive: true, force: true })
   const src = path.join(repoRoot, 'examples', TREE_FIXTURE)
   const cells = []
-  for (const arm of ARMS) for (const run of RUNS) {
+  for (const arm of arms) for (const run of runs) {
     const dir = cellDir(runRoot, TREE_FIXTURE, arm, run), app = path.join(dir, 'app')
     fs.mkdirSync(dir, { recursive: true })
     fs.cpSync(src, app, { recursive: true, filter: (s) => !(path.dirname(s) === src && TREE_HIDDEN.has(path.basename(s))) && !['node_modules', '.git'].includes(path.basename(s)) })

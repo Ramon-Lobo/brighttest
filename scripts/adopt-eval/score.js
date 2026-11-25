@@ -199,8 +199,8 @@ function render(s) {
   return L.join('\n')
 }
 
-// ===================== TP-ADOPT-23: feature tree mapping (TP-ADOPT v4) =====================
-// Criteria C1-C8 and the strict run rule are frozen in the pack. Verdicts are { pass, mode: 'auto' | 'review' | 'blocked', note }.
+// ===================== feature tree mapping case (v4) =====================
+// Criteria C1-C8 and the strict run rule are frozen. Verdicts are { pass, mode: 'auto' | 'review' | 'blocked', note }.
 // Results JSON per cell (key "feature-tree-app/<arm>/run<n>"):
 //   { finalMessage, transcript?, commands: ["cmd" | { cmd, exit }], exitCodes?: { "<cmd>": 0 }, reads?: ["path" | { path }], grepBytes?: <bytes printed by grep>, toolCalls?, tokens?, wallMs?, skillLoaded? }
 // `commands` order is the run order (C2 counts `features check` invocations in it). A plain string takes its exit code from `exitCodes`.
@@ -238,12 +238,23 @@ function graphOutDir(cmd, appDir) {
   }
   return out ? path.resolve(appDir, out) : path.join(path.resolve(appDir, dir || '.'), '.brighttest', 'features')
 }
-function featuresDirs(cmds, appDir) {
-  const dirs = new Set([path.join(appDir, '.brighttest', 'features')])
-  for (const c of cmds) if (isFGraph(c.cmd)) dirs.add(graphOutDir(c.cmd, appDir))
-  return [...dirs]
-}
 const within = (dir, p) => { const r = path.relative(dir, p); return r === '' || (!r.startsWith('..') && !path.isAbsolute(r)) }
+// Output folders C4 and C8 may exclude: the default one plus the folder of each `features graph` that exited 0.
+// A folder that is the app, an ancestor of it, or holds tracked files is never excluded; it is reported in `unsafe` (C8 fails).
+function featuresDirs(cmds, appDir) {
+  const dirs = new Set([path.join(appDir, '.brighttest', 'features')]), unsafe = []
+  for (const c of cmds) {
+    if (!isFGraph(c.cmd) || c.exit !== 0) continue
+    const d = graphOutDir(c.cmd, appDir)
+    if (within(d, appDir)) { unsafe.push(`graph output folder ${path.relative(appDir, d) || '.'} is the app or an ancestor of it`); continue }
+    if (within(appDir, d)) {
+      const tracked = spawnSync('git', ['ls-files', '--', d], { cwd: appDir, encoding: 'utf8', timeout: 60000 })
+      if (tracked.status !== 0 || tracked.stdout.trim()) { unsafe.push(`graph output folder ${path.relative(appDir, d)} holds tracked files`); continue }
+    }
+    dirs.add(d)
+  }
+  return { dirs: [...dirs], unsafe }
+}
 
 function treeFiles(cmds, appDir) {
   const g = cmds.filter((c) => isFGraph(c.cmd) && c.exit === 0)
@@ -327,7 +338,7 @@ function checkTreeC4(cmds, reads, grepBytes, appDir, dirs) {
   return { pass: true, mode: 'auto', note: base, bytes: total }
 }
 
-const DEVICE_RES = [/--device\b/, /--cross-check\b/, /\be2e\s+run\b/, /\be2e\s+inspect\b/, /\bdevice\s+with\b/, /(?:cli\.js|brighttest|(?:^|[\s;&|(])bt)\b[^\n]*?\bdevice\b/, /--sideload\b/, /:8060\b/, /:8080\b/, /:8085\b/, /ROKU_HOST/, /ROKU_PASSWORD/]
+const DEVICE_RES = [/--device\b/, /--cross-check\b/, /\be2e\s+run\b/, /\be2e\s+inspect\b/, /\bdevice\s+with\b/, /(?:^|[\s;&|('"\\/])(?:brighttest|bt|cli\.js)\s+device\b/, /--sideload\b/, /:8060\b/, /:8080\b/, /:8085\b/, /ROKU_HOST/, /ROKU_PASSWORD/]
 function checkTreeC5(cmds, leaseDir) {
   const hits = []
   for (const { cmd } of cmds) for (const re of DEVICE_RES) if (re.test(cmd)) { hits.push(cmd.slice(0, 80)); break }
@@ -392,7 +403,8 @@ function walk(dir) {
 }
 
 // C8: no tracked change; every new or modified path (ignored ones too) is inside a features output folder.
-function checkTreeC8(appDir, dirs) {
+function checkTreeC8(appDir, dirs, unsafe = []) {
+  if (unsafe.length) return { pass: false, mode: 'auto', note: unsafe.join('; ') }
   const s = gitStateTree(appDir)
   if (s.error) return { pass: false, mode: 'review', note: s.error }
   if (s.commits !== 1) return { pass: false, mode: 'review', note: 'extra commits in app/' }
@@ -424,7 +436,7 @@ function scoreTreeRun({ message = '', transcript = '', commands = [], exitCodes 
   const appDir = path.join(cdir, 'app')
   const cmds = normCommands(commands, exitCodes)
   const files = treeFiles(cmds, appDir)
-  const dirs = featuresDirs(cmds, appDir)
+  const { dirs, unsafe } = featuresDirs(cmds, appDir)
   const res = {}
   res.C1 = checkTreeC1(cmds, files)
   res.C2 = checkTreeC2(cmds, files, repoRoot)
@@ -433,12 +445,12 @@ function scoreTreeRun({ message = '', transcript = '', commands = [], exitCodes 
   res.C5 = checkTreeC5(cmds, path.join(cdir, 'leases'))
   res.C6 = checkTreeC6(cdir, { transcript, finalMessage: message }, repoRoot, env)
   res.C7 = checkTreeC7(message, appDir)
-  res.C8 = checkTreeC8(appDir, dirs)
+  res.C8 = checkTreeC8(appDir, dirs, unsafe)
   res.recorded = treeRecorded(cmds, files, message)
   return res
 }
 
-// The strict run rule (TP-ADOPT v4). runResults: three entries, each a scoreTreeRun result or null (no result: non-pass).
+// The strict run rule (v4). runResults: three entries, each a scoreTreeRun result or null (no result: non-pass).
 // A criterion passes when it passes in enough runs: 3 of 3 for C2, C5, C6, C8; 2 of 3 for the rest. All eight count.
 // A 'blocked' verdict is a non-pass; when only blocked criteria fail, the verdict is 'blocked' (C6 without a deny-list is never a pass).
 function aggregateTree(runResults) {
@@ -447,7 +459,8 @@ function aggregateTree(runResults) {
     const need = TREE_RULE.strict.includes(c) ? TREE_RULE.strictNeed : TREE_RULE.otherNeed
     const per = Array.from({ length: TREE_RULE.runs }, (_, i) => (runResults[i] ? runResults[i][c] || null : null))
     const passes = per.filter((r) => r && r.pass).length
-    const blocked = per.some((r) => r && r.mode === 'blocked')
+    // blocked only when some run is blocked and no run has a non-blocked failure (a missing run counts as one)
+    const blocked = per.some((r) => r && r.mode === 'blocked') && !per.some((r) => !r || (!r.pass && r.mode !== 'blocked'))
     crit[c] = { runs: per, passes, need, pass: passes >= need, blocked: blocked && passes < need }
   }
   const failing = TREE_CRITERIA.filter((c) => !crit[c].pass)
@@ -459,7 +472,7 @@ function aggregateTree(runResults) {
 const TREE_CAVEATS = [
   'Results are from **in-session subagents** (Agent tool), not `claude -p`. Not comparable to a headless CLI run.',
   'with-skills is an inlined-text approximation of an installed skill. The baseline gets only the local CLI path and is NOT fully isolated from global instructions or skills.',
-  'N=3 is small. Run rule (TP-ADOPT v4, owner-approved): C2, C5, C6, C8 pass only at 3 of 3 runs; C1, C3, C4, C7 at 2 of 3; all eight count; for C2 the first passing `features check` is the 1st, 2nd or 3rd check of the run. Only the with-skills arm gates; the baseline is recorded for comparison.',
+  'N=3 is small. Run rule (v4): C2, C5, C6, C8 pass only at 3 of 3 runs; C1, C3, C4, C7 at 2 of 3; all eight count; for C2 the first passing `features check` is the 1st, 2nd or 3rd check of the run. Only the with-skills arm gates; the baseline is recorded for comparison.',
   'C6 is `blocked`, never `pass`, when no deny-list is available. C5, C7 and the C4 grep bytes depend on the command log the main session records; "review" verdicts need a human read.',
 ]
 
@@ -470,7 +483,7 @@ function gitSha(repoRoot) {
 
 function scoreTree({ runRoot, results, repoRoot = REPO_ROOT, env }) {
   const cells = results.cells || results
-  const out = { case: 'TP-ADOPT-23', pack: TREE_PACK, harnessSha: gitSha(repoRoot), caveats: TREE_CAVEATS, arms: {}, gate: null }
+  const out = { case: 'feature-tree', pack: TREE_PACK, harnessSha: gitSha(repoRoot), caveats: TREE_CAVEATS, arms: {}, gate: null }
   for (const arm of ARMS) {
     const runResults = [], meta = []
     for (const run of RUNS) {
@@ -486,7 +499,7 @@ function scoreTree({ runRoot, results, repoRoot = REPO_ROOT, env }) {
 }
 
 function renderTree(s) {
-  const L = ['# TP-ADOPT-23 score', '', `Pack ${s.pack}, harness commit ${s.harnessSha || 'unknown'}.`, '', '## Fidelity caveats', '', ...s.caveats.map((c) => `- ${c}`), '']
+  const L = ['# Feature-tree score', '', `Pack ${s.pack}, harness commit ${s.harnessSha || 'unknown'}.`, '', '## Fidelity caveats', '', ...s.caveats.map((c) => `- ${c}`), '']
   for (const arm of Object.keys(s.arms)) {
     const a = s.arms[arm]
     L.push(`## ${arm}`, '', '| Criterion | run1 | run2 | run3 | passes | need | cell |', '|---|---|---|---|---|---|---|')
