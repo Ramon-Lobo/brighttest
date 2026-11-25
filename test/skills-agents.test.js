@@ -115,7 +115,7 @@ describe('bundled agent definitions (ADOPT-18)', () => {
   })
 })
 
-describe('copilot agents target (ADOPT-24)', () => {
+describe('copilot agents target', () => {
   const BOTH = AGENT.replace('hosts: [claude]', 'hosts: [claude, copilot]').replace('tools: Read, Grep', 'tools: Read, Grep, Bash')
   const bodyOf = (t) => t.replace(/\r\n/g, '\n').match(/^---\n[\s\S]*?\n---\n([\s\S]*)$/)[1]
   beforeEach(() => { fs.writeFileSync(path.join(root, '_agents', 'fixture-helper.md'), BOTH) })
@@ -128,8 +128,18 @@ describe('copilot agents target (ADOPT-24)', () => {
     expect(t).toContain('tools: [read, search, execute]')
     expect(t).toContain(`<!-- brighttest agent:fixture-helper v${VERSION} `)
     const neutralBody = BOTH.match(/^---\n[\s\S]*?\n---\n([\s\S]*)$/)[1].trim()
-    expect(bodyOf(t).replace(/^<!--.*-->\n/, '').trim()).toBe(neutralBody)
+    expect(bodyOf(t).replace(/^<!--.*-->\n/, '').trim().replace(/^Before anything else.*\n\n/, '').trim()).toBe(neutralBody)
     expect(fs.existsSync(p('.claude', 'agents', 'fixture-helper.md'))).toBe(true)
+  })
+
+  test('listed skills become a load-first line in the Copilot body, and the skills key stays out', async () => {
+    await go('install', { agent: 'copilot' })
+    const t = fs.readFileSync(p('.github', 'agents', 'fixture-helper.agent.md'), 'utf8')
+    expect(t.match(/^---\n([\s\S]*?)\n---/)[1]).not.toContain('skills')
+    expect(bodyOf(t)).toContain('load these skills (Copilot does not preload them): adopting-brighttest.')
+    fs.writeFileSync(path.join(root, '_agents', 'fixture-helper.md'), BOTH.replace('skills: [adopting-brighttest]\n', ''))
+    await go('install', { agent: 'copilot' })
+    expect(bodyOf(fs.readFileSync(p('.github', 'agents', 'fixture-helper.agent.md'), 'utf8'))).not.toContain('load these skills')
   })
 
   test('only agents that list copilot render for it; claude-only stays out', async () => {

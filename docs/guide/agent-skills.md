@@ -74,7 +74,7 @@ The four bundled agents, each preloaded with the skills it needs:
 
 All four bundled agents are written for Claude only (`hosts: [claude]`). Copilot gets skills and the instructions
 block; it would also get `.github/agents/<name>.agent.md` for any definition that lists `copilot` in `hosts`, but none
-do in this release. No other target gets agent files. (Copilot tool aliases are not yet verified on a Copilot install.)
+do in this release. No other target gets agent files. Copilot cannot preload skills, so a rendered Copilot agent opens with a line telling it to load the listed skills first. Tool names are mapped to Copilot aliases (`Read` to `read`, `Edit`/`Write` to `edit`, `Grep`/`Glob` to `search`, `Bash` to `execute`); these aliases are not yet verified on a Copilot install.
 
 New to brighttest on an existing app? Start with the [adoption guide](./adopting.md).
 
