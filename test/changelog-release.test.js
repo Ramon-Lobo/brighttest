@@ -74,9 +74,22 @@ describe('changelog release gate', () => {
     expect(r.stderr).toMatch(/has no entries/)
   })
 
+  it('check --version-env reads npm_package_version', () => {
+    fs.writeFileSync(file, EMPTY)
+    expect(run(['check', '--version-env'], { npm_package_version: '0.1.0' }).status).toBe(0)
+    const bad = run(['check', '--version-env'], { npm_package_version: '0.9.0' })
+    expect(bad.status).toBe(1)
+    expect(bad.stderr).toMatch(/no section for v0\.9\.0/)
+  })
+
+  it('check --version-env without npm_package_version is a usage error', () => {
+    fs.writeFileSync(file, EMPTY)
+    expect(run(['check', '--version-env']).status).toBe(2)
+  })
+
   it('package.json carries the two lifecycle scripts', () => {
-    expect(pkg.scripts.version).toBe('node scripts/changelog.js stamp && git add docs/changelog.md')
-    expect(pkg.scripts.prepublishOnly).toBe('node scripts/changelog.js check --version $npm_package_version')
+    expect(pkg.scripts.version).toBe('node scripts/changelog.js stamp && git add docs/changelog.md docs/.vitepress/release-pages.json')
+    expect(pkg.scripts.prepublishOnly).toBe('node scripts/changelog.js check --version-env')
   })
 
   it('the version script uses the no-shell-variable form', () => {

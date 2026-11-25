@@ -334,6 +334,16 @@ describe('release page list', () => {
     } finally { fs.rmSync(t.dir, { recursive: true, force: true }) }
   })
 
+  it('stamp warns on stderr when the data file does not parse', () => {
+    const t = setup()
+    try {
+      fs.writeFileSync(t.pf, '{not json')
+      const errs = []
+      expect(cl.main(['stamp', '--version', '0.3.0', '--file', t.file], Object.assign({}, t.env, { stderr: (m) => errs.push(m) }))).toBe(0)
+      expect(errs.join('')).toMatch(/release-pages\.json does not parse/)
+    } finally { fs.rmSync(t.dir, { recursive: true, force: true }) }
+  })
+
   it('pages --from-tag lists the tag tree through the injected runner and writes the entry', () => {
     const t = setup()
     try {

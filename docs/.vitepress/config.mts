@@ -41,7 +41,14 @@ function loadBadges() {
 }
 
 const bt = loadBadges() as { badges: Record<string, string>; since: string; mod?: any }
-const labelSidebar = <T,>(items: T): T => (bt.mod && Object.keys(bt.badges).length ? bt.mod.labelSidebar(items, bt.badges) : items)
+const labelSidebar = <T,>(items: T): T => {
+  try {
+    return bt.mod && Object.keys(bt.badges).length ? bt.mod.labelSidebar(items, bt.badges) : items
+  } catch (e) {
+    console.log(`docs badges: none (${(e as Error).message})`)
+    return items
+  }
+}
 
 // VitePress site config for the brighttest docs. Mermaid diagrams are enabled via
 // vitepress-plugin-mermaid (```mermaid fenced blocks render to SVG).
