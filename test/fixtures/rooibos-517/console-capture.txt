@@ -1,0 +1,1188 @@
+
+BrightScript Simulation Engine CLI [v2.7.1]
+
+Executing <scratch>/bt/examples/greenfield-app/.brighttest/headless-coverage/pkg.zip...
+
+[package] App: Greenfield Sample v1.0.1
+[Rooibos Info]: Starting test using test scene with name RooibosScene RooibosScene
+BRIGHTSCRIPT: ERROR: ReadAsciiFile: file open for read failed: pkg:/source/rooibos/Rooibos.brs(84)
+[Rooibos Info]: scene is ready; running tests now
+
+
+> SUITE: AppStore component>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+>>>> Describe: dispatch>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/AppStore.spec.bs:8
+
+
+>>>>>> It: starts on the home screen as a free user>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/AppStore.spec.bs:11
+
+<<<< END It: starts on the home screen as a free user (PASS) <<<<<<<<<<<<<<<<<<<
+
+>>>>>> It: applies user/signIn>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/AppStore.spec.bs:17
+
+<<<< END It: applies user/signIn (PASS) <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+>>>>>> It: applies nav/go with an item id>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/AppStore.spec.bs:24
+
+<<<< END It: applies nav/go with an item id (PASS) <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+>>>>>> It: applies user/signOut>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/AppStore.spec.bs:30
+
+<<<< END It: applies user/signOut (PASS) <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+>>>>>> It: publishes the user slice to m.global>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/AppStore.spec.bs:38
+
+<<<< END It: publishes the user slice to m.global (PASS) <<<<<<<<<<<<<<<<<<<<<<<
+
+> SUITE: Badge component (Label.forceUpperCase)>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+>>>> Describe: text>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/Badge.spec.bs:9
+
+
+>>>>>> It: passes the text through to its label>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/Badge.spec.bs:12
+
+<<<< END It: passes the text through to its label (PASS) <<<<<<<<<<<<<<<<<<<<<<<
+
+> SUITE: Format and Http helpers (pure)>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+>>>> Describe: Format_titleCase>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/Format.spec.bs:5
+
+
+>>>>>> It: capitalizes each word and lowercases the rest 0>>>>>>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/Format.spec.bs:10
+
+<<<< END It: capitalizes each word and lowercases the rest 0 (PASS) <<<<<<<<<<<<
+
+>>>>>> It: capitalizes each word and lowercases the rest 1>>>>>>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/Format.spec.bs:10
+
+<<<< END It: capitalizes each word and lowercases the rest 1 (PASS) <<<<<<<<<<<<
+
+>>>> Describe: Http_join>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/Format.spec.bs:14
+
+
+>>>>>> It: joins base and path with exactly one slash 0>>>>>>>>>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/Format.spec.bs:21
+
+<<<< END It: joins base and path with exactly one slash 0 (PASS) <<<<<<<<<<<<<<<
+
+>>>>>> It: joins base and path with exactly one slash 1>>>>>>>>>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/Format.spec.bs:21
+
+<<<< END It: joins base and path with exactly one slash 1 (PASS) <<<<<<<<<<<<<<<
+
+>>>>>> It: joins base and path with exactly one slash 2>>>>>>>>>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/Format.spec.bs:21
+
+<<<< END It: joins base and path with exactly one slash 2 (PASS) <<<<<<<<<<<<<<<
+
+>>>>>> It: joins base and path with exactly one slash 3>>>>>>>>>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/Format.spec.bs:21
+
+<<<< END It: joins base and path with exactly one slash 3 (PASS) <<<<<<<<<<<<<<<
+
+>>>> Describe: Config_baseUrl>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/Format.spec.bs:25
+
+
+>>>>>> It: defaults to the loopback origin>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/Format.spec.bs:28
+
+<<<< END It: defaults to the loopback origin (PASS) <<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+>>>>>> It: honours BT_BASE_URL>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/Format.spec.bs:33
+
+<<<< END It: honours BT_BASE_URL (PASS) <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+>>>>>> It: ignores a BT_BASE_URL that is not an http(s) URL>>>>>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/Format.spec.bs:38
+
+<<<< END It: ignores a BT_BASE_URL that is not an http(s) URL (PASS) <<<<<<<<<<<
+
+>>>> Describe: Reducer>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/Format.spec.bs:44
+
+
+>>>>>> It: signs in and out without mutating the previous state>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/Format.spec.bs:47
+
+<<<< END It: signs in and out without mutating the previous state (PASS) <<<<<<<
+
+> SUITE: InputProbe helper (pure)>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+>>>> Describe: InputProbe_append>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/InputProbe.spec.bs:5
+
+
+>>>>>> It: starts from an empty log without a separator>>>>>>>>>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/InputProbe.spec.bs:8
+
+<<<< END It: starts from an empty log without a separator (PASS) <<<<<<<<<<<<<<<
+
+>>>>>> It: appends in order, comma separated>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/InputProbe.spec.bs:13
+
+<<<< END It: appends in order, comma separated (PASS) <<<<<<<<<<<<<<<<<<<<<<<<<<
+
+>>>>>> It: keeps duplicates and out-of-order ids as received>>>>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/InputProbe.spec.bs:22
+
+<<<< END It: keeps duplicates and out-of-order ids as received (PASS) <<<<<<<<<<
+
+>>>>>> It: fits exactly at the cap>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/InputProbe.spec.bs:28
+
+<<<< END It: fits exactly at the cap (PASS) <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+>>>>>> It: freezes with |full when the next id would pass the cap>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/InputProbe.spec.bs:33
+
+<<<< END It: freezes with |full when the next id would pass the cap (PASS) <<<<<
+
+>>>>>> It: ignores appends once full>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/InputProbe.spec.bs:38
+
+<<<< END It: ignores appends once full (PASS) <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+>>>>>> It: never exceeds the serializer cap when filled to 1800>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/InputProbe.spec.bs:43
+
+<<<< END It: never exceeds the serializer cap when filled to 1800 (PASS) <<<<<<<
+
+>>>>>> It: holds 66 probe ids well under the cap>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/InputProbe.spec.bs:53
+
+<<<< END It: holds 66 probe ids well under the cap (PASS) <<<<<<<<<<<<<<<<<<<<<<
+
+>>>> Describe: Config_isInputProbe>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/InputProbe.spec.bs:66
+
+
+>>>>>> It: is off by default and on for inputprobe=1>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/InputProbe.spec.bs:69
+
+<<<< END It: is off by default and on for inputprobe=1 (PASS) <<<<<<<<<<<<<<<<<<
+
+> SUITE: InputProbe observer node>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+>>>> Describe: onInputProbe>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/InputProbeScene.spec.bs:7
+
+
+>>>>>> It: logs each write in order, keeps duplicates, skips empty ids>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/InputProbeScene.spec.bs:10
+
+<<<< END It: logs each write in order, keeps duplicates, skips empty ids (P...<<
+
+> SUITE: Net-secrets launch param off path>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+>>>> Describe: Config_applyNetSecrets adds nothing>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/NetSecretsOffPath.spec.bs:9
+
+
+>>>>>> It: when netsecrets is absent>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/NetSecretsOffPath.spec.bs:12
+
+<<<< END It: when netsecrets is absent (PASS) <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+>>>>>> It: when netsecrets is disabled>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/NetSecretsOffPath.spec.bs:19
+
+<<<< END It: when netsecrets is disabled (PASS) <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+>>>>>> It: when netsecrets has an invalid value>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/NetSecretsOffPath.spec.bs:26
+
+<<<< END It: when netsecrets has an invalid value (PASS) <<<<<<<<<<<<<<<<<<<<<<<
+
+>>>>>> It: when netsecrets is not a string>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/NetSecretsOffPath.spec.bs:35
+
+<<<< END It: when netsecrets is not a string (PASS) <<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+>>>>>> It: when args is invalid or not an associative array>>>>>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/NetSecretsOffPath.spec.bs:42
+
+<<<< END It: when args is invalid or not an associative array (PASS) <<<<<<<<<<<
+
+> SUITE: Net-secrets launch param on a node>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+>>>> Describe: Config_applyNetSecrets>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/NetSecretsLaunch.spec.bs:7
+
+
+>>>>>> It: netsecrets=1 adds btNetSecrets as true>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/NetSecretsLaunch.spec.bs:10
+
+<<<< END It: netsecrets=1 adds btNetSecrets as true (PASS) <<<<<<<<<<<<<<<<<<<<<
+
+> SUITE: Net-secrets probe config (pure)>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+>>>> Describe: Config_isNetSecrets>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/NetSecrets.spec.bs:5
+
+
+>>>>>> It: is on only for netsecrets=1>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/NetSecrets.spec.bs:8
+
+<<<< END It: is on only for netsecrets=1 (PASS) <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+>>>>>> It: is off by default and for other values>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/NetSecrets.spec.bs:13
+
+<<<< END It: is off by default and for other values (PASS) <<<<<<<<<<<<<<<<<<<<<
+
+>>>> Describe: Config_netSecretsRequest>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/NetSecrets.spec.bs:20
+
+
+>>>>>> It: carries dummy query and Authorization values>>>>>>>>>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/NetSecrets.spec.bs:23
+
+<<<< END It: carries dummy query and Authorization values (PASS) <<<<<<<<<<<<<<<
+
+>>>>>> It: has no body>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  Location: file://<scratch>/bt/examples/greenfield-app/source/tests/NetSecrets.spec.bs:30
+
+<<<< END It: has no body (PASS) <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+ 
+ [START TEST REPORT]
+ 
+  AppStore component file://<scratch>/bt/examples/greenfield-app/source/tests/AppStore.spec.bs:6
+  |-dispatch
+  | |--starts on the home screen as a free user : ...........PASS (0ms)
+  |   |--Test : file://<scratch>/bt/examples/greenfield-app/source/tests/AppStore.spec.bs:11
+  | |--applies user/signIn : ................................PASS (2ms)
+  |   |--Test : file://<scratch>/bt/examples/greenfield-app/source/tests/AppStore.spec.bs:17
+  | |--applies nav/go with an item id : .....................PASS (3ms)
+  |   |--Test : file://<scratch>/bt/examples/greenfield-app/source/tests/AppStore.spec.bs:24
+  | |--applies user/signOut : ...............................PASS (4ms)
+  |   |--Test : file://<scratch>/bt/examples/greenfield-app/source/tests/AppStore.spec.bs:30
+  | |--publishes the user slice to m.global : ...............PASS (1ms)
+  |   |--Test : file://<scratch>/bt/examples/greenfield-app/source/tests/AppStore.spec.bs:38
+  |
+  Badge component (Label.forceUpperCase) file://<scratch>/bt/examples/greenfield-app/source/tests/Badge.spec.bs:7
+  |-text
+  | |--passes the text through to its label : ...............PASS (1ms)
+  |   |--Test : file://<scratch>/bt/examples/greenfield-app/source/tests/Badge.spec.bs:12
+  |
+  Format and Http helpers (pure) file://<scratch>/bt/examples/greenfield-app/source/tests/Format.spec.bs:3
+  |-Format_titleCase
+  | |--capitalizes each word and lowercases the rest  : 
+  |   |--Test : file://<scratch>/bt/examples/greenfield-app/source/tests/Format.spec.bs:10
+  |   |--["hello wORLD","Hello World"] : ....................PASS (0ms)
+  |   |--["",""] : ..........................................PASS (0ms)
+  |
+  |-Http_join
+  | |--joins base and path with exactly one slash  : 
+  |   |--Test : file://<scratch>/bt/examples/greenfield-app/source/tests/Format.spec.bs:21
+  |   |--["http://h:1","/a","http://h:1/a"] : ...............PASS (0ms)
+  |   |--["http://h:1/","a","http://h:1/a"] : ...............PASS (0ms)
+  |   |--["http://h:1//","/a","http://h:1/a"] : .............PASS (0ms)
+  |   |--["http://h:1","","http://h:1"] : ...................PASS (0ms)
+  |
+  |-Config_baseUrl
+  | |--defaults to the loopback origin : ....................PASS (0ms)
+  |   |--Test : file://<scratch>/bt/examples/greenfield-app/source/tests/Format.spec.bs:28
+  | |--honours BT_BASE_URL : ................................PASS (0ms)
+  |   |--Test : file://<scratch>/bt/examples/greenfield-app/source/tests/Format.spec.bs:33
+  | |--ignores a BT_BASE_URL that is not an http(s) URL : ...PASS (4ms)
+  |   |--Test : file://<scratch>/bt/examples/greenfield-app/source/tests/Format.spec.bs:38
+  |
+  |-Reducer
+  | |--signs in and out without mutating the previous st.....PASS (1ms)
+  |   |--Test : file://<scratch>/bt/examples/greenfield-app/source/tests/Format.spec.bs:47
+  |
+  InputProbe helper (pure) file://<scratch>/bt/examples/greenfield-app/source/tests/InputProbe.spec.bs:3
+  |-InputProbe_append
+  | |--starts from an empty log without a separator : .......PASS (0ms)
+  |   |--Test : file://<scratch>/bt/examples/greenfield-app/source/tests/InputProbe.spec.bs:8
+  | |--appends in order, comma separated : ..................PASS (0ms)
+  |   |--Test : file://<scratch>/bt/examples/greenfield-app/source/tests/InputProbe.spec.bs:13
+  | |--keeps duplicates and out-of-order ids as received : ..PASS (1ms)
+  |   |--Test : file://<scratch>/bt/examples/greenfield-app/source/tests/InputProbe.spec.bs:22
+  | |--fits exactly at the cap : ............................PASS (0ms)
+  |   |--Test : file://<scratch>/bt/examples/greenfield-app/source/tests/InputProbe.spec.bs:28
+  | |--freezes with |full when the next id would pass th.....PASS (0ms)
+  |   |--Test : file://<scratch>/bt/examples/greenfield-app/source/tests/InputProbe.spec.bs:33
+  | |--ignores appends once full : ..........................PASS (0ms)
+  |   |--Test : file://<scratch>/bt/examples/greenfield-app/source/tests/InputProbe.spec.bs:38
+  | |--never exceeds the serializer cap when filled to 1.....PASS (163ms)
+  |   |--Test : file://<scratch>/bt/examples/greenfield-app/source/tests/InputProbe.spec.bs:43
+  | |--holds 66 probe ids well under the cap : ..............PASS (11ms)
+  |   |--Test : file://<scratch>/bt/examples/greenfield-app/source/tests/InputProbe.spec.bs:53
+  |
+  |-Config_isInputProbe
+  | |--is off by default and on for inputprobe=1 : ..........PASS (0ms)
+  |   |--Test : file://<scratch>/bt/examples/greenfield-app/source/tests/InputProbe.spec.bs:69
+  |
+  InputProbe observer node file://<scratch>/bt/examples/greenfield-app/source/tests/InputProbeScene.spec.bs:5
+  |-onInputProbe
+  | |--logs each write in order, keeps duplicates, skips.....PASS (1ms)
+  |   |--Test : file://<scratch>/bt/examples/greenfield-app/source/tests/InputProbeScene.spec.bs:10
+  |
+  Net-secrets launch param off path file://<scratch>/bt/examples/greenfield-app/source/tests/NetSecretsOffPath.spec.bs:7
+  |-Config_applyNetSecrets adds nothing
+  | |--when netsecrets is absent : ..........................PASS (1ms)
+  |   |--Test : file://<scratch>/bt/examples/greenfield-app/source/tests/NetSecretsOffPath.spec.bs:12
+  | |--when netsecrets is disabled : ........................PASS (0ms)
+  |   |--Test : file://<scratch>/bt/examples/greenfield-app/source/tests/NetSecretsOffPath.spec.bs:19
+  | |--when netsecrets has an invalid value : ...............PASS (4ms)
+  |   |--Test : file://<scratch>/bt/examples/greenfield-app/source/tests/NetSecretsOffPath.spec.bs:26
+  | |--when netsecrets is not a string : ....................PASS (0ms)
+  |   |--Test : file://<scratch>/bt/examples/greenfield-app/source/tests/NetSecretsOffPath.spec.bs:35
+  | |--when args is invalid or not an associative array : ...PASS (1ms)
+  |   |--Test : file://<scratch>/bt/examples/greenfield-app/source/tests/NetSecretsOffPath.spec.bs:42
+  |
+  Net-secrets launch param on a node file://<scratch>/bt/examples/greenfield-app/source/tests/NetSecretsLaunch.spec.bs:5
+  |-Config_applyNetSecrets
+  | |--netsecrets=1 adds btNetSecrets as true : .............PASS (0ms)
+  |   |--Test : file://<scratch>/bt/examples/greenfield-app/source/tests/NetSecretsLaunch.spec.bs:10
+  |
+  Net-secrets probe config (pure) file://<scratch>/bt/examples/greenfield-app/source/tests/NetSecrets.spec.bs:3
+  |-Config_isNetSecrets
+  | |--is on only for netsecrets=1 : ........................PASS (0ms)
+  |   |--Test : file://<scratch>/bt/examples/greenfield-app/source/tests/NetSecrets.spec.bs:8
+  | |--is off by default and for other values : .............PASS (1ms)
+  |   |--Test : file://<scratch>/bt/examples/greenfield-app/source/tests/NetSecrets.spec.bs:13
+  |
+  |-Config_netSecretsRequest
+  | |--carries dummy query and Authorization values : .......PASS (0ms)
+  |   |--Test : file://<scratch>/bt/examples/greenfield-app/source/tests/NetSecrets.spec.bs:23
+  | |--has no body : ........................................PASS (0ms)
+  |   |--Test : file://<scratch>/bt/examples/greenfield-app/source/tests/NetSecrets.spec.bs:30
+  |
+ 
+ Total: 40
+   Passed: 36
+   Crashed: 0
+   Failed: 0
+   Ignored: 4
+   Time: 650ms
+ 
+ 
+ IGNORED TESTS:
+ BTNetRecord [WHOLE SUITE]
+ record [WHOLE GROUP]
+ records one POST /track
+ BTNetFaults [WHOLE SUITE]
+ faults [WHOLE GROUP]
+ turns /search into a 503
+ BTNetIdentity [WHOLE SUITE]
+ identity [WHOLE GROUP]
+ serves a mocked /home to the hero request
+ FailOnPurpose [WHOLE SUITE]
+ failure [WHOLE GROUP]
+ fails with a known message
+ 
+ 
+ RESULT: Success
+ 
+ [END TEST REPORT]
+ 
+Saving unprocessed code cov events...
+Found 0 unprocessed events...
+BRIGHTSCRIPT: ERROR: roSGNode.unObserveFieldScoped: "CodeCoverage.coverageResults" no active host node: pkg:/source/rooibos/Coverage.brs(16)
+
+...Generating code coverage report
+
+
+
++++++++++++++++++++++++++++++++++++++++++++
+Code Coverage Report
++++++++++++++++++++++++++++++++++++++++++++
+
+Total Coverage: 30.57554% (85/278)
+Files:  10/ 16
+
+HIT FILES
+---------
+pkg:/components/net/HttpTask.brs: 1.923077% (1/52)
+pkg:/source/lib/Http.brs: 41.66666% (5/12)
+pkg:/source/brighttest/BTStore.brs: 61.90476% (26/42)
+pkg:/source/lib/Format.brs: 87.5% (7/8)
+pkg:/source/lib/Config.brs: 93.33334% (14/15)
+pkg:/source/lib/Reducer.brs: 100% (13/13)
+pkg:/source/lib/InputProbe.brs: 100% (5/5)
+pkg:/components/store/AppStore.brs: 100% (2/2)
+pkg:/components/screens/InputProbeNode.brs: 100% (9/9)
+pkg:/components/screens/Badge.brs: 100% (3/3)
+
+MISSED FILES
+------------
+pkg:/components/screens/DetailsScreen.brs: MISS!
+pkg:/components/screens/FocusScreen.brs: MISS!
+pkg:/components/screens/HomeScreen.brs: MISS!
+pkg:/components/screens/MainScene.brs: MISS!
+pkg:/components/screens/SearchScreen.brs: MISS!
+pkg:/components/store/EffectsTask.brs: MISS!
+
++++++++++++++++++++++++++++++++++++++++++++
+Code Coverage Report Complete 1ms
++++++++++++++++++++++++++++++++++++++++++++
+
++-=-coverage-counts:start
+{"v":1}
+{"b":{},"f":{"0":2},"i":0,"l":{"0":2}}
+{"b":{},"f":{"0":1,"1":1},"i":1,"l":{"0":1,"1":1,"2":1}}
+{"b":{"1":[1,1],"3":[5,0],"4":[1]},"f":{"0":1,"1":5},"i":5,"l":{"0":1,"1":1,"2":1,"3":1,"4":1,"5":5,"6":5,"7":5,"8":4}}
+{"b":{},"f":{"0":1,"1":5},"i":8,"l":{"0":1,"1":5}}
+{"b":{"0":[2,0]},"f":{"0":1,"1":5,"10":5,"2":1,"4":5},"i":10,"l":{"0":1,"1":1,"10":1,"11":1,"12":1,"13":2,"14":2,"15":2,"16":1,"17":1,"2":2,"20":5,"21":5,"22":5,"23":5,"3":1,"36":5,"37":10,"38":10,"39":10,"4":5,"5":10,"6":10,"7":5,"8":5,"9":1}}
+{"b":{"0":[4],"1":[5,5],"2":[1],"3":[4,3],"5":[3,3],"6":[4],"7":[3],"8":[13,13],"9":[11]},"f":{"0":4,"1":5,"3":3,"4":17,"5":12,"6":2},"i":11,"l":{"0":4,"1":5,"10":10,"11":12,"12":1,"13":1,"14":2,"2":4,"3":4,"4":4,"6":3,"7":17,"8":13,"9":13}}
+{"b":{"0":[2,1]},"f":{"0":2},"i":12,"l":{"0":2,"1":2,"2":2,"3":3,"4":2,"5":1,"6":2}}
+{"b":{"0":[7,7],"1":[1],"2":[1]},"f":{"0":4},"i":13,"l":{"0":4,"1":3,"2":4,"3":3,"4":3}}
+{"b":{"0":[619],"1":[455],"2":[2]},"f":{"0":1080},"i":14,"l":{"0":1080,"1":461,"2":461,"3":461,"4":459}}
+{"b":{"0":[7],"1":[3],"2":[2],"3":[2]},"f":{"0":12,"1":12,"2":5,"3":5},"i":15,"l":{"0":12,"1":12,"10":12,"11":5,"12":5,"2":12,"3":12,"4":7,"5":5,"6":3,"7":2,"8":2,"9":2}}
++-=-coverage-counts:end
+
++++++++++++++++++++++++++++++++++++++++++++
+LCOV.INFO FILE
++++++++++++++++++++++++++++++++++++++++++++
+
++-=-coverage:start
+Generating lcov.info file...
+TN:
+SF:components/net/HttpTask.brs
+FN:1,init
+FN:5,execute
+FN:59,sendSecretsProbe
+FNDA:2,init
+FNDA:0,execute
+FNDA:0,sendSecretsProbe
+FNF:3
+FNH:1
+BRDA:11,0,0,0
+BRDA:11,0,1,0
+BRDA:14,1,0,0
+BRDA:14,1,1,0
+BRDA:17,2,0,0
+BRDA:17,2,1,0
+BRDA:22,3,0,0
+BRDA:22,3,1,0
+BRDA:29,4,0,0
+BRDA:29,4,1,0
+BRDA:35,5,0,0
+BRDA:35,5,1,0
+BRDA:42,6,0,0
+BRDA:42,6,1,0
+BRDA:47,7,0,0
+BRDA:47,7,1,0
+BRDA:55,8,0,0
+BRDA:55,8,1,0
+BRDA:55,9,0,0
+BRDA:55,9,1,0
+BRDA:55,9,2,0
+BRF:21
+BRH:0
+DA:2,2
+DA:6,0
+DA:7,0
+DA:8,0
+DA:9,0
+DA:10,0
+DA:11,0
+DA:12,0
+DA:13,0
+DA:14,0
+DA:15,0
+DA:16,0
+DA:17,0
+DA:18,0
+DA:19,0
+DA:20,0
+DA:21,0
+DA:22,0
+DA:23,0
+DA:24,0
+DA:25,0
+DA:27,0
+DA:29,0
+DA:30,0
+DA:31,0
+DA:32,0
+DA:33,0
+DA:34,0
+DA:35,0
+DA:36,0
+DA:37,0
+DA:38,0
+DA:40,0
+DA:42,0
+DA:43,0
+DA:44,0
+DA:45,0
+DA:46,0
+DA:47,0
+DA:48,0
+DA:49,0
+DA:51,0
+DA:54,0
+DA:55,0
+DA:60,0
+DA:61,0
+DA:62,0
+DA:63,0
+DA:64,0
+DA:65,0
+DA:66,0
+DA:67,0
+LF:52
+LH:1
+end_of_record
+TN:
+SF:components/screens/Badge.brs
+FN:1,init
+FN:7,onText
+FNDA:1,init
+FNDA:1,onText
+FNF:2
+FNH:2
+BRF:0
+BRH:0
+DA:2,1
+DA:4,1
+DA:8,1
+LF:3
+LH:3
+end_of_record
+TN:
+SF:components/screens/DetailsScreen.brs
+FN:1,onItem
+FN:5,onTracking
+FNDA:0,onItem
+FNDA:0,onTracking
+FNF:2
+FNH:0
+BRF:0
+BRH:0
+DA:2,0
+DA:6,0
+LF:2
+LH:0
+end_of_record
+TN:
+SF:components/screens/FocusScreen.brs
+FN:1,init
+FN:5,onFocusEnter
+FN:9,onFocusChange
+FN:13,onKeyEvent
+FNDA:0,init
+FNDA:0,onFocusEnter
+FNDA:0,onFocusChange
+FNDA:0,onKeyEvent
+FNF:4
+FNH:0
+BRDA:6,0,0,0
+BRDA:6,0,1,0
+BRDA:14,1,0,0
+BRDA:14,1,1,0
+BRF:4
+BRH:0
+DA:2,0
+DA:6,0
+DA:14,0
+DA:15,0
+LF:4
+LH:0
+end_of_record
+TN:
+SF:components/screens/HomeScreen.brs
+FN:1,init
+FN:9,onFocusEnter
+FN:13,onHero
+FN:17,onTier
+FN:21,onSelect
+FN:26,onKeyEvent
+FNDA:0,init
+FNDA:0,onFocusEnter
+FNDA:0,onHero
+FNDA:0,onTier
+FNDA:0,onSelect
+FNDA:0,onKeyEvent
+FNF:6
+FNH:0
+BRDA:10,0,0,0
+BRDA:10,0,1,0
+BRDA:27,1,0,0
+BRDA:27,1,1,0
+BRDA:30,2,0,0
+BRDA:30,2,1,0
+BRDA:30,3,0,0
+BRDA:30,3,1,0
+BRDA:32,4,0,0
+BRDA:32,4,1,0
+BRDA:32,5,0,0
+BRDA:32,5,1,0
+BRDA:34,6,0,0
+BRDA:34,6,1,0
+BRDA:34,7,0,0
+BRDA:34,7,1,0
+BRDA:36,8,0,0
+BRDA:36,8,1,0
+BRDA:36,9,0,0
+BRDA:36,9,1,0
+BRF:20
+BRH:0
+DA:2,0
+DA:3,0
+DA:4,0
+DA:6,0
+DA:10,0
+DA:14,0
+DA:18,0
+DA:22,0
+DA:27,0
+DA:28,0
+DA:29,0
+DA:30,0
+DA:31,0
+DA:32,0
+DA:33,0
+DA:34,0
+DA:35,0
+DA:36,0
+DA:37,0
+DA:39,0
+DA:41,0
+DA:42,0
+LF:22
+LH:0
+end_of_record
+TN:
+SF:components/screens/InputProbeNode.brs
+FN:3,onEnable
+FN:13,onInputProbe
+FNDA:1,onEnable
+FNDA:5,onInputProbe
+FNF:2
+FNH:2
+BRDA:4,0,0,0
+BRDA:4,0,1,1
+BRDA:4,1,0,1
+BRDA:4,1,1,1
+BRDA:15,2,0,0
+BRDA:15,2,1,5
+BRDA:15,3,0,5
+BRDA:15,3,1,0
+BRDA:16,4,0,1
+BRDA:16,4,1,4
+BRF:10
+BRH:7
+DA:4,1
+DA:5,1
+DA:7,1
+DA:8,1
+DA:9,1
+DA:14,5
+DA:15,5
+DA:16,5
+DA:17,4
+LF:9
+LH:9
+end_of_record
+TN:
+SF:components/screens/MainScene.brs
+FN:1,init
+FN:12,onReady
+FN:16,onPeriodic
+FN:27,onInputProbeEnable
+FN:34,onTick
+FN:39,request
+FN:49,onHttpResult
+FN:69,showScreen
+FN:83,onAction
+FN:100,onState
+FN:105,onKeyEvent
+FNDA:0,init
+FNDA:0,onReady
+FNDA:0,onPeriodic
+FNDA:0,onInputProbeEnable
+FNDA:0,onTick
+FNDA:0,request
+FNDA:0,onHttpResult
+FNDA:0,showScreen
+FNDA:0,onAction
+FNDA:0,onState
+FNDA:0,onKeyEvent
+FNF:11
+FNH:0
+BRDA:13,0,0,0
+BRDA:13,0,1,0
+BRDA:18,1,0,0
+BRDA:18,1,1,0
+BRDA:28,2,0,0
+BRDA:28,2,1,0
+BRDA:28,3,0,0
+BRDA:28,3,1,0
+BRDA:52,4,0,0
+BRDA:52,4,1,0
+BRDA:53,5,0,0
+BRDA:53,5,1,0
+BRDA:55,6,0,0
+BRDA:55,6,1,0
+BRDA:55,7,0,0
+BRDA:55,7,1,0
+BRDA:57,8,0,0
+BRDA:57,8,1,0
+BRDA:58,9,0,0
+BRDA:58,9,1,0
+BRDA:58,10,0,0
+BRDA:58,10,1,0
+BRDA:63,11,0,0
+BRDA:63,11,1,0
+BRDA:74,12,0,0
+BRDA:74,12,1,0
+BRDA:86,13,0,0
+BRDA:86,13,1,0
+BRDA:86,14,0,0
+BRDA:86,14,1,0
+BRDA:86,14,2,0
+BRDA:89,15,0,0
+BRDA:89,15,1,0
+BRDA:91,16,0,0
+BRDA:91,16,1,0
+BRDA:93,17,0,0
+BRDA:93,17,1,0
+BRDA:95,18,0,0
+BRDA:95,18,1,0
+BRDA:102,19,0,0
+BRDA:102,19,1,0
+BRDA:106,20,0,0
+BRDA:106,20,1,0
+BRDA:107,21,0,0
+BRDA:107,21,1,0
+BRDA:107,22,0,0
+BRDA:107,22,1,0
+BRF:47
+BRH:0
+DA:2,0
+DA:3,0
+DA:4,0
+DA:5,0
+DA:6,0
+DA:7,0
+DA:8,0
+DA:13,0
+DA:17,0
+DA:18,0
+DA:19,0
+DA:20,0
+DA:22,0
+DA:28,0
+DA:29,0
+DA:30,0
+DA:31,0
+DA:35,0
+DA:40,0
+DA:41,0
+DA:42,0
+DA:43,0
+DA:44,0
+DA:45,0
+DA:46,0
+DA:50,0
+DA:51,0
+DA:52,0
+DA:53,0
+DA:54,0
+DA:55,0
+DA:57,0
+DA:58,0
+DA:59,0
+DA:61,0
+DA:63,0
+DA:64,0
+DA:66,0
+DA:70,0
+DA:71,0
+DA:73,0
+DA:74,0
+DA:75,0
+DA:76,0
+DA:77,0
+DA:78,0
+DA:79,0
+DA:80,0
+DA:84,0
+DA:85,0
+DA:86,0
+DA:87,0
+DA:88,0
+DA:89,0
+DA:90,0
+DA:91,0
+DA:92,0
+DA:93,0
+DA:94,0
+DA:95,0
+DA:96,0
+DA:101,0
+DA:102,0
+DA:106,0
+DA:107,0
+DA:108,0
+DA:109,0
+DA:111,0
+LF:68
+LH:0
+end_of_record
+TN:
+SF:components/screens/SearchScreen.brs
+FN:1,init
+FN:11,onKeyEvent
+FN:23,onFocusEnter
+FN:27,onType
+FN:31,onGo
+FN:35,onError
+FNDA:0,init
+FNDA:0,onKeyEvent
+FNDA:0,onFocusEnter
+FNDA:0,onType
+FNDA:0,onGo
+FNDA:0,onError
+FNF:6
+FNH:0
+BRDA:12,0,0,0
+BRDA:12,0,1,0
+BRDA:13,1,0,0
+BRDA:13,1,1,0
+BRDA:13,2,0,0
+BRDA:13,2,1,0
+BRDA:13,2,2,0
+BRDA:16,3,0,0
+BRDA:16,3,1,0
+BRDA:16,4,0,0
+BRDA:16,4,1,0
+BRDA:24,5,0,0
+BRDA:24,5,1,0
+BRF:13
+BRH:0
+DA:2,0
+DA:3,0
+DA:4,0
+DA:5,0
+DA:12,0
+DA:13,0
+DA:14,0
+DA:15,0
+DA:16,0
+DA:17,0
+DA:18,0
+DA:20,0
+DA:24,0
+DA:28,0
+DA:32,0
+DA:36,0
+LF:16
+LH:0
+end_of_record
+TN:
+SF:components/store/AppStore.brs
+FN:2,init
+FN:7,dispatch
+FNDA:1,init
+FNDA:5,dispatch
+FNF:2
+FNH:2
+BRF:0
+BRH:0
+DA:3,1
+DA:8,5
+LF:2
+LH:2
+end_of_record
+TN:
+SF:components/store/EffectsTask.brs
+FN:2,init
+FN:6,persist
+FNDA:0,init
+FNDA:0,persist
+FNF:2
+FNH:0
+BRF:0
+BRH:0
+DA:3,0
+DA:7,0
+DA:8,0
+DA:9,0
+DA:10,0
+LF:5
+LH:0
+end_of_record
+TN:
+SF:source/brighttest/BTStore.brs
+FN:13,BTStore_create
+FN:18,BTStore_create$anon0
+FN:30,BTStore_init
+FN:42,BTStore_onAction
+FN:48,BTStore_dispatch
+FN:55,BTStore_getState
+FN:61,BTStore_select
+FN:70,BTStore_subscribe
+FN:74,BTStore_snapshot
+FN:78,BTStore_restore
+FN:84,BTStore_publish
+FN:93,BTStore_replay
+FNDA:1,BTStore_create
+FNDA:5,BTStore_create$anon0
+FNDA:1,BTStore_init
+FNDA:0,BTStore_onAction
+FNDA:5,BTStore_dispatch
+FNDA:0,BTStore_getState
+FNDA:0,BTStore_select
+FNDA:0,BTStore_subscribe
+FNDA:0,BTStore_snapshot
+FNDA:0,BTStore_restore
+FNDA:5,BTStore_publish
+FNDA:0,BTStore_replay
+FNF:12
+FNH:5
+BRDA:16,0,0,2
+BRDA:16,0,1,0
+BRDA:44,1,0,0
+BRDA:44,1,1,0
+BRDA:44,2,0,0
+BRDA:44,2,1,0
+BRDA:49,3,0,0
+BRDA:49,3,1,5
+BRDA:56,4,0,0
+BRDA:56,4,1,0
+BRDA:64,5,0,0
+BRDA:64,5,1,0
+BRDA:64,6,0,0
+BRDA:64,6,1,0
+BRDA:79,7,0,0
+BRDA:79,7,1,0
+BRF:16
+BRH:2
+DA:14,1
+DA:15,1
+DA:16,2
+DA:18,1
+DA:19,5
+DA:20,10
+DA:21,10
+DA:23,5
+DA:24,5
+DA:26,1
+DA:31,1
+DA:32,1
+DA:33,1
+DA:34,2
+DA:35,2
+DA:36,2
+DA:38,1
+DA:39,1
+DA:43,0
+DA:44,0
+DA:49,5
+DA:50,5
+DA:51,5
+DA:52,5
+DA:56,0
+DA:57,0
+DA:62,0
+DA:63,0
+DA:64,0
+DA:65,0
+DA:67,0
+DA:71,0
+DA:75,0
+DA:79,0
+DA:80,0
+DA:81,0
+DA:85,5
+DA:86,10
+DA:87,10
+DA:88,10
+DA:94,0
+DA:95,0
+LF:42
+LH:26
+end_of_record
+TN:
+SF:source/lib/Config.brs
+FN:3,Config_defaultBaseUrl
+FN:7,Config_baseUrl
+FN:16,Config_isPeriodic
+FN:21,Config_isInputProbe
+FN:27,Config_isNetSecrets
+FN:37,Config_applyNetSecrets
+FN:44,Config_netSecretsRequest
+FNDA:4,Config_defaultBaseUrl
+FNDA:5,Config_baseUrl
+FNDA:0,Config_isPeriodic
+FNDA:3,Config_isInputProbe
+FNDA:17,Config_isNetSecrets
+FNDA:12,Config_applyNetSecrets
+FNDA:2,Config_netSecretsRequest
+FNF:7
+FNH:6
+BRDA:8,0,0,4
+BRDA:8,0,1,1
+BRDA:8,1,0,5
+BRDA:8,1,1,5
+BRDA:10,2,0,1
+BRDA:10,2,1,3
+BRDA:10,3,0,4
+BRDA:10,3,1,3
+BRDA:17,4,0,0
+BRDA:17,4,1,0
+BRDA:22,5,0,3
+BRDA:22,5,1,3
+BRDA:29,6,0,4
+BRDA:29,6,1,13
+BRDA:31,7,0,3
+BRDA:31,7,1,10
+BRDA:31,8,0,13
+BRDA:31,8,1,13
+BRDA:38,9,0,11
+BRDA:38,9,1,1
+BRF:20
+BRH:18
+DA:4,4
+DA:8,5
+DA:9,4
+DA:10,4
+DA:12,4
+DA:17,0
+DA:22,3
+DA:29,17
+DA:30,13
+DA:31,13
+DA:32,10
+DA:38,12
+DA:39,1
+DA:40,1
+DA:45,2
+LF:15
+LH:14
+end_of_record
+TN:
+SF:source/lib/Format.brs
+FN:1,Format_titleCase
+FN:14,Format_tierLabel
+FNDA:2,Format_titleCase
+FNDA:0,Format_tierLabel
+FNF:2
+FNH:1
+BRDA:5,0,0,2
+BRDA:5,0,1,1
+BRF:2
+BRH:2
+DA:2,2
+DA:3,2
+DA:4,2
+DA:5,3
+DA:6,2
+DA:8,1
+DA:11,2
+DA:15,0
+LF:8
+LH:7
+end_of_record
+TN:
+SF:source/lib/Http.brs
+FN:2,Http_join
+FN:11,Http_query
+FNDA:4,Http_join
+FNDA:0,Http_query
+FNF:2
+FNH:1
+BRDA:3,0,0,7
+BRDA:3,0,1,7
+BRDA:6,1,0,1
+BRDA:6,1,1,3
+BRDA:7,2,0,1
+BRDA:7,2,1,2
+BRF:6
+BRH:6
+DA:3,4
+DA:4,3
+DA:6,4
+DA:7,3
+DA:8,3
+DA:12,0
+DA:13,0
+DA:14,0
+DA:15,0
+DA:16,0
+DA:17,0
+DA:19,0
+LF:12
+LH:5
+end_of_record
+TN:
+SF:source/lib/InputProbe.brs
+FN:4,InputProbe_append
+FNDA:1080,InputProbe_append
+FNF:1
+FNH:1
+BRDA:5,0,0,619
+BRDA:5,0,1,461
+BRDA:7,1,0,455
+BRDA:7,1,1,6
+BRDA:8,2,0,2
+BRDA:8,2,1,459
+BRF:6
+BRH:6
+DA:5,1080
+DA:6,461
+DA:7,461
+DA:8,461
+DA:9,459
+LF:5
+LH:5
+end_of_record
+TN:
+SF:source/lib/Reducer.brs
+FN:2,Reducer_initial
+FN:9,Reducer_apply
+FN:27,Reducer_user
+FN:31,Reducer_nav
+FNDA:12,Reducer_initial
+FNDA:12,Reducer_apply
+FNDA:5,Reducer_user
+FNDA:5,Reducer_nav
+FNF:4
+FNH:4
+BRDA:15,0,0,7
+BRDA:15,0,1,5
+BRDA:17,1,0,3
+BRDA:17,1,1,2
+BRDA:19,2,0,2
+BRDA:19,2,1,0
+BRDA:21,3,0,2
+BRDA:21,3,1,0
+BRF:8
+BRH:6
+DA:3,12
+DA:10,12
+DA:14,12
+DA:15,12
+DA:16,7
+DA:17,5
+DA:18,3
+DA:19,2
+DA:20,2
+DA:21,2
+DA:23,12
+DA:28,5
+DA:32,5
+LF:13
+LH:13
+end_of_record
++-=-coverage:end
+[Rooibos Result]: PASS
+[Rooibos Shutdown]
