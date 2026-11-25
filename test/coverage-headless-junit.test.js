@@ -73,3 +73,34 @@ describe('flushUnread (end-of-run flush by byte offset)', () => {
     expect(lines).toEqual(['partial \u2014 line'])
   })
 })
+
+describe('crash and missing LCOV are loud', () => {
+  const quiet = (fn) => {
+    const w = process.stdout.write.bind(process.stdout), e = process.stderr.write.bind(process.stderr)
+    let err = ''
+    process.stdout.write = () => true
+    process.stderr.write = (s) => { err += s; return true }
+    try { return { code: fn(), err } } finally { process.stdout.write = w; process.stderr.write = e }
+  }
+  const ok = '[Rooibos Result]: PASS\nRESULT: Success\n'
+  const st = { cases: [], passed: 1, failed: 0 }
+
+  it('fails a coverage run with no LCOV block', () => {
+    const { code, err } = quiet(() => report(ok, {}, {}, [], undefined, true, st, false))
+    expect(code).toBe(1)
+    expect(err).toContain('coverage requested but no LCOV in output')
+  })
+
+  it('leaves a normal run alone', () => {
+    const { code, err } = quiet(() => report(ok, {}, {}, [], undefined, false, st, false))
+    expect(code).toBe(0)
+    expect(err).not.toContain('LCOV')
+  })
+
+  it('fails a run that ends in a native FATAL ERROR', () => {
+    const out = ok + 'FATAL ERROR: Error::ThrowAsJavaScriptException napi_throw\n'
+    const { code, err } = quiet(() => report(out, {}, {}, [], undefined, false, st, false))
+    expect(code).toBe(1)
+    expect(err).toContain('RUN CRASHED')
+  })
+})

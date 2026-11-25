@@ -18,6 +18,9 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
 - **Reporting:** a headless scene run where the engine crashed partway (`EXIT_BRIGHTSCRIPT_CRASH`) used to exit 0 with
   the cases streamed so far counted as passed. It now fails, says the run crashed, and reports the case that was
   running as failed (also in JUnit). [Upgrade notes](#upgrade-0-8-0)
+- **Reporting:** a headless run where the engine aborted with a native `FATAL ERROR` (no `EXIT_*` line) used to exit 0
+  and report the cases streamed so far as passed. It now fails with RUN CRASHED. A headless coverage run that prints no
+  LCOV block now fails with "coverage requested but no LCOV in output" instead of exiting 0 without a coverage file.
 - **Studio:** `brighttest studio` no longer connects to the last device used. Without `--host` it uses `ROKU_HOST`, or
   the one cached device; with several cached devices it refuses to start. It also refuses to start when it has a
   device but no dev password (from `--password`, `ROKU_PASSWORD`, a project `.env` or the device cache); before, it
