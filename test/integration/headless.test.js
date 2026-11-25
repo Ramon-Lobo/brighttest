@@ -313,7 +313,7 @@ describe('instrument.enabled on a scratch copy of the legacy example app', () =>
     const dir = copyLegacy((c) => { c.instrument.enabled = true })
     const res = runCli(dir)
     expect(res.status).toBe(0)
-    expect(res.output).toContain('15 passed, 0 failed')
+    expect(res.output).toContain('17 passed, 0 failed')
     expect(exists(dir, '.brighttest/headless-scene/build/components/bt/BT_Agent.brs')).toBe(true)
   })
 
@@ -321,7 +321,7 @@ describe('instrument.enabled on a scratch copy of the legacy example app', () =>
     const dir = copyLegacy((c) => { c.instrument.enabled = true })
     const res = runCli(dir, ['--coverage'])
     expect(res.status).toBe(0)
-    expect(res.output).toContain('15 passed, 0 failed')
+    expect(res.output).toContain('17 passed, 0 failed')
     expect(exists(dir, '.brighttest/headless-coverage/build/components/bt/BT_Agent.brs')).toBe(true)
     const lcov = readFile(dir, 'coverage/lcov.info')
     expect(lcov).toContain('SF:')
