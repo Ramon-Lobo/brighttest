@@ -6,6 +6,8 @@ source code or an asset from those apps.
 
 These projects are analysed read-only as worked examples. This page contains only counts, names and structure derived by brighttest; it contains no source code or assets from these projects, which remain under their own licences and copyright. Silo is a trademark of Silo Media L.L.C.; Jellyfin is a trademark of its owners; YouTube and Roku are trademarks of their respective owners. brighttest is not affiliated with, endorsed by, or sponsored by any of them. Results are a snapshot at the stated commit and may contain errors.
 
+To open full reports for the small example apps that ship with brighttest, see [Mapping results](/guide/mapping-results).
+
 ## The four apps
 
 - jellyrock (https://github.com/jellyrock/jellyrock), commit a24bcf9, licensed GPL-2.0.

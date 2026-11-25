@@ -111,6 +111,7 @@ export default withMermaid({
           { text: 'Assess a project', link: '/guide/assess' },
           { text: 'Map the app', link: '/guide/feature-tree' },
           { text: 'Examples of mapping', link: '/guide/external-examples' },
+          { text: 'Mapping results', link: '/guide/mapping-results' },
           { text: 'Agent skills', link: '/guide/agent-skills' },
           { text: 'Agent surface (MCP)', link: '/guide/mcp' },
         ],
@@ -180,6 +181,7 @@ export default withMermaid({
           { text: 'Assess a project', link: '/guide/assess' },
           { text: 'Map the app', link: '/guide/feature-tree' },
           { text: 'Examples of mapping', link: '/guide/external-examples' },
+          { text: 'Mapping results', link: '/guide/mapping-results' },
           {
             text: 'Agents',
             collapsed: false,
