@@ -32,7 +32,7 @@ describe('legacy-app', () => {
   it('passes headless', () => {
     const res = runCli(copyApp('legacy-app'))
     expect(res.status).toBe(0)
-    expect(res.output).toContain('15 passed, 0 failed')
+    expect(res.output).toContain('17 passed, 0 failed')
   })
 
   it('census matches EXPECTED-CENSUS.json', () => {
