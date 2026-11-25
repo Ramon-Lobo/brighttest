@@ -144,17 +144,37 @@ describe('cluster ids and completeness', () => {
     expect(s.clusters.find((c) => c.id === 'app-shell').kind).toBe('app-shell')
     for (const id of ids) { expect(id.length).toBeLessThanOrEqual(48); expect(id).not.toMatch(/-$/) }
   })
+  it('strips a trailing dash left by the 48 character cut, and keeps the cut id unique', () => {
+    const name = `${'A'.repeat(47)}_B`
+    const g = mk({ comps: [name, `${name}C`], edges: [['comp:S', `comp:${name}`, 'child'], ['comp:S', `comp:${name}C`, 'child']] })
+    const ids = suggest(g).clusters.map((c) => c.id)
+    expect(ids).toContain('a'.repeat(47))
+    expect(ids.some((i) => i.length === 48 && i.endsWith('-'))).toBe(false)
+    expect(new Set(ids).size).toBe(ids.length)
+    for (const i of ids) { expect(i.length).toBeLessThanOrEqual(48); expect(i).not.toMatch(/-$/) }
+  })
   it('a multi-cluster graph with shared, unreached and vendor code puts every file and component in exactly one cluster', () => {
     const g = mk({ comps: ['A', 'B', 'Dead', 'Vendor'], files: ['source/lib/u.brs', 'source/dead.brs', { rel: 'source/roku_modules/v/x.brs', vendor: true }], edges: [['comp:S', 'comp:A', 'child'], ['comp:S', 'comp:B', 'child'], ['comp:S', 'comp:Vendor', 'child'], ['comp:A', 'file:source/lib/u.brs', 'calls'], ['comp:B', 'file:source/lib/u.brs', 'calls'], ['comp:Dead', 'file:source/dead.brs', 'calls']] })
     owned(suggest(g), g)
   })
-  it('a deep dominator chain is clustered in linear time, and no deep node falls back to app-shell', () => {
+  it('a deep dominator chain is clustered in linear work, and no deep node falls back to app-shell', () => {
+    const chain = (n) => {
+      const comps = Array.from({ length: n }, (_, i) => `N${i}`)
+      return mk({ comps, edges: [['comp:S', 'comp:N0', 'child'], ...comps.slice(1).map((c, i) => [`comp:N${i}`, `comp:${c}`, 'child'])] })
+    }
+    // Count Map lookups instead of timing: a walk per node would make the count grow about four-fold when n doubles.
+    const ops = (g) => {
+      let n = 0
+      const get = Map.prototype.get; const has = Map.prototype.has
+      Map.prototype.get = function (k) { n++; return get.call(this, k) }
+      Map.prototype.has = function (k) { n++; return has.call(this, k) }
+      try { suggest(g) } finally { Map.prototype.get = get; Map.prototype.has = has }
+      return n
+    }
+    const small = ops(chain(2000)); const large = ops(chain(4000))
+    expect(large / small).toBeLessThan(3)
     const n = 30000
-    const comps = Array.from({ length: n }, (_, i) => `N${i}`)
-    const edges = [['comp:S', 'comp:N0', 'child'], ...comps.slice(1).map((c, i) => [`comp:N${i}`, `comp:${c}`, 'child'])]
-    const g = mk({ comps, edges })
-    const t0 = Date.now(); const s = suggest(g); const ms = Date.now() - t0
-    expect(ms).toBeLessThan(15000)
+    const s = suggest(chain(n))
     expect(where(s, `comp:N${n - 1}`)).toBe('n0'); expect(where(s, `comp:N${n >> 1}`)).toBe('n0')
     expect(cl(s, 'n0').components).toBe(n)
   })
