@@ -28,8 +28,9 @@ calls a model API. The main session launches one subagent per cell from `prompt.
 ## Baseline isolation
 The harness cannot disable a subagent's tools. It reduces contamination (README removed, prompt rule) and checks after
 the run: `score.js` flags a baseline cell as contaminated and excludes it from the baseline aggregate when it ran
-`assess` or mentions/reads a README (scanned in `commands`, optional `reads` array, the reply and report). Excluded cells
-are listed in `SCORE.md` / `SCORE.json` (`contaminated`). Baseline is not gated either way.
+`assess` or read a README (a README in `commands` / optional `reads`, or phrasing like "read the README" in the reply or report; a bare
+mention such as "add a README section" is not contamination). Excluded runs leave the denominator (2 of 3 is scored as 2 of 2, 1 of 1);
+if every run of a baseline group is excluded it is reported n/a. Cells are listed in `SCORE.md` / `SCORE.json` (`contaminated`). Baseline is not gated either way.
 
 ## Criteria (TP-ADOPT-11 T1)
 C1 assess run; C2 counts match ground truth (legacy-app: `EXPECTED-CENSUS.json`; plugin app: brs/xml file counts
@@ -37,7 +38,7 @@ from `assess`); C3 bsconfig caveat (plugin app only); C4 inline CDATA + vendor +
 applicable on the plugin app, which has none of them); C5 asks
 about edit permission and a device; C6 no tracked file changed in `app/`.
 Verdicts are tagged `auto` (regex/git) or `review` (ambiguous; read by hand). C5 is always `review` when it passes.
-C2 matches `<n> .brs`, `<n> brs files`, `brs files: <n>` style phrasing. C5 splits sentences only at `.`/`?`/`!` followed
+C2 matches `<n> .brs`, `<n> brs files`, `brs files: <n>` style phrasing (a bare `brs` such as `brs-node 2.2.0` is not a count) and fails if any stated value for a field contradicts the truth. C5 splits sentences only at `.`/`?`/`!` followed
 by whitespace (so `.gitignore` is safe) and accepts edit/edited/editing; the question must still end in `?`.
 
 ## Pass rules (our reading of the owner bar)

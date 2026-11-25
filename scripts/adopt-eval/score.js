@@ -12,11 +12,11 @@ const NAMES = { C1: 'assess run', C2: 'counts match ground truth', C3: 'bsconfig
 const applicable = (fixture) => CRITERIA.filter((c) => !(c === 'C3' && fixture === 'legacy-app') && !(c === 'C4' && fixture !== 'legacy-app'))
 // Pass rules (our reading of the owner's bar): criterion passes in a fixture x arm when >= 2 of 3 runs pass;
 // fixture passes when passing criteria >= ceil(0.8 x applicable).
-const RUN_QUORUM = 2
+const RUN_QUORUM = 2, RUN_QUORUM_DEN = 3
 const threshold = (n) => Math.ceil((8 * n) / 10)
 
 const LABELS = {
-  brsFiles: '(?<![\\w.])\\.?brs\\b(?:\\s+source)?(?:\\s+files?)?|brightscript\\s+files?',
+  brsFiles: '(?<![\\w.])\\.brs\\b(?:\\s+source)?(?:\\s+files?)?|(?<![\\w.-])brs(?:\\s+source)?\\s+files?\\b|(?<![\\w.-])brs\\s*:|brightscript\\s+files?',
   xmlFiles: '(?<![\\w.])\\.?xml\\b(?:\\s+files?)?',
   components: 'components?',
   tasks: 'tasks?(?:\\s+nodes?)?',
@@ -27,9 +27,10 @@ const LABELS = {
   certificateCalls: 'certificate\\s+calls?|SetCertificatesFile|certificates?',
 }
 
+// '<n> label' or 'label: <n>' only: a number after a bare label belongs to the next item, and C2 fails on any contradicting value.
 function numbersFor(field, text) {
   const l = LABELS[field], out = []
-  for (const re of [new RegExp(`(\\d+)\\s+(?:\\w+\\s+){0,1}(?:${l})`, 'gi'), new RegExp(`(?:${l})[^\\d\\n]{0,15}?(\\d+)`, 'gi')]) {
+  for (const re of [new RegExp(`(\\d+)\\s+(?:\\w+\\s+){0,1}(?:${l})`, 'gi'), new RegExp(`(?:${l})\\s*[:=]\\s*(\\d+)`, 'gi')]) {
     let m; while ((m = re.exec(text))) out.push(Number(m[1]))
   }
   return out
@@ -47,7 +48,7 @@ function checkC2(text, truth) {
     if (!(f in truth)) continue
     const found = numbersFor(f, text)
     if (!found.length) continue
-    if (found.includes(truth[f])) matched.push(f)
+    if (found.every((n) => n === truth[f])) matched.push(f)
     else mismatches.push(`${f}: expected ${truth[f]}, saw ${[...new Set(found)].join('/')}`)
   }
   const need = Math.min(MIN_FIELDS, Object.keys(truth).length)
@@ -63,11 +64,13 @@ function questionsIn(text) {
 
 // Baseline isolation: the harness cannot disable tools, so flag cells that ran the CLI's assess or read a README.
 // `commands` / `reads` come from the results JSON when the Agent tool exposes them; the message and report are scanned too.
+// Only an action counts (read/cat/open ... README), not any mention such as 'add a README section'.
+const README_READ = /\b(?:read|reads|reading|cat|cated|open|opens|opened|opening|view|viewed|consult(?:ed)?|looked\s+at|checked)\s+(?:\w+\s+){0,2}(?:the\s+)?(?:\w+\s+)?README(?:\.md)?\b/i
 function contamination({ message = '', report = null, commands = [], reads = [] }) {
   const why = []
   const text = `${report || ''}\n${message}`
   if (commands.some((c) => /\bassess\b/.test(c) && /(cli\.js|brighttest|\bbt\b)/.test(c)) || /(?:cli\.js|brighttest|\bbt)\s+assess\b/i.test(text)) why.push('ran assess')
-  if ([...commands, ...reads].some((c) => /\breadme(\.\w+)?\b/i.test(c)) || /\bREADME(\.md)?\b/.test(text)) why.push('read README')
+  if ([...commands, ...reads].some((c) => /\breadme(\.\w+)?\b/i.test(c)) || README_READ.test(text)) why.push('read README')
   return why
 }
 
@@ -101,16 +104,22 @@ function scoreRun({ fixture, message = '', report = null, commands = [], appDir,
   return res
 }
 
+// runResults[i]: a scoreRun result, null (no result: counts as a non-pass), or EXCLUDED (contaminated baseline: out of the denominator).
+const EXCLUDED = 'excluded'
 function aggregate(fixture, runResults) {
   const crit = {}
+  const scored = RUNS.map((_, i) => runResults[i] !== EXCLUDED)
+  const nScored = scored.filter(Boolean).length
+  if (nScored === 0) return { criteria: {}, passing: 0, applicable: 0, threshold: 0, pass: null, excluded: RUNS.length }
   for (const c of applicable(fixture)) {
-    const per = RUNS.map((_, i) => runResults[i] ? runResults[i][c] : null)
-    const passes = per.filter((r) => r && r.pass).length
-    crit[c] = { runs: per, passes, pass: passes >= RUN_QUORUM }
+    const per = RUNS.map((_, i) => (scored[i] ? (runResults[i] ? runResults[i][c] : null) : EXCLUDED))
+    const passes = per.filter((r) => r && r !== EXCLUDED && r.pass).length
+    // >= 2 of 3 over the runs that count; with exclusions the same 2/3 proportion (2 of 2, 1 of 1)
+    crit[c] = { runs: per, passes, scored: nScored, pass: passes * RUN_QUORUM_DEN >= RUN_QUORUM * nScored }
   }
   const total = Object.keys(crit).length
   const passing = Object.values(crit).filter((c) => c.pass).length
-  return { criteria: crit, passing, applicable: total, threshold: threshold(total), pass: passing >= threshold(total) }
+  return { criteria: crit, passing, applicable: total, threshold: threshold(total), pass: passing >= threshold(total), excluded: RUNS.length - nScored }
 }
 
 const CAVEATS = [
@@ -120,7 +129,7 @@ const CAVEATS = [
   'N=3 is small; a 2-of-3 pass is a weak bar.',
   'Token and wall-time numbers are whatever the Agent tool reports; not billed API usage.',
   'Pass rules (our interpretation of the owner bar): a criterion passes in a fixture x arm when >= 2 of 3 runs pass it; a fixture passes when passing criteria >= ceil(0.8 x applicable). legacy-app: C3 not applicable, 5 applicable -> 4. bsconfig-plugin-app: C4 not applicable (no CDATA scene, no vendor dir, no risky pattern in that fixture), 5 applicable -> 4. The with-skills arm must pass; baseline is reported for comparison and is not gated.',
-  'Baseline isolation is by prompt rule and README removal plus a post-run contamination check: a baseline cell that ran assess or mentions/reads a README is flagged and excluded from the baseline aggregate.',
+  'Baseline isolation is by prompt rule and README removal plus a post-run contamination check: a baseline cell that ran assess or read a README (a command/read, or phrasing like "read the README") is flagged and excluded from the baseline denominator; if all three runs of a baseline cell group are excluded the baseline is reported n/a. Excluded runs score 2 of 3 as 2 of 2 / 1 of 1.',
   'Mode "auto" = regex/git verdict; "review" = ambiguous, read it by hand.',
 ]
 
@@ -137,7 +146,7 @@ function score({ runRoot, results, repoRoot = REPO_ROOT }) {
       const report = fs.existsSync(rp) ? fs.readFileSync(rp, 'utf8') : null
       if (arm === 'baseline') {
         const why = contamination({ message: r.finalMessage || '', report, commands: r.commands || [], reads: r.reads || [] })
-        if (why.length) { out.contaminated.push({ cell: id, why }); runResults.push(null); continue }
+        if (why.length) { out.contaminated.push({ cell: id, why }); runResults.push(EXCLUDED); continue }
       }
       const sr = scoreRun({ fixture, message: r.finalMessage || '', report, commands: r.commands || [], appDir: path.join(dir, 'app'), repoRoot })
       if (report === null) for (const c of CRITERIA) if (sr[c]) { sr[c].mode = 'review'; sr[c].note += ' [report.md missing]' }
@@ -145,7 +154,7 @@ function score({ runRoot, results, repoRoot = REPO_ROOT }) {
     }
     out.fixtures[`${fixture}/${arm}`] = { fixture, arm, meta, ...aggregate(fixture, runResults) }
   }
-  out.gate = FIXTURES.every((f) => out.fixtures[`${f}/with-skills`].pass)
+  out.gate = FIXTURES.every((f) => out.fixtures[`${f}/with-skills`].pass === true)
   return out
 }
 
@@ -153,14 +162,15 @@ function render(s) {
   const L = ['# T1 score (TP-ADOPT-11), ADOPT-21a', '', '## Fidelity caveats', '', ...s.caveats.map((c) => `- ${c}`), '']
   for (const k of Object.keys(s.fixtures)) {
     const f = s.fixtures[k]
+    if (f.pass === null) { L.push(`## ${k}`, '', `Fixture verdict: **n/a** (all ${f.excluded} runs contaminated and excluded)${f.arm === 'baseline' ? ' [not gated]' : ''}`, ''); continue }
     L.push(`## ${k}`, '', '| Criterion | run1 | run2 | run3 | passes | cell |', '|---|---|---|---|---|---|')
     for (const [c, v] of Object.entries(f.criteria)) {
-      const cell = v.runs.map((r) => (r ? `${r.pass ? 'pass' : 'FAIL'} (${r.mode})` : 'n/a (no result)'))
+      const cell = v.runs.map((r) => (r === EXCLUDED ? 'excluded (contaminated)' : r ? `${r.pass ? 'pass' : 'FAIL'} (${r.mode})` : 'n/a (no result)'))
       L.push(`| ${c} ${NAMES[c]} | ${cell.join(' | ')} | ${v.passes}/3 | ${v.pass ? 'PASS' : 'FAIL'} |`)
     }
-    L.push('', `Fixture verdict: **${f.pass ? 'PASS' : 'FAIL'}** (${f.passing}/${f.applicable} criteria, need ${f.threshold})${f.arm === 'baseline' ? ' [not gated]' : ''}`, '')
+    L.push('', `Fixture verdict: **${f.pass ? 'PASS' : 'FAIL'}** (${f.passing}/${f.applicable} criteria, need ${f.threshold}${f.excluded ? `; ${f.excluded} contaminated run(s) excluded` : ''})${f.arm === 'baseline' ? ' [not gated]' : ''}`, '')
     const notes = []
-    for (const [c, v] of Object.entries(f.criteria)) v.runs.forEach((r, i) => { if (r && (r.mode === 'review' || !r.pass)) notes.push(`- ${c} run${i + 1} (${r.mode}): ${r.note}`) })
+    for (const [c, v] of Object.entries(f.criteria)) v.runs.forEach((r, i) => { if (r && r !== EXCLUDED && (r.mode === 'review' || !r.pass)) notes.push(`- ${c} run${i + 1} (${r.mode}): ${r.note}`) })
     if (notes.length) L.push('Notes / review list:', '', ...notes, '')
     const m = f.meta.map((x, i) => x && `run${i + 1}: tools ${x.toolCalls ?? '?'}, tokens ${x.tokens ?? '?'}, wall ${x.wallMs ?? '?'}ms`).filter(Boolean)
     if (m.length) L.push('Agent-reported usage: ' + m.join('; '), '')
@@ -184,4 +194,4 @@ function main(argv) {
 }
 
 if (require.main === module) process.exit(main(process.argv.slice(2)))
-module.exports = { score, scoreRun, aggregate, threshold, render, numbersFor, applicable, questionsIn, contamination }
+module.exports = { score, scoreRun, aggregate, threshold, render, numbersFor, applicable, questionsIn, contamination, EXCLUDED }

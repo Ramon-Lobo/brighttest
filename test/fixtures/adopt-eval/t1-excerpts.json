@@ -1,0 +1,4 @@
+{
+  "legacy-app/with-skills/run1": "- Project: 32 .brs, 4 .bs, 56 .xml; 4 existing specs. 102 files scanned.\n- No bsconfig; manifest present. brs-node and rooibos engines not installed.\n- Census: 56 components, 6 scenes, 3 tasks. May the team edit app code, bsconfig, .gitignore? Do you have a Roku device available?\n3 certificate calls, 1 dynamic CreateObject. Risky pattern: render-thread-sync-http in a vendor client; inline CDATA scene skipped.",
+  "bsconfig-plugin-app/with-skills/run3": "Summary: 1 .brs, 0 .bs, 1 .xml; 1 scene, 0 tasks; 0 specs. Engines: brs-node not installed. Risky patterns none found (short fixed set of checks). Blockers: bsconfig plugins not honored; bsconfig rootDir is \"src\"."
+}
