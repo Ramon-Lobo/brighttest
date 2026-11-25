@@ -79,10 +79,32 @@ export default withMermaid({
 
   // The unreleased (main) build is published under /next/ and must not be indexed; releases are.
   // The docs site build sets BRIGHTTEST_DOCS_CHANNEL=next for that build only.
-  transformHead() {
-    return process.env.BRIGHTTEST_DOCS_CHANNEL === 'next'
-      ? [['meta', { name: 'robots', content: 'noindex' }]]
-      : []
+  transformHead({ pageData, siteConfig }) {
+    if (process.env.BRIGHTTEST_DOCS_CHANNEL === 'next') return [['meta', { name: 'robots', content: 'noindex' }]]
+    if (!siteConfig.pages.includes(pageData.relativePath)) return []
+    // Released docs also publish a plain-Markdown twin of every page (see buildEnd below).
+    const b = ('/' + (siteConfig.site.base || '/').replace(/^\/+|\/+$/g, '') + '/').replace(/^\/\/$/, '/')
+    return [['link', { rel: 'alternate', type: 'text/markdown', href: b + pageData.relativePath }]]
+  },
+
+  // Agent-readable files for released docs only (not /next/): llms.txt plus a .md twin per page.
+  // Generated, never committed; a problem fails the build so the files cannot go stale silently.
+  buildEnd(siteConfig) {
+    if (process.env.BRIGHTTEST_DOCS_CHANNEL === 'next') return
+    const req = createRequire(import.meta.url)
+    const mod = req(path.resolve(docsRoot, '..', 'scripts', 'docs-agent-files.js'))
+    const r = mod.generate({
+      srcDir: siteConfig.srcDir,
+      outDir: siteConfig.outDir,
+      base: siteConfig.site.base,
+      origin: mod.siteOrigin(path.resolve(docsRoot, '..')),
+      pages: siteConfig.pages,
+      sidebar: (siteConfig.site.themeConfig as any).sidebar,
+      title: siteConfig.site.title,
+      description: siteConfig.site.description,
+    })
+    if (r.warnings.length) throw new Error('agent-readable docs: ' + r.warnings.join('; '))
+    console.log(`agent-readable docs: llms.txt + ${r.files.length} .md pages`)
   },
 
   // Shiki has no 'brightscript' grammar; VB is the closest for keywords like function/sub/if/then/end.

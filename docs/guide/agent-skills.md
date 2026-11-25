@@ -128,6 +128,21 @@ for Cursor). Running `npx brighttest skills install` again moves you to the curr
   `.agents/skills/<skill>/references/`.
 - Only blocks and files carrying the brighttest marker are touched. Anything you wrote yourself stays.
 
+## Reading these docs as an agent
+
+An agent that browses this site can read it as plain Markdown instead of HTML:
+
+- **`llms.txt`** is at the root of the released docs, for example `https://ramon-lobo.github.io/brighttest/llms.txt`. It
+  lists every page, grouped like the sidebar, with a one-line description and a link to the page's Markdown copy.
+- **Every page has a `.md` twin** at the same address plus `.md`: `/guide/studio` has `/guide/studio.md`, and a section
+  index such as `/writing-tests/` has `/writing-tests/index.md`. Each HTML page also names its twin in a
+  `<link rel="alternate" type="text/markdown">` tag in the page head.
+
+The copies are generated from the same source files when the docs are built, so they match the page they belong to.
+Links inside them point at other `.md` copies. Only the released docs have these files; the unreleased `/next/` docs do not.
+The docs do not replace the skills above: the skills carry the safety rules for using a real device, so install them
+rather than relying on the docs alone.
+
 ## Keep them up to date
 
 `skills update` pulls the newest skills straight from the brighttest repository — independent of your
