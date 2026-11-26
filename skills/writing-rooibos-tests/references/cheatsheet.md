@@ -13,7 +13,7 @@
 | `@only` | test/group/suite | Focus the run to just this. **Never commit it** — CI silently skips the rest. |
 | `@ignore` | test/group/suite | Skip this test/group/suite. |
 | `@SGNode("Component")` | suite | Host the suite inside a real SceneGraph node; `m.top` is that node. Runs headless (default/`--coverage`) or on device. |
-| `@deviceOnly` | test/group/suite | Headless lanes skip it; device lane runs it. For behavior real only on hardware. Equivalent to `@tags("deviceOnly")`. |
+| `@deviceOnly` | test/group/suite | Headless lanes skip it; device lane runs it. For behavior real only on hardware. Equivalent to `@tags("deviceOnly")`; bare `@deviceOnly` needs the patched rooibos (default), on stock use `@tags("deviceOnly")`. |
 | `@tags("a", "b")` | test/group/suite | Tag tests for selective runs. |
 
 Structure: `namespace tests` → `@suite` + `class … extends rooibos.BaseTestSuite` → `@describe` groups →

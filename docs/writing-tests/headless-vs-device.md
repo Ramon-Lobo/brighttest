@@ -121,7 +121,9 @@ It works on any level — a whole suite, a `@describe` group, or a single `@it`:
 class PlaybackTests extends rooibos.BaseTestSuite
 ```
 
-`@deviceOnly` is exactly equivalent to `@tags("deviceOnly")` — it's just a clearer name. Under the hood
+`@deviceOnly` is exactly equivalent to `@tags("deviceOnly")` — it's just a clearer name.
+**Bare `@deviceOnly` needs the patched rooibos (default).** On stock `rooibos-roku` it is not an annotation, so the
+test runs headless; brighttest warns with `file:line` on the headless lanes. On stock, write `@tags("deviceOnly")`. Under the hood
 the headless lanes pass `tags: ['!deviceOnly']` to Rooibos, which excludes anything carrying that tag.
 
 ::: tip Reach for this sparingly
