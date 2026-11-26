@@ -102,6 +102,7 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
   (an unlisted step is still `unknown step`) and which `state` and `net` steps read their allowed map keys from. A test
   fails when a step is added to the parser or runner without a catalog entry, or is missing from the flows doc or the
   flow-reference skill. No change to flow syntax. ([flows](./e2e/flows.md#steps))
+- **E2E:** `e2e run`, `inspect` and `record` now find the device the same way as `doctor`, the device lanes, Studio and MCP: `--host`, then `ROKU_HOST` in the shell, then `ROKU_HOST` in the project `.env`, then the one cached device (and its password from `ROKU_PASSWORD` or the cache). Before, only `--host` and the shell variable counted. With several cached devices and no host, `e2e run` refuses instead of guessing. `brighttest doctor` now prints where the host came from (`--host`, shell, `.env` or cache) and warns when it chose among several cached devices or when `ROKU_HOST` holds `ip:pw` or a list, which only `e2e` accepts.
 - **E2E:** preflight fails fast on unreachable, Limited or dev-disabled devices, and only for the affected host in a
   multi-device run; falls back to the app UI query when SceneGraph reads keep failing. The `snapshot` step takes
   `nodes`, a list of node ids, so `restore` can write node fields back ([flows](./e2e/flows.md),

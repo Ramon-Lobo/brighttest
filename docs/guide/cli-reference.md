@@ -164,7 +164,7 @@ e2e stamp <src> -o <d> copy a project, injecting ids onto un-annotated nodes
 
 | Flag | Applies to | Meaning |
 |---|---|---|
-| `--host <ip[:pw][,…]>` | all device actions | Device(s) or `ROKU_HOST`. Several hosts shard the flows across devices in parallel; `ip:pw` gives a per-device password |
+| `--host <ip[:pw][,…]>` | all device actions | Device(s); else `ROKU_HOST` (shell, then project `.env`), then the one cached device (several cached and none chosen is an error). Several hosts shard the flows across devices in parallel; `ip:pw` gives a per-device password |
 | `--ecp-port <n>` | all | ECP port (or `ROKU_ECP_PORT`, default 8060), for stubs and fakes |
 | `--password <pw>` (`--pass`) | all | Dev password (or `ROKU_PASSWORD`); screenshots need it |
 | `--app <id>` | run, inspect, record | Channel to launch (default `dev`; also the flow's `appId`) |
