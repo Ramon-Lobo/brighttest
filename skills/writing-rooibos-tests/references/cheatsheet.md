@@ -68,5 +68,7 @@ Exit code is `0` on success, non-zero on any failure (and when `--lcov` is reque
 }
 ```
 
+A plain `source/main.brs` is excluded from the test build automatically (logged); a `.bs` `Main` is kept.
+
 Git-ignore `.brighttest/` and `coverage/`. Specs are auto-discovered by `testsFilePattern` — no manual
 registration.

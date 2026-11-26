@@ -206,3 +206,44 @@ describe('deviceIdleTimeout', () => {
     for (const v of ['x', '', '-2', '1.5', undefined]) expect(() => parseIdleTimeout(v, '--idle-timeout')).toThrow(/--idle-timeout/)
   })
 })
+
+describe('writeBsConfig plain source/main.brs auto-exclude', () => {
+  const putMain = (name) => {
+    fs.mkdirSync(path.join(tmp, 'source'), { recursive: true })
+    fs.writeFileSync(path.join(tmp, 'source', name), 'sub Main()\nend sub\n')
+  }
+  let log
+  beforeEach(() => { log = vi.spyOn(console, 'log').mockImplementation(() => {}) })
+  afterEach(() => { log.mockRestore() })
+  const excludeLogs = () => log.mock.calls.filter((c) => String(c[0]).includes('excluded source/main.brs'))
+
+  it('appends !source/main.brs and logs once for a plain main.brs', () => {
+    putMain('main.brs')
+    const bs = readBsConfig(writeBsConfig(cfgAt(tmp), 'headless-scene').bsconfigPath)
+    expect(bs.files.filter((f) => f === '!source/main.brs')).toHaveLength(1)
+    expect(excludeLogs()).toHaveLength(1)
+  })
+
+  it('does nothing when the user already excludes it', () => {
+    putMain('main.brs')
+    const globs = ['manifest', 'source/**/*', '!source/main.brs']
+    const bs = readBsConfig(writeBsConfig(cfgAt(tmp, { sourceGlobs: globs }), 'headless').bsconfigPath)
+    expect(bs.files).toEqual(globs)
+    expect(excludeLogs()).toHaveLength(0)
+  })
+
+  it('respects a user exclude written as a glob', () => {
+    putMain('main.brs')
+    const globs = ['manifest', 'source/**/*', '!source/main.*']
+    const bs = readBsConfig(writeBsConfig(cfgAt(tmp, { sourceGlobs: globs }), 'device').bsconfigPath)
+    expect(bs.files).toEqual(globs)
+    expect(excludeLogs()).toHaveLength(0)
+  })
+
+  it('leaves a .bs Main untouched', () => {
+    putMain('main.bs')
+    const bs = readBsConfig(writeBsConfig(cfgAt(tmp), 'headless-scene').bsconfigPath)
+    expect(bs.files).toEqual(['manifest', 'source/**/*', 'components/**/*'])
+    expect(excludeLogs()).toHaveLength(0)
+  })
+})
