@@ -37,7 +37,7 @@ Defaults work for a conventional layout. To customize, add `brighttest.json` at 
 | `stagingDir` | Scratch dir for generated builds/config. Git-ignore it. | `.brighttest` |
 
 ::: tip A plain `source/main.brs`
-The Rooibos plugin only adds its launch hook to a `Main` it can transpile (`main.bs`). If `source/main.brs` exists, `brighttest init` writes `"!source/main.brs"` into `sourceGlobs` so the app's own `Main()` (and its event loop) cannot replace the test runner and hang the headless run. Add it yourself if you wrote `brighttest.json` by hand.
+On a scene lane (when any `@SGNode` spec exists) the Rooibos plugin adds its launch hook to the `Main` in a `.bs` file. A plain `source/main.brs` is not edited, so the app's own `Main()` runs instead of the test runner and its event loop hangs the headless run. `brighttest init` writes `"!source/main.brs"` into `sourceGlobs` when the file exists. Add it yourself if you wrote `brighttest.json` by hand, wrote it with an earlier version, or added `main.brs` after `init`.
 :::
 
 ::: tip Git-ignore the scratch dirs
