@@ -17,6 +17,20 @@ Every headless run also prints one `engine:` line with the package, version and 
 `engines` config block or `BRIGHTTEST_ENGINES` (`auto`, `patched`, `stock` or a package name; the variable wins). See
 the [CLI reference](/guide/cli-reference) and [Troubleshooting](/guide/troubleshooting#brighttest-doctor-engines-what-can-the-headless-engine-do).
 
+## Patches stock rooibos lacks
+
+Two features of the patched `rooibos-roku` have no stock equivalent. On a stock `rooibos-roku` brighttest does not
+block the run; it warns once on stderr and carries on.
+
+| Patch | Feature | On stock rooibos |
+|---|---|---|
+| `ROO-04` | `globalFields` seeding of the test scene before each `@SGNode` suite | Ignored. brighttest prints one `lacks ROO-04 globalFields seeding` line per run (all lanes, device included). A seeded widget reads `invalid`. |
+| `ROO-05` | Bare `@deviceOnly` as sugar for `@tags("deviceOnly")` | Not an annotation, so the suite runs headless. On headless lanes brighttest prints one warning per `file:line`. Use `@tags("deviceOnly")` instead. |
+
+The default install and `auto` mode resolve the patched build, so neither warning appears unless you pin stock with
+`engines` or `BRIGHTTEST_ENGINES=stock`. See [Global context](/writing-tests/global-context) and
+[Headless vs device](/writing-tests/headless-vs-device#device-only-tests-deviceonly).
+
 ## Non-device behavior
 
 ::: warning The `Label.forceUpperCase` patch is non-device

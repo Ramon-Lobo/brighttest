@@ -51,6 +51,7 @@ end function
 - **The device lane** (`--device`) **runs** it.
 - **`--cross-check`** reports it as *device-only* (expected, not a divergence).
 - It works at suite, `@describe`, or `@it` level, and is exactly equivalent to `@tags("deviceOnly")`.
+- **Needs the patched rooibos (default).** On stock `rooibos-roku`, bare `@deviceOnly` runs headless (brighttest warns with `file:line`); use `@tags("deviceOnly")` there.
 - **Use sparingly.** Prefer extracting a pure function you can test headless. `@deviceOnly` is for behavior
   that genuinely can't be a faithful headless test — not a way to silence a failing assertion.
 
@@ -61,6 +62,7 @@ A bare `@SGNode` test scene doesn't carry those globals, so reads return `invali
 tolerates it, but a **real device is strict** and the widget crashes while constructing — a top reason a
 spec is green headless yet device-only.
 
+- **Needs the patched rooibos (default).** `globalFields` is applied by patch ROO-04; on stock `rooibos-roku` it is ignored and brighttest prints one warning per run.
 - **Symptom (on `--device`/`--cross-check`):**
   `'Dot' Operator attempted with invalid BrightScript Component ... (runtime error &hec)` or
   `Type Mismatch. Operator "+" can't be applied to "Invalid" and "String". (runtime error &h18)`,

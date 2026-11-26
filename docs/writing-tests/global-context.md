@@ -121,6 +121,12 @@ baseline.
 
 ## How it works
 
+::: warning Requires the patched rooibos (default)
+`globalFields` is applied by patch `ROO-04` of `@ramonlobo/rooibos-roku`, which is what brighttest uses by default.
+On a stock `rooibos-roku` the seed file is ignored: brighttest prints one `lacks ROO-04` warning per run and a seeded
+widget still reads `invalid`. See [Engines and patches](/guide/engines#patches-stock-rooibos-lacks).
+:::
+
 1. brighttest writes your `globalFields` to `pkg:/rooibos_global_seed.json` and injects it into the built
    channel (via a build-time file entry — **your app source is never modified**).
 2. Rooibos reads it at startup and, **before creating each `@SGNode` node**, applies `"*"` then that
