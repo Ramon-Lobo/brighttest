@@ -171,7 +171,8 @@
       "skills": [
         "using-a-roku-device-safely",
         "using-brighttest-mcp",
-        "debugging-failing-tests"
+        "debugging-failing-tests",
+        "testing-app-state"
       ]
     },
     {
@@ -183,7 +184,8 @@
       "skills": [
         "writing-rooibos-tests",
         "writing-e2e-flows",
-        "mocking-network-and-store"
+        "mocking-network-and-store",
+        "testing-app-state"
       ]
     }
   ],

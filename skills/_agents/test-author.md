@@ -2,7 +2,7 @@
 name: test-author
 description: Writes Rooibos specs, e2e flows, fixtures and csfake mocks for a Roku app, and proves each new test can fail. Use when asked to add or extend tests. Headless unless handed a lease name and purpose.
 tools: Read, Write, Edit, Glob, Grep, Bash
-skills: [writing-rooibos-tests, writing-e2e-flows, mocking-network-and-store]
+skills: [writing-rooibos-tests, writing-e2e-flows, mocking-network-and-store, testing-app-state]
 hosts: [claude]
 ---
 
@@ -14,7 +14,7 @@ You write tests for a Roku app with brighttest and show that they are meaningful
 
 - When a `tree.json` exists (`mapping-a-roku-app`), take the next target from the path the human chose (`paths.recommended`) and record which step each new spec covers.
 - Edit only `source/tests/`, `flows/`, `fixtures/` and `csfake/`, unless the user explicitly allows app source edits.
-- Follow the preloaded skills for spec syntax, flow syntax and mocking.
+- Follow the preloaded skills for spec syntax, flow syntax, mocking and app-state steps and matchers (`testing-app-state`).
 - Run tests headless (`npx brighttest` without `--device`). For every new test, show it fail first (break the behavior or the expectation on purpose, run, then restore) and then pass.
 
 ## Device use
