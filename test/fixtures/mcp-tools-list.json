@@ -10,6 +10,90 @@
       "name": "app_state"
     },
     {
+      "description": "Read the published app state (instrumented build: __bt_agent layers; older builds: __bt_state). Optionally narrow by layer (global, scene, focus) and a dotted path (case-insensitive segments). Output is capped; errors with STATE_NOT_PUBLISHED when the build is not instrumented.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "layer": {
+            "description": "Layer name, e.g. global, scene, focus",
+            "maxLength": 64,
+            "type": "string"
+          },
+          "path": {
+            "description": "Dotted path inside the layer (or inside all layers when no layer is given)",
+            "maxLength": 256,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "app_state_get"
+    },
+    {
+      "description": "Set one value in the running instrumented app (the setState flow step). The agent applies only its allow-listed ops and refuses type mismatches without crashing. Runs on the session hub window: the first write opens it (one device lease held for the session, released after 10 minutes without a device call) and waits up to 35 s for the app agent to connect; later writes are fast. Needs BRIGHTTEST_HUB_TOKEN in the server environment (the value used for instrument build --net) and the instrument hub port (instrument.hub.port). The app network is not touched unless a net tool is used. Errors: STATE_NO_HUB_TOKEN, STATE_NOT_INSTRUMENTED, STATE_AGENT_UNREACHABLE, STATE_AGENT_GONE, STATE_CMD_FAILED, STATE_ACK_TIMEOUT, DEVICE_BUSY.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "ack": {
+            "description": "applied (default) or reflected",
+            "maxLength": 16,
+            "type": "string"
+          },
+          "layer": {
+            "description": "Layer: global, scene, node or registry (set); global, scene or focus (get); default global",
+            "maxLength": 16,
+            "type": "string"
+          },
+          "node": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "description": "SceneGraph node id (layer node only)",
+                "maxLength": 128,
+                "type": "string"
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "type": "object"
+          },
+          "path": {
+            "description": "Dotted path such as user.tier; for registry <section>.<key>",
+            "maxLength": 256,
+            "type": "string"
+          },
+          "value": {
+            "description": "JSON value to write (string, number, boolean, null, array or object)"
+          }
+        },
+        "required": [
+          "path",
+          "value"
+        ],
+        "type": "object"
+      },
+      "name": "app_state_set"
+    },
+    {
+      "description": "Take a named snapshot of the app state layers through the agent and return the layers (capped, never truncated). The snapshot lives only for this call, so restore is not offered. Same session hub window, connect wait, token and errors as app_state_set.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "description": "Snapshot name: letters, digits, \"_\", \"-\" or \".\"",
+            "maxLength": 64,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "name": "app_state_snapshot"
+    },
+    {
       "description": "Read-only capability check of the target device (developer mode, ECP mode, firmware, video mode) with the exact fix text for anything wrong. Does not take the device lease.",
       "inputSchema": {
         "additionalProperties": false,
