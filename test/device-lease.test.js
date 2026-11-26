@@ -155,6 +155,22 @@ describe('acquire / release', () => {
     expect(events().map((e) => e.ev)).toEqual(['acquired', 'released'])
   })
 
+  it('records hostname, mode, queuedAhead on acquired and the exit code on released', async () => {
+    const a = await acquire(opts({ agent: 'a' }))
+    let b = null
+    const pb = acquire(opts({ pid: 1002, pidStartValue: 'start-1002', agent: 'b', sleep: async (ms) => { clock.t += ms; if (clock.t > clock.release && a) a.release('done', { exitCode: 7 }) } }))
+      .then((l) => { b = l })
+    clock.release = clock.t + 3000
+    await pb
+    b.release()
+    const ev = events()
+    expect(ev[0]).toMatchObject({ ev: 'acquired', hostname: 'this-host', mode: 'command', queuedAhead: 0 })
+    expect(ev.find((e) => e.ev === 'queued')).toMatchObject({ hostname: 'this-host', mode: 'command', queuedAhead: 0 })
+    const rel = ev.filter((e) => e.ev === 'released')
+    expect(rel[0]).toMatchObject({ reason: 'done', exitCode: 7 })
+    expect(rel[1]).not.toHaveProperty('exitCode') // no code given: the field is absent
+  })
+
   it('F1: two acquirers on a free device — one links, the other queues then gets it', async () => {
     const a = await acquire(opts({ agent: 'a' }))
     let b = null

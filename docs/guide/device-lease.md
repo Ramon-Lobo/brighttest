@@ -48,6 +48,8 @@ While a command waits, it prints (on stderr, once and then every 30 s):
 
 Waiters are served first come, first served. There is no priority and no preemption.
 
+The lease events log (`events.log`) also records the host name, the mode and how many waiters were ahead on `acquired` and `queued` events, and the wrapped command's exit code on `released`. `device watch` shows the exit code in the run history; older log lines without these fields still display, with nothing in their place.
+
 ## A live board: `device watch`
 
 ```bash

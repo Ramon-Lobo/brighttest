@@ -154,6 +154,20 @@ describe('board from a fixture lease dir', () => {
     expect(b.hidden.keys).toBe(50 + 1 + 1);
   });
 
+  it('shows the exit code and queued-ahead count when present, nothing when absent (old lines)', () => {
+    const dir = mk();
+    const key = 'FAKE-DEVICE-A';
+    putEvents(dir, key, [
+      ev('acquired', 600000, { leaseId: 'newnewnew1', agent: 'a', purpose: 'with x', waitedMs: 1000, hostname: 'box', mode: 'command', queuedAhead: 2 }),
+      ev('released', 500000, { leaseId: 'newnewnew1', agent: 'a', purpose: 'with x', heldMs: 100000, exitCode: 3 }),
+      ev('acquired', 400000, { leaseId: 'oldoldold1', agent: 'a', purpose: 'with x', waitedMs: 0 }),
+      ev('released', 300000, { leaseId: 'oldoldold1', agent: 'a', purpose: 'with x', heldMs: 100000 }),
+    ]);
+    const runs = view(dir).snapshot({ all: true }).devices.find((d) => d.keys.includes(key)).runs;
+    expect(runs.find((r) => r.leaseId8 === 'newnewne')).toMatchObject({ exitCode: 3, queuedAhead: 2, hostname: 'box', mode: 'command' });
+    expect(runs.find((r) => r.leaseId8 === 'oldoldol')).toMatchObject({ exitCode: null, queuedAhead: null });
+  });
+
   it('--all shows hidden keys; --host filters', () => {
     const { dir } = fixture();
     const all = view(dir).snapshot({ all: true });
