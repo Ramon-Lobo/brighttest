@@ -39,9 +39,9 @@ describe('TP-MCP-03 tools/list schema snapshot', () => {
     if (process.env.BT_UPDATE_MCP_SNAPSHOT) fs.writeFileSync(SNAPSHOT, JSON.stringify(result, null, 2) + '\n')
     expect(result).toEqual(JSON.parse(fs.readFileSync(SNAPSHOT, 'utf8')))
   })
-  it('has exactly the v1 tool set plus the net and state tools, each with a description and a closed object schema', async () => {
+  it('has exactly the v1 tool set plus the net, state and perf tools, each with a description and a closed object schema', async () => {
     const { tools } = await toolsList()
-    expect(tools.map((t) => t.name).sort()).toEqual(['app_state', 'app_state_get', 'app_state_set', 'app_state_snapshot', 'device_doctor', 'inspect_tree', 'list_devices', 'navigate_to', 'net_mock', 'net_requests', 'press', 'run_flow', 'screenshot'])
+    expect(tools.map((t) => t.name).sort()).toEqual(['app_state', 'app_state_get', 'app_state_set', 'app_state_snapshot', 'device_doctor', 'inspect_tree', 'list_devices', 'navigate_to', 'net_mock', 'net_requests', 'perf_summary', 'perf_trace_summary', 'press', 'run_flow', 'screenshot'])
     for (const t of tools) {
       expect(t.description.length, t.name).toBeGreaterThan(20)
       expect(t.inputSchema.type, t.name).toBe('object')
