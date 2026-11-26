@@ -17,19 +17,19 @@ describe('default headless lane (compiles + runs on the simulator, incl. @SGNode
   let res
   beforeAll(() => { res = runCli(makeProject()) })
 
-  // Patched-only: stock brs-node lacks the @SGNode onChange/scene fixes (the Widget onChange cascade never fires: doubled stays 3, not 6), so scene-lane specs fail.
+  // Patched-only: stock rooibos lacks ROO-04 globalFields seeding (sample-project seeds Widget, so the onChange cascade never fires: doubled stays 3, not 6), so scene-lane specs fail.
   it.skipIf(!enginesArePatched())(patchedOnly('exits 0 when all suites pass'), () => {
     expect(res.status).toBe(0)
   })
 
-  // Patched-only: stock brs-node lacks the @SGNode onChange/scene fixes (the Widget onChange cascade never fires: doubled stays 3, not 6), so scene-lane specs fail.
+  // Patched-only: stock rooibos lacks ROO-04 globalFields seeding (sample-project seeds Widget, so the onChange cascade never fires: doubled stays 3, not 6), so scene-lane specs fail.
   it.skipIf(!enginesArePatched())(patchedOnly('runs the pure suite and the @SGNode scene suite headless'), () => {
     // 3 = 2 math tests + the Widget node test; 2 suites = math + Widget.
     expect(res.output).toContain('3 passed, 0 failed')
     expect(res.output).toContain('2 suites')
   })
 
-  // Patched-only: stock brs-node lacks the @SGNode onChange/scene fixes (the Widget onChange cascade never fires: doubled stays 3, not 6), so scene-lane specs fail.
+  // Patched-only: stock rooibos lacks ROO-04 globalFields seeding (sample-project seeds Widget, so the onChange cascade never fires: doubled stays 3, not 6), so scene-lane specs fail.
   it.skipIf(!enginesArePatched())(patchedOnly('exercises the onChange cascade with a seeded global (Widget test passed)'), () => {
     // This line only prints as a pass if the node ran headless, read the seeded multiplier,
     // and the onChange observer fired (3 * 2 = 6).
@@ -92,7 +92,7 @@ describe('a long-named failing test is still counted (scene lane, no false green
     res = runCli(dir)
   })
 
-  // Patched-only: stock brs-node lacks the @SGNode onChange/scene fixes (the Widget onChange cascade never fires: doubled stays 3, not 6), so scene-lane specs fail.
+  // Patched-only: stock rooibos lacks ROO-04 globalFields seeding (sample-project seeds Widget, so the onChange cascade never fires: doubled stays 3, not 6), so scene-lane specs fail.
   it.skipIf(!enginesArePatched())(patchedOnly('exits non-zero and reports the failure in the tally'), () => {
     expect(res.status).not.toBe(0)
     expect(res.output).toContain('1 failed')
@@ -206,7 +206,7 @@ describe('deviceInfo run also mounts the package root and a zero-splash staged m
 describe('@async cases in an @SGNode suite are never silently dropped', () => {
   const spec = (dir) => path.join(dir, 'source', 'tests', 'Async.spec.bs')
 
-  // Patched-only: stock brs-node lacks the @SGNode onChange/scene fixes (the Widget onChange cascade never fires: doubled stays 3, not 6), so scene-lane specs fail.
+  // Patched-only: stock rooibos lacks ROO-04 globalFields seeding (sample-project seeds Widget, so the onChange cascade never fires: doubled stays 3, not 6), so scene-lane specs fail.
   it.skipIf(!enginesArePatched())(patchedOnly('counts all 13 cases when every @async case calls m.done()'), () => {
     const dir = makeProject('async-node')
     fs.writeFileSync(spec(dir), fs.readFileSync(spec(dir), 'utf8').replace(/\n    @async\(500\)/, ''))
@@ -216,7 +216,7 @@ describe('@async cases in an @SGNode suite are never silently dropped', () => {
     for (let i = 1; i <= 4; i++) expect(res.output).toContain(`✓ async done ${i}`)
   })
 
-  // Patched-only: stock brs-node lacks the @SGNode onChange/scene fixes (the Widget onChange cascade never fires: doubled stays 3, not 6), so scene-lane specs fail.
+  // Patched-only: stock rooibos lacks ROO-04 globalFields seeding (sample-project seeds Widget, so the onChange cascade never fires: doubled stays 3, not 6), so scene-lane specs fail.
   it.skipIf(!enginesArePatched())(patchedOnly('fails loudly, naming each case that did not run, when an @async case never calls m.done()'), () => {
     const dir = makeProject('async-node')
     const res = runCli(dir, ['--junit', 'reports/junit.xml'])
@@ -252,7 +252,7 @@ describe('@async cases in an @SGNode suite are never silently dropped', () => {
     expect(xml).toMatch(/<testcase name="async done 4"><failure>never ran/)
   })
 
-  // Patched-only: stock brs-node lacks the @SGNode onChange/scene fixes (the Widget onChange cascade never fires: doubled stays 3, not 6), so scene-lane specs fail.
+  // Patched-only: stock rooibos lacks ROO-04 globalFields seeding (sample-project seeds Widget, so the onChange cascade never fires: doubled stays 3, not 6), so scene-lane specs fail.
   it.skipIf(!enginesArePatched())(patchedOnly('still fails when another suite full of @ignore\'d tests hides the missing cases from the totals'), () => {
     const dir = makeProject('async-node')
     const ignored = Array.from({ length: 14 }, (_, i) => `    @ignore\n    @it("ign ${i + 1}")\n    function _()\n      m.assertTrue(true)\n    end function\n`).join('\n')
@@ -317,7 +317,7 @@ describe('a crashed scene run fails instead of dropping cases', () => {
     return dir
   }
 
-  // Patched-only: stock brs-node lacks the @SGNode onChange/scene fixes (the Widget onChange cascade never fires: doubled stays 3, not 6), so scene-lane specs fail.
+  // Patched-only: stock rooibos lacks ROO-04 globalFields seeding (sample-project seeds Widget, so the onChange cascade never fires: doubled stays 3, not 6), so scene-lane specs fail.
   it.skipIf(!enginesArePatched())(patchedOnly('exits non-zero, says the run crashed, and lists the open case as failed in JUnit'), () => {
     const dir = crashProject()
     const res = runCli(dir, ['--junit', 'reports/junit.xml'])
@@ -346,7 +346,7 @@ describe('instrument.enabled on a scratch copy of the legacy example app', () =>
     return d
   }
 
-  // Patched-only: stock brs-node lacks the @SGNode onChange/scene fixes (the Widget onChange cascade never fires: doubled stays 3, not 6), so scene-lane specs fail.
+  // Patched-only: stock rooibos lacks ROO-04 globalFields seeding (sample-project seeds Widget, so the onChange cascade never fires: doubled stays 3, not 6), so scene-lane specs fail.
   it.skipIf(!enginesArePatched())(patchedOnly('default lane: specs pass on the scene lane with the state agent baked in'), () => {
     const dir = copyLegacy((c) => { c.instrument.enabled = true })
     const res = runCli(dir)
@@ -355,7 +355,7 @@ describe('instrument.enabled on a scratch copy of the legacy example app', () =>
     expect(exists(dir, '.brighttest/headless-scene/build/components/bt/BT_Agent.brs')).toBe(true)
   })
 
-  // Patched-only: stock brs-node lacks the @SGNode onChange/scene fixes (the Widget onChange cascade never fires: doubled stays 3, not 6), so scene-lane specs fail.
+  // Patched-only: stock rooibos lacks ROO-04 globalFields seeding (sample-project seeds Widget, so the onChange cascade never fires: doubled stays 3, not 6), so scene-lane specs fail.
   it.skipIf(!enginesArePatched())(patchedOnly('--coverage: specs pass and the LCOV lists no injected tool files'), () => {
     const dir = copyLegacy((c) => { c.instrument.enabled = true })
     const res = runCli(dir, ['--coverage'])

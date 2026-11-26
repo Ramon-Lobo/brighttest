@@ -10,7 +10,7 @@ describe('headless coverage lane (--coverage, no device)', () => {
     res = runCli(dir, ['--coverage', '--lcov', 'coverage/lcov.info', '--junit', 'reports/junit.xml'])
   })
 
-  // Patched-only: stock brs-node lacks the @SGNode onChange/scene fixes (the Widget onChange cascade never fires: doubled stays 3, not 6), so the scene suite fails and the run exits 1.
+  // Patched-only: stock rooibos lacks ROO-04 globalFields seeding (sample-project seeds Widget, so the onChange cascade never fires: doubled stays 3, not 6), so the scene suite fails and the run exits 1.
   it.skipIf(!enginesArePatched())(patchedOnly('exits 0'), () => {
     expect(res.status).toBe(0)
   })
