@@ -287,8 +287,10 @@ What `enabled: true` does:
   `enabled` needs `net` to be active; otherwise it exits 2 with "nothing to instrument". `net` keeps its own activation
   rules: `enabled` never turns it on.
 - **Coverage differs.** Scene-lane runs are slower than the SceneGraph-off driver, and the LCOV and the coverage percent
-  count only your app's files: the injected `source/bt/**` and `components/bt/**` runtime is dropped from the report.
-  This also applies to net-only runs.
+  count only your app's files: the injected `source/bt/**` and `components/bt/**` runtime is dropped from the report
+  (net-only runs too). With the state agent on the coverage lane the runtime is also not instrumented, so it adds no
+  coverage work to the run. Those two folders are reserved for the tool: files you place there are neither instrumented
+  nor reported, so they show no coverage.
 - **`--no-sgnode` exits 2** on the default lane (`--no-sgnode runs no SceneGraph; the instrument state agent needs a scene
   lane`), before the hub starts or anything is built. Drop the flag or set `state` to `false`.
 - **`--device` and `--cross-check` ignore it.** They print one line, `instrument.enabled applies to the headless lanes

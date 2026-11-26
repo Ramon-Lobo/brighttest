@@ -229,3 +229,16 @@ describe('plain and net-only generated output matches the pre-instrument-wire ou
     })
   }
 })
+
+describe('the injected runtime is not coverage-instrumented (agent threads must not call the coverage reporter)', () => {
+  const extra = { instrument: { token: 'a'.repeat(32), host: '127.0.0.1', port: 4321, net: false, state: true } }
+  const excluded = (lane, ex) => JSON.parse(gen(writeCfg({ enabled: true }), lane, ex).bs).rooibos.coverageExcludedFiles
+
+  it('headless-coverage with the agent excludes source/bt and components/bt from Rooibos coverage', () => {
+    expect(excluded('headless-coverage', extra)).toEqual(['**/source/bt/**', '**/components/bt/**'])
+  })
+  it('no exclusion without the agent, or on the scene lane (coverage off)', () => {
+    expect(excluded('headless-coverage', {})).toBeUndefined()
+    expect(excluded('headless-scene', extra)).toBeUndefined()
+  })
+})

@@ -89,6 +89,7 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
   a device prints them, so output that compared against the old float text may differ.
 
 ### Fixes
+- **Headless coverage with the state agent:** `--coverage` no longer fails now and then (about 1 run in 14) after a 150 to 230 second stall with `RUN CRASHED`. The injected runtime is no longer coverage-instrumented.
 - **E2E:** focus navigation keeps pressing through a keyboard-style control whose cursor moves inside one focused
   node; the focused selector picks the deepest node; launch with params reaches an already running channel ([flow reference](./e2e/flows.md)).
 - **Studio:** serves the last tree instead of an error on transient read failures.
