@@ -1,6 +1,6 @@
 // Poll sgnodes until the render thread is idle enough to answer, save the first good tree, and print its
 // real schema (element tags + attribute names). node experiments/capture-tree.mjs <ip> <out.xml>
-const IP = process.argv[2] || '192.168.2.210';
+const IP = process.argv[2] || process.env.ROKU_HOST || '192.0.2.20';
 const OUT = process.argv[3] || '/tmp/tree-ok.xml';
 const fs = await import('node:fs');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

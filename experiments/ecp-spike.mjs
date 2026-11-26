@@ -4,7 +4,7 @@
 // of the SceneGraph tree (tag/subtype counts, ids, focused node) and whether a keypress moves focus.
 // Non-shipping: this dir is not in package.json "files".
 
-const IP = process.argv[2] || '192.168.2.210';
+const IP = process.argv[2] || process.env.ROKU_HOST || '192.0.2.20';
 const APP = process.argv[3] || 'dev';
 const BASE = `http://${IP}:8060`;
 
