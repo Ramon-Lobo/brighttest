@@ -28,6 +28,11 @@
 //   tree 'grid'    focusable grid item1..item6, focus moves on arrow keys
 //   lateNodeMs/lateNodeId  a named node appears this long after launch
 //   installerMode  also 'http-500'
+//   perf           'ok' | 'no-channel' | 'no-dev-mode'  /query/chanperf, /query/r2d2-bitmaps, /query/graphics-frame-rate
+//                  (no-channel: all three answer a FAILED body; no-dev-mode: chanperf ok, r2d2-bitmaps 404)
+//   perfBitmaps    number of bitmaps in r2d2-bitmaps (default 3)
+//   perfBitmapName name of the largest bitmap (raw text: URLs with query strings, control/bidi characters)
+//   fps            'ok' | 'failed'  graphics-frame-rate body
 //   bannerSplit    true -> console banner arrives in two TCP chunks
 const SCENARIOS = {
   healthy: {},

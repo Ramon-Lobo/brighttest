@@ -37,6 +37,7 @@ const DEFAULTS = {
   debugOnConnect: 'history', liveLines: false, installerMode: 'ok', deleteFails: false, screenshotOk: true,
   screenshotFormat: 'png', bannerSplit: false,
   softwareVersion: '16.0.4', softwareBuild: '853', modelName: 'Ultra', modelNumber: '0000XX', consoleLatencyMs: 0,
+  perf: 'ok', perfBitmaps: 3, perfBitmapName: null, fps: 'ok',
   rooibos: null, lateNodeMs: 0, lateNodeId: 'lateNode', agentText: '', devPassword: 'rokudev-test', coldStallMs: 7000,
 };
 
@@ -62,7 +63,7 @@ function createFakeRoku(opts = {}) {
   const state = {
     fault: cfg.fault, activeApp: cfg.activeApp, agentText: cfg.agentText, focusIndex: 0, bounceLeft: 0, launchedAt: Date.now(),
     keyCount: 0, crashed: false, sideloaded: false, launch404Left: 0, installs: 0, deletes: 0, hadDelete: false,
-    debugConnections: 0, perfRunning: false, target: 'dev',
+    debugConnections: 0, perfRunning: false, target: 'dev', perfCalls: 0,
   };
   let installedArchiveBytes = 0;
   let fetchGen = 0;
@@ -191,6 +192,19 @@ function createFakeRoku(opts = {}) {
       fetchNetBody();
       if (m[1] === 'dev' && !cfg.launchStays) { state.activeApp = 'dev'; state.bounceLeft = cfg.launchBounce; }
       return reply(res, 200);
+    }
+    if (p === '/query/chanperf') {
+      if (cfg.perf === 'no-channel') return reply(res, 200, B.perfFailed('chanperf', 'Channel not running'));
+      return reply(res, 200, B.chanperfOk(state.perfCalls++));
+    }
+    if (p === '/query/r2d2-bitmaps') {
+      if (cfg.perf === 'no-channel') return reply(res, 200, B.perfFailed('r2d2', 'Channel not running'));
+      if (cfg.perf === 'no-dev-mode') return reply(res, 404, 'Not Found', { 'Content-Type': 'text/plain' });
+      return reply(res, 200, B.r2d2Ok({ count: cfg.perfBitmaps, firstName: cfg.perfBitmapName }));
+    }
+    if (p === '/query/graphics-frame-rate') {
+      if (cfg.perf === 'no-channel' || cfg.fps === 'failed') return reply(res, 200, B.perfFailed('graphics-frame-rate', 'Frame rate unavailable'));
+      return reply(res, 200, B.frameRateOk());
     }
     if (p === '/query/screenshot') return screenshot(res);
     return reply(res, 404, 'Not Found', { 'Content-Type': 'text/plain' });
@@ -433,6 +447,7 @@ const VALUE_FLAGS = {
   '--screenshot-format': ['screenshotFormat'], '--rooibos': ['rooibos'],
   '--fault-path': ['faultPath'], '--fault-status': ['faultStatus', Number],
   '--agent-text': ['agentTextFile'], '--hub': ['hub'],
+  '--perf': ['perf'], '--perf-bitmaps': ['perfBitmaps', Number], '--perf-bitmap-name': ['perfBitmapName'], '--fps': ['fps'],
 };
 const BOOL_FLAGS = { '--delete-fails': ['deleteFails', true], '--screenshot-not-ok': ['screenshotOk', false], '--banner-split': ['bannerSplit', true] };
 

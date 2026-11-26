@@ -24,6 +24,7 @@ Port 0 picks a free port.
 `--software-version --software-build --model` (device-info and console banner), `--console-latency-ms`,
 `--installer-mode ok|compile-failure|transient-once|tcp80-closed|page|http-500`, `--delete-fails`,
 `--screenshot-not-ok`, `--screenshot-format png|jpg`, `--banner-split`, `--rooibos pass|fail`,
+`--perf ok|no-channel|no-dev-mode --perf-bitmaps N --perf-bitmap-name <text> --fps ok|failed` (see Perf endpoints),
 `--fault-path <path> [--fault-status N]` (default 500; `/keyup/*` is a prefix glob), `--agent-text <file>`.
 
 `--hub http://127.0.0.1:<port>` (module option `hub`; module option `env` overrides the environment for tests):
@@ -33,6 +34,23 @@ Fetch through the hub. On start, on `launch/dev` and on `keypress/Info` the stub
 `Label netBody` in the tree (placeholder `netbody: pending` before the first answer). Any hub error, a missing
 token or a non-200 shows `netbody: error`; the stub keeps running. The token is never printed or logged. The label
 exists only when `--hub` is set.
+
+## Perf endpoints (read-only ECP)
+
+`GET /query/chanperf`, `/query/r2d2-bitmaps`, `/query/graphics-frame-rate`, generic bodies (placeholder numbers; the
+firmware's `sytem-memory` spelling is kept). `chanperf` counters grow by a little on every call, so sample deltas are
+non-zero. Module options (also CLI flags above):
+
+| Option | Values | Effect |
+|---|---|---|
+| `perf` | `ok` (default) | all three answer data |
+| | `no-channel` | all three answer a `FAILED` body (`Channel not running`) |
+| | `no-dev-mode` | chanperf ok, r2d2-bitmaps answers 404 (and `fps: 'failed'` is separate) |
+| `perfBitmaps` | count, default 3 | number of `<bitmap>` entries; bitmap 0 is the largest, sizes shrink |
+| `perfBitmapName` | string | name of bitmap 0, XML-escaped; URL with query string, control and bidi characters pass through raw |
+| `fps` | `ok` (default), `failed` | `failed` makes graphics-frame-rate answer a `FAILED` body |
+
+Under `ecpMode: limited` they answer 403 like every non-basic query. Requests show in the log as usual.
 
 ## Request log (`--log`, JSONL)
 
