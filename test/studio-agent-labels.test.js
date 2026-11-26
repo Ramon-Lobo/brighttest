@@ -12,7 +12,7 @@ const read = (rel) => fs.readFileSync(path.join(SRC, rel), 'utf8');
 const STATIC = {
   'App.svelte': [
     'studio-app', 'studio-header', 'device-summary', 'sim-badge', 'sim-tail', 'lease-badge', 'lease-badge-summary',
-    'lease-queue', 'toggle-all-nodes', 'toggle-offscreen', 'toggle-live', 'live-status', 'lease-bar', 'lease-queued',
+    'lease-queue', 'toggle-overlay', 'toggle-all-nodes', 'toggle-offscreen', 'toggle-live', 'live-status', 'lease-bar', 'lease-queued',
     'lease-take-over', 'page-nav', 'page-inspect', 'flow-tree', 'flow-tree-show', 'flow-editor', 'flow-name',
     'flow-editor-text', 'flow-save', 'flow-run', 'flow-message', 'flow-run-steps', 'live-monitor',
     'monitor-needs-device', 'inspector-panel', 'remote-panel', 'remote-needs-device',

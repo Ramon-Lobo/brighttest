@@ -163,8 +163,10 @@
   });
   const toggleRaw = () => act(async () => { raw = !raw; diff = null; await refresh(); });
 
+  // The State tab reads the tree's app state while it has no live hub values to show.
+  $effect(() => { studio.stateFallback = st === 'none' || st === 'locked' || !info; });
   onMount(() => { refresh(); schedule(); });
-  onDestroy(() => { alive = false; clearTimeout(timer); });
+  onDestroy(() => { alive = false; clearTimeout(timer); studio.stateFallback = false; });
 </script>
 
 {#if st === 'none'}

@@ -53,7 +53,7 @@ State shows global, scene, node and registry layers (not `focus`); before the ap
 Pages (`lib/studio/web/src/App.svelte`): Inspect, Runs, Record, Devices (with a lease board of who holds which device), Profile, Settings. In the editor view, tabs next to the
 Node/Tree/Selector inspector include State, Actions (action log with Travel; route-only snapshot recording) and Network.
 
-- Inspect the live SceneGraph and build selectors; use "+" on a node or state leaf to add a step.
+- Inspect the live SceneGraph and build selectors; use "+" on a node or state leaf to add a step. The header **overlay** checkbox hides the node outlines (remembered per browser; the tree is then read only when an Inspect tab needs it).
 - Drive the remote from the browser (`POST /api/keypress`); run a flow and scrub the step trace (each frame keeps the screen and app state).
 - Record: each remote press becomes a flow step, live.
 

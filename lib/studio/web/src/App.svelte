@@ -3,6 +3,7 @@
   import { api } from './lib/api.js';
   import { studio, selectedNode } from './lib/store.svelte.js';
   import Stage from './lib/Stage.svelte';
+  import { treeNeeded, treeIntervalMs, saveOverlay } from './lib/treepolicy.js';
   import Inspector from './lib/Inspector.svelte';
   import Remote from './lib/Remote.svelte';
   import Editor from './lib/Editor.svelte';
@@ -58,7 +59,7 @@
   const sim = $derived(isSim(studio.device));
 
   async function grabTree() {
-    if (treeBusy || sim || studio.lease || !studio.live || (studio.page !== 'inspect' && studio.page !== 'record')) return;
+    if (treeBusy || !treeNeeded({ overlay: studio.overlay, page: studio.page, tab, stateFallback: studio.stateFallback, live: studio.live, sim, lease: studio.lease })) return;
     treeBusy = true;
     try {
       const d = await api.tree();
@@ -213,13 +214,16 @@
   onMount(() => {
     loadFlows();
     let t1, t2;
-    const treeLoop = async () => { await grabTree(); t1 = setTimeout(treeLoop, 300); };
+    const treeLoop = async () => { await grabTree(); t1 = setTimeout(treeLoop, treeIntervalMs({ overlay: studio.overlay })); };
     const shotLoop = async () => { await grabShot(); t2 = setTimeout(shotLoop, 900); };
     const simLoop = async () => { if (shouldPoll(studio.device)) await refreshDevice(); t4 = setTimeout(simLoop, simPollMs(studio.device)); };
     const leaseLoop = async () => { await leaseCheck(); t3 = setTimeout(leaseLoop, 3000); };
     let t3, t4;
+    // Turning the overlay on reads the tree at once instead of waiting for the next tick.
+    let prevOverlay = studio.overlay;
+    const overlayWatch = setInterval(() => { if (studio.overlay && !prevOverlay) grabTree(); prevOverlay = studio.overlay; }, 100);
     treeLoop(); shotLoop(); leaseLoop(); simLoop();
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); };
+    return () => { clearInterval(overlayWatch); clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); };
   });
 </script>
 
@@ -248,9 +252,12 @@
         {/if}
       </details>
     {/if}
+    {#if studio.page === 'inspect' || studio.page === 'record'}
+      <label class="tog" title="draw node outlines on the picture and click them to select; off shows only the device picture"><input type="checkbox" data-testid="toggle-overlay" aria-label="show node overlay" checked={studio.overlay} onchange={(e) => { studio.overlay = e.currentTarget.checked; saveOverlay(localStorage, studio.overlay); }} /> overlay</label>
+    {/if}
     {#if studio.page === 'inspect'}
-      <label class="tog" title="also outline structural containers with no id, text or focus"><input type="checkbox" data-testid="toggle-all-nodes" bind:checked={studio.showAll} /> all nodes</label>
-      <label class="tog" title="also outline nodes the device isn't drawing — hidden, transparent, or scrolled out of view"><input type="checkbox" data-testid="toggle-offscreen" bind:checked={studio.showOffscreen} /> offscreen</label>
+      <label class="tog" title="also outline structural containers with no id, text or focus"><input type="checkbox" data-testid="toggle-all-nodes" bind:checked={studio.showAll} disabled={!studio.overlay} /> all nodes</label>
+      <label class="tog" title="also outline nodes the device isn't drawing — hidden, transparent, or scrolled out of view"><input type="checkbox" data-testid="toggle-offscreen" bind:checked={studio.showOffscreen} disabled={!studio.overlay} /> offscreen</label>
       <label class="tog"><input type="checkbox" data-testid="toggle-live" bind:checked={studio.live} /> live</label>
       {#if !sim}<span class="status" data-testid="live-status" role="status">{studio.status}</span>{/if}
     {/if}
@@ -312,7 +319,7 @@
 
           <section class="sim">
             <div class="card feed" data-testid="live-monitor" role="region" aria-label="Program monitor">
-              <div class="eyebrow">program monitor <span class="tip">right-click a node for actions</span></div>
+              <div class="eyebrow">program monitor {#if studio.overlay}<span class="tip">right-click a node for actions</span>{:else}<span class="tip" data-testid="monitor-overlay-off">overlay off</span>{/if}</div>
               {#if sim}
                 <div class="needsdev" data-testid="monitor-needs-device" role="note">Screen mirror needs a device. Start Studio with --host to use it.</div>
               {:else}
