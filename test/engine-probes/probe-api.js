@@ -13,6 +13,8 @@
 //     (arity check runs before the body, so nothing executes) and "attempted on non-function" when it does not;
 //     the message carries the emulated signature, which we record.
 'use strict';
+// Results must not depend on the machine: the engine reads the time zone and locale (dates, device info).
+const PIN_ENV = { TZ: 'UTC', LC_ALL: 'C.UTF-8' };
 const fs = require('fs'), path = require('path'), os = require('os');
 const { spawn } = require('child_process');
 
@@ -225,7 +227,7 @@ function genNode(node) {
 function run(file, label) {
   return new Promise((resolve) => {
     const t0 = Date.now();
-    const p = spawn(process.execPath, [CLI, file], { cwd: WORK, env: { ...process.env, FORCE_COLOR: '0' } });
+    const p = spawn(process.execPath, [CLI, file], { cwd: WORK, env: { ...process.env, FORCE_COLOR: '0', ...PIN_ENV } });
     let buf = ''; const kill = setTimeout(() => { buf += '\n@@TIMEOUT'; p.kill('SIGKILL'); }, 90000);
     p.stdout.on('data', (d) => (buf += d)); p.stderr.on('data', (d) => (buf += d));
     p.on('close', (code) => { clearTimeout(kill); resolve({ label, code, ms: Date.now() - t0, out: buf }); });

@@ -37,14 +37,17 @@ function diffLines(base, now) {
 }
 
 const read = (p) => JSON.parse(fs.readFileSync(p, 'utf8'));
-const readLines = (p) => fs.readFileSync(p, 'utf8').split('\n').filter(Boolean);
+// Lines starting with '#' are the header (which engine the baseline was taken from) and are not compared.
+const readLines = (p) => fs.readFileSync(p, 'utf8').split('\n').filter((l) => l && !l.startsWith('#'));
+const header = (api) => `# engine ${api.engine.name}@${api.engine.version}`;
 
 function main(argv) {
   const [cmd, ...rest] = argv;
   const strict = rest.includes('--strict');
   const args = rest.filter((x) => x !== '--strict');
   if (cmd === 'make' && args.length >= 2) {
-    const out = fingerprint(read(args[0]), read(args[1])).join('\n') + '\n';
+    const api = read(args[0]);
+    const out = [header(api), ...fingerprint(api, read(args[1]))].join('\n') + '\n';
     if (args[2]) fs.writeFileSync(args[2], out); else process.stdout.write(out);
     return 0;
   }
@@ -60,4 +63,4 @@ function main(argv) {
 }
 
 if (require.main === module) process.exit(main(process.argv.slice(2)));
-module.exports = { fingerprint, diffLines };
+module.exports = { fingerprint, diffLines, header };

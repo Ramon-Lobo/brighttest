@@ -47,8 +47,21 @@ describe('engine probe baseline', () => {
     } finally { fs.rmSync(dir, { recursive: true, force: true }) }
   })
 
+  it('notices a change that is only in the probe message text', () => {
+    const changed = { results: [{ ...api().results[0], recs: [{ ...api().results[0].recs[0], extra: 'another signature' }] }] }
+    const d = diffLines(fingerprint(api(), beh()), fingerprint(changed, beh()))
+    expect(d.removed).toHaveLength(1)
+    expect(d.added).toHaveLength(1)
+  })
+
+  it('the baseline header names the engine version pinned in package.json', () => {
+    const header = fs.readFileSync(BASELINE, 'utf8').split('\n')[0]
+    const pkg = JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8'))
+    expect(header).toBe(`# engine @ramonlobo/brs-node@${pkg.dependencies['@ramonlobo/brs-node']}`)
+  })
+
   it('the committed baseline is non-empty, sorted and unique', () => {
-    const lines = fs.readFileSync(BASELINE, 'utf8').split('\n').filter(Boolean)
+    const lines = fs.readFileSync(BASELINE, 'utf8').split('\n').filter((l) => l && !l.startsWith('#'))
     expect(lines.length).toBeGreaterThan(1000)
     expect(lines).toEqual([...new Set(lines)].sort())
     expect(lines.some((l) => l.startsWith('api components/'))).toBe(true)

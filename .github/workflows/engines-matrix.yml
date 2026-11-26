@@ -4,8 +4,11 @@ name: Engines matrix
 # capability metadata and the RSG coverage baseline cannot drift unnoticed.
 #
 #   patched-pinned     the exact @ramonlobo/* versions pinned in package.json (what users get)
-#   stock-latest       latest published stock brs-node and rooibos-roku (BRIGHTTEST_ENGINES=stock)
+#   stock-latest       latest published stock brs-node and rooibos-roku (selected with BRIGHTTEST_ENGINES=stock on the steps that run the CLI)
 #   patched-candidate  a patched build under test, supplied by hand (workflow_dispatch inputs only)
+#
+# BRIGHTTEST_ENGINES is set per step, never job-wide: it overrides the `engines` setting in project config and
+# would change what the unit tests exercise.
 #
 # Read-only: no secrets, no publishing, nothing is pushed anywhere. Device lanes never run in CI.
 on:
@@ -34,7 +37,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: engines-matrix-${{ github.ref }}
+  group: engines-matrix-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -45,15 +48,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        flavor: [patched-pinned, stock-latest]
-    env:
-      # patched-pinned uses the stamped @ramonlobo/* builds, stock-latest the unmodified upstream ones.
-      BRIGHTTEST_ENGINES: ${{ matrix.flavor == 'stock-latest' && 'stock' || 'patched' }}
+        include:
+          - flavor: patched-pinned
+            engines: patched
+            probe_pkg: node_modules/@ramonlobo/brs-node
+          - flavor: stock-latest
+            engines: stock
+            probe_pkg: node_modules/brs-node
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: "22"
           cache: npm
@@ -64,28 +70,33 @@ jobs:
         # --no-save keeps package.json and the lockfile untouched; the pinned patched packages stay installed beside them.
         run: npm install --no-save --no-audit --no-fund brs-node@latest rooibos-roku@latest
 
-      - name: Engine versions
+      # Fails when the probe contradicts the engine's own capability metadata.
+      - name: Engine-caps probe vs metadata
+        env:
+          BRIGHTTEST_ENGINES: ${{ matrix.engines }}
         run: |
+          set -euo pipefail
           {
             echo "### ${{ matrix.flavor }}"
             echo
             echo '```'
-            node bin/cli.js doctor --engines | head -3 || true
+            node bin/cli.js doctor --engines
             echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
 
-      # TP-ENG-11 step 4: the engine-caps probe. Exits non-zero when the probe contradicts the engine's own metadata.
-      - name: Engine-caps probe vs metadata
-        run: node bin/cli.js doctor --engines
-
+      # Runs with BRIGHTTEST_ENGINES unset on purpose (see the header).
       - name: Unit tests
         run: npm run test:unit
 
-      # Capability-gated tests skip with their reason on stock engines; they must not fail.
+      # Capability-gated tests are expected to skip rather than fail on stock engines.
       - name: Integration tests
+        env:
+          BRIGHTTEST_ENGINES: ${{ matrix.engines }}
         run: npm run test:integration
 
       - name: Example apps (default, --coverage, --no-sgnode)
+        env:
+          BRIGHTTEST_ENGINES: ${{ matrix.engines }}
         run: |
           set -euo pipefail
           cli="$GITHUB_WORKSPACE/bin/cli.js"
@@ -105,26 +116,31 @@ jobs:
           done
 
       # The RSG coverage probes (API surface and SceneGraph behavior) diffed against the committed baseline.
+      # The probes run the engine package named by probe_pkg directly, so each leg probes its own flavor.
       # Pinned patched build: any difference fails, so a pin bump has to refresh the baseline in the same change.
-      # Other flavors are expected to differ (stock lacks the patches, a candidate may add some): reported, not failed.
+      # Stock is expected to differ from the patched baseline: reported, not failed.
       - name: RSG coverage probe vs baseline
+        env:
+          TZ: UTC
+          LC_ALL: C.UTF-8
         run: |
           set -euo pipefail
           probes="$GITHUB_WORKSPACE/test/engine-probes"
           work="$(mktemp -d)"
-          timeout 900 node "$probes/probe-api.js" --install "$GITHUB_WORKSPACE" --out "$work/api.json" --work "$work/api" --jobs 4
-          timeout 900 node "$probes/probe-behavior.js" --install "$GITHUB_WORKSPACE" --out "$work/behavior.json" --work "$work/behavior"
+          timeout 900 node "$probes/probe-api.js" --install "$GITHUB_WORKSPACE/${{ matrix.probe_pkg }}" --out "$work/api.json" --work "$work/api" --jobs 4
+          timeout 900 node "$probes/probe-behavior.js" --install "$GITHUB_WORKSPACE/${{ matrix.probe_pkg }}" --out "$work/behavior.json" --work "$work/behavior"
           strict=""
           if [ "${{ matrix.flavor }}" = patched-pinned ]; then strict="--strict"; fi
           status=0
           node "$probes/baseline.js" diff "$probes/baseline-patched.txt" "$work/api.json" "$work/behavior.json" $strict | tee "$work/diff.txt" || status=$?
+          engine="$(node -e "const e=require('$work/api.json').engine;console.log(e.name+'@'+e.version)")"
           {
-            echo "### RSG probe vs baseline (${{ matrix.flavor }})"
+            echo "### RSG probe vs baseline (${{ matrix.flavor }}, probed $engine)"
             echo
             echo '```diff'
             head -200 "$work/diff.txt"
             echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
           exit "$status"
 
   candidate:
@@ -133,14 +149,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      BRIGHTTEST_ENGINES: patched
       BRS_NODE_SPEC: ${{ inputs.brs_node_spec }}
       ROOIBOS_SPEC: ${{ inputs.rooibos_spec }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: "22"
           cache: npm
@@ -155,21 +170,29 @@ jobs:
           fi
 
       - name: Engine-caps probe vs metadata
+        env:
+          BRIGHTTEST_ENGINES: patched
         run: node bin/cli.js doctor --engines
 
       - name: Unit tests
         run: npm run test:unit
 
       - name: Integration tests
+        env:
+          BRIGHTTEST_ENGINES: patched
         run: npm run test:integration
 
       - name: RSG coverage probe vs baseline (reported, not failed)
+        env:
+          TZ: UTC
+          LC_ALL: C.UTF-8
         run: |
           set -euo pipefail
           probes="$GITHUB_WORKSPACE/test/engine-probes"
+          pkg="$GITHUB_WORKSPACE/node_modules/@ramonlobo/brs-node"
           work="$(mktemp -d)"
-          timeout 900 node "$probes/probe-api.js" --install "$GITHUB_WORKSPACE" --out "$work/api.json" --work "$work/api" --jobs 4
-          timeout 900 node "$probes/probe-behavior.js" --install "$GITHUB_WORKSPACE" --out "$work/behavior.json" --work "$work/behavior"
+          timeout 900 node "$probes/probe-api.js" --install "$pkg" --out "$work/api.json" --work "$work/api" --jobs 4
+          timeout 900 node "$probes/probe-behavior.js" --install "$pkg" --out "$work/behavior.json" --work "$work/behavior"
           node "$probes/baseline.js" diff "$probes/baseline-patched.txt" "$work/api.json" "$work/behavior.json" | tee "$work/diff.txt"
           {
             echo "### RSG probe vs baseline (patched-candidate)"
