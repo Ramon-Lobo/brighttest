@@ -76,7 +76,19 @@ block the first green run on it, and do not claim it works or fails beyond the r
 | Nothing printed after "building the test bundle" | Likely an `@SGNode` suite on this engine: stop the run, repeat with `--no-sgnode`, and report it. |
 | Warning "declares a Task node; the headless lane cannot run Task" | Expected with `--no-sgnode`. Tasks need a device. |
 
+## Before you hand off, all of these
+
+1. `.env` ignore. Run `git check-ignore .env`. If it prints nothing, add a `.env` line to `.gitignore` (allowed when
+   Step 0 allows `.gitignore` lines; otherwise say in the report that it is still to do). Report: what the check
+   printed and whether you added the line.
+2. Engine smoke. Run `npx brighttest doctor --engines` AND one bounded default run (it includes `@SGNode` suites)
+   with a hard timeout; macOS has no `timeout`, so use `perl -e 'alarm shift; exec @ARGV' 120 npx brighttest`.
+   Report: `doctor --engines` exit code and the default run outcome as green, failed, or hung/timed out. Never
+   claim more than that one run showed.
+3. Specs. Add at least 3 new meaningful spec files under `source/tests/`, even when the app already ships specs;
+   cover code the existing specs do not. Report: the paths of the files you added.
+
 ## Hand-off
 
 Report: the command, the pass count, the flipped test shown failing then restored, the files you added, the engine
-smoke outcome, and what you did not run. Never print a device password, token or serial in the report.
+smoke outcome, the `.env` check result, and what you did not run. Never print a device password, token or serial in the report.
