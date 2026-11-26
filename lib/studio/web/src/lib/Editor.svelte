@@ -7,7 +7,8 @@
   import { tags as t } from '@lezer/highlight';
   import { yaml } from '@codemirror/lang-yaml';
   import { autocompletion, completionKeymap, startCompletion } from '@codemirror/autocomplete';
-  import { flowCompletions } from './completions.js';
+  import { flowCompletions, setSteps } from './completions.js';
+  import { api } from './api.js';
 
   let { value = $bindable(''), getSelected } = $props();
   let el, view;
@@ -48,6 +49,7 @@
   }
 
   onMount(() => {
+    api.steps().then((r) => setSteps(r && r.steps)).catch(() => {});
     view = new EditorView({
       parent: el,
       state: EditorState.create({

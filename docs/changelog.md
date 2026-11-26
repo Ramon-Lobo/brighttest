@@ -87,6 +87,8 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
   reported as the country code).
 
 ### Improvements
+- **Studio:** the flow editor now completes all 33 flow steps, including `setState`, with each step's keys and allowed
+  values (such as `layer:`). The list comes from the same step catalog the flow parser uses, so it cannot drift.
 - **E2E:** every flow step is now listed once in `lib/e2e/step-catalog.js`, which the parser uses as its allow-list
   (an unlisted step is still `unknown step`) and which `state` and `net` steps read their allowed map keys from. A test
   fails when a step is added to the parser or runner without a catalog entry, or is missing from the flows doc or the
