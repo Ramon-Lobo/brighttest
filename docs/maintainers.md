@@ -56,19 +56,20 @@ which make headless SceneGraph testing work:
 A plain `npm i -D brighttest` pulls both from npm — there is **no vendoring, no `patch-package`, and no
 postinstall step**. Each package is an exact upstream release tag plus a short, ordered queue of patches (branch
 `bt/<upstream-version>` in the fork), published as `<upstream-version>-bt.<N>`; brighttest pins the exact `-bt.N`
-version. Every patch is also offered upstream as its own change, except the local-only ones, and is dropped at the next
-rebase once upstream releases it. brighttest also runs on stock `brs-node` / `rooibos-roku` (`engines` config or
+version. Each patch is written so it can be offered upstream as its own change (the local-only ones are not meant for that);
+none has been offered yet. A patch that upstream later releases would be dropped at the next rebase. brighttest also runs on stock `brs-node` / `rooibos-roku` (`engines` config or
 `BRIGHTTEST_ENGINES`); features that need a missing patch are detected at startup and fall back or are skipped with a
 message, and `doctor --engines` says which build it found (see [Engines and patches](/guide/engines)).
 
-To change engine behavior: open an upstream issue, write the patch in a worktree of the fork
+To change engine behavior: write the patch in a worktree of the fork
 ([Ramon-Lobo/brs-engine](https://github.com/Ramon-Lobo/brs-engine),
 [Ramon-Lobo/rooibos](https://github.com/Ramon-Lobo/rooibos)) on its own branch, add it to the `bt/<version>` queue,
-publish `-bt.<N+1>`, and bump the exact pin here. The eventual goal is to depend on the stock packages.
+publish `-bt.<N+1>`, and bump the exact pin here. Contact with the upstream projects (issues, pull requests) is a
+separate, owner-gated step and is not part of this workflow. The eventual goal is to depend on the stock packages.
 
 ::: warning One patch is non-device
 `Label.forceUpperCase` (patch `BRS-02`) exists only in the patched headless engine; a real Roku has no such field and
-the patch is never offered upstream. `doctor --engines` marks it `NON-DEVICE` and headless runs warn on each use. Do not
+the patch is not meant for upstream. `doctor --engines` marks it `NON-DEVICE` and headless runs warn on each use. Do not
 let specs or shipped code depend on it. Details: [Engines and patches](/guide/engines#non-device-behavior).
 :::
 
@@ -313,8 +314,9 @@ This section describes the pre-publication model. `patch-package`, `patches/`, `
 :::
 
 This is the mechanism that lets `@SGNode` node suites run **headless** (in the `--coverage` lane and, by
-extension, `--cross-check`). It's a two-hunk patch to `rooibos-roku`, applied by
-patch-package on install. It now lives in the `@ramonlobo/rooibos-roku` fork queue (see [Delivery model](#delivery-model)); the `patches/` file no longer exists.
+extension, `--cross-check`). It's a two-hunk patch to `rooibos-roku`, which was applied
+by patch-package on install. It now lives in the `@ramonlobo/rooibos-roku` fork queue (see
+[Delivery model](#delivery-model)); the `patches/` file no longer exists.
 
 ### Root cause
 

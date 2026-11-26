@@ -24,11 +24,11 @@ Patch `BRS-02` adds a `forceUpperCase` field to `Label` in the headless engine. 
 A spec that relies on it passes headless and does not match the device.
 :::
 
-- `doctor --engines` marks the row `NON-DEVICE` on a patched engine and shows it as absent on a stock engine.
+- `doctor --engines` always marks the row `NON-DEVICE`; on a stock engine the probe column reads absent.
 - Each headless run on an engine that has the patch prints one stderr line per use it finds in your sources, for
   example `nondevice-field: Label.forceUpperCase used in source/tests/Title.spec.bs:12 (non-device behavior: ...)`.
-- The engine's package metadata lists the patch under `nonDevice`. The patch is local to the fork and is never
-  offered upstream.
+- The engine's package metadata lists the patch under `nonDevice`. The patch is local to the fork and is not meant
+  for upstream.
 - Do not use the field in code that also ships to a device. Use uppercase strings, or an uppercase conversion in your
   own code, so the headless and device lanes agree. `--cross-check` and the device lane are the way to confirm.
 
@@ -41,8 +41,8 @@ simulator. Scene lanes (`@SGNode` specs and `--coverage`) pass it when the flag 
 (stock, or a patched build older than `2.7.1-bt.1`) brighttest prints a one-time warning and the scene lanes keep the
 engine's own identity. See [Headless vs device](/writing-tests/headless-vs-device).
 
-The `rooibos-roku` stamp lists `coverage-dir`, the option that lets the device lane read the coverage report from a
-file; without it brighttest falls back to extracting LCOV from the console.
+The `rooibos-roku` stamp lists `coverage-dir`. On the device lane brighttest uses the LCOV from the console first;
+when the console has none and the engine supports `coverage-dir`, it reads `lcov.info` from that directory instead.
 
 ## Changing engine behavior
 
