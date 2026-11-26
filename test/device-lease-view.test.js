@@ -196,6 +196,11 @@ describe('board from a fixture lease dir', () => {
     expect(all.hidden.keys).toBe(0);
     const one = view(dir).snapshot({ host: '192.0.2.20' });
     expect(one.devices.map((d) => d.label)).toEqual(['192.0.2.20']);
+    // --host with and without --all: the host filter wins, and other devices are not reported as hidden by the loopback/idle rule
+    expect(one.hidden.keys).toBe(0);
+    const oneAll = view(dir).snapshot({ host: '192.0.2.20', all: true });
+    expect(oneAll.devices.map((d) => d.label)).toEqual(['192.0.2.20']);
+    expect(oneAll.hidden.keys).toBe(0);
   });
 
   it('joins runs, counts a dual-key log once, computes stats', () => {
