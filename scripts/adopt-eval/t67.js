@@ -45,13 +45,20 @@ function git(cwd, args) {
   if (r.status !== 0) throw new Error(`git ${args.join(' ')} failed: ${r.stderr}`)
 }
 
-function freshRoot(runRoot, clean, repoRoot) {
+// Prepares the run root for one command. Only the directories that command owns (`owned`, names directly under the run
+// root) are checked and wiped; other content in the run root is left alone, so t6 and t7 can share one root.
+function freshRoot(runRoot, clean, repoRoot, owned) {
   runRoot = path.resolve(runRoot)
   const rel = path.relative(repoRoot, runRoot)
   if (rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel))) throw new Error('run root must be outside the repo')
-  if (fs.existsSync(runRoot) && fs.readdirSync(runRoot).length) {
-    if (!clean) throw new Error(`run root ${runRoot} is not empty (use --clean to wipe it)`)
-    fs.rmSync(runRoot, { recursive: true, force: true })
+  for (const name of owned) {
+    const d = path.join(runRoot, name)
+    if (path.dirname(d) !== runRoot) throw new Error(`refusing to touch ${d}: outside the run root`)
+    if (!fs.existsSync(d)) continue
+    const nonEmpty = !fs.lstatSync(d).isDirectory() || fs.readdirSync(d).length > 0
+    if (!nonEmpty) continue
+    if (!clean) throw new Error(`${d} is not empty (use --clean to wipe it)`)
+    fs.rmSync(d, { recursive: true, force: true })
   }
   fs.mkdirSync(runRoot, { recursive: true })
   return runRoot
@@ -63,7 +70,7 @@ function copyApp(dest, repoRoot) {
 function commitApp(app) { git(app, ['init', '-q']); git(app, ['add', '-A']); git(app, ['commit', '-q', '-m', 'fixture baseline']) }
 
 function prepareT6({ runRoot, clean = false, fakeHost = '127.0.0.1', ecpPort = null, repoRoot = REPO_ROOT }) {
-  runRoot = freshRoot(runRoot, clean, repoRoot)
+  runRoot = freshRoot(runRoot, clean, repoRoot, ['t6'])
   const dir = path.join(runRoot, 't6'), app = path.join(dir, 'app')
   fs.mkdirSync(dir, { recursive: true })
   copyApp(app, repoRoot)
@@ -80,7 +87,7 @@ function installHook(app, repoRoot) {
 }
 
 function prepareT7({ runRoot, clean = false, repoRoot = REPO_ROOT }) {
-  runRoot = freshRoot(runRoot, clean, repoRoot)
+  runRoot = freshRoot(runRoot, clean, repoRoot, ARMS7.map((a) => a.dir))
   const cells = []
   for (const arm of ARMS7) PROBES.forEach((text, i) => {
     const dir = path.join(runRoot, arm.dir, `probe${i + 1}`), app = path.join(dir, 'app')
