@@ -37,7 +37,7 @@ fault, or (only for an allowed host) the real origin.
 - `BTNet_*` throws a string on a bad rule, so a wrong rule fails the test.
 - A key's case inside `json` and `headers` is not kept (BrightScript associative arrays are case-insensitive). If
   case matters, use `body:` text or `file:`.
-- Rooibos 5.16 has no `assertStringContains`; use `m.assertTrue(Instr(1, text, "needle") > 0)`.
+- Rooibos (5.16 and the 5.17.0-bt.1 engines) has no `assertStringContains`; use `m.assertTrue(Instr(1, text, "needle") > 0)`.
 - `.brighttest/net/last-run.ndjson` is redacted; `BTNet_requests` returns raw headers and bodies. Do not paste
   either into a report without checking for secrets.
 

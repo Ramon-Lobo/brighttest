@@ -1,7 +1,7 @@
 ---
 name: debugging-failing-tests
 description: Use when a brighttest run fails, produces no results, hangs, passes headless but fails on device, or when coverage looks wrong — how to read the output, isolate the cause, use --cross-check for fidelity, seed global context for device crashes, and test the Task/API layer.
-triggers: test run fails; no test results; run hangs; passes headless but fails on device; coverage looks wrong; cross-check mismatch; device crash in test; flaky rooibos test
+triggers: test run fails; no test results; run hangs; stock engine warning; globalFields ignored; run crashed; passes headless but fails on device; coverage looks wrong; cross-check mismatch; device crash in test; flaky rooibos test
 when-not-to-use: Do not use to author new specs (use writing-rooibos-tests), to debug a failing e2e flow step (use writing-e2e-flows), or to inspect a live device through MCP (use using-brighttest-mcp). For where to start or whether brighttest fits at all, use adopting-brighttest.
 license: MIT
 metadata:
@@ -28,22 +28,28 @@ problem directly (e.g. `expected "true (Boolean)" to be false`).
    very long test name pushing the `(PASS)`/`(FAIL)` marker off the fixed-width line. Attach the `@it`
    directly above its function; shorten the name.
 3. **"no result / 0 passed 0 failed"** → the run didn't complete. Re-run; check the output tail brighttest
-   prints. Common causes are a build failure or a spec that crashes the interpreter on load.
+   prints. Common causes are a build failure or a spec that crashes the interpreter on load. A run is also
+   failed (exit non-zero) when the engine prints a native `FATAL ERROR`, when `--coverage` or `--lcov` produced no
+   LCOV, and, on the headless lanes, when the process exits non-zero or on a signal before the Rooibos shutdown
+   marker, or when fewer tests ran than the summary declared. It then prints `RUN CRASHED (<reason>): results are
+   incomplete`, or `coverage requested but no LCOV in output`. Read that line before re-running.
 4. **The run hangs / times out** → usually an async `@SGNode` test waiting on a signal that never fires, or
-   an infinite loop. The watchdog kills it (headless 300s / device 900s). Add a timeout to the wait, or
-   `--timeout <sec>` to change the budget.
+   an infinite loop. Watchdogs kill it: headless 300 s, device 900 s, and on a device the idle watchdog aborts after
+   120 s with no device output (`--idle-timeout <sec>`, `0` disables; config `deviceIdleTimeout`). Add a timeout
+   to the wait, or `--timeout <sec>` to change the budget.
 5. **`assertEqual` fails on values that look equal** → type-strict numeric comparison. Compare floats to
    float literals, or use `m.assertTrue(a = b)` for value-only numeric equality.
 6. **Passes headless, fails/crashes on `--device`** → see "Global-context crashes" below.
-7. **Exit 75 (busy) or 77 (lease lost) on a device lane** → not a test failure. 75 = *device in use*: another holder kept the
+7. **Exit 75 (busy), 77 (lease lost) or 78 (lease dir) on a device lane** → not a test failure. 75 = *device in use*: another holder kept the
    device past `--wait` (run `npx brighttest device status` to see who). 77 = the lease was lost or reached
    its deadline; re-run. *Device unreachable* is different: a connection error naming the IP, exit 1 —
-   check the IP, network and developer mode.
+   check the IP, network and developer mode. **78** = the lease directory is unusable
+   (`BRIGHTTEST_LEASE_DIR`, default `~/.brighttest/leases`); fix the path or its permissions. See the
+   `using-a-roku-device-safely` skill for the lease codes.
 
 ## Confirm a test actually tests something
 
-A test that "always passes" may not exercise the code. Temporarily break the code or flip the expectation,
-confirm the test goes red, then restore. A test you haven't seen fail isn't protecting you.
+A test that "always passes" may not exercise the code. Break the code or flip the expectation, confirm it goes red, then restore.
 
 ## Global-context crashes (green headless, red on device)
 
@@ -54,6 +60,12 @@ in a bare test scene. Headless tolerates it; a real device is strict and crashes
 'Dot' Operator attempted with invalid BrightScript Component ... (runtime error &hec)
 Type Mismatch. Operator "+" can't be applied to "Invalid" and "String". (runtime error &h18)
 ```
+
+**First check the engine.** Seeding needs the patched rooibos (ROO-04, the default engines). On a stock
+`rooibos-roku` brighttest prints `lacks ROO-04 globalFields seeding` once per run and ignores the seeds, so
+editing `globalFields` changes nothing. Read the `engine:` line at the top of a headless run, or run
+`npx brighttest doctor --engines`, before you edit seeds. Likewise a bare `@deviceOnly` is only sugar on the
+patched engine (ROO-05); on stock it runs headless with a warning, so use `@tags("deviceOnly")`.
 
 **Fix:** seed the exact field path the code reads via `globalFields` in `brighttest.json`, keyed by
 `@SGNode` type with a `"*"` catch-all that resets each field to `invalid` per suite:
@@ -106,15 +118,11 @@ In the headless lanes brighttest can answer HTTP calls from rules (full guide: `
   overrides the policy.
 - Every net run writes `.brighttest/net/last-run.ndjson`; failing requests print under "Network failures".
 - Only `setUrl` calls in your own files are intercepted. `BTNet_*` specs run headless only: `--device` skips them and
-  `--cross-check` reports them as headless-only. Rooibos 5.16 has no `assertStringContains`; use
+  `--cross-check` reports them as headless-only. Rooibos has no `assertStringContains`; use
   `m.assertTrue(Instr(1, text, "x") > 0)`.
-
-Still keep request-building and response-parsing as pure functions where you can; use fixtures for the Task or client
-glue around them.
 
 ## When stuck: shrink the surface
 
-Isolate the failing suite by pointing `--config` at a cut-down `brighttest.json` (or temporarily `@only`
-the suite/test — never commit `@only`). A single-suite run makes the failure fast to reproduce and read.
+Isolate the failing suite with a cut-down `--config` `brighttest.json` (or a temporary `@only`; never commit it).
 
 For device stalls at about 10 minutes, Limited ECP, port 8085 conflicts and lease exit codes, see the `using-a-roku-device-safely` skill.
