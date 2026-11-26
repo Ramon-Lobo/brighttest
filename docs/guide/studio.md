@@ -133,7 +133,7 @@ Agents can read the same data without Studio's UI through the [`perf_summary` an
 
 **Runs** (run flows and step through a time-travel trace; each run frame carries the app state snapshot), **Record**
 (capture remote presses into a flow), **Devices** (discover and switch Rokus) and **Settings** (a placeholder with no
-working controls). The **Network** tab shows the hub's HTTP traffic; see [E2E: Network panel](/e2e/#network-panel).
+working controls). **Run** executes state and network steps too (`setState`, `snapshot`, `restore`, `callFunc`, `waitForAgent`, `mockHttp`, `assertRequest` and the rest) through Studio's own hub, the same way `brighttest e2e run` does; with no hub (no `BRIGHTTEST_HUB_TOKEN`, pool mode) such a flow fails before step 1 with the hub's message. `assertLog` and `expectNoLog` still need `e2e run`. The **Network** tab shows the hub's HTTP traffic; see [E2E: Network panel](/e2e/#network-panel).
 
 ## Driving Studio from a browser agent
 
