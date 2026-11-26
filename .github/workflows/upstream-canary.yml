@@ -24,13 +24,11 @@ jobs:
   canary:
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    env:
-      BRIGHTTEST_ENGINES: stock
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: "22"
           cache: npm
@@ -46,13 +44,15 @@ jobs:
             echo "$r $(git -C "$RUNNER_TEMP/upstream/$r" rev-parse --short HEAD)" | tee -a "$RUNNER_TEMP/upstream/heads.txt"
           done
 
-      - name: Build and pack brs-engine
+      # brs-engine is a private npm workspace; the published package is the brs-node workspace, built the way its
+      # prepublishOnly does (clean, production webpack build, scenegraph build), not the development build.
+      - name: Build and pack brs-node (release build)
         working-directory: ${{ runner.temp }}/upstream/brs-engine
         run: |
           set -euo pipefail
           npm ci --no-audit --no-fund
-          npm run build
-          npm pack --pack-destination "$RUNNER_TEMP/upstream"
+          npm run prepublishOnly -w brs-node
+          npm pack -w brs-node --pack-destination "$RUNNER_TEMP/upstream"
 
       - name: Build and pack rooibos
         working-directory: ${{ runner.temp }}/upstream/rooibos
@@ -63,18 +63,33 @@ jobs:
           npm pack --pack-destination "$RUNNER_TEMP/upstream"
 
       - name: Install the upstream builds as the stock engines
+        env:
+          BRIGHTTEST_ENGINES: stock
         run: |
           set -euo pipefail
           npm install --no-save --no-audit --no-fund "$RUNNER_TEMP"/upstream/*.tgz
+          # The installed brs-node must be the build just packed, not a registry copy.
+          packed="$(tar -xzOf "$(ls "$RUNNER_TEMP"/upstream/brs-node-*.tgz)" package/package.json | node -e "console.log(JSON.parse(require('fs').readFileSync(0,'utf8')).version)")"
+          installed="$(node -p "require('./node_modules/brs-node/package.json').version")"
+          echo "brs-node packed=$packed installed=$installed"
+          if [ "$packed" != "$installed" ]; then
+            echo "::error::installed brs-node $installed differs from the packed upstream build $packed"
+            exit 1
+          fi
           node bin/cli.js doctor --engines | head -3
 
+      # Runs with BRIGHTTEST_ENGINES unset on purpose: it overrides the project config the unit tests set up.
       - name: Unit tests
         run: npm run test:unit
 
       - name: Integration tests
+        env:
+          BRIGHTTEST_ENGINES: stock
         run: npm run test:integration
 
       - name: Example apps
+        env:
+          BRIGHTTEST_ENGINES: stock
         run: |
           set -euo pipefail
           cli="$GITHUB_WORKSPACE/bin/cli.js"

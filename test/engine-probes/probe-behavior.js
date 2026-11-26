@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 // Runs (1) language-feature cases from language-cases.js and (2) the SceneGraph behavior apps in behavior/*/ against a brs-node install.
-// COV-20 (2026-11-21): section 3 records event-object shapes: roSGNodeEvent (getField/getData/getNode/getRoSGNode/getInfo, infoFields),
+// Section 3 records event-object shapes: roSGNodeEvent (getField/getData/getNode/getRoSGNode/getInfo, infoFields),
 // onKeyEvent(key, press) payloads + bubbling order, and native-component events (itemFocused/itemSelected/focusedChild). Keys are injected through a
 // pty (python3 stdlib) because brs-node's CLI only reads the keyboard when stdin is a TTY. No device, no ECP, no network. Skipped with a note if python3 is missing.
 // usage: node probe-behavior.js --install <dir containing node_modules/brs-node> [--work <empty dir>] [--out behavior-raw.json]
 'use strict';
+// Results must not depend on the machine: the engine reads the time zone and locale (dates, device info).
+const PIN_ENV = { TZ: 'UTC', LC_ALL: 'C.UTF-8' };
 const fs = require('fs'), path = require('path'), os = require('os');
 const { spawn, execFileSync } = require('child_process');
 const argv = process.argv.slice(2); const A = {}; for (let i = 0; i < argv.length; i += 2) A[argv[i].replace(/^--/, '')] = argv[i + 1];
@@ -16,7 +18,7 @@ const CLI = [path.join(A.install, 'node_modules/@ramonlobo/brs-node/bin/brs.cli.
 if (!CLI) { console.error('brs.cli.js not found'); process.exit(2); }
 const ENGINE = JSON.parse(fs.readFileSync(path.join(path.dirname(CLI), '..', 'package.json'), 'utf8'));
 const run = (file) => new Promise((resolve) => {
-  const p = spawn(process.execPath, [CLI, file], { cwd: WORK, env: { ...process.env, FORCE_COLOR: '0' } });
+  const p = spawn(process.execPath, [CLI, file], { cwd: WORK, env: { ...process.env, FORCE_COLOR: '0', ...PIN_ENV } });
   let buf = ''; const k = setTimeout(() => { buf += '\n@@TIMEOUT'; p.kill('SIGKILL'); }, 120000);
   p.stdout.on('data', (d) => (buf += d)); p.stderr.on('data', (d) => (buf += d));
   p.on('close', () => { clearTimeout(k); resolve(buf); });
@@ -297,7 +299,7 @@ open(out + '.sends', 'w').write('\n'.join(log))
     execFileSync('zip', ['-qr', ezip, '.'], { cwd: eroot });
     const drv = path.join(WORK, 'drive-keys.py'); fs.writeFileSync(drv, EVENTS_DRIVER);
     const eout = path.join(WORK, 'events.out.txt');
-    try { execFileSync('python3', ['-I', drv, process.execPath, CLI, ezip, WORK, eout], { timeout: 90000, stdio: 'ignore' }); } catch (e) { /* driver kills the child; partial output is still parsed */ }
+    try { execFileSync('python3', ['-I', drv, process.execPath, CLI, ezip, WORK, eout], { timeout: 90000, stdio: 'ignore', env: { ...process.env, ...PIN_ENV } }); } catch (e) { /* driver kills the child; partial output is still parsed */ }
     const raw = fs.existsSync(eout) ? fs.readFileSync(eout, 'utf8') : '';
     const recs = {}; const keys = []; const diag = [];
     for (const l of raw.replace(/\r/g, '').split('\n')) {

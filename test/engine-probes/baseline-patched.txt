@@ -1,3 +1,4 @@
+# engine @ramonlobo/brs-node@2.7.1-bt.1
 api components/roAnimatedImage code=0 timeout=false
 api components/roAnimatedImage create roAnimatedImage ok 5a5302e9
 api components/roAnimatedImage iface roAnimatedImage.ifAnimatedImage present da39a3ee
@@ -4821,13 +4822,13 @@ behavior core content.setFields 5ffe533b
 behavior core content.update 1cc2746d
 behavior core content.update_extra e0184ade
 behavior core datetime.after_iso a6f8c358
-behavior core datetime.asDateString 4c15ff1d
-behavior core datetime.asDateStringNoParam 4c15ff1d
+behavior core datetime.asDateString 97deed4d
+behavior core datetime.asDateStringNoParam 97deed4d
 behavior core datetime.asSeconds eaaa8ade
 behavior core datetime.dow da4b9237
 behavior core datetime.fromISO 1cc2746d
 behavior core datetime.getLastDayOfMonth 63266754
-behavior core datetime.getTimeZoneOffset e26973e6
+behavior core datetime.getTimeZoneOffset b6589fc6
 behavior core datetime.iso 86e01c00
 behavior core datetime.local_hour_is_int 9edcffff
 behavior core datetime.mark_now_gt 5ffe533b
@@ -4846,7 +4847,7 @@ behavior core deviceinfo.model 4d8bf1d5
 behavior core deviceinfo.modelDisplay 5314fa70
 behavior core deviceinfo.osVersion 8d898864
 behavior core deviceinfo.rida_disabled 5ffe533b
-behavior core deviceinfo.timezone c0c13522
+behavior core deviceinfo.timezone bdfd4d8d
 behavior core deviceinfo.uuid_len fc074d50
 behavior core dialog.cleared 81f344a7
 behavior core dialog.dialog_hasFocus 7cb6efb9
