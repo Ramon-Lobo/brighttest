@@ -37,7 +37,7 @@ Defaults work for a conventional layout. To customize, add `brighttest.json` at 
 | `stagingDir` | Scratch dir for generated builds/config. Git-ignore it. | `.brighttest` |
 
 ::: tip A plain `source/main.brs`
-On the default scene lane (when any `@SGNode` spec exists and coverage is off) the Rooibos plugin does not hook a plain `source/main.brs`, so the app's own `Main()` would run instead of the test runner and its event loop would hang the headless run. brighttest now leaves that file out of the test build by itself: it appends `!source/main.brs` (using the file's real casing) to the effective `sourceGlobs` on that lane and logs a line, unless you already exclude it or your globs do not compile it. `brighttest init` also writes the exclusion when the file exists. The coverage, device and plain `--no-sgnode` lanes keep the file, because code elsewhere may call helpers defined in it. A Main in another `.brs` file is not covered: exclude it yourself.
+On the default scene lane (when any `@SGNode` spec exists and coverage is off) the Rooibos plugin does not hook a plain `source/main.brs`, so the app's own `Main()` would run instead of the test runner and its event loop would hang the headless run. brighttest now leaves that file out of the test build by itself: it appends `!source/main.brs` (using the file's real casing) to the effective `sourceGlobs` on that lane and logs a line, unless you already exclude it or your globs do not compile it.  `brighttest init` does not write that exclusion into `brighttest.json`. The coverage, device and plain `--no-sgnode` lanes keep the file, because code elsewhere may call helpers defined in it. A Main in another `.brs` file is not covered: exclude it yourself.
 :::
 
 ::: tip Git-ignore the scratch dirs

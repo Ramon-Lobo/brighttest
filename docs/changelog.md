@@ -91,6 +91,7 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
   a device prints them, so output that compared against the old float text may differ.
 
 ### Fixes
+- **Init:** `brighttest init` no longer writes `!source/main.brs` into `sourceGlobs` when the app has a plain `source/main.brs`. The exclusion removed the file from every lane: helpers defined in it failed to compile in tests, and `--coverage` left it out of the coverage total. The default scene lane still drops it at run time. Existing `brighttest.json` files keep their entry; delete it if you want the file back on the other lanes.
 - **Engines:** `BRIGHTTEST_ENGINES=<package>` now resolves each engine kind's own package. A package name of the other kind picks the same flavor (patched or stock) of this kind, and the not-found hint names the package that was looked up.
 - **Headless coverage with the state agent:** `--coverage` no longer fails now and then (about 1 run in 14) after a 150 to 230 second stall with `RUN CRASHED`. The injected runtime is no longer coverage-instrumented.
 - **E2E:** focus navigation keeps pressing through a keyboard-style control whose cursor moves inside one focused
