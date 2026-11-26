@@ -58,10 +58,12 @@ flip in the spec only, never in app code.
 
 ## 4. Engine smoke step
 
-Run `npx brighttest doctor --engines` (exit 0 passes). A default run includes `@SGNode` suites, and on the engine
-version used here it did not finish on the legacy-app copy. Record which of the two outcomes you saw
-(`--no-sgnode` green, default run green or hung). The `@SGNode` outcome does not block the first green run on the current engine: do not
-block the first green run on it, and do not claim it works or fails beyond the run you did.
+Run `npx brighttest doctor --engines` (exit 0 passes). A default run includes `@SGNode` suites. On the legacy-app
+copy with the engine `-bt.1` pins from main at 7332b12, two bounded default runs finished green (about 5 s each,
+17 passed, 0 failed, 7 suites) and `--no-sgnode` finished green (8 passed, 4 skipped). An earlier engine version did
+not finish on the same copy. Do the default run bounded with a hard timeout and record which outcome you saw
+(default run green, failed or hung; `--no-sgnode` green). The `@SGNode` outcome does not block the first green run:
+do not block on it, and do not claim it works or fails beyond the run you did.
 
 ## Failure modes and routes
 
@@ -73,7 +75,7 @@ block the first green run on it, and do not claim it works or fails beyond the r
 | `Cannot find name 'rooibos'` | Unverified here: the Rooibos plugin is not loaded. Run through `npx brighttest`, not bsc alone. |
 | Build errors for `BS1107` | Silenced always. Other noisy codes go into `diagnosticFilters` in `brighttest.json`. |
 | Crash on `invalid` when a widget reads a global | Seed `globalFields` in `brighttest.json` (scene-field to value). |
-| Nothing printed after "building the test bundle" | Likely an `@SGNode` suite on this engine: stop the run, repeat with `--no-sgnode`, and report it. |
+| Nothing printed after "building the test bundle" | Possibly an `@SGNode` suite hanging on this engine (seen on an earlier engine version): stop the run at the hard timeout, repeat with `--no-sgnode`, and report it. |
 | Warning "declares a Task node; the headless lane cannot run Task" | Expected with `--no-sgnode`. Tasks need a device. |
 
 ## Before you hand off, all of these
