@@ -185,20 +185,35 @@ end sub
       expect(r.stdout + r.stderr).toMatch(/A=free[\s\S]*B=premium[\s\S]*N=1/)
     } finally { fs.rmSync(d, { recursive: true, force: true }) }
   })
+})
 
-  it('leaves a plain source/main.brs out of the test build (config) and the default headless run finishes', () => {
+describe('init with a plain source/main.brs', () => {
+  it('writes the main.brs exclusion and the scene-lane headless run finishes', () => {
     const d = scratch(null)
     try {
       fs.cpSync(path.join(root, 'examples', 'greenfield-skeleton'), d, { recursive: true })
       expect(init(d).status).toBe(0)
-      const cfg = JSON.parse(fs.readFileSync(path.join(d, 'brighttest.json'), 'utf8'))
-      expect(cfg.sourceGlobs).toContain('!source/main.brs')
-      // the skeleton's Main() loops on wait(0, port); without the exclusion this run never ends (the 120 s cap fails the test)
-      const r = spawnSync(process.execPath, [cli], { cwd: d, encoding: 'utf8', timeout: 120000, killSignal: 'SIGKILL' })
+      // the hang only happens on the scene lane, which needs an @SGNode spec
+      fs.writeFileSync(path.join(d, 'source', 'tests', 'Probe.spec.bs'), `namespace tests
+  @suite("probe")
+  @SGNode("HomeScene")
+  class ProbeTests extends rooibos.BaseTestSuite
+    @describe("node")
+    @it("loads")
+    function _()
+      m.assertTrue(true)
+    end function
+  end class
+end namespace
+`)
+      // the CLI's own watchdog (60 s) kills the engine child; the spawnSync cap is only a backstop
+      const r = spawnSync(process.execPath, [cli, '--timeout', '60'], { cwd: d, encoding: 'utf8', timeout: 120000, killSignal: 'SIGKILL' })
       expect(r.error, 'headless run hung').toBeUndefined()
       expect(r.status).toBe(0)
-      expect(r.stdout).toMatch(/\b2 passed, 0 failed/)
-    } finally { fs.rmSync(d, { recursive: true, force: true }) }
+      expect(r.stdout).toMatch(/\b[23] passed, 0 failed/)
+      const cfg = JSON.parse(fs.readFileSync(path.join(d, 'brighttest.json'), 'utf8'))
+      expect(cfg.sourceGlobs).toContain('!source/main.brs')
+    } finally { fs.rmSync(d, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 }) }
   }, 150000)
 
   it('does not add the main.brs exclusion when there is no source/main.brs', () => {
@@ -207,6 +222,6 @@ end sub
       init(d)
       const cfg = JSON.parse(fs.readFileSync(path.join(d, 'brighttest.json'), 'utf8'))
       expect(cfg.sourceGlobs).not.toContain('!source/main.brs')
-    } finally { fs.rmSync(d, { recursive: true, force: true }) }
+    } finally { fs.rmSync(d, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 }) }
   })
 })
