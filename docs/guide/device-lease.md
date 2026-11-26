@@ -374,8 +374,13 @@ or deleting that entry undoes it. The merged command is
 hook JSON on stdin and denies a raw device command (`curl`/`wget` to the device ports, `nc`, a bare `rooibos`
 run) unless the command is wrapped by a lease-aware command (`device with`, an e2e or `--device` run) or carries a
 live `BRIGHTTEST_LEASE` token from `device lock`. The deny message prints the `device with` command to use instead,
-and `--no-lease` / `BRIGHTTEST_NO_LEASE` are always denied for agents. The rule is syntactic, so it cannot see
-script files, URLs built from variables, `python`/`node` one-liners or MCP tools. If the hook itself fails (bad
+and `--no-lease` / `BRIGHTTEST_NO_LEASE` are always denied for agents. A URL whose host is an
+environment variable (`http://$ROKU_HOST/keypress/Home`, `${ROKU_HOST}:8060`, `${ROKU_HOST:-x}`) is treated as a Roku
+endpoint when its path is a mutating ECP path (`/keypress`, `/keydown`, `/keyup`, `/launch`, `/install`, `/input`,
+`/search`, `/exit-app`, `/plugin_*`) or its port is 8060; the check also looks inside `sh -c`, `$(...)` and backticks.
+Read-only `/query/device-info`, `/query/active-app` and `/query/apps` stay allowed. The rule is syntactic, so it still
+cannot see script files, a URL assembled in code (`python`/`node` one-liners), a variable that holds the whole URL, or
+MCP tools. If the hook itself fails (bad
 input, timeout), it allows the command and logs to `events.log`, and it always exits 0.
 
 ## What the lease cannot stop
