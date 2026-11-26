@@ -163,7 +163,7 @@ describe('TP-LSE-27 device pool of two (headless)', () => {
     fs.writeFileSync(path.join(proj, 'brighttest.json'), JSON.stringify({ ...JSON.parse(fs.readFileSync(path.join(here, '..', 'fixtures', 'sample-project', 'brighttest.json'), 'utf8')), deviceLease: { pool: [A, B] } }))
     const c = spawn(process.execPath, [CLI, '--device', 'any', '--as', 'sig'], {
       cwd: proj, stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env, BRIGHTTEST_LEASE_DIR: path.join(dir, 'leases'), BRIGHTTEST_CACHE: path.join(dir, 'cache.json'), BRIGHTTEST_LEASE: '', ROKU_HOST: '', ROKU_PASSWORD: 'pw' },
+      env: { ...process.env, BRIGHTTEST_LEASE_DIR: path.join(dir, 'leases'), BRIGHTTEST_CACHE: path.join(dir, 'cache.json'), BRIGHTTEST_LEASE: '', ROKU_HOST: '', ROKU_PASSWORD: 'pw', BRIGHTTEST_ENGINES: '' }, // the fake @ramonlobo rooibos below must be the one resolved
     })
     children.push(c)
     const exited = new Promise((r) => c.on('close', (code, sig) => r({ code, sig })))

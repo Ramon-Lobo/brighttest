@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { makeProject, makeEmptyDir, cleanupTemp } from './helpers.js'
+import { makeProject, makeEmptyDir, cleanupTemp, enginesArePatched, patchedOnly } from './helpers.js'
 
 afterAll(cleanupTemp)
 const CLI = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'bin', 'cli.js')
@@ -20,14 +20,17 @@ function fakeEngine(dir, name, { stamp, caps }) {
   return d
 }
 function doctor(dir, env = {}, args = ['doctor', '--engines']) {
-  const r = spawnSync(process.execPath, [CLI, ...args], { cwd: dir, encoding: 'utf8', env: { ...process.env, ...env } })
+  const r = spawnSync(process.execPath, [CLI, ...args], { cwd: dir, encoding: 'utf8', env: { ...process.env, BRIGHTTEST_ENGINES: '', ...env } })
   return { status: r.status, out: r.stdout || '', err: r.stderr || '' }
 }
 const PATCHED = { 'BRS-01': 1, 'BRS-02': 1, 'BRS-03': 1, 'BRS-04': 1, 'BRS-06': 1 }
 const STAMP = { patches: { 'BRS-01': 1, 'BRS-02': 1, 'BRS-03': 1, 'BRS-04': 1, 'BRS-06': 1 }, nonDevice: ['BRS-02'] }
 
 describe('doctor --engines', () => {
-  it('real installed engine: runs the probe app and exits 0 (TP-ENG-05 headless rows)', () => {
+  // The installed engine must be the stamped build: BRS-02 (Label.forceUpperCase) exists only in the patched brs-node,
+  // so a stock install has no such row. The tests below use fake engines and clear BRIGHTTEST_ENGINES so they
+  // exercise the same code on every flavor.
+  it.skipIf(!enginesArePatched())(patchedOnly('real installed engine: runs the probe app and exits 0 (TP-ENG-05 headless rows)'), () => {
     const r = doctor(makeEmptyDir())
     expect(r.status).toBe(0)
     expect(r.out).toMatch(/BRS-02\s+\S+\s+yes\s+.*NON-DEVICE/)
@@ -102,7 +105,7 @@ describe('run-time non-device warning (TP-ENG-09)', () => {
     fs.writeFileSync(path.join(dir, 'source', 'tests', 'Title.spec.bs'), extra)
     fakeEngine(dir, '@ramonlobo/brs-node', { stamp: STAMP, caps: PATCHED })
     fakeEngine(dir, 'brs-node', { caps: {} })
-    const r = spawnSync(process.execPath, [CLI], { cwd: dir, encoding: 'utf8', env: { ...process.env, ...env } })
+    const r = spawnSync(process.execPath, [CLI], { cwd: dir, encoding: 'utf8', env: { ...process.env, BRIGHTTEST_ENGINES: '', ...env } })
     return r.stderr || ''
   }
   it('patched run names file:line; stock run and unrelated source stay silent', () => {

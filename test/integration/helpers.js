@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { createRequire } from 'node:module'
 
 // Integration harness: run the real brighttest CLI against a throwaway copy of a fixture project.
 // bsc/brs-node resolve from THIS repo's node_modules (the CLI's __dirname is here), so fixtures need
@@ -53,4 +54,20 @@ export function cleanupTemp() {
   while (tmpDirs.length) {
     try { fs.rmSync(tmpDirs.pop(), { recursive: true, force: true }) } catch { /* best effort */ }
   }
+}
+
+// True when the engines these tests run against (BRIGHTTEST_ENGINES, else auto) are the patched @ramonlobo builds.
+// Resolved the way the CLI does it (lib/engines.js), so a stock run (BRIGHTTEST_ENGINES=stock, or no patched package
+// installed) skips the tests that assert patched-only behavior instead of failing them.
+export function enginesArePatched() {
+  const engines = createRequire(import.meta.url)('../../lib/engines.js')
+  return ['brsNode', 'rooibos'].every((kind) => {
+    try { return engines.resolveEngine(kind, engines.engineMode(kind).mode).flavor === 'patched' } catch { return false }
+  })
+}
+
+// Test title for a patched-only test: unchanged on patched engines, tagged with the skip reason on stock so the
+// reason shows in the reporter next to the skipped test. Use with it.skipIf(!enginesArePatched()).
+export function patchedOnly(title) {
+  return enginesArePatched() ? title : `${title} [skipped: needs the patched engines]`
 }
