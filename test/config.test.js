@@ -3,7 +3,7 @@ import { createRequire } from 'node:module'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { loadConfig, writeBsConfig, findNodeSpecs, parseIdleTimeout } from '../lib/config.js'
+import { loadConfig, writeBsConfig, findNodeSpecs, findBareDeviceOnly, parseIdleTimeout } from '../lib/config.js'
 
 let tmp
 beforeEach(() => {
@@ -288,5 +288,88 @@ describe('writeBsConfig plain source/main.brs auto-exclude (headless-scene only)
     expect(filesFor('headless-scene')).toEqual([...DEFAULT, '!source/Main.brs'])
     const globs = ['manifest', 'source/**/*', '!source/Main.brs']
     expect(filesFor('headless-scene', globs)).toEqual(globs)
+  })
+})
+
+describe('stock-engine warnings (ROO-04 globalFields, ROO-05 bare @deviceOnly)', () => {
+  const engines = createRequire(import.meta.url)('../lib/engines.js')
+  let warn
+  // A fake rooibos engine dir: stamped with the given patch ids, or unstamped (stock) when patches is null.
+  function fakeRooibos(patches) {
+    const dir = path.join(tmp, 'fake-engines', patches ? 'patched' : 'stock')
+    const pkgDir = path.join(dir, 'node_modules', patches ? '@ramonlobo/rooibos-roku' : 'rooibos-roku')
+    fs.mkdirSync(pkgDir, { recursive: true })
+    const pkg = { name: patches ? '@ramonlobo/rooibos-roku' : 'rooibos-roku', version: patches ? '5.17.0-bt.1' : '5.17.0', bin: 'bin.js' }
+    if (patches) pkg.brighttest = { patches: Object.fromEntries(patches.map((id) => [id, true])) }
+    fs.writeFileSync(path.join(pkgDir, 'package.json'), JSON.stringify(pkg))
+    return dir
+  }
+  function useEngine(dir) {
+    const orig = engines.engineFor
+    vi.spyOn(engines, 'engineFor').mockImplementation((kind, cfg, opts) => orig(kind, cfg, { ...opts, paths: [dir] }))
+  }
+  function spec(rel, text) {
+    const f = path.join(tmp, rel)
+    fs.mkdirSync(path.dirname(f), { recursive: true })
+    fs.writeFileSync(f, text)
+  }
+  const warned = (re) => warn.mock.calls.map((c) => c.join(' ')).filter((l) => re.test(l))
+  beforeEach(() => { warn = vi.spyOn(console, 'warn').mockImplementation(() => {}) })
+  afterEach(() => { vi.restoreAllMocks() })
+
+  describe('ROO-04', () => {
+    const cfgG = () => cfgAt(tmp, { globalFields: { config: {} } })
+    it('warns once on stock for each lane, device included', () => {
+      useEngine(fakeRooibos(null))
+      for (const lane of ['headless-scene', 'headless-coverage', 'device']) {
+        warn.mockClear()
+        writeBsConfig(cfgG(), lane)
+        expect(warned(/ROO-04/)).toHaveLength(1)
+      }
+      expect(warned(/ROO-04/)[0]).toContain('rooibos-roku@5.17.0 (stock)')
+    })
+    it('is silent on a ROO-04 stamp', () => {
+      useEngine(fakeRooibos(['ROO-04']))
+      writeBsConfig(cfgG(), 'headless-scene')
+      expect(warned(/ROO-04/)).toHaveLength(0)
+    })
+    it('is silent without globalFields', () => {
+      useEngine(fakeRooibos(null))
+      writeBsConfig(cfgAt(tmp), 'headless-scene')
+      writeBsConfig(cfgAt(tmp, { globalFields: {} }), 'headless-scene')
+      expect(warned(/ROO-04/)).toHaveLength(0)
+    })
+    it('is silent when no engine resolves', () => {
+      vi.spyOn(engines, 'engineFor').mockImplementation(() => { throw new Error('missing') })
+      writeBsConfig(cfgG(), 'headless-scene')
+      expect(warned(/ROO-04/)).toHaveLength(0)
+    })
+  })
+
+  describe('ROO-05', () => {
+    beforeEach(() => {
+      spec('source/A.spec.bs', 'namespace t\n  @suite\n  @deviceOnly\n  class A\n  end class\nend namespace\n')
+      spec('source/B.spec.bs', '@suite\n@tags("deviceOnly")\nclass B\nend class\n')
+    })
+    it('findBareDeviceOnly returns rel:line for bare annotations only', () => {
+      expect(findBareDeviceOnly(cfgAt(fs.realpathSync(tmp)))).toEqual([`${path.join('source', 'A.spec.bs')}:3`])
+    })
+    it('warns on stock for headless lanes, naming file:line', () => {
+      useEngine(fakeRooibos(null))
+      writeBsConfig(cfgAt(tmp), 'headless-scene')
+      const w = warned(/ROO-05/)
+      expect(w).toHaveLength(1)
+      expect(w[0]).toContain(`${path.join('source', 'A.spec.bs')}:3`)
+    })
+    it('does not warn on the device lane', () => {
+      useEngine(fakeRooibos(null))
+      writeBsConfig(cfgAt(tmp), 'device')
+      expect(warned(/ROO-05/)).toHaveLength(0)
+    })
+    it('does not warn when the engine has ROO-05', () => {
+      useEngine(fakeRooibos(['ROO-05']))
+      writeBsConfig(cfgAt(tmp), 'headless-scene')
+      expect(warned(/ROO-05/)).toHaveLength(0)
+    })
   })
 })
