@@ -25,4 +25,10 @@ describe('engine-caps probe is host-only (a real Roku crashes on scene-less node
     expect(firstNode).toBeGreaterThan(guard)
     expect(body.slice(guard, firstNode)).toMatch(/host-only[\s\S]*return/)
   })
+  it('guard is `if not CAP_IsHostEngine() then` and the helper compares the exact friendly name', () => {
+    expect(code(mainBody)).toMatch(/if not CAP_IsHostEngine\(\) then/)
+    const helper = code(src.match(/^function CAP_IsHostEngine\(\)[\s\S]*?^end function/m)[0])
+    expect(helper).toMatch(/getFriendlyName\(\)\s*=\s*"BrightScript Engine Library"/i)
+    expect(helper).not.toMatch(/return\s+true\s*$/m)
+  })
 })
