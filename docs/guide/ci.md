@@ -117,6 +117,16 @@ The e2e lane needs a real Roku on the runner's LAN, so it runs only on a **self-
 ships a ready workflow at `.github/workflows/e2e-device.yml` — see [E2E → Scaling & CI](/e2e/scaling).
 :::
 
+## Engine flavors in this repo's own CI
+
+brighttest's repository runs its suites against more than one engine, so a change to the pinned engines or to
+upstream shows up before users see it. The `engines-matrix` workflow runs `patched-pinned` and `stock-latest` on
+pull requests that touch `lib/`, `brs/` or `package.json`, and nightly; a `patched-candidate` leg runs on manual
+dispatch. Each leg runs `doctor --engines` (the capability probe, which fails when it contradicts the engine's
+metadata), the unit and integration suites, the example apps, and the RSG coverage probes against a committed
+baseline. The `upstream-canary` workflow builds upstream `master` from a read-only clone and runs the same suites;
+it is manual only. See [Refresh the probe baseline](/maintainers#refresh-probe-baseline) when you bump the pin.
+
 ## Debug builds (instrument)
 
 To produce an instrumented debug package in CI, run `npx brighttest instrument build --strict`. Exit **0** = package
