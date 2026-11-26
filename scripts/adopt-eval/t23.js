@@ -25,7 +25,7 @@
 //   source/tests/**, brighttest.json, .gitignore, .env, .env.example, and generated dirs .brighttest/**, coverage/**, node_modules/**.
 // T3 allow-list (extra criterion, the prompt says the app must not be edited): brighttest.json (init --brownfield writes it),
 //   .gitignore, .brighttest/**, node_modules/**. `instrument build --out` should point outside app/; a zip inside app/ fails.
-// Spec counting (T2): spec files under source/tests/ are *.spec.bs / *.spec.brs. legacy-app already ships 4, so the criterion
+// Spec counting (T2): spec files under source/tests/ are *.spec.bs / *.spec.brs. legacy-app already ships some, so the criterion
 //   counts files ADDED against the initial commit; if fewer than 3 were added the verdict is a FAIL tagged review.
 // The `@SGNode` outcome of T2 is non-gating while ENG-PUB is held; it is not scored (read the final message).
 const fs = require('node:fs')
@@ -41,6 +41,8 @@ const PROMPTS = {
 }
 // Added to both arms for T3: a plain package zip is how "verify exits 0" is shown, and it does not edit the app.
 const T3_NOTE = 'Put every build output (debug zip, plain package zip) in the out/ directory next to app/, never inside app/. Building a plain, non-instrumented package zip of the unmodified app (for example with the standard zip tool, run from outside app/ or with output in out/) is allowed and does not count as editing the app.'
+// Added to both arms for T2: the answers to the brownfield skill's Step 0 questions, so the agent does not stop to ask them.
+const T2_NOTE = 'Answers to the setup questions: you may add brighttest.json, spec files under source/tests/ and lines in .gitignore in the app folder. You may NOT edit the app source, components, manifest or bsconfig. No Roku device is available, so use headless runs only.'
 const BASELINE_T23 = 'Use only file reads and standard shell commands inside your working directory and its sibling out/ directory. Do not read README files, and do not read or list anything outside those directories.'
 const SKILL_DIR = 'adopting-brighttest-brownfield'
 const skillFiles = (repoRoot = REPO_ROOT) => {
@@ -50,6 +52,7 @@ const skillFiles = (repoRoot = REPO_ROOT) => {
 }
 function buildPrompt({ arm, task, appDir, outDir, reportPath, repoRoot = REPO_ROOT }) {
   const lines = [PROMPTS[task], '', `Your working directory is ${appDir} (the app). Build outputs go in ${outDir}.`]
+  if (task === 't2') lines.push('', T2_NOTE)
   if (task === 't3') lines.push('', T3_NOTE)
   lines.push('', 'In your final reply, summarize what you did, list the exact commands you ran with their exit codes, and explain any decision the task leaves open.')
   if (arm === 'with-skills') {
@@ -148,8 +151,9 @@ function scoreT2({ message = '', commands = [], exitCodes = {}, appDir }) {
   if (s.error) res.T2c = { pass: false, mode: 'review', note: s.error }
   else {
     const added = s.files.filter((f) => /^source\/tests\/.+\.spec\.(bs|brs)$/.test(f.path) && (f.code === '??' || f.code.includes('A')))
+    const shipped = shippedSpecs(appDir)
     const total = listSpecs(path.join(appDir, 'source', 'tests'))
-    res.T2c = added.length >= 3 ? { pass: true, mode: 'auto', note: `${added.length} spec file(s) added (${total} total under source/tests/)` } : { pass: false, mode: total >= 3 ? 'review' : 'auto', note: `${added.length} spec file(s) added, ${total} total (the fixture ships 4; the task asks for 3 new meaningful specs)` }
+    res.T2c = added.length >= 3 ? { pass: true, mode: 'auto', note: `${added.length} spec file(s) added (${total} total under source/tests/)` } : { pass: false, mode: total >= 3 ? 'review' : 'auto', note: `${added.length} spec file(s) added, ${total} total (the fixture ships ${shipped}; the task asks for 3 new meaningful specs)` }
   }
   const said = /(flip|invert|break|broke|mutat|negat|wrong)\w*/i.test(message) && /\bfail(?:ed|s|ing)?\b/i.test(message) && /(restor|revert|reset|put\s+back|changed\s+back|undone|fixed\s+it\s+back)/i.test(message)
   const leftovers = listFiles(path.join(appDir, 'source', 'tests')).filter((f) => /\.(orig|bak|rej|tmp)$|~$/.test(f))
@@ -171,6 +175,15 @@ function listFiles(dir) {
     if (e.isDirectory()) out.push(...listFiles(p)); else out.push(p)
   }
   return out
+}
+// Spec files in the initial (root) commit, so the note does not hard-code the fixture's count.
+function shippedSpecs(appDir) {
+  const g = (a) => spawnSync('git', a, { cwd: appDir, encoding: 'utf8', timeout: 60000 })
+  const root = g(['rev-list', '--max-parents=0', 'HEAD'])
+  if (root.status !== 0) return 'an unknown number'
+  const ls = g(['ls-tree', '-r', '--name-only', root.stdout.trim().split('\n')[0]])
+  if (ls.status !== 0) return 'an unknown number'
+  return ls.stdout.split('\n').filter((f) => /^source\/tests\/.+\.spec\.(bs|brs)$/.test(f)).length
 }
 const listSpecs = (dir) => listFiles(dir).filter((f) => /\.spec\.(bs|brs)$/.test(f)).length
 
