@@ -50,7 +50,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 describe('startSimulator', () => {
   it('starts in order: engine, hub, build, spawn; bakes the hub port and a 32-hex token', async () => {
     const sim = await startSimulator({ cfg: cfgOf(), log: () => {}, seam: seam() })
-    expect(calls).toEqual(['engine:stock', 'hub', 'build', 'spawn'])
+    expect(calls).toEqual(['engine:auto', 'hub', 'build', 'spawn'])
     expect(hub.opts).toMatchObject({ mode: 'headless', host: '127.0.0.1', port: 0 })
     expect(hub.opts.tokens[0]).toMatch(/^[0-9a-f]{32}$/)
     expect(buildArgs.token).toBe(hub.opts.tokens[0])
@@ -83,17 +83,17 @@ describe('startSimulator', () => {
   })
 
   describe('engine choice', () => {
-    it('default source picks stock', async () => {
+    it('default source resolves auto', async () => {
       const sim = await startSimulator({ cfg: cfgOf(), seam: seam() })
-      expect(calls[0]).toBe('engine:stock')
+      expect(calls[0]).toBe('engine:auto')
       expect(sim.info().engine).toEqual({ name: 'brs-node', version: '2.7.1', flavor: 'stock', source: 'default' })
       await sim.stop()
     })
-    it('explicit cfg wins and an explicit patched choice logs the hang warning', async () => {
+    it('explicit cfg wins and logs no hang warning', async () => {
       const logs = []
       const sim = await startSimulator({ cfg: cfgOf({ engines: { brsNode: 'patched' } }), log: (l) => logs.push(l), seam: seam() })
       expect(calls[0]).toBe('engine:patched')
-      expect(logs.join('\n')).toMatch(/known to hang on Tasks/)
+      expect(logs.join('\n')).not.toMatch(/hang on Tasks/)
       expect(sim.info().engine.source).toBe('config')
       await sim.stop()
     })
@@ -132,7 +132,7 @@ describe('startSimulator', () => {
       expect(sim.info().state).toBe('no-hello')
       expect(child.signals).toEqual([])
       expect(logs.join('\n')).toMatch(/engine said hi/)
-      expect(logs.join('\n')).toMatch(/set engines.brsNode: stock/)
+      expect(logs.join('\n')).not.toMatch(/engines.brsNode: stock/)
       await sim.stop()
       expect(child.signals[0]).toBe('SIGTERM')
     })

@@ -144,8 +144,7 @@ state-only: the AppState panel works, while panels that need a device (tree, scr
 performance) answer 409 `SIMULATOR_TARGET`, and the Network panel needs a device. The banner prints the engine as
 `simulator <name>@<version> (<flavor>)`.
 
-- **Engine**: the stock engine (`brs-node`, shipped as a brighttest dependency) unless `engines.brsNode` or `BRIGHTTEST_ENGINES` picks another one.
-  An explicit `patched` choice is allowed, with a warning on stderr, because the patched 2.2.0 engine can hang on Tasks.
+- **Engine**: `auto` (the patched engine when installed, else the stock `brs-node` shipped as a brighttest dependency) unless `engines.brsNode` or `BRIGHTTEST_ENGINES` picks another one.
   If the engine is missing from `node_modules` it exits 1 and prints the `npm i brs-node` hint.
   A `brs-node` installed in your own project wins over the bundled one, and the banner shows its version.
   Both engines declare the `brs-cli` bin, so `npx brs-cli` may run either one; brighttest itself reads each engine's
