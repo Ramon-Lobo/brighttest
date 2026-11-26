@@ -215,6 +215,105 @@ describe('T3a (init --brownfield against the existing config)', () => {
   })
 })
 
+// init works in its cwd, so an agent that honours "this app must not be edited" runs it in a copy next to app/.
+describe('T3a where init ran (a copy of the app)', () => {
+  const g = () => fx('t3-good.json')
+  const cp = (c, rel) => { const d = path.join(path.dirname(c.t3), rel); fs.cpSync(c.t3, d, { recursive: true }); return d }
+  const a = (c, o = {}) => t23.scoreT3({ message: g().finalMessage, commands: g().commands, exitCodes: g().exitCodes, appDir: c.t3, ...o }).T3a
+  const orig = (c) => fs.readFileSync(path.join(c.t3, 'brighttest.json'), 'utf8')
+  const read = (d) => JSON.parse(fs.readFileSync(path.join(d, 'brighttest.json'), 'utf8'))
+
+  test('pass: init in place (app/ holds the .bak)', () => {
+    const c = fresh(); merged(c.t3)
+    expect(a(c).pass).toBe(true)
+  })
+  test('pass: init in work/ with a valid merge; original app untouched and T3f still passes', () => {
+    const c = fresh(), before = orig(c), work = cp(c, 'work'); merged(work)
+    const r = t23.scoreT3({ message: g().finalMessage, commands: g().commands, exitCodes: g().exitCodes, appDir: c.t3 })
+    expect(r.T3a.pass).toBe(true)
+    expect(r.T3a.note).toMatch(/work/)
+    expect(orig(c)).toBe(before)
+    expect(r.T3f.pass).toBe(true)
+  })
+  test('pass: init in out/app-work (nested copy)', () => {
+    const c = fresh(), d = cp(c, path.join('out', 'app-work')); merged(d)
+    expect(a(c).pass).toBe(true)
+  })
+  test('pass: `cd <dir> &&` prefix and a recorded cwd name the directory', () => {
+    const c = fresh(), d = cp(c, 'elsewhere'); merged(d)
+    const cmd = g().commands[0]
+    expect(a(c, { commands: [`cd ${d} && ${cmd}`, ...g().commands.slice(1)], exitCodes: {} }).pass).toBe(true)
+    expect(a(c, { cwds: { [cmd]: 'elsewhere' } }).pass).toBe(true)
+  })
+  test('fail: init in a copy whose result is invalid', () => {
+    const c = fresh(), work = cp(c, 'work'); merged(work)
+    const cfg = read(work); cfg.rootDir = 3
+    W(work, 'brighttest.json', JSON.stringify(cfg))
+    const r = a(c)
+    expect(r.pass).toBe(false)
+    expect(r.note).toMatch(/invalid or incomplete: rootDir/)
+  })
+  test('fail: init in a copy that altered an originally valid key', () => {
+    const c = fresh(), work = cp(c, 'work'); merged(work)
+    const cfg = read(work); cfg.instrument.state.registrySections = ['other']
+    W(work, 'brighttest.json', JSON.stringify(cfg))
+    const r = a(c)
+    expect(r.pass).toBe(false)
+    expect(r.note).toMatch(/instrument\.state/)
+  })
+  test('fail: only a dry run, or no init at all, even with a valid merged copy', () => {
+    const c = fresh(), work = cp(c, 'work'); merged(work)
+    expect(a(c, { commands: g().commands.map((x) => x.replace('--brownfield', '--brownfield --dry-run')) }).pass).toBe(false)
+    expect(a(c, { commands: g().commands.filter((x) => !/init/.test(x)) }).note).toMatch(/no `init --brownfield` run/)
+  })
+  test('fail with a message: two directories hold a .bak, or the named directory has no brighttest.json', () => {
+    const c = fresh(); merged(cp(c, 'work')); merged(cp(c, 'other'))
+    const amb = a(c)
+    expect(amb.pass).toBe(false)
+    expect(amb.note).toMatch(/cannot tell where init --brownfield ran/)
+    const cmd = g().commands[0]
+    const missing = a(c, { commands: [`cd nowhere && ${cmd}`, ...g().commands.slice(1)], exitCodes: {} })
+    expect(missing.pass).toBe(false)
+    expect(missing.note).toMatch(/has no brighttest\.json/)
+  })
+  test('fail: agent commits after init in place and altered a valid key (HEAD must not be the baseline)', () => {
+    const c = fresh(); merged(c.t3)
+    const cfg = read(c.t3); cfg.instrument.state.registrySections = ['other']
+    W(c.t3, 'brighttest.json', JSON.stringify(cfg))
+    const git = (...x) => require('node:child_process').spawnSync('git', ['-c', 'user.name=e', '-c', 'user.email=e@e.invalid', '-c', 'commit.gpgsign=false', ...x], { cwd: c.t3, encoding: 'utf8' })
+    git('add', '-A'); git('commit', '-q', '-m', 'after init')
+    const r = a(c)
+    expect(r.pass).toBe(false)
+    expect(r.note).toMatch(/instrument\.state/)
+  })
+  test('pass: compound `init --brownfield --dry-run && init --brownfield` and `cd work && init --brownfield`', () => {
+    const c = fresh(), d = cp(c, 'work'); merged(d)
+    const init = g().commands[0], rest = g().commands.slice(1)
+    expect(a(c, { commands: [`${init} --dry-run && ${init}`, ...rest], exitCodes: {} }).pass).toBe(true)
+    expect(a(c, { commands: [`cd work && ${init}`, ...rest], exitCodes: {} }).pass).toBe(true)
+    expect(a(c, { commands: [`${init} --dry-run\n${init}`, ...rest], exitCodes: {} }).pass).toBe(true)
+  })
+  test('compound with only a dry-run still fails', () => {
+    const c = fresh(), init = g().commands[0]
+    merged(c.t3)
+    expect(a(c, { commands: [`${init} --dry-run && echo ok`, ...g().commands.slice(1)] }).pass).toBe(false)
+  })
+  test('unrecorded init exit code is unknown: reported, passes only if the config checks pass', () => {
+    const c = fresh(); merged(c.t3)
+    const ok = a(c, { exitCodes: {} })
+    expect(ok.pass).toBe(true)
+    expect(ok.mode).toBe('review')
+    expect(ok.note).toMatch(/exit code not recorded/)
+    const bad = a(fresh(), { exitCodes: {} })
+    expect(bad.pass).toBe(false)
+    expect(bad.note).toMatch(/exit code not recorded/)
+  })
+  test('fail: init ran in a copy but changed nothing visible (no .bak): app/ is scored and is incomplete', () => {
+    const c = fresh(); cp(c, 'work')
+    expect(a(c).pass).toBe(false)
+  })
+})
+
 describe('T3 score', () => {
   test('good cell passes; strict stays a review item', () => {
     const c = fresh(); merged(c.t3)

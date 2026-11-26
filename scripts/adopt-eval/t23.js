@@ -192,27 +192,81 @@ const listSpecs = (dir) => listFiles(dir).filter((f) => /\.spec\.(bs|brs)$/.test
 // ---- T3 ----
 // T3a: `init --brownfield` (not --dry-run) ran against the existing config, the final brighttest.json is valid and complete
 // per lib/init-merge.js (the validator init itself uses), and every part that was valid in the fixture's original is unchanged.
-function scoreT3a({ commands, exitCodes, appDir }) {
-  const { validateBrownfield, alteredValidKeys } = require(path.join(REPO_ROOT, 'lib', 'init-merge'))
-  const ran = commands.filter((c) => /\binit\b/.test(c) && /--brownfield\b/.test(c) && !/--dry-run\b/.test(c))
-  if (!ran.length) return { pass: false, mode: 'auto', note: 'no `init --brownfield` run (not --dry-run) in commands: it must run even when brighttest.json exists' }
-  if (ran.every((c) => { const x = lookup(exitCodes, c); return x !== undefined && x !== 0 })) return { pass: false, mode: 'auto', note: 'init --brownfield did not exit 0' }
-  const { cfg, error } = readConfig(appDir)
-  if (error) return { pass: false, mode: 'auto', note: error }
-  const defaults = { rootDir: '.', sourceGlobs: [], testsFilePattern: '**/*.spec.bs', stagingDir: '.brighttest' }
-  const bad = validateBrownfield(cfg, defaults)
-  if (bad.length) return { pass: false, mode: 'auto', note: `final brighttest.json invalid or incomplete: ${bad.map((b) => b.key).join(', ')}` }
-  const g = spawnSync('git', ['show', 'HEAD:brighttest.json'], { cwd: appDir, encoding: 'utf8', timeout: 60000 })
-  let orig = null
-  try { orig = JSON.parse(g.status === 0 ? g.stdout : fs.readFileSync(path.join(REPO_ROOT, 'examples', FIXTURE, 'brighttest.json'), 'utf8')) } catch (e) { return { pass: false, mode: 'review', note: `cannot read the fixture original: ${e.message}` } }
-  const altered = alteredValidKeys(orig, cfg, defaults)
-  if (altered.length) return { pass: false, mode: 'auto', note: `keys that were valid in the original were changed: ${altered.join(', ')}` }
-  return { pass: true, mode: 'auto', note: 'init --brownfield ran against the existing config; final file valid and complete; originally valid keys unchanged' }
+// `init` takes no directory argument: it works in the process cwd. So the directory it ran in comes from, in order:
+// a `cd <dir> &&` (or `pushd <dir> &&`) prefix on the command, a recorded cwd (results cell `cwds[command]`), then the
+// run's own directory layout: init leaves brighttest.json.bak next to the file it changed, so the one directory under the
+// cell (app/ included) holding a .bak is where it ran. No marker anywhere means init changed nothing, so app/ is used.
+const unq = (x) => String(x).replace(/^(["'])(.*)\1$/, '$2')
+// Split a recorded command into its simple commands (on && || ; and newlines; quotes are not parsed) and follow `cd`/`pushd`
+// segments, so `init --brownfield --dry-run && init --brownfield` and `cd work && init --brownfield` are read correctly.
+function initRuns(commands, cwds) {
+  const runs = []
+  for (const c of commands) {
+    let dir = (cwds && cwds[c]) || null
+    for (const seg of String(c).split(/&&|\|\||;|\r?\n/).map((x) => x.replace(/^[\s(]+|[\s)]+$/g, '')).filter(Boolean)) {
+      const cd = /^(?:cd|pushd)\s+("[^"]+"|'[^']+'|\S+)$/.exec(seg)
+      if (cd) { dir = unq(cd[1]); continue }
+      if (/\binit\b/.test(seg) && /--brownfield\b/.test(seg) && !/--dry-run\b/.test(seg)) runs.push({ cmd: c, dir })
+    }
+  }
+  return runs
+}
+function findBakDirs(cellDir, appDir) {
+  const found = []
+  const walk = (dir, depth) => {
+    let ents = []
+    try { ents = fs.readdirSync(dir, { withFileTypes: true }) } catch { return }
+    if (ents.some((e) => e.isFile() && e.name === 'brighttest.json.bak')) found.push(dir)
+    if (depth >= 3) return
+    for (const e of ents) if (e.isDirectory() && !['node_modules', '.git', '.brighttest'].includes(e.name)) walk(path.join(dir, e.name), depth + 1)
+  }
+  walk(cellDir, 0)
+  return found.filter((d) => path.resolve(d) !== path.resolve(cellDir))
+}
+function resolveInitDir({ ran, appDir }) {
+  const cellDir = path.dirname(appDir)
+  const explicit = [...new Set(ran.map((r) => r.dir && path.resolve(cellDir, r.dir)).filter(Boolean))]
+  if (explicit.length > 1) return { error: `cannot tell where init --brownfield ran: commands name different directories (${explicit.join(', ')})` }
+  if (explicit.length === 1) return fs.existsSync(path.join(explicit[0], 'brighttest.json')) ? { dir: explicit[0] } : { error: `init --brownfield ran in ${explicit[0]}, which has no brighttest.json` }
+  const baks = findBakDirs(cellDir, appDir)
+  if (baks.length > 1) return { error: `cannot tell where init --brownfield ran: brighttest.json.bak found in ${baks.join(', ')}` }
+  return { dir: baks.length ? baks[0] : appDir }
 }
 
-function scoreT3({ message = '', commands = [], exitCodes = {}, appDir }) {
+// T3a: `init --brownfield` (not --dry-run) ran against the existing config, the final brighttest.json (in the directory init ran in,
+// which may be a copy of the app) is valid and complete per lib/init-merge.js (the validator init itself uses), and every part
+// that was valid in the original (the app's root commit, else the pristine fixture file) is unchanged.
+function scoreT3a({ commands, exitCodes, appDir, cwds }) {
+  const { validateBrownfield, alteredValidKeys } = require(path.join(REPO_ROOT, 'lib', 'init-merge'))
+  const ran = initRuns(commands, cwds)
+  if (!ran.length) return { pass: false, mode: 'auto', note: 'no `init --brownfield` run (not --dry-run) in commands: it must run even when brighttest.json exists' }
+  const codes = ran.map((r) => lookup(exitCodes, r.cmd))
+  if (codes.every((x) => x !== undefined && x !== 0)) return { pass: false, mode: 'auto', note: 'init --brownfield did not exit 0' }
+  const unknown = codes.some((x) => x === undefined) ? '; init exit code not recorded (unknown, not counted as success)' : ''
+  const where = resolveInitDir({ ran, appDir })
+  if (where.error) return { pass: false, mode: 'auto', note: where.error + unknown }
+  const initDir = where.dir
+  const { cfg, error } = readConfig(initDir)
+  if (error) return { pass: false, mode: 'auto', note: `${error} (init directory ${initDir})${unknown}` }
+  const defaults = { rootDir: '.', sourceGlobs: [], testsFilePattern: '**/*.spec.bs', stagingDir: '.brighttest' }
+  const bad = validateBrownfield(cfg, defaults)
+  if (bad.length) return { pass: false, mode: 'auto', note: `final brighttest.json invalid or incomplete: ${bad.map((b) => b.key).join(', ')}${unknown}` }
+  // The original is the pristine file: the root ("fixture baseline") commit, never HEAD (the agent may commit after init).
+  let orig = null
+  try {
+    const root = spawnSync('git', ['rev-list', '--max-parents=0', 'HEAD'], { cwd: appDir, encoding: 'utf8', timeout: 60000 })
+    const first = root.status === 0 ? root.stdout.trim().split('\n')[0] : ''
+    const g = first ? spawnSync('git', ['show', `${first}:brighttest.json`], { cwd: appDir, encoding: 'utf8', timeout: 60000 }) : { status: 1 }
+    orig = JSON.parse(g.status === 0 ? g.stdout : fs.readFileSync(path.join(REPO_ROOT, 'examples', FIXTURE, 'brighttest.json'), 'utf8'))
+  } catch (e) { return { pass: false, mode: 'review', note: `cannot read the original brighttest.json: ${e.message}${unknown}` } }
+  const altered = alteredValidKeys(orig, cfg, defaults)
+  if (altered.length) return { pass: false, mode: 'auto', note: `keys that were valid in the original were changed: ${altered.join(', ')}${unknown}` }
+  return { pass: true, mode: unknown ? 'review' : 'auto', note: `init --brownfield ran in ${initDir === appDir ? 'app/' : path.relative(path.dirname(appDir), initDir) || '.'}; final file valid and complete; originally valid keys unchanged${unknown}` }
+}
+
+function scoreT3({ message = '', commands = [], exitCodes = {}, appDir, cwds }) {
   const res = {}
-  res.T3a = scoreT3a({ commands, exitCodes, appDir })
+  res.T3a = scoreT3a({ commands, exitCodes, appDir, cwds })
   const builds = commands.filter((c) => /\binstrument\s+build\b/.test(c))
   const withOut = builds.filter((c) => /--out\b/.test(c))
   if (!withOut.length) res.T3b = { pass: false, mode: 'auto', note: builds.length ? 'instrument build without --out' : 'no `instrument build --out` in commands' }
@@ -259,7 +313,7 @@ function score({ runRoot, results, tasks = TASKS }) {
         if (review.length) out.contamReview.push({ cell: id, why: review })
         if (why.length) { out.contaminated.push({ cell: id, why }); out.arms[arm][task] = { present: true, excluded: true, criteria: {}, pass: null }; continue }
       }
-      const args = { message: r.finalMessage || '', commands: r.commands || [], exitCodes: r.exitCodes || {}, appDir: path.join(cellDir(runRoot, arm, task), 'app') }
+      const args = { message: r.finalMessage || '', commands: r.commands || [], exitCodes: r.exitCodes || {}, cwds: r.cwds, appDir: path.join(cellDir(runRoot, arm, task), 'app') }
       const criteria = task === 't2' ? scoreT2(args) : scoreT3(args)
       const vals = Object.values(criteria)
       // A task passes when every criterion passes. T3f is an extra check but still counts.
