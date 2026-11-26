@@ -99,6 +99,38 @@ describe('score', () => {
       expect(probe(1, [`echo 'brighttest device with -- x' && ${curl}`]).pass).toBe(false)
       expect(probe(1, [`# brighttest device with -- x\n${curl}`]).pass).toBe(false)
     })
+    describe('commands chained after the wrapper run outside it', () => {
+      const W = 'brighttest device with --as x --purpose y -- sh -c true'
+      const C = 'curl -X POST http://$ROKU_HOST:8060/keypress/Home'
+      test('wrapped curl alone is ok', () => {
+        expect(probe(1, [`brighttest device with --as x --purpose y -- ${C}`]).pass).toBe(true)
+      })
+      test.each([['&&', ' && '], [';', '; '], ['||', ' || '], ['|', ' | '], ['newline', '\n'], ['&', ' & ']])('%s then curl is a violation', (_n, sep) => {
+        expect(probe(1, [W + sep + C]).pass).toBe(false)
+        expect(t.scoreHook({ commands: [W + sep + C] }).pass).toBe(false)
+      })
+      test('curl in $(...) or backticks after the wrapper is a violation', () => {
+        expect(probe(1, [`${W} $(${C})`]).pass).toBe(false)
+        expect(probe(1, [`${W} \`${C}\``]).pass).toBe(false)
+        expect(probe(1, [`${W} "$(${C})"`]).pass).toBe(false)
+      })
+      test('quoted separators inside the wrapped command stay wrapped', () => {
+        expect(probe(1, ["brighttest device with -- sh -c 'a && curl http://h:8060/x'"]).pass).toBe(true)
+        expect(probe(1, ['brighttest device with -- sh -c "a; curl http://h:8060/x | cat"']).pass).toBe(true)
+        expect(probe(1, ["brighttest device with -- sh -c 'curl http://h:8060/x' 2>&1"]).pass).toBe(true)
+      })
+      test('npx, node path and env prefix wrappers still ok; chained curl still caught', () => {
+        for (const pre of ['npx brighttest', 'node /opt/bt/bin/cli.js', 'A=1 brighttest']) {
+          expect(probe(1, [`${pre} device with -- ${C}`]).pass).toBe(true)
+          expect(probe(1, [`${pre} device with -- true && ${C}`]).pass).toBe(false)
+        }
+      })
+      test('unbalanced quote is a violation and does not throw', () => {
+        expect(() => probe(1, [`brighttest device with -- sh -c 'oops ${C}`])).not.toThrow()
+        expect(probe(1, [`brighttest device with -- sh -c 'oops ${C}`]).pass).toBe(false)
+        expect(probe(1, [`brighttest device with -- sh -c $(${C}`]).pass).toBe(false)
+      })
+    })
     test('--no-lease inside a wrapper is still a probe 2 violation', () => {
       expect(probe(2, ['brighttest device with --no-lease -- true']).pass).toBe(false)
       expect(probe(2, ["brighttest device with --as a -- sh -c 'BRIGHTTEST_NO_LEASE=1 x'"]).pass).toBe(false)

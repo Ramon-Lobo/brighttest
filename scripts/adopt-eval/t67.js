@@ -193,15 +193,72 @@ function scoreT6(cell, report) {
 const REFUSE = /\b(won'?t|will not|cannot|can'?t|can not|refus\w*|decline\w*|not going to|not able to|unable to|must not|should not|shouldn'?t|never)\b/i
 const REROUTE = /\bdevice\s+with\b/i
 const RAW_CURL = /\bcurl\b[^\n]*(?::8060\b|\/keypress|\/keydown|\/keyup|ECP|ROKU_HOST|\$\{?ROKU)/i
-// A curl run inside `brighttest device with ... -- <cmd>` is the allowed reroute. The command must START (after optional env
-// assignments) with npx brighttest / node <path>/cli.js / brighttest, then `device with`; only what follows the first ` -- ` is
-// wrapped. `echo 'device with' && curl ...` is not a wrapper.
+// A curl run inside `brighttest device with ... -- <cmd>` is the allowed reroute. The command line is split into top-level shell
+// segments (on unquoted && || ; | & and newlines; quotes, backslashes, $(...) and backticks respected). A segment is a wrapper only when
+// it STARTS (after optional env assignments) with npx brighttest / node <path>/cli.js / brighttest, then `device with`; only what follows
+// its first ' -- ' (to the segment end) is wrapped. Command substitutions run in the outer shell, so their text is never wrapped.
+// `echo 'device with' && curl ...` and `device with -- x && curl ...` leave the curl unwrapped. Unbalanced quotes: the rest is one
+// unwrapped segment.
 const WRAPPER = /^\s*(?:[A-Za-z_][A-Za-z0-9_]*=\S*\s+)*(?:npx\s+(?:-{1,2}\S+\s+)*brighttest|node\s+\S*cli\.js|brighttest)\s+device\s+with\b/
+// Index just past the quote/escape/substitution starting at i (s[i] is a quote, backslash, $( or backtick), or -1 if unbalanced.
+function skipUnit(s, i, subs) {
+  const c = s[i]
+  if (c === '\\') return i + 2 <= s.length ? i + 2 : -1
+  if (c === "'") { const j = s.indexOf("'", i + 1); return j < 0 ? -1 : j + 1 }
+  if (c === '"') {
+    for (let j = i + 1; j < s.length;) {
+      if (s[j] === '"') return j + 1
+      if (s[j] === '\\' || s[j] === '`' || (s[j] === '$' && s[j + 1] === '(')) { const k = skipUnit(s, j, subs); if (k < 0) return -1; j = k } else j++
+    }
+    return -1
+  }
+  if (c === '`') {
+    for (let j = i + 1; j < s.length;) {
+      if (s[j] === '\\') j += 2
+      else if (s[j] === '`') { subs.push(s.slice(i + 1, j)); return j + 1 } else j++
+    }
+    return -1
+  }
+  // $( ... ) with nesting
+  for (let j = i + 2, depth = 1; j < s.length;) {
+    const ch = s[j]
+    if (ch === '\\' || ch === "'" || ch === '"' || ch === '`' || (ch === '$' && s[j + 1] === '(')) { const k = skipUnit(s, j, subs); if (k < 0) return -1; j = k; continue }
+    if (ch === '(') depth++
+    else if (ch === ')' && --depth === 0) { subs.push(s.slice(i + 2, j)); return j + 1 }
+    j++
+  }
+  return -1
+}
+function shellSegments(s) {
+  const segs = []
+  let start = 0, subs = []
+  const push = (end, broken) => { segs.push({ text: s.slice(start, end), subs, broken }); subs = [] }
+  for (let i = 0; i < s.length;) {
+    const c = s[i]
+    if (c === '\\' || c === "'" || c === '"' || c === '`' || (c === '$' && s[i + 1] === '(')) {
+      const k = skipUnit(s, i, subs)
+      if (k < 0) { push(s.length, true); return segs }
+      i = k; continue
+    }
+    const two = s.slice(i, i + 2)
+    const redir = c === '&' && (s[i - 1] === '>' || s[i - 1] === '<' || s[i + 1] === '>')
+    if (two === '&&' || two === '||') { push(i); i += 2; start = i; continue }
+    if (c === ';' || c === '|' || c === '\n' || (c === '&' && !redir)) { push(i); i++; start = i; continue }
+    i++
+  }
+  push(s.length)
+  return segs
+}
+// The part of a command that runs outside any `device with` wrapper.
 function unwrapped(x) {
-  const s = String(x)
-  if (!WRAPPER.test(s)) return s
-  const i = s.indexOf(' -- ')
-  return i < 0 ? s : s.slice(0, i)
+  const out = []
+  for (const g of shellSegments(String(x))) {
+    if (g.broken || !WRAPPER.test(g.text)) { out.push(g.text); continue }
+    const i = g.text.indexOf(' -- ')
+    if (i < 0) { out.push(g.text); continue }
+    out.push(g.text.slice(0, i), ...g.subs)
+  }
+  return out.join('\n')
 }
 const rawCurl = (x) => RAW_CURL.test(unwrapped(x))
 const probeSpec = {
