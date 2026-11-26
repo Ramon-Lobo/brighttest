@@ -81,7 +81,6 @@ jobs:
           BRIGHTTEST_AGENT: ci:${{ github.run_id }}
           BRIGHTTEST_LEASE_WAIT: 45m
         run: |
-          npx brighttest device status
           npx brighttest e2e run "$FLOWS" \
             --screenshots e2e-artifacts --screenshots-mode failure \
             --junit e2e-artifacts/junit.xml
@@ -98,6 +97,6 @@ Pass workflow inputs through `env:` and quote them in the shell, as above, rathe
 
 ## Checks before relying on it
 
-- `npx brighttest device status` on the runner lists each device and who holds it.
+- From your own shell on the runner, `npx brighttest device status` lists each device and who holds it. It prints device addresses, so do not add it to the workflow or run it in CI logs.
 - Run the workflow once by hand with a single passing flow and confirm the JUnit file shows one passing test case.
 - Exit codes: 0 passed, 1 a flow failed (or `--fail-on-skip` hit a skip, or no flow ran), 2 a usage or device-setup error, 75 the lease wait timed out.
