@@ -102,7 +102,8 @@ Two-tier setup works well:
   matches the device. Put device credentials in CI secrets (`ROKU_HOST`, `ROKU_PASSWORD`).
 - **Sharing the Roku with local users or agents:** device lanes take a per-device lease, so a CI job on the
   same machine (same OS user) queues behind them. Set `BRIGHTTEST_AGENT=ci:<run id>` and a longer
-  `BRIGHTTEST_LEASE_WAIT` (e.g. `45m`); add `npx brighttest device status` before and after the device steps.
+  `BRIGHTTEST_LEASE_WAIT` (e.g. `45m`). Do not run `device status` in CI: it prints device addresses into the job log
+  (see `wiring-brighttest-into-ci`); check it from your own shell.
   Leases across different OS users are not supported (the lease dir is private to its user); run CI as the same OS user.
   Use one CI concurrency group per device. Exit 75 = the device stayed busy; 77 = the lease was lost.
 

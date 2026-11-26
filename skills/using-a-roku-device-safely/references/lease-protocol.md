@@ -83,4 +83,4 @@ If the steps need separate calls, prefer `device with` per step instead of a ses
 ## Pools and CI
 
 `--device any` takes the first free device of `deviceLease.pool`. In CI give runs a label
-(`BRIGHTTEST_AGENT=ci:<run id>`) and a longer wait, and add `device status` steps before and after.
+(`BRIGHTTEST_AGENT=ci:<run id>`) and a longer wait. Do not run `device status` in the CI job: it prints device addresses into the log. Check it from your own shell.
