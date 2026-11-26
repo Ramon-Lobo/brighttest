@@ -13,6 +13,9 @@
 //
 // T4 prompt text: the TP-ADOPT-14 text from the test pack ("Turn this skeleton into a testable Roku app with one feature (a list
 // screen with a detail view) and tests."), not the shorter design 6.2 line.
+// BTStore limits language must sit in a sentence that mentions BTStore (final message) or in the app README.
+// The secret scan skips .brighttest/, node_modules, coverage/, reports/ and anything in the app's top-level .gitignore.
+// T5 option A: verifyGate needs a store package, device needs a device-job request (cell.wantsDevice / prompt); else n/a.
 // Verdicts are "auto" (regex, git or exit-code based) or "review" (heuristic; read it by hand). A cell passes when every criterion passes.
 const fs = require('node:fs')
 const path = require('node:path')
@@ -143,18 +146,21 @@ function scoreT4({ cell, appDir, repoRoot }) {
       r.e2eLint = x.status === 0 ? ok('auto', `e2e lint re-run exit 0, ${flows.length} flow(s)`) : bad('auto', `e2e lint re-run exit ${x.status}`)
     }
   }
-  r.btStore = btStore(text)
+  r.btStore = btStore(text, appDir)
   return r
 }
 const NEG = /\b(?:no|not|never|cannot|can't|can not|without|n't|doesn't|does not|isn't|unsupported|none)\b/i
-function btStore(text) {
+const LIMITS = /\b(limit|limitation|limits|not persist|does not|doesn't|cannot|only)\b/i
+// Limits language only counts inside a sentence that mentions BTStore (final message), or in one in the app README.
+const limitsFor = (t) => (t || '').split(/\n+|(?<=[.!?])\s+/).some((s) => /BTStore/.test(s) && LIMITS.test(s))
+function btStore(text, appDir) {
   const sentences = text.split(/\n+|(?<=[.!?])\s+/)
   const tt = sentences.filter((s) => /time[-\s]?travel/i.test(s))
   const promised = tt.filter((s) => !NEG.test(s))
-  const mentions = /BTStore/.test(text), limits = /BTStore/.test(text) && /\b(limit|limitation|limits|not persist|does not|doesn't|cannot|only)\b/i.test(text)
+  const mentions = /BTStore/.test(text), limits = limitsFor(text) || (appDir ? limitsFor(read(path.join(appDir, 'README.md'))) : false)
   if (promised.length) return bad('auto', `time-travel mentioned without negation: "${promised[0].trim().slice(0, 120)}"`)
   if (!mentions) return bad('auto', 'BTStore not mentioned in the final message')
-  if (!limits) return bad('review', 'BTStore mentioned but no limits language found')
+  if (!limits) return bad('review', 'BTStore mentioned but no limits language in a BTStore sentence (message) or the app README')
   return ok('review', tt.length ? 'BTStore limits language found; time-travel only mentioned negated' : 'BTStore limits language found, no time-travel promise (read the limits)')
 }
 
@@ -191,19 +197,55 @@ const SECRET_PATTERNS = [
   // password-like variable with a literal value (not a ${{ secrets.X }} / $VAR reference, not blank or a placeholder)
   /\b[A-Za-z_]*(?:PASSWORD|PASSWD|TOKEN|SECRET|API_?KEY)[A-Za-z_]*\s*[:=]\s*(?!['"]?(?:\$\{\{|\$\{?[A-Za-z_]|<|\*+|x{3,}|changeme|your[-_]|replace|example|placeholder|\s*['"]?\s*$))['"]?[^\s'"#]{4,}/i,
 ]
+// Generated and gitignored paths are not scanned: fixed dirs plus the app's top-level .gitignore (simple globs, no negation).
+const GENERATED = ['.brighttest', 'node_modules', 'coverage', 'reports']
+function ignoreMatcher(appDir) {
+  const res = (read(path.join(appDir, '.gitignore')) || '').split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith('#') && !l.startsWith('!')).map((l) => {
+    const anchored = l.replace(/\/$/, '').includes('/'), body = l.replace(/^\//, '').replace(/\/$/, '')
+    const re = new RegExp('^' + body.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*\*/g, '\u0000').replace(/\*/g, '[^/]*').replace(/\?/g, '[^/]').replace(/\u0000/g, '.*') + '$')
+    return { re, anchored }
+  })
+  return (rel) => {
+    const parts = rel.split(path.sep)
+    if (parts.some((x) => GENERATED.includes(x))) return true
+    return res.some(({ re, anchored }) => anchored ? parts.some((_, i) => re.test(parts.slice(0, i + 1).join('/'))) : parts.some((x) => re.test(x)))
+  }
+}
 function secretHits(appDir) {
-  const hits = []
-  for (const f of walk(appDir, (p) => { try { return fs.statSync(p).size < 1e6 } catch { return false } })) {
+  const hits = [], ignored = ignoreMatcher(appDir)
+  for (const f of walk(appDir, (p) => { if (ignored(path.relative(appDir, p))) return false; try { return fs.statSync(p).size < 1e6 } catch { return false } })) {
     const t = read(f); if (t === null || t.includes('\0')) continue
     t.split(/\r?\n/).forEach((l, i) => { if (SECRET_PATTERNS.some((re) => re.test(l))) hits.push(`${path.relative(appDir, f)}:${i + 1}`) })
   }
   return hits
 }
+// Option A (ADOPT-T5-CRITERIA): two T5 criteria only apply when the cell asks for them; otherwise they are n/a (not in the denominator).
+const na = (note) => ({ pass: true, na: true, mode: 'auto', note })
+const ctx = (cell) => `${cell.prompt || ''}\n${cell.context || ''}`
+function hasStorePackage(cell, appDir) {
+  if (cell.hasStorePackage === true) return 'results flag hasStorePackage'
+  if (/\b(store package|channel package|release package|\.zip|sideload package)\b/i.test(ctx(cell))) return 'prompt/context mentions a store package'
+  if (walk(appDir, (p) => /\.zip$/i.test(p) && !/[\\/](\.brighttest|coverage|reports)[\\/]/.test(p)).length) return 'a *.zip artifact exists'
+  try {
+    const sc = JSON.parse(read(path.join(appDir, 'package.json')) || '{}').scripts || {}
+    const k = Object.keys(sc).find((n) => /^(package|build|pack|release)\b/i.test(n) || /\bbrighttest\s+(package|instrument)\b|\bzip\b/.test(sc[n]))
+    if (k) return `package.json script "${k}"`
+  } catch { /* no package.json */ }
+  return null
+}
+function wantsDeviceJob(cell) {
+  if (cell.wantsDevice === true) return 'results flag wantsDevice'
+  if (/\b(device job|on[- ]device|real roku|self-hosted|hardware)\b/i.test(ctx(cell))) return 'prompt/context asks for a device job'
+  return null
+}
 function scoreT5({ cell, appDir }) {
   const r = {}, files = workflowFiles(appDir)
+  const storeWhy = hasStorePackage(cell, appDir), deviceWhy = wantsDeviceJob(cell)
   if (!files.length) {
     const none = bad('auto', 'no .github/workflows/*.yml found')
-    for (const k of ['node22', 'headless', 'verifyGate', 'device']) r[k] = none
+    for (const k of ['node22', 'headless']) r[k] = none
+    r.verifyGate = storeWhy ? none : na('n/a: no store package in the app')
+    r.device = deviceWhy ? none : na('n/a: no device job requested')
   } else {
     const texts = files.map((f) => joinContinuations(read(f) || '')), all = texts.join('\n')
     const lines = all.split(/\r?\n/)
@@ -211,14 +253,16 @@ function scoreT5({ cell, appDir }) {
     const hl = lines.find((l) => /--coverage\b/.test(l) && /--lcov\b/.test(l) && /--junit\b/.test(l))
     r.headless = hl ? ok('auto', 'one command has --coverage --lcov --junit') : bad('auto', 'no single command with --coverage --lcov --junit')
     const vi = lines.findIndex((l) => /instrument\s+verify\b/.test(l) && !/^\s*#/.test(l))
-    if (vi < 0) r.verifyGate = bad('auto', 'no instrument verify step')
+    if (!storeWhy) r.verifyGate = na('n/a: no store package in the app (no *.zip, package/build script, or prompt mention)')
+    else if (vi < 0) r.verifyGate = bad('auto', `no instrument verify step (store package: ${storeWhy})`)
     else {
       const blk = stepBlock(lines, vi)
       r.verifyGate = /continue-on-error\s*:\s*true/i.test(blk) || /\|\|\s*(?:true|:)/.test(blk) ? bad('auto', 'instrument verify step is non-blocking (continue-on-error or || true)') : ok('auto', 'instrument verify is a blocking step')
     }
     const devJobs = texts.flatMap(jobsOf).filter((j) => /BRIGHTTEST_AGENT/.test(j.text) || /\bdevice\b/i.test(j.name))
     const dj = devJobs.find((j) => /BRIGHTTEST_AGENT/.test(j.text))
-    if (!dj) r.device = bad('auto', 'no job sets BRIGHTTEST_AGENT')
+    if (!deviceWhy) r.device = na('n/a: no device job requested (prompt/context or results flag wantsDevice)')
+    else if (!dj) r.device = bad('auto', 'no job sets BRIGHTTEST_AGENT')
     else {
       const miss = []
       if (!/self-hosted/.test(dj.text)) miss.push('runs-on self-hosted')
@@ -256,14 +300,15 @@ function score({ runRoot, results, repoRoot = REPO_ROOT }) {
       if (legacy && title(appDir) === legacy) throw new Error('T5 cell holds the legacy app; T5 is scored on the T4 end state only')
     }
     const criteria = fn({ cell: cell || {}, appDir, repoRoot })
-    const values = Object.values(criteria)
-    out.cells[id] = { noResult: !cell, criteria, passing: values.filter((c) => c.pass).length, total: values.length, pass: values.every((c) => c.pass), reviewNeeded: Object.keys(criteria).filter((k) => criteria[k].mode === 'review') }
+    const values = Object.values(criteria).filter((c) => !c.na)
+    out.cells[id] = { noResult: !cell, criteria, passing: values.filter((c) => c.pass).length, total: values.length, notApplicable: Object.keys(criteria).filter((k) => criteria[k].na), pass: values.every((c) => c.pass), reviewNeeded: Object.keys(criteria).filter((k) => criteria[k].mode === 'review' && !criteria[k].na) }
   }
   if (!Object.keys(out.cells).length) throw new Error('no T4 or T5 cell found under the run root')
   return out
 }
 const CAVEATS = [
   'Mode "auto" = regex, git or exit-code verdict; "review" = heuristic, read it by hand. A cell passes only when every criterion passes.',
+  'T5 "instrument verify release gate" is scored only when the app has a store package (*.zip, package/build script, or prompt/context says so); "device job" only when the prompt/context or results flag wantsDevice asks for one. Otherwise n/a, not counted.',
   'T5 is scored on the T4 end state (design 10.2), never on legacy-app.',
   'Secret scan prints file:line only, never the match.',
   'Nothing here proves a workflow runs on GitHub or a device job holds a lease; those are not verified offline.',
@@ -272,8 +317,8 @@ function render(s) {
   const L = ['# T4 / T5 score (TP-ADOPT-14, TP-ADOPT-15), ADOPT-21', '', '## Caveats', '', ...s.caveats.map((c) => `- ${c}`), '']
   for (const [id, c] of Object.entries(s.cells)) {
     L.push(`## ${id}`, '', ...(c.noResult ? ['No results entry for this cell: command- and message-based criteria score as failures.', ''] : []), '| Criterion | verdict | mode | note |', '|---|---|---|---|')
-    for (const [k, v] of Object.entries(c.criteria)) L.push(`| ${NAMES[k] || k} | ${v.pass ? 'PASS' : 'FAIL'} | ${v.mode} | ${v.note.replace(/\|/g, '/')} |`)
-    L.push('', `Cell verdict: **${c.pass ? 'PASS' : 'FAIL'}** (${c.passing}/${c.total})`, c.reviewNeeded.length ? `Review by hand: ${c.reviewNeeded.map((k) => NAMES[k] || k).join('; ')}` : '', '')
+    for (const [k, v] of Object.entries(c.criteria)) L.push(`| ${NAMES[k] || k} | ${v.na ? 'n/a' : v.pass ? 'PASS' : 'FAIL'} | ${v.mode} | ${v.note.replace(/\|/g, '/')} |`)
+    L.push('', `Cell verdict: **${c.pass ? 'PASS' : 'FAIL'}** (${c.passing}/${c.total})`, c.notApplicable.length ? `Not applicable, not counted in the denominator: ${c.notApplicable.map((k) => NAMES[k] || k).join('; ')}` : '', c.reviewNeeded.length ? `Review by hand: ${c.reviewNeeded.map((k) => NAMES[k] || k).join('; ')}` : '', '')
   }
   return L.join('\n')
 }

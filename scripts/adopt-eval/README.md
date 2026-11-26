@@ -94,3 +94,11 @@ per expected feature, 150 KB source budget, no device command, no client names (
 no deny-list), both paths and a question, writes confined to the features output folder. Run rule: C2, C5, C6 and C8 must
 pass 3 of 3 runs; C1, C3, C4 and C7 2 of 3; all eight count; only with-skills gates. Output: `SCORE-TREE.md` and
 `SCORE-TREE.json` (pack version and harness commit sha included). The scorer never calls a model and never runs a device command.
+
+## t47.js (TP-ADOPT-14 T4 greenfield, TP-ADOPT-15 T5 CI)
+
+`node scripts/adopt-eval/t47.js prepare|prepare-t5|score --run-root <dir> [--results <json>]`; see the header comment in `t47.js`. Scoring rules worth knowing:
+
+- BTStore limits: limits language (limit, does not, cannot, only, ...) must be in a sentence that mentions BTStore, in the final message or the app README. An unrelated "Lint does not check" does not count.
+- No-secrets scan: skips `.brighttest/`, `node_modules`, `coverage/`, `reports/` and anything in the app's top-level `.gitignore`.
+- T5 "instrument verify release gate" is scored only when the app has a store package (a `*.zip`, a package/build script in `package.json`, a prompt/context mention, or results flag `hasStorePackage`). T5 "device job" is scored only when the prompt/context or results flag `wantsDevice` asks for a device job. Otherwise both are `n/a`, shown in SCORE47.md and left out of the denominator. Node 22, headless `--coverage --lcov --junit`, no secrets and no Windows device claim are always scored.
