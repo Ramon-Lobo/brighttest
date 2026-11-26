@@ -525,7 +525,7 @@ Usage:
 
   --brownfield   For an existing app you will not edit: runs the instrument census, writes the "instrument" block
                  into brighttest.json (state.registrySections proposed from the registry sections the census finds),
-                 adds .brighttest/ and *.bt-instrumented.zip to .gitignore, and does not add an example spec or an
+                 adds .brighttest/, *.bt-instrumented.zip and brighttest.json.bak to .gitignore, and does not add an example spec or an
                  npm test script. An existing brighttest.json is merged, not overwritten: valid keys are kept, missing ones
                  added, wrong-typed ones fixed (each change is listed; a .bak is kept when it writes); a valid file is
                  left untouched. --force replaces the instrument block. --dry-run prints the plan and writes nothing.
@@ -651,6 +651,7 @@ async function main() {
   if (argv[0] === 'init') {
     const iOpts = parseInitArgs(argv.slice(1));
     if (iOpts.help) { console.log(INIT_HELP); process.exit(0); }
+    if (iOpts.dryRun && !iOpts.brownfield) { process.stderr.write('[brighttest init] --dry-run is only supported with --brownfield\nUsage: brighttest init --brownfield [--force] [--dry-run]\n'); process.exit(2); }
     const code = await require('../lib/init').run(null, iOpts);
     process.exit(code);
   }

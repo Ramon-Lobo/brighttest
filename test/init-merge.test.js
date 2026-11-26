@@ -4,6 +4,8 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { createRequire } from 'node:module'
+const require = createRequire(import.meta.url)
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const cli = path.join(root, 'bin', 'cli.js')
@@ -127,5 +129,101 @@ describe('init --brownfield merges into an existing brighttest.json', () => {
       expect(cfg.instrument.strict).toBe(false)
       expect(cfg.instrument.state.registrySections).toEqual(['legacy_prefs', 'legacy_session'])
     } finally { fs.rmSync(d, { recursive: true, force: true }) }
+  })
+})
+
+describe('init --brownfield hardening', () => {
+  const merged = (cfg, extra = []) => {
+    const d = scratch(typeof cfg === 'string' ? cfg : JSON.stringify(cfg, null, 2) + '\n')
+    try {
+      const r = run(d, extra)
+      return { r, text: fs.readFileSync(file(d), 'utf8'), d, gi: fs.existsSync(path.join(d, '.gitignore')) ? fs.readFileSync(path.join(d, '.gitignore'), 'utf8') : null, bak: fs.existsSync(file(d) + '.bak') }
+    } finally { fs.rmSync(d, { recursive: true, force: true }) }
+  }
+  const base = { rootDir: '.', sourceGlobs: ['manifest'], testsFilePattern: '**/*.spec.bs', stagingDir: '.brighttest' }
+
+  it('one semantically bad state sub-key keeps its siblings, is reported and not rewritten', () => {
+    const state = { registrySections: ['auth'], redact: { paths: ['user.token'] }, callable: ['a', 'A'] }
+    const m = merged({ ...base, instrument: { strict: false, state } })
+    expect(m.r.status).toBe(0)
+    expect(JSON.parse(m.text).instrument.state).toEqual(state)
+    expect(m.r.stdout).toMatch(/needs attention: instrument\.state\.callable: .*duplicate/)
+    const { validateBrownfield } = require('../lib/init-merge')
+    expect(validateBrownfield(JSON.parse(m.text), { rootDir: '.', sourceGlobs: [], testsFilePattern: 'x', stagingDir: 's' }).map((c) => c.key)).toContain('instrument.state.callable')
+  })
+
+  it('a wrong-typed state sub-key is repaired alone', () => {
+    const m = merged({ ...base, instrument: { strict: false, state: { registrySections: ['auth'], redact: { paths: ['u'] }, callable: 'x', tasks: ['T', 5] } } })
+    const st = JSON.parse(m.text).instrument.state
+    expect(st).toEqual({ registrySections: ['auth'], redact: { paths: ['u'] }, callable: [], tasks: ['T'] })
+  })
+
+  it('keeps {src, dest} sourceGlobs entries and their key order', () => {
+    const globs = ['manifest', { dest: 'x/', src: 'lib/**/*' }, 7]
+    const m = merged({ ...base, sourceGlobs: globs, instrument: { strict: false, state: { registrySections: [] } } })
+    expect(m.text).toContain('"dest": "x/",\n      "src": "lib/**/*"')
+    expect(JSON.parse(m.text).sourceGlobs).toEqual(['manifest', { dest: 'x/', src: 'lib/**/*' }])
+    const ok = merged({ ...base, sourceGlobs: globs.slice(0, 2), instrument: { strict: false, state: { registrySections: [] } } })
+    expect(ok.r.stdout).toContain('brighttest.json: unchanged (valid)')
+  })
+
+  it('--dry-run without --brownfield exits 2 and writes nothing', () => {
+    for (const args of [['init', '--dry-run'], ['init', '--greenfield', '--dry-run']]) {
+      const d = scratch(null)
+      try {
+        const r = spawnSync(process.execPath, [cli, ...args], { cwd: d, encoding: 'utf8', timeout: 60000 })
+        expect(r.status).toBe(2)
+        expect(r.stderr).toContain('Usage: brighttest init --brownfield')
+        expect(fs.existsSync(file(d))).toBe(false)
+      } finally { fs.rmSync(d, { recursive: true, force: true }) }
+    }
+  })
+
+  it('--brownfield --dry-run with no file says would create and writes nothing', () => {
+    const d = scratch(null)
+    try {
+      const gi = fs.existsSync(path.join(d, '.gitignore')) ? fs.readFileSync(path.join(d, '.gitignore'), 'utf8') : null
+      const r = run(d, ['--dry-run'])
+      expect(r.status).toBe(0)
+      expect(r.stdout).toContain('would-create')
+      expect(r.stdout).not.toMatch(/\bcreated\b/)
+      expect(fs.existsSync(file(d))).toBe(false)
+      expect(fs.existsSync(file(d) + '.bak')).toBe(false)
+      expect(fs.existsSync(path.join(d, '.gitignore')) ? fs.readFileSync(path.join(d, '.gitignore'), 'utf8') : null).toBe(gi)
+    } finally { fs.rmSync(d, { recursive: true, force: true }) }
+  })
+
+  it('gitignores brighttest.json.bak, idempotently', () => {
+    const d = scratch(JSON.stringify({ rootDir: '.' }) + '\n')
+    try {
+      run(d)
+      run(d)
+      const lines = fs.readFileSync(path.join(d, '.gitignore'), 'utf8').split('\n')
+      expect(lines.filter((l) => l === 'brighttest.json.bak')).toHaveLength(1)
+      expect(lines).toContain('*.bt-instrumented.zip')
+    } finally { fs.rmSync(d, { recursive: true, force: true }) }
+  })
+
+  it('keeps CRLF line endings and tab indentation', () => {
+    const crlf = merged(JSON.stringify({ rootDir: '.' }, null, 4).replace(/\n/g, '\r\n') + '\r\n')
+    expect(crlf.text).toMatch(/\r\n/)
+    expect(crlf.text.replace(/\r\n/g, '')).not.toMatch(/[\r\n]/)
+    expect(crlf.text.endsWith('}\r\n')).toBe(true)
+    const tab = merged(JSON.stringify({ rootDir: '.' }, null, '\t') + '\n')
+    expect(tab.text).toMatch(/\n\t"sourceGlobs"/)
+    expect(tab.text).not.toContain('\r')
+  })
+
+  it('strict "true" becomes true and is listed', () => {
+    const m = merged({ ...base, instrument: { strict: 'true', state: { registrySections: [] } } })
+    expect(JSON.parse(m.text).instrument.strict).toBe(true)
+    expect(m.r.stdout).toMatch(/changed instrument\.strict: "true" -> true/)
+    expect(merged({ ...base, instrument: { strict: 'false', state: { registrySections: [] } } }).text).toContain('"strict": false')
+  })
+
+  it('prints the stable status lines', () => {
+    const m = merged({ rootDir: '.' })
+    expect(m.r.stdout).toMatch(/brighttest\.json: updated \(\d+ changes\)/)
+    expect(m.r.stdout).toContain('brighttest.json.bak')
   })
 })
