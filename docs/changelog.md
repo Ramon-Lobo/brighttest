@@ -85,6 +85,10 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
   `BTMedia` for headless Video and Audio state ([media state](./writing-tests/media-state.md)). `deviceInfo` sets the
   headless engine identity and accepts `friendlyName` (up to 256 characters) and `country` (two uppercase letters,
   reported as the country code).
+- **Studio:** a new read route `GET /api/state/node?id=&layer=node|m[&path=][&depth=][&raw=1]` returns one node's fields or
+  a component's `m` through the agent's `get` op (no app rebuild, no device request). Values are masked like the State tab,
+  agent refusals (`NODE_NOT_FOUND`, `M_NOT_AVAILABLE`, `STATE_TOO_LARGE`, ...) pass through with their code, and a read
+  that gets no answer in 4 s is `504 ACK_TIMEOUT`. The node inspector UI follows.
 
 ### Improvements
 - **E2E:** every flow step is now listed once in `lib/e2e/step-catalog.js`, which the parser uses as its allow-list
