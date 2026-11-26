@@ -69,6 +69,8 @@ checkout, so you can test changes against a real Roku project. Run `npm unlink -
    Unit tests live in `test/`; integration tests and their fixture project live in `test/integration/`
    and `test/fixtures/`. Add or update tests for any behaviour you change. CI runs the unit suite on
    Node 22 and 24 and the integration suite on Node 22.
+   If you touch a file that starts with `// @ts-check`, also run `npm run typecheck` (a dev-only `tsc --noEmit`
+   check driven by JSDoc; there is still no build step). See `docs/maintainers.md`.
 4. **For device-lane changes, also verify on hardware** — the integration suite covers everything that
    runs without a device, but `--device` / `--cross-check` can only be confirmed on a real Roku:
    ```bash

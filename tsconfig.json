@@ -1,0 +1,16 @@
+{
+  "//": "Type-check only (ADR 0043): no emit, no build. Files opt in with `// @ts-check`; see docs/maintainers.md.",
+  "compilerOptions": {
+    "target": "es2023",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+    "types": ["node"],
+    "strict": false,
+    "skipLibCheck": true
+  },
+  "include": ["lib/**/*.js", "bin/**/*.js", "types/**/*.d.ts"],
+  "exclude": ["node_modules", "lib/studio/web", "lib/studio/public", "brs", "test", "examples", "experiments"]
+}

@@ -39,6 +39,7 @@
     "test:integration": "vitest run --config vitest.integration.config.mjs",
     "test:watch": "vitest",
     "check:denylist": "node scripts/check-denylist.js",
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.strict.json",
     "skills:manifest": "node scripts/gen-skills-manifest.js",
     "studio:dev": "npm --prefix lib/studio/web install && npm --prefix lib/studio/web run dev",
     "studio:build": "npm --prefix lib/studio/web install && npm --prefix lib/studio/web run build",
@@ -59,7 +60,9 @@
     "jszip": "3.10.2"
   },
   "devDependencies": {
+    "@types/node": "22.20.7",
     "mermaid": "11.17.0",
+    "typescript": "7.0.2",
     "vitepress": "1.6.4",
     "vitepress-plugin-mermaid": "2.0.17",
     "vitest": "^4.1.12"

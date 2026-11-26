@@ -1,0 +1,7 @@
+{
+  "//": "Adds strictNullChecks for the files listed below (empty until TS-A1). Run via `npm run typecheck`.",
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "strictNullChecks": true },
+  "include": [],
+  "files": []
+}
