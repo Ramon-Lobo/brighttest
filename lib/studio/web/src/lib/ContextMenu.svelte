@@ -1,7 +1,7 @@
 <script>
   import { assertion, focusStep, pressStep, selectorFor } from './steps.js';
 
-  let { node, x, y, onpick, onclose } = $props();
+  let { node, x, y, onpick, onclose, oninspect = null } = $props();
 
   const items = $derived.by(() => {
     const n = node;
@@ -15,6 +15,7 @@
         { label: 'field…', children: fields.map((k) => ({ label: k, hint: String(n.attrs[k]).slice(0, 22), line: assertion('field', n, k) })) },
       ] },
       { label: 'Focus this node', line: focusStep(n) },
+      ...(oninspect ? [{ label: 'Inspect state', act: 'inspect', testid: 'menu-inspect-state' }] : []),
       { label: 'Press', children: ['Up', 'Down', 'Left', 'Right', 'Select', 'Back', 'Home'].map((k) => ({ label: k, line: pressStep(k) })) },
       { sep: true },
       { label: 'Copy selector', act: 'copy' },
@@ -23,7 +24,8 @@
 
   function choose(it) {
     if (it.children) return;
-    if (it.act === 'copy') navigator.clipboard?.writeText(selectorFor(node)).catch(() => {});
+    if (it.act === 'inspect') oninspect(node);
+    else if (it.act === 'copy') navigator.clipboard?.writeText(selectorFor(node)).catch(() => {});
     else if (it.line) onpick(it.line);
     onclose();
   }
@@ -48,7 +50,7 @@
         <li class="sep"></li>
       {:else}
         <li class="item" class:has={it.children}>
-          <button onclick={() => choose(it)}>
+          <button data-testid={it.testid} onclick={() => choose(it)}>
             <span class="lbl">{it.label}</span>
             {#if it.hint}<span class="hint">{it.hint}</span>{/if}
             {#if it.children}<span class="caret">›</span>{/if}

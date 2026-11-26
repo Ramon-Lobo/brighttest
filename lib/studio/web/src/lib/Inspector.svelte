@@ -1,6 +1,10 @@
 <script>
   import { studio, selectedNode } from './store.svelte.js';
+  import { isSim } from './simbadge.js';
+  import NodeState from './NodeState.svelte';
   let { onadd } = $props();
+
+  const sim = $derived(isSim(studio.device));
 
   const node = $derived(selectedNode());
   const sel = (n) => (n.id ? `{ id: ${n.id} }` : n.text ? `{ text: ${JSON.stringify(n.text)} }` : `{ subtype: ${n.subtype} }`);
@@ -20,7 +24,20 @@
   });
 </script>
 
-{#if !node}
+<div class="views" role="group" aria-label="Node view">
+  <button class:on={studio.nodeView === 'fields'} data-testid="node-view-fields" onclick={() => (studio.nodeView = 'fields')}>Fields</button>
+  <button class:on={studio.nodeView === 'state'} data-testid="node-view-state" onclick={() => (studio.nodeView = 'state')}>State</button>
+</div>
+
+{#if studio.nodeView === 'state'}
+  {#if node}
+    <div class="head">
+      <span class="subtype">{node.subtype}</span>
+      {#if node.id}<span class="id">#{node.id}</span>{/if}
+    </div>
+  {/if}
+  <NodeState {node} {sim} {onadd} />
+{:else if !node}
   <p class="empty">Click a box on the monitor to inspect a node, then add assertions into the flow.</p>
 {:else}
   <div class="head">
@@ -47,6 +64,10 @@
 {/if}
 
 <style>
+  .views { display: flex; margin-bottom: 8px; }
+  .views button { background: #10131c; border: 1px solid var(--color-line); color: #b7c0ff; font-size: 12px; padding: 3px 12px; cursor: pointer; }
+  .views button:first-child { border-radius: 6px 0 0 6px; } .views button:last-child { border-radius: 0 6px 6px 0; border-left: none; }
+  .views button.on { border-color: var(--color-violet); color: #fff; }
   .empty { color: var(--color-haze); font-size: 13px; margin: 0; }
   .head { display: flex; align-items: baseline; gap: 8px; }
   .subtype { color: var(--color-text); font-weight: 600; }

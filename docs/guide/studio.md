@@ -97,6 +97,34 @@ Snapshots (save, restore, delete, diff, export, import) are capped at 64 KB each
 edit and restore with its ack phase. The action log, time travel and "save as spec fixture" routes are described in
 [Instrumented builds](/guide/instrument) and [State fixtures](/writing-tests/state-fixtures).
 
+### Node State view
+
+The **Node** tab has a **Fields** / **State** switch (Fields, the ECP strings, is the default; the choice is kept for the
+session). **State** reads the selected node through the app's agent over the hub (`GET /api/state/node`, no ECP request):
+the node's own fields (**fields**) or its component's `m` (**m**), as the same value tree the State tab shows, with a
+**refresh** button and the age of the last read. It refreshes every 2 s while it is visible, Live is on and nothing is
+being edited. Open it by clicking a node on the monitor and choosing **State**, by the **state** button on a Tree row,
+or by **Inspect state** in the right-click menu (the last two switch to the Node tab in State view).
+
+- **Edit** a leaf like in the State tab: the value keeps its type, the edit is sent with `layer: node` or `m` and the
+  node id, and an ack chip walks received, applied or shows the refusal (`FIELD_NOT_FOUND`, `TYPE_MISMATCH`,
+  `PATH_UNDER_NODE`, `M_NOT_AVAILABLE`, `M_PATH_FORBIDDEN`, `NODE_NOT_FOUND`, `REDACTED_VALUE`, `STATE_TOO_LARGE`) with a
+  short hint. The edited path is read again afterwards. **+ setState step** adds the edit to the open flow. `PATH_UNDER_NODE`
+  offers **go to node**.
+- A value that is a node reference (`{ "$node": id }`) is a link that selects that node in the tree; it is not editable.
+  Truncation and type markers are read only, and a `$truncated:depth` row has **load** to read that sub-path.
+- Masked values (`<redacted:key>`) are read only; **show raw** reveals only Studio's extra masking.
+- When the whole read is over 64 KB the view says so: node fields list the field names from the tree and read each when
+  you pick it, and `m` offers a path box (`node-state-path`).
+- A selected node with no id cannot be read (the agent finds nodes by id): the view says to give it one or pick an
+  ancestor. If several tree nodes share the id, a warning says the agent reads the first one it finds.
+- Without a hub (no `BRIGHTTEST_HUB_TOKEN`, pool mode), with the device held by another session, or before the app has
+  said hello, the view shows that reason and edits are off; the Fields view keeps working.
+- On the simulator target there is no tree, so type the node id into the box (`node-state-id`); reads and edits go
+  through the hub as usual.
+- **+** next to a node field adds `assertField` using the tree's string value, only for fields in the node's ECP
+  attributes. `m` has no assertion button yet.
+
 ### Actions tab
 
 The **Actions** tab lists the app's `state.action` log (seq, type, hash before and after) and refreshes every 2 s. **Travel** on a
@@ -162,6 +190,7 @@ Studio contract: they do not change between releases without a changelog note, a
 | Lease and device status | `lease-badge`, `lease-badge-summary`, `lease-queue`, `lease-bar` (banner while another holder has the device), `lease-queued`, `lease-take-over`, `sim-badge`, `sim-tail` |
 | Live monitor | `live-monitor`, `monitor-stage`, `monitor-screenshot` (the live screenshot), `monitor-overlay` (the node outlines), `monitor-needs-device`, `toggle-live`, `toggle-overlay`, `toggle-all-nodes`, `toggle-offscreen`, `live-status` |
 | Inspect page | `page-inspect`, `inspector-panel`, `tab-node`, `tab-tree`, `tab-selector`, `tab-state`, `tab-actions`, `tab-net` |
+| Node State view | `node-view-fields`, `node-view-state`, `tree-node-state` (Tree row), `menu-inspect-state` (right-click menu), `node-state`, `node-state-id`, `node-state-layer-node`, `node-state-layer-m`, `node-state-refresh`, `node-state-raw`, `node-state-age`, `node-state-dup`, `node-state-noid`, `node-state-reason`, `node-state-large`, `node-state-field`, `node-state-path`, `node-state-notfound`, `node-state-rows`, `node-state-edit`, `node-state-input`, `node-state-chip`, `node-state-step`, `node-state-goto`, `node-state-goto-under`, `node-state-load` |
 | Remote | `remote-panel`, `remote`, `remote-key-up`, `remote-key-down`, `remote-key-left`, `remote-key-right`, `remote-key-select`, `remote-key-back`, `remote-key-home`, `remote-needs-device` |
 | Flow editor | `flow-tree`, `flow-tree-show`, `flow-editor`, `flow-name`, `flow-editor-text`, `flow-save`, `flow-run`, `flow-message`, `flow-run-steps` |
 | Record page | `page-record`, `record-start`, `record-stop`, `record-clear`, `record-save`, `record-message`, `record-doc` |

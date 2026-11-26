@@ -42,6 +42,10 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
   ([sharing a device](./guide/device-lease.md)).
 
 ### Features
+- **Studio:** the Node tab has a **State** view that reads and edits the selected node's fields or its component's `m`
+  through the app's agent (value tree, ack chip, refusal hints, node links, **+ setState step**), opened from the Node
+  tab switch, a Tree row (**state**) or the right-click menu (**Inspect state**). New test ids `node-view-state`,
+  `tree-node-state`, `menu-inspect-state` and `node-state-*`. Needs an instrumented build and the hub.
 - **Studio:** an **overlay** switch in the header (Inspect and Record) hides the node outlines to show only the device
   picture. It is on by default and remembered per browser. While off, clicking the picture selects nothing (the selection
   is kept) and Studio stops reading the tree unless the Node, Tree or Selector tab is open (then once a second), which
