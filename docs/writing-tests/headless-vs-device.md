@@ -223,9 +223,9 @@ values from a Roku Ultra (model `4850X`, 1080p UI, Wi-Fi):
 
 Limits to know:
 
-- **Scene lanes need a patched engine.** `@SGNode` specs and `--coverage` run on the scene lanes, which pass the block to
-  the engine with `--device-data`. That flag exists only in the patched `@ramonlobo/brs-node` (2.7.1-bt.1 or later); on a
-  stock engine brighttest prints a one-time warning and the scene lanes keep the engine identity (`8000X`, 720p, wired).
+- **Scene lanes need an engine with `device-data`.** `@SGNode` specs and `--coverage` run on the scene lanes, which pass the block to
+  the engine with `--device-data`. That flag exists only in the patched `@ramonlobo/brs-node` 2.7.1-bt.1 or later; with an engine without it (stock, or
+  patched before 2.7.1-bt.1) brighttest prints a one-time warning and the scene lanes keep the engine identity (`8000X`, 720p, wired).
 - **`model` cannot simulate a TV.** The engine's models table is not available on this path, so `GetModelType` is
   always `STB` and `GetModelDisplayName` is `Roku (<model>)`.
 - **`locale`:** the engine ships translations only for `de_DE`, `es_ES`, `es_MX`, `fr_CA`, `it_IT` and `pt_BR`, plus

@@ -28,6 +28,7 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
 - **E2E:** launch param values must be strings, numbers or booleans. A value that is an object, array or `null`
   (for example params nested under a `params:` key, which used to be sent as `params=[object Object]`) now fails
   the flow before the launch is sent. `brighttest e2e lint` also catches it, with no device. [Upgrade notes](#upgrade-0-8-0)
+- **Headless scene lanes:** `@SGNode` specs and `--coverage` now take the device identity from the `deviceInfo` block when the engine supports `--device-data` (`@ramonlobo/brs-node` 2.7.1-bt.1 or later). A project with an existing `deviceInfo` block now gets the block's model, resolution and connection inside `@SGNode` specs instead of the engine defaults. With an engine without the flag, brighttest warns once and keeps the engine defaults.
 
 ### Security
 - **Studio:** rejects cross-origin and non-JSON requests to its local API, and requests with a non-local `Host` header
@@ -73,6 +74,7 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
 - **Spec helpers:** `BTState_load` and `BTState_seedGlobals` for snapshot fixtures ([state fixtures](./writing-tests/state-fixtures.md));
   `BTMedia` for headless Video and Audio state ([media state](./writing-tests/media-state.md)).
 - **Config:** `deviceInfo` sets the headless engine identity.
+- **Config:** `deviceInfo` accepts `friendlyName` (up to 256 characters) and `country` (two uppercase letters, reported as the country code).
 
 ### Improvements
 - **E2E:** preflight fails fast on unreachable, Limited or dev-disabled devices, and only for the affected host in a
