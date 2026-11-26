@@ -31,9 +31,9 @@ npx brighttest init --brownfield
 
 `init --brownfield` runs the census, writes the `instrument` block into `brighttest.json` (with
 `state.registrySections` proposed from the registry sections found), adds `.brighttest/` and
-`*.bt-instrumented.zip` to `.gitignore`, and writes no example spec and no npm script. Run it even when `brighttest.json`
+`*.bt-instrumented.zip` and `brighttest.json.bak` to `.gitignore`, and writes no example spec and no npm script. Run it even when `brighttest.json`
 already exists: it merges (valid keys kept, missing keys added, wrong-typed values fixed, unknown keys kept) and prints
-`brighttest.json: unchanged (valid)` or one `added`/`changed <key>: <old> -> <new>` line per change; a valid file is not
+`brighttest.json: unchanged (valid)`, or `brighttest.json: updated (N changes)` plus one `added`/`changed <key>: <old> -> <new>` line per change (and `needs attention: <key>: <message>` for invalid content it will not rewrite); a valid file is not
 rewritten. `--dry-run` prints the plan only. Report the result to the human. `--force` replaces the `instrument` block. Excerpt of the result on the legacy-app copy:
 
 ```json

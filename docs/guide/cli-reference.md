@@ -75,9 +75,9 @@ Creates `brighttest.json`, `source/tests/Example.spec.bs`, git-ignore entries an
 are kept unless `--force`.
 
 - `--brownfield`: for an app you will not edit. Runs the [instrument census](/guide/instrument), writes the `instrument`
-  block of `brighttest.json` (with `state.registrySections` proposed from the census), adds `.brighttest/` and
-  `*.bt-instrumented.zip` to `.gitignore`, and adds no example spec or npm script. An existing `brighttest.json` is merged
-  (below). `--force` replaces the instrument block. `--dry-run` prints the planned changes and writes nothing.
+  block of `brighttest.json` (with `state.registrySections` proposed from the census), adds `.brighttest/`,
+  `*.bt-instrumented.zip` and `brighttest.json.bak` to `.gitignore`, and adds no example spec or npm script. An existing `brighttest.json` is merged
+  (below). `--force` replaces the instrument block. `--dry-run` (brownfield only; other modes exit 2) prints the planned changes and writes nothing.
 - `--greenfield`: for an app built with brighttest in mind. Also copies `BTStore.brs` and `BTHttp.brs` into
   `source/brighttest/` and adds `BT_AGENT=false` to `bs_const`. With `--greenfield`, `--force` refreshes only the two
   templates. Cannot be combined with `--brownfield`.
@@ -92,13 +92,14 @@ sets (`rootDir`, `sourceGlobs`, `testsFilePattern`, `stagingDir`, `instrument.st
 |---|---|
 | Valid and complete | Not rewritten (bytes and mtime unchanged). Prints `brighttest.json: unchanged (valid)` |
 | Key missing | Added with the detected default |
-| Value of the wrong type | Replaced with the default (a list keeps its string entries) |
+| Value of the wrong type | Replaced with the default (a list keeps its valid entries; `sourceGlobs` keeps `{src, dest}` objects; `strict: "true"` becomes `true`) |
+| Right type, invalid content (for example a duplicate `instrument.state.callable` name) | Left as is and reported as `needs attention: <key>: <message>`; the file is still invalid until you fix it |
 | Valid value that differs from what detection would propose | Kept |
 | Unknown keys | Kept, in order |
 | Not valid JSON | Exit 1, nothing written |
 
-Each change prints as `added|changed <key>: <old> -> <new>`. When it writes, the previous file is kept as `brighttest.json.bak`
-and the file's indentation is preserved.
+When it changes the file it prints `brighttest.json: updated (N changes)`, then one `added|changed <key>: <old> -> <new>` line per change. When it writes, the previous file is kept as `brighttest.json.bak`
+and the file's indentation and line endings (LF or CRLF) are preserved.
 
 ## `brighttest skills`
 
