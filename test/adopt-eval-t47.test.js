@@ -75,6 +75,16 @@ describe('score T4', () => {
     expect(c.criteria.scriptTags.note).toMatch(/HomeScene\.brs/)
     expect(c.criteria.btStore.note).toMatch(/time-travel/)
   })
+  test('btStore: limits language must be in a BTStore sentence or the README', () => {
+    const fp = 'Added BTStore for list state. Lint does not check the new flow.'
+    expect(t47.btStore(fp).pass).toBe(false)
+    expect(t47.btStore(fp).note).toMatch(/no limits language/)
+    expect(t47.btStore('BTStore is in memory only.').pass).toBe(true)
+    const app = tmp(); fs.writeFileSync(path.join(app, 'README.md'), 'BTStore does not persist across launches.\n')
+    expect(t47.btStore(fp, app).pass).toBe(true)
+    fs.writeFileSync(path.join(app, 'README.md'), 'Setup. Lint does not run here. BTStore is used.\n')
+    expect(t47.btStore(fp, app).pass).toBe(false)
+  })
   test('btStore: negated time-travel is fine, missing BTStore fails', () => {
     expect(t47.btStore('BTStore has limits. No time-travel.').pass).toBe(true)
     expect(t47.btStore('We added tests.').pass).toBe(false)
@@ -82,7 +92,7 @@ describe('score T4', () => {
 })
 
 describe('score T5', () => {
-  const run = (mutate, cell = { finalMessage: 'Device job runs on a self-hosted runner only.' }) => {
+  const run = (mutate, cell = { finalMessage: 'Device job runs on a self-hosted runner only.', hasStorePackage: true, wantsDevice: true }) => {
     const root = tmp(), app = cellWith(root, 'greenfield/t5', 't5-good', true)
     if (mutate) mutate(path.join(app, '.github', 'workflows', 'ci.yml'), app)
     return t47.score({ runRoot: root, results: { cells: { 'greenfield/t5': cell } } }).cells['greenfield/t5']
@@ -111,6 +121,34 @@ describe('score T5', () => {
     expect(c.criteria.noSecrets.note).toMatch(/a\.txt:1/)
     expect(JSON.stringify(c)).not.toContain(lit)
     expect(JSON.stringify(c)).not.toContain('ghp_')
+  })
+  test('secret scan skips generated and gitignored dirs, still flags tracked files', () => {
+    const fake = 'x=ghp_' + 'b'.repeat(30)
+    const c = run((f, app) => {
+      for (const d of ['.brighttest/vendor', 'node_modules/x', 'coverage', 'reports', 'build-out']) { fs.mkdirSync(path.join(app, d), { recursive: true }); fs.writeFileSync(path.join(app, d, 'g.txt'), fake) }
+      fs.writeFileSync(path.join(app, '.gitignore'), '# c\nbuild-out/\n*.log\n'); fs.writeFileSync(path.join(app, 'run.log'), fake)
+    })
+    expect(c.criteria.noSecrets.pass).toBe(true)
+    const d = run((f, app) => { fs.mkdirSync(path.join(app, 'source'), { recursive: true }); fs.writeFileSync(path.join(app, 'source', 'tracked.txt'), fake) })
+    expect(d.criteria.noSecrets.pass).toBe(false)
+    expect(d.criteria.noSecrets.note).toMatch(/tracked\.txt:1/)
+  })
+  test('option A: verifyGate and device are n/a unless the cell asks for them', () => {
+    const plain = { finalMessage: 'Headless gate only.' }
+    const c = run(null, plain)
+    expect(c.criteria.verifyGate).toMatchObject({ na: true, pass: true }); expect(c.criteria.device.na).toBe(true)
+    expect(c.notApplicable).toEqual(['verifyGate', 'device'])
+    expect(c.total).toBe(4); expect(c.passing).toBe(4); expect(c.pass).toBe(true)
+    expect(t47.render({ caveats: [], cells: { x: c } })).toMatch(/\| n\/a \|[\s\S]*Not applicable, not counted in the denominator/)
+    expect(run(null, { ...plain, wantsDevice: true }).criteria.device.na).toBeUndefined()
+    expect(run(null, { ...plain, prompt: 'Add CI and a device job' }).criteria.device.na).toBeUndefined()
+    expect(run(null, { ...plain, hasStorePackage: true }).criteria.verifyGate.na).toBeUndefined()
+    // an applicable criterion still fails when missing
+    const f = run((wf) => fs.writeFileSync(wf, read(wf).replace(/instrument verify/, 'echo')), { ...plain, hasStorePackage: true })
+    expect(f.criteria.verifyGate.pass).toBe(false)
+    // store package detected from the app: a zip, or a package script
+    const z = run((wf, app) => fs.writeFileSync(path.join(app, 'dist.zip'), 'x'), plain); expect(z.criteria.verifyGate.na).toBeUndefined()
+    const sp = run((wf, app) => fs.writeFileSync(path.join(app, 'package.json'), '{"scripts":{"package":"x"}}'), plain); expect(sp.criteria.verifyGate.na).toBeUndefined()
   })
   test('missing workflow fails; legacy or unprepared cell is refused', () => {
     const c = run((f, app) => fs.rmSync(path.join(app, '.github'), { recursive: true }))
