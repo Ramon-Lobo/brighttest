@@ -222,3 +222,51 @@ describe('graphics frame rate', () => {
     expect(bad.samples[0].cpuUser).toBe(8.9);
   });
 });
+
+describe('summarizeSamples', () => {
+  const smp = (o) => ({ t: 0, cpuUser: null, cpuSys: null, memUsed: null, memAnon: null, memFile: null, memSwap: null, memLimit: null, minflt: null, majflt: null, texUsed: null, texMax: null, bitmaps: null, fps: null, ...o });
+
+  it('is all null for no samples and for all-null samples', () => {
+    for (const input of [[], undefined, [smp({}), smp({})]]) {
+      const r = perf.summarizeSamples(input);
+      expect(r.cpu).toEqual({ user: null, sys: null });
+      expect(r.memory.used).toBeNull();
+      expect(r.texture.used).toBeNull();
+      expect(r.pageFaults).toEqual({ majorDelta: null, minorDelta: null });
+      expect(r.fps).toBeNull();
+    }
+  });
+
+  it('gives min/max/mean/last, skipping nulls', () => {
+    const r = perf.summarizeSamples([smp({ cpuUser: 8, fps: 2 }), smp({ cpuUser: null }), smp({ cpuUser: 10, fps: 4 }), smp({ cpuUser: 9.5, fps: 3 })]);
+    expect(r.cpu.user).toEqual({ min: 8, max: 10, mean: 9.17, last: 9.5 });
+    expect(r.fps).toEqual({ min: 2, max: 4, mean: 3, last: 3 });
+    expect(r.cpu.sys).toBeNull();
+  });
+
+  it('a single sample gives equal stats and no fault delta', () => {
+    const r = perf.summarizeSamples([smp({ memUsed: 100, minflt: 5, majflt: 1 })]);
+    expect(r.memory.used).toEqual({ min: 100, max: 100, mean: 100, last: 100 });
+    expect(r.pageFaults).toEqual({ majorDelta: null, minorDelta: null });
+  });
+
+  it('page faults are last minus first of the cumulative counters', () => {
+    const r = perf.summarizeSamples([smp({ minflt: 100, majflt: 2 }), smp({ minflt: 150, majflt: 2 }), smp({ minflt: 220, majflt: 3 })]);
+    expect(r.pageFaults).toEqual({ majorDelta: 1, minorDelta: 120 });
+  });
+});
+
+describe('PerfSession.lastR2d2', () => {
+  it('keeps the latest full r2d2 parse and clears it when the read fails', async () => {
+    let fail = false;
+    const dev = { ecpGet: async (p) => { if (p.includes('r2d2') && fail) throw new Error('boom'); return { text: p.includes('chanperf') ? CHANPERF : R2D2 }; } };
+    const s = new perf.PerfSession(dev);
+    expect(s.lastR2d2).toBeNull();
+    await s.sampleOnce();
+    expect(s.lastR2d2.ok).toBe(true);
+    expect(s.lastR2d2.bitmapCount).toBe(2);
+    fail = true;
+    await s.sampleOnce();
+    expect(s.lastR2d2).toBeNull();
+  });
+});
