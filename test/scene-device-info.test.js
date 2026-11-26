@@ -45,3 +45,28 @@ describe('scene lane --device-data', () => {
     expect(warns).toHaveLength(1)
   })
 })
+
+describe('scene lane engine argv', () => {
+  it('puts --device-data and its json between the engine CLI and the package path', () => {
+    const cfg = { deviceInfo: { model: '4850X', country: 'US' } }
+    const eng = () => ({ kind: 'brsNode', version: '2.7.1', stamp: { flags: ['device-data'] } })
+    const argv = cov.engineArgv(cfg, '/e/brs-cli.js', 8192, '/p/pkg.zip', { engineFor: eng })
+    expect(argv.slice(1, 3)).toEqual(['/e/brs-cli.js', '--device-data'])
+    expect(JSON.parse(argv[3])).toEqual({ deviceModel: '4850X', countryCode: 'US' })
+    expect(argv[4]).toBe('/p/pkg.zip')
+    expect(argv).toHaveLength(5)
+  })
+  it('leaves the argv alone without a deviceInfo block', () => {
+    expect(cov.engineArgv({}, '/e/brs-cli.js', 8192, '/p/pkg.zip', {})).toEqual(['--max-old-space-size=8192', '/e/brs-cli.js', '/p/pkg.zip'])
+  })
+})
+
+describe('deviceInfo strictness', () => {
+  it('rejects a country with surrounding whitespace, like locale and osVersion', () => {
+    expect(() => resolveDeviceInfo({ country: ' CA ' })).toThrow(/deviceInfo\.country must be a two-letter/)
+  })
+  it('caps friendlyName at 256 characters', () => {
+    expect(resolveDeviceInfo({ friendlyName: 'a'.repeat(256) }).friendlyName).toHaveLength(256)
+    expect(() => resolveDeviceInfo({ friendlyName: 'a'.repeat(257) })).toThrow(/deviceInfo\.friendlyName must be at most 256 characters \(got 257\)/)
+  })
+})
