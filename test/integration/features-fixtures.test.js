@@ -9,7 +9,15 @@ import { runCli, cleanupTemp } from './helpers.js'
 // temp dir so no staging output lands in the repo. Slow, so it is here and not in test/features-fixtures.test.js.
 const APP = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'examples', 'feature-tree-app')
 const tmp = []
-afterAll(() => { cleanupTemp(); for (const d of tmp) fs.rmSync(d, { recursive: true, force: true }) })
+// Remove only this suite's own dirs. A straggler process can still be writing into the tree for a moment, which
+// makes a plain rmSync fail with ENOTEMPTY, so retry; a cleanup failure is logged and never fails the suite.
+afterAll(() => {
+  try { cleanupTemp() } catch (e) { console.warn(`bt-ftx cleanupTemp failed: ${e.message}`) }
+  for (const d of tmp) {
+    try { fs.rmSync(d, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }) }
+    catch (e) { console.warn(`bt-ftx cleanup failed for ${d}: ${e.message}`) }
+  }
+})
 
 describe('feature-tree-app', () => {
   it('passes headless: one pure suite and one @SGNode suite', () => {
