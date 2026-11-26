@@ -9,8 +9,11 @@ the real address from the human, never from this file.
 ```bash
 npx brighttest --version
 npx brighttest skills list
+npx brighttest skills install --agent claude --with-hook --with-mcp
 npx brighttest doctor --engines
 ```
+
+`skills install` merges and never overwrites; `--with-hook` and `--with-mcp` apply to the `claude` target only.
 
 `doctor --engines` contacts no device. `skills list` shows the skills bundled with this version and the agents
 it detects in the project, not what is installed.
@@ -33,8 +36,12 @@ Docs: `docs/guide/assess.md`; flags: `npx brighttest assess --help`.
 ```bash
 npx brighttest init
 npx brighttest init --brownfield
+npx brighttest init --brownfield --dry-run
 npx brighttest init --greenfield
 ```
+
+An existing `brighttest.json` is merged, not overwritten, by `init --brownfield`; `--dry-run` writes nothing (brownfield
+only). On the default scene lane (coverage off) a plain `source/main.brs` is left out of the test build at run time (logged); `brighttest init` does not write that exclusion, and coverage, device and `--no-sgnode` runs keep the file.
 
 `init` keeps existing files unless `--force`. `--brownfield` and `--greenfield` cannot be combined.
 `--brownfield` writes the `instrument` block into `brighttest.json` and no example spec.
@@ -46,7 +53,9 @@ npx brighttest --junit results.xml
 npx brighttest --coverage --lcov coverage/lcov.info --junit results.xml
 ```
 
-Headless runs `@SGNode` suites too; `--no-sgnode` skips them. Use this as the CI gate.
+Headless runs `@SGNode` suites too; `--no-sgnode` skips them. Use this as the CI gate. `--instrument` builds with
+the instrument plugin for one run; `--net-record [file]` and `--net-unmatched fail|passthrough` record and police
+HTTP.
 
 ## Instrument (existing app, no source edits)
 
@@ -65,9 +74,13 @@ could not be instrumented. Never ship the built package.
 
 ```bash
 npx brighttest device status
+npx brighttest device watch --once
 npx brighttest device with --as "$BRIGHTTEST_AGENT" --purpose "<task>: <check>" -- <command>
 ```
 
 `BRIGHTTEST_AGENT` is `<role>#<n>`. Lanes (`--device`, `e2e run`, `studio`, `instrument build --sideload`) take
 the lease themselves; do not wrap them. The dev password comes from `ROKU_PASSWORD`; never write it down.
-Exit 75 busy, 77 lease lost, 78 lease directory unusable. Details: `using-a-roku-device-safely`.
+`--device any` (on `--device` runs and `device with`) takes the first free device of `deviceLease.pool`. `--idle-timeout
+<sec>` sets the device idle watchdog (default 120, `0` disables). Agents use `device watch --once` or `--json`, never bare
+`watch`. There is no ECP reboot command: a reboot is a human action. Exit 75 busy, 77 lease lost, 78 lease directory
+unusable. Details: `using-a-roku-device-safely`.

@@ -36,7 +36,7 @@ See `references/decision-tree.md` for the full table.
 
 | Situation | Path | Load first |
 |---|---|---|
-| Existing app, any size, tests absent or thin | existing app | `setting-up-brighttest` and `assessing-a-roku-app` now; `adopting-brighttest-brownfield` when installed |
+| Existing app, any size, tests absent or thin | existing app | `setting-up-brighttest` and `assessing-a-roku-app` now; `adopting-brighttest-brownfield` |
 | New app, nothing written yet | new app | `setting-up-brighttest` now, then `adopting-brighttest-greenfield` |
 | You may not edit the app's code | existing app, no-edit | the same as existing, then `instrument` (see `references/command-cheatsheet.md`) |
 | App already has Rooibos specs that fail | not adoption | `debugging-failing-tests` |
@@ -50,6 +50,8 @@ See `references/decision-tree.md` for the full table.
    - `brownfield`: existing-app path.
    - `greenfield`: the app has a manifest, fewer than 5 components and no specs. Even for an existing app the
      next step is `npx brighttest init`, not `init --greenfield` (that edits the manifest and writes into `source/`).
+     If you may not edit the app, the step is `npx brighttest init --brownfield --dry-run` first, then without
+     `--dry-run`: it merges into an existing `brighttest.json` instead of overwriting it.
    - `not-a-roku-app`: stop and ask the human; run assess from the folder with the manifest.
    New app with nothing written yet: `npx brighttest init --greenfield`.
    Existing app: after assess, map it (`mapping-a-roku-app`: features, test order, headless versus device) before
@@ -88,12 +90,10 @@ Adopted is a checklist, not a feeling. See `references/exit-criteria.md`. In sho
 writes JUnit, the config and ignore entries are committed, at least one real spec or flow guards real logic, CI
 runs the headless gate, and the report names what was not run on a device.
 
-## Coming skills (planned, not installed yet)
+## Bundled skills
 
-`adopting-brighttest-brownfield`,
-`instrumenting-a-roku-app`, `wiring-brighttest-into-ci`, `mocking-network-and-store`. Until a sibling is
-installed, use the existing skill named in the table, and read `references/command-cheatsheet.md`. Run
-`npx brighttest skills list` to see the skills bundled with this version and the agents it detects.
+Run `npx brighttest skills list` to see the skills bundled with this version and the agents it detects. To install them
+(and, for Claude, the guard hook and MCP server): `npx brighttest skills install --agent claude --with-hook --with-mcp`.
 
 ## References
 

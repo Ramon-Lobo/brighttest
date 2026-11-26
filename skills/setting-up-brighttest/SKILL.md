@@ -34,16 +34,6 @@ registration. One suite per file, named after what it tests.
 
 Every key is optional; the defaults suit a standard layout.
 
-```json
-{
-  "rootDir": ".",
-  "sourceGlobs": ["manifest", "source/**/*", "components/**/*"],
-  "testsFilePattern": "**/*.spec.bs",
-  "stagingDir": ".brighttest",
-  "globalFields": { "*": { "config": null } }
-}
-```
-
 | Key | Meaning | Default |
 |---|---|---|
 | `rootDir` | Root that globs resolve against | `.` |
@@ -52,9 +42,10 @@ Every key is optional; the defaults suit a standard layout.
 | `stagingDir` | Scratch build dir (git-ignore it) | `.brighttest` |
 | `globalFields` | Per-`@SGNode`-type scene-field seeding (see the `writing-rooibos-tests` skill) | — |
 
-Point at a non-default config with `-c/--config <path>`.
+More keys (`engines`, `deviceInfo`, `deviceLease`, `deviceIdleTimeout`, `instrument`, `diagnosticFilters`): see
+`references/config-and-init.md`. Point at a non-default config with `-c/--config <path>`.
 
-On the default scene lane (coverage off), a plain `source/main.brs` is left out of the test build automatically (brighttest appends `!source/main.brs` to `sourceGlobs` and logs it), because Rooibos does not hook a plain `.brs` Main there and the app's own loop would hang the run. `brighttest init` does not write that exclusion into `brighttest.json`. Coverage, device and `--no-sgnode` runs keep the file. Your own `!source/main.brs` is respected.
+On the default scene lane (coverage off) a plain `source/main.brs` is left out of the test build at run time (logged); `brighttest init` does not write that exclusion, and coverage, device and `--no-sgnode` runs keep the file. The reason: Rooibos does not hook a plain `.brs` Main there and the app's own loop would hang the run. Your own `!source/main.brs` in `sourceGlobs` is respected.
 
 ## Choosing a lane
 
@@ -66,8 +57,15 @@ On the default scene lane (coverage off), a plain `source/main.brs` is left out 
 | `brighttest --device --host <ip> --password <pw>` | yes | yes | yes | fidelity + on-device coverage |
 | `brighttest --cross-check --host <ip> --password <pw>` | yes | — | both lanes | confirm headless matches device |
 
-Extra flags: `--junit <path>` (JUnit XML), `--timeout <sec>` (headless 300s / device 900s default).
+Extra flags: `--junit <path>`, `--timeout <sec>` (headless 300s / device 900s), `--idle-timeout <sec>` (device idle
+watchdog, default 120, `0` disables), `--device any` (first free device of `deviceLease.pool`), `--instrument`.
 Exit code is `0` on success, non-zero on any failure (and when `--lcov` is requested but no coverage came back).
+
+## Scaffolding with `init`
+
+`npx brighttest init` writes `brighttest.json`, a spec, git-ignore entries and an npm script (existing files kept unless
+`--force`). For an app you will not edit use `init --brownfield`: it merges into an existing `brighttest.json` and takes
+`--dry-run` (`references/config-and-init.md`).
 
 ## Recommended npm scripts
 
@@ -109,8 +107,12 @@ Two-tier setup works well:
 
 ## Teaching your AI agent
 
-Install the test-writing skill so agents author correct specs:
+Install the skills so agents author correct specs and use devices safely:
 
 ```sh
 npx brighttest skills install
+npx brighttest skills install --agent claude --with-hook --with-mcp
 ```
+
+`install` merges, never overwrites. `--with-hook` (guard hook) and `--with-mcp` (MCP server) apply to the `claude` target;
+the hook is active only when registered, so if it is missing, tell the human to run the command above.
