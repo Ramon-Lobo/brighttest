@@ -118,13 +118,13 @@ sites, and a "could not instrument" section. Inline-CDATA Scenes are reported on
 ## Brownfield setup: `init --brownfield`
 
 ```bash
-npx brighttest init --brownfield [--force]
+npx brighttest init --brownfield [--force] [--dry-run]
 ```
 
 For an existing app you do not want to edit. It runs the census, writes the `instrument` block into `brighttest.json`
 (`strict: false`, and `state.registrySections` proposed from the registry sections the census found), and adds
 `.brighttest/` and `*.bt-instrumented.zip` to `.gitignore`. It adds no example spec and no npm test script. An existing
-`instrument` block is kept unless you pass `--force`.
+`brighttest.json` is merged, never overwritten: see [Merging into an existing config](/guide/cli-reference#merging-into-an-existing-brighttest-json).
 
 On the no-edit path run it first, on a copy of the app, before `instrument build`. If the app's `brighttest.json` globs
 were written for test lanes (they leave out `source/main.brs`, or include `certs/**`), do not edit that file: write a

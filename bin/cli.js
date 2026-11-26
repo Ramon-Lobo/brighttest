@@ -501,11 +501,12 @@ Options:
 
 // `brighttest init [--force]`
 function parseInitArgs(rest) {
-  const opts = { force: false, brownfield: false, greenfield: false, help: false };
+  const opts = { force: false, brownfield: false, greenfield: false, dryRun: false, help: false };
   for (const a of rest) {
     if (a === '--force' || a === '-f') opts.force = true;
     else if (a === '--brownfield') opts.brownfield = true;
     else if (a === '--greenfield') opts.greenfield = true;
+    else if (a === '--dry-run') opts.dryRun = true;
     else if (a === '--help' || a === '-h') opts.help = true;
   }
   return opts;
@@ -519,13 +520,15 @@ brighttest init — scaffold a project for testing
 
 Usage:
   brighttest init [--force]
-  brighttest init --brownfield [--force]
+  brighttest init --brownfield [--force] [--dry-run]
   brighttest init --greenfield [--force]
 
   --brownfield   For an existing app you will not edit: runs the instrument census, writes the "instrument" block
                  into brighttest.json (state.registrySections proposed from the registry sections the census finds),
                  adds .brighttest/ and *.bt-instrumented.zip to .gitignore, and does not add an example spec or an
-                 npm test script. Existing brighttest.json settings are kept; --force replaces the instrument block.
+                 npm test script. An existing brighttest.json is merged, not overwritten: valid keys are kept, missing ones
+                 added, wrong-typed ones fixed (each change is listed; a .bak is kept when it writes); a valid file is
+                 left untouched. --force replaces the instrument block. --dry-run prints the plan and writes nothing.
   --greenfield   For an app built with brighttest in mind: also copies BTStore.brs and BTHttp.brs (version-headed) into
                  source/brighttest/ and adds BT_AGENT=false to bs_const in the manifest (existing consts kept). Scene/Task components include them with
                  <script type="text/brightscript" uri="pkg:/source/brighttest/BTStore.brs" />. With --greenfield, --force

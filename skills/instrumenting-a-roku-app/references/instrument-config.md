@@ -8,8 +8,7 @@ Evidence: `docs/guide/instrument.md` (Configuration), `lib/config.js` (the exclu
 `brighttest.json` in the app folder (build and census accept `--config <path>`). All keys are optional. Adding or
 changing this file is an edit to the repo: ask the human if it does not exist yet. `npx brighttest init --brownfield`
 writes the block for you (`strict: false`, proposed `state.registrySections`) and adds `.brighttest/` and
-`*.bt-instrumented.zip` to `.gitignore`; it adds no spec. An existing `instrument` block is kept unless `--force`, except a block holding only `exclude`: that one is replaced
-by the full block and its exclude list is kept.
+`*.bt-instrumented.zip` to `.gitignore`; it adds no spec. An existing file is merged, not overwritten (valid values kept, missing keys such as `strict` and `state` added, wrong-typed values fixed, each change listed); `--force` replaces the `instrument` block.
 
 ```json
 {

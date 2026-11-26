@@ -95,6 +95,7 @@
     "--coverage",
     "--cross-check",
     "--device",
+    "--dry-run",
     "--ecp-port",
     "--engines",
     "--expect",

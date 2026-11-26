@@ -86,8 +86,11 @@ building and response parsing.
 ## Step 6: e2e and instrumentation without editing the app (no-edit path, in this order)
 
 1. Copy the app outside its repository (`references/no-edit-path.md`, section 1). Never work in the original.
-2. Run `npx brighttest init --brownfield` in the copy, before any build. It writes `brighttest.json` (the `instrument`
-   block) and appends `.brighttest/` and `*.bt-instrumented.zip` to `.gitignore`. Nothing else: no spec, no npm script.
+2. Always run `npx brighttest init --brownfield` in the copy, before any build, even when `brighttest.json` already
+   exists: it merges into the existing file (valid keys kept, missing ones added, wrong-typed ones fixed, a valid file
+   left untouched; `--dry-run` previews). It also appends `.brighttest/` and `*.bt-instrumented.zip` to `.gitignore`.
+   Nothing else: no spec, no npm script. Read its report and tell the human either `brighttest.json: unchanged (valid)`
+   or each `added`/`changed` line. Never skip this step because the file is there.
 3. Check the instrument-build rule below, then `npx brighttest instrument build --out app-debug.bt-instrumented.zip`.
 4. Prove it cannot ship: `npx brighttest instrument verify app-debug.bt-instrumented.zip` exits 3 (markers found),
    and `npx brighttest instrument verify <plain package or folder>` exits 0. A missing path exits 2.

@@ -158,9 +158,66 @@ describe('T2 score', () => {
   })
 })
 
+// T3a needs the app's brighttest.json as init --brownfield would leave it: run the real merge on a private copy.
+function merged(app) {
+  const r = require('node:child_process').spawnSync(process.execPath, [path.join(REPO, 'bin', 'cli.js'), 'init', '--brownfield'], { cwd: app, encoding: 'utf8', timeout: 120000 })
+  expect(r.status).toBe(0)
+}
+// A private run root (both arms) whose with-skills t3 app has been through the real merge.
+function mergedRoot() {
+  const root = path.join(mk(), 'run')
+  fs.cpSync(shared, root, { recursive: true })
+  fs.cpSync(`${shared}-baseline`, `${root}-baseline`, { recursive: true })
+  made.push(`${root}-baseline`)
+  merged(path.join(dirOf(root, 'with-skills', 't3'), 'app'))
+  return root
+}
+describe('T3a (init --brownfield against the existing config)', () => {
+  const g = () => fx('t3-good.json')
+  const a = (c, o = {}) => t23.scoreT3({ message: g().finalMessage, commands: g().commands, exitCodes: g().exitCodes, appDir: c.t3, ...o }).T3a
+  test('pass: init ran and the merged file is valid with original keys unchanged', () => {
+    const c = fresh(); merged(c.t3)
+    expect(a(c).pass).toBe(true)
+  })
+  test('fail: init skipped (or only --dry-run) even though the final file is valid', () => {
+    const c = fresh(); merged(c.t3)
+    expect(a(c, { commands: g().commands.filter((x) => !/init/.test(x)) }).pass).toBe(false)
+    expect(a(c, { commands: g().commands.map((x) => x.replace('--brownfield', '--brownfield --dry-run')) }).pass).toBe(false)
+  })
+  test('fail: the presence-only file (fixture untouched, no strict key) is incomplete', () => {
+    const c = fresh()
+    const r = a(c)
+    expect(r.pass).toBe(false)
+    expect(r.note).toMatch(/instrument\.strict/)
+  })
+  test('fail: init overwrote keys that were valid before', () => {
+    const c = fresh(); merged(c.t3)
+    const cfg = JSON.parse(fs.readFileSync(path.join(c.t3, 'brighttest.json'), 'utf8'))
+    cfg.instrument.state.registrySections = ['other']
+    W(c.t3, 'brighttest.json', JSON.stringify(cfg))
+    const r = a(c)
+    expect(r.pass).toBe(false)
+    expect(r.note).toMatch(/instrument\.state/)
+  })
+  test('fail: final file invalid or unparseable', () => {
+    const c = fresh(); merged(c.t3)
+    const cfg = JSON.parse(fs.readFileSync(path.join(c.t3, 'brighttest.json'), 'utf8'))
+    cfg.rootDir = 3
+    W(c.t3, 'brighttest.json', JSON.stringify(cfg))
+    expect(a(c).note).toMatch(/invalid or incomplete: rootDir/)
+    W(c.t3, 'brighttest.json', '{ nope')
+    expect(a(c).pass).toBe(false)
+  })
+  test('init exit code nonzero fails', () => {
+    const c = fresh(); merged(c.t3)
+    const cmd = g().commands[0]
+    expect(a(c, { exitCodes: { ...g().exitCodes, [cmd]: 1 } }).pass).toBe(false)
+  })
+})
+
 describe('T3 score', () => {
   test('good cell passes; strict stays a review item', () => {
-    const c = cells()
+    const c = fresh(); merged(c.t3)
     const r = t23.scoreT3({ message: fx('t3-good.json').finalMessage, ...fx('t3-good.json'), appDir: c.t3 })
     for (const [k, v] of Object.entries(r)) expect([k, v.pass]).toEqual([k, true])
     expect(r.T3e.mode).toBe('review')
@@ -198,7 +255,7 @@ describe('score and render', () => {
     expect(t23.render(s)).toMatch(/No result for this cell/)
   })
   test('both arms scored per task; contaminated baseline excluded; only with-skills gates', () => {
-    const c = cells()
+    const c = { root: mergedRoot() }
     const g = fx('t3-good.json')
     const dirty = { ...g, commands: [...g.commands, 'cat node_modules/brighttest/skills/x/SKILL.md'], reads: [] }
     const s = t23.score({ runRoot: c.root, tasks: ['t3'], results: { cells: { 'legacy-app/with-skills/t3': g, 'legacy-app/baseline/t3': dirty } } })

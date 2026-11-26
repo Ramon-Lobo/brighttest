@@ -64,8 +64,8 @@ function buildPrompt({ arm, task, appDir, outDir, reportPath, repoRoot = REPO_RO
 }
 const TASKS = Object.keys(PROMPTS)
 const HIDDEN = new Set(['EXPECTED-CENSUS.json', 'node_modules', '.git'])
-const T2_ALLOW = [/^source\/tests\//, /^brighttest\.json$/, /^\.gitignore$/, /^\.env(\.example)?$/, /^\.brighttest\//, /^coverage\//, /^node_modules\//]
-const T3_ALLOW = [/^brighttest\.json$/, /^\.gitignore$/, /^\.brighttest\//, /^node_modules\//]
+const T2_ALLOW = [/^source\/tests\//, /^brighttest\.json(\.bak)?$/, /^\.gitignore$/, /^\.env(\.example)?$/, /^\.brighttest\//, /^coverage\//, /^node_modules\//]
+const T3_ALLOW = [/^brighttest\.json(\.bak)?$/, /^\.gitignore$/, /^\.brighttest\//, /^node_modules\//]
 const cellId = (arm, task) => `${FIXTURE}/${arm}/${task}`
 const cellDir = (root, arm, task) => path.join(armRoot(root, arm), FIXTURE, task)
 
@@ -190,9 +190,29 @@ function shippedSpecs(appDir) {
 const listSpecs = (dir) => listFiles(dir).filter((f) => /\.spec\.(bs|brs)$/.test(f)).length
 
 // ---- T3 ----
+// T3a: `init --brownfield` (not --dry-run) ran against the existing config, the final brighttest.json is valid and complete
+// per lib/init-merge.js (the validator init itself uses), and every part that was valid in the fixture's original is unchanged.
+function scoreT3a({ commands, exitCodes, appDir }) {
+  const { validateBrownfield, alteredValidKeys } = require(path.join(REPO_ROOT, 'lib', 'init-merge'))
+  const ran = commands.filter((c) => /\binit\b/.test(c) && /--brownfield\b/.test(c) && !/--dry-run\b/.test(c))
+  if (!ran.length) return { pass: false, mode: 'auto', note: 'no `init --brownfield` run (not --dry-run) in commands: it must run even when brighttest.json exists' }
+  if (ran.every((c) => { const x = lookup(exitCodes, c); return x !== undefined && x !== 0 })) return { pass: false, mode: 'auto', note: 'init --brownfield did not exit 0' }
+  const { cfg, error } = readConfig(appDir)
+  if (error) return { pass: false, mode: 'auto', note: error }
+  const defaults = { rootDir: '.', sourceGlobs: [], testsFilePattern: '**/*.spec.bs', stagingDir: '.brighttest' }
+  const bad = validateBrownfield(cfg, defaults)
+  if (bad.length) return { pass: false, mode: 'auto', note: `final brighttest.json invalid or incomplete: ${bad.map((b) => b.key).join(', ')}` }
+  const g = spawnSync('git', ['show', 'HEAD:brighttest.json'], { cwd: appDir, encoding: 'utf8', timeout: 60000 })
+  let orig = null
+  try { orig = JSON.parse(g.status === 0 ? g.stdout : fs.readFileSync(path.join(REPO_ROOT, 'examples', FIXTURE, 'brighttest.json'), 'utf8')) } catch (e) { return { pass: false, mode: 'review', note: `cannot read the fixture original: ${e.message}` } }
+  const altered = alteredValidKeys(orig, cfg, defaults)
+  if (altered.length) return { pass: false, mode: 'auto', note: `keys that were valid in the original were changed: ${altered.join(', ')}` }
+  return { pass: true, mode: 'auto', note: 'init --brownfield ran against the existing config; final file valid and complete; originally valid keys unchanged' }
+}
+
 function scoreT3({ message = '', commands = [], exitCodes = {}, appDir }) {
   const res = {}
-  res.T3a = commands.some((c) => /\binit\b/.test(c) && /--brownfield\b/.test(c)) ? { pass: true, mode: 'auto', note: 'init --brownfield recorded' } : { pass: false, mode: 'auto', note: 'no `init --brownfield` in commands' }
+  res.T3a = scoreT3a({ commands, exitCodes, appDir })
   const builds = commands.filter((c) => /\binstrument\s+build\b/.test(c))
   const withOut = builds.filter((c) => /--out\b/.test(c))
   if (!withOut.length) res.T3b = { pass: false, mode: 'auto', note: builds.length ? 'instrument build without --out' : 'no `instrument build --out` in commands' }
@@ -220,7 +240,7 @@ function scoreT3({ message = '', commands = [], exitCodes = {}, appDir }) {
 const NAMES = {
   T2a: 'valid brighttest.json', T2b: '`npx brighttest` exit 0', T2c: '3+ new spec files under source/tests/', T2d: 'flipped test failed then restored',
   T2e: 'no app source diff (allow-list)', T2f: '`.env` in .gitignore', T2g: 'engine smoke step run',
-  T3a: '`init --brownfield` run', T3b: '`instrument build --out` exit 0', T3c: '`instrument verify` exit 3 on debug zip, 0 on plain package',
+  T3a: '`init --brownfield` run on the existing config; final file valid; valid keys kept', T3b: '`instrument build --out` exit 0', T3c: '`instrument verify` exit 3 on debug zip, 0 on plain package',
   T3d: '`instrument.exclude` present, no `instrumentExclude`', T3e: 'strict ramp explained, not enabled', T3f: 'app not edited (allow-list; extra check)',
 }
 
