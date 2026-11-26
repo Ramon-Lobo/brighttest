@@ -29,6 +29,8 @@ npx brighttest device status --json   # the same, for scripts and agents
 npx brighttest device log --tail 20   # audit log: acquired / released / queued / timeout / reclaimed / forced …
 ```
 
+Holder text (agent, purpose, branch, worktree) is shown with control characters and terminal escape sequences removed in `device status`, `device log`, the waiting line and the lock/unlock notices; `--json` keeps the raw value, with control bytes written as `\u` escapes.
+
 A holder is described by its **agent** label, **purpose**, **worktree + branch**, cwd and PID. Set the
 first two so others can read them:
 
