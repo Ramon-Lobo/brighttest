@@ -34,7 +34,9 @@ describe('facts gate (ADR 0023)', () => {
   test('facts.json has the design shape', () => {
     const f = JSON.parse(fs.readFileSync(path.join(repo, 'skills', 'facts.json'), 'utf8'))
     expect(f.schema).toBe('brighttest-facts/v1')
-    expect(f.exitCodes).toEqual({ buildStrict: 4, leaseBusy: 75, leaseDir: 78, leaseLost: 77, verifyInstrumented: 3 })
+    expect(f.exitCodes).toEqual({ buildStrict: 4, leaseBusy: 75, leaseDir: 78, leaseLost: 77, usage: 2, verifyInstrumented: 3 })
+    expect(f.deviceIdleTimeoutDefault).toBe(120)
+    expect(f.hookPorts).toEqual([8060, 80, 8085, 8080, 8087, 8090])
     expect(f.hubDefaultPort).toBe(8790)
     expect(f.agents).toEqual(['adoption-assessor', 'ci-integrator', 'device-debugger', 'test-author'])
     expect(f.subcommands).toEqual(expect.arrayContaining(['device with', 'e2e inspect', 'instrument census', 'skills install', 'doctor']))
