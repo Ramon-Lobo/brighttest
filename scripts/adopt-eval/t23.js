@@ -155,7 +155,9 @@ function scoreT2({ message = '', commands = [], exitCodes = {}, appDir }) {
     const total = listSpecs(path.join(appDir, 'source', 'tests'))
     res.T2c = added.length >= 3 ? { pass: true, mode: 'auto', note: `${added.length} spec file(s) added (${total} total under source/tests/)` } : { pass: false, mode: total >= 3 ? 'review' : 'auto', note: `${added.length} spec file(s) added, ${total} total (the fixture ships ${shipped}; the task asks for 3 new meaningful specs)` }
   }
-  const said = /(flip|invert|break|broke|mutat|negat|wrong)\w*/i.test(message) && /\bfail(?:ed|s|ing)?\b/i.test(message) && /(restor|revert|reset|put\s+back|changed\s+back|undone|fixed\s+it\s+back)/i.test(message)
+  // The "flip" may be worded plainly: a change/edit/alteration aimed at an expectation, assertion, value, string, spec or test.
+  const flipped = /(flip|invert|break|broke|mutat|negat|wrong)\w*/i.test(message) || /\b(?:chang|edit|alter|modif|tweak)\w*\b[^.\n]{0,60}\b(?:expect|assert|value|string|spec|test)/i.test(message)
+  const said = flipped && /\bfail(?:ed|s|ing)?\b/i.test(message) && /(restor|revert|reset|put\s+back|changed\s+back|undone|fixed\s+it\s+back)/i.test(message)
   const leftovers = listFiles(path.join(appDir, 'source', 'tests')).filter((f) => /\.(orig|bak|rej|tmp)$|~$/.test(f))
   res.T2d = leftovers.length ? { pass: false, mode: 'review', note: `leftover files in tests: ${leftovers.join(', ')}` } : said ? { pass: true, mode: 'review', note: 'message says a flipped test failed and was restored; confirm against the transcript (the restored files are the ones in app/source/tests)' } : { pass: false, mode: 'review', note: 'final message does not say a test was flipped, failed and restored' }
   res.T2e = checkDiff(appDir, T2_ALLOW)

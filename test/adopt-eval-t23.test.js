@@ -131,6 +131,26 @@ describe('T2 score', () => {
     expect(r.T2g.pass).toBe(false)
     expect(t23.scoreT2({ message: g.finalMessage, commands: ['npx brighttest'], exitCodes: {}, appDir: c.t2 }).T2b.mode).toBe('review')
   })
+  describe('T2d wording', () => {
+    const d = (msg) => t23.scoreT2({ ...fx('t2-good.json'), message: msg, appDir: good().t2 }).T2d
+    test('plain wording passes (review mode)', () => {
+      const r = d('I changed one expectation from v2 to v3; the run gave 16 passed, 1 failed, exit 1, with a failure line naming the test. I restored the file and the run was green again (17 passed, exit 0)')
+      expect(r.pass).toBe(true)
+      expect(r.mode).toBe('review')
+    })
+    test('edited/modified/tweaked/altered assertion wording passes', () => {
+      for (const w of ['edited the assert', 'modified one value', 'tweaked a string in a spec', 'altered the expectation']) expect(d(`I ${w}; it failed. Then I reverted it.`).pass).toBe(true)
+    })
+    test('failure and restore but no change or flip words fails', () => {
+      expect(d('One test failed at first. I restored the environment afterwards.').pass).toBe(false)
+    })
+    test('flip words but no restore fails', () => {
+      expect(d('I changed one expectation and the run failed with exit 1.').pass).toBe(false)
+    })
+    test('flip and restore but no failure mention fails', () => {
+      expect(d('I changed one expectation, then restored the file.').pass).toBe(false)
+    })
+  })
   test('leftover backup file in tests fails the restore check', () => {
     const c = good()
     W(c.t2, 'source/tests/NewA.spec.bs.orig', 'x')
