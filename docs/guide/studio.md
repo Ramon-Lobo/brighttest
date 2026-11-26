@@ -124,6 +124,8 @@ and `.bsprof` import or pull. See [Troubleshooting](/guide/troubleshooting#conso
 for console replies and [the lease page](/guide/device-lease#perfetto-tracing-cannot-be-switched-off) for why Perfetto
 tracing cannot be switched off from Studio.
 
+Agents can read the same data without Studio's UI through the [`perf_summary` and `perf_trace_summary` MCP tools](/guide/mcp#profiling-read-only) (read-only).
+
 ![Profile page with the live profiling, console, Perfetto and bsprof panels](/images/studio/profile.png)
 *Profile page against the fake Roku: the panels are shown empty because the fake serves no profiling data.*
 

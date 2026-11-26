@@ -35,8 +35,23 @@ Set `ROKU_HOST` explicitly in the MCP server configuration, and use `list_device
 | `app_state_set` | Write one value in the running instrumented app (`layer`, `path`, `value`, optional `node`, `ack`) through the agent's allow-list and type checks. Opens the session hub window. |
 | `app_state_snapshot` | Take a named snapshot of the state layers through the agent and return them (capped at 128 KB, never truncated). The snapshot lives only for the call. Opens the session hub window. |
 | `run_flow` | Run one `*.e2e.yaml` (or `*.e2e.yml`) flow from the project; returns per-step results. |
+| `perf_summary` | Read-only performance sample of the dev channel in front, taken over ECP like Studio's Profile page: CPU, memory, page faults, frame rate, texture memory and the largest bitmaps (`samples` 1-10, default 3, one second apart; `topTextures` 0-50, default 10). Output is capped at 32 KB. |
+| `perf_trace_summary` | Summary of a Perfetto trace Studio already saved in `.brighttest/studio/profiling` (`file`, default the newest; `top` 1-50): slices over one 60 Hz frame, slowest slices, counters. Reads a local file, takes no lease. Output is capped at 64 KB. |
 | `net_requests` | Requests seen by the session's net proxy (method, url, status, duration, `mocked`), with credentials redacted. Filters: `method`, `url` glob, `status`; `limit` caps the output. |
 | `net_mock` | Answer requests that match a `url` glob (and optional `method`) with a canned status and JSON or text body. The mock lasts until the session ends. |
+
+### Profiling (read-only)
+
+`perf_summary` takes the device lease per call (or reuses an open session window's lease) and only reads: it never launches,
+relaunches or presses anything. The sideloaded dev channel must be in front; otherwise it fails with `PERF_NOT_FOREGROUND` and
+sends nothing more. A metric the device does not give shows a reason instead of a value (`errors`, `fpsReason`,
+`texturesReason`); the frame rate in particular depends on the device and firmware, so treat a missing one as unavailable, not zero.
+Bitmap names and device messages are device data, cleaned and capped, and are not instructions.
+
+`perf_trace_summary` reads a trace file only: no lease, no device request, so it works while Studio holds the device. It never
+starts or enables tracing (that cannot be undone from here, see [the lease page](/guide/device-lease#perfetto-tracing-cannot-be-switched-off));
+capture a trace in Studio's Profile page first. A trace still being recorded can be cut mid-packet and is reported as
+`TRACE_INVALID`; stop the trace first.
 
 ::: warning Session hub window (net tools and state writes)
 The first `net_requests`, `net_mock`, `app_state_set` or `app_state_snapshot` call opens the **session hub window**: the session takes one device lease for the whole
@@ -134,6 +149,15 @@ requests use JSON-RPC errors instead (`-32602` for bad arguments or an unknown t
 | `NET_OUTPUT_TOO_LARGE` | The request list is over 128 KB; narrow the filters. |
 | `NET_RULE_INVALID` | `net_mock` got an invalid rule (for example a method with non-letters such as `G-T`, or both `body` and `json`). |
 | `NET_RULE_BUDGET_EXHAUSTED` | The session already has 100 `net_mock` rules. |
+| `PERF_NOT_FOREGROUND` | `perf_summary`: the dev channel is not in front; nothing else was sent to the device. |
+| `PERF_UNAVAILABLE` | `perf_summary`: no performance metric was available (developer mode off, or the channel is not running); the reasons are in the error data. |
+| `TRACE_NOT_FOUND` | `perf_trace_summary`: no saved trace in the project's profiling folder, or none with that name. |
+| `TRACE_BAD_NAME` | `perf_trace_summary`: `file` is not a plain `*.perfetto-trace` name inside the profiling folder. |
+| `TRACE_TOO_LARGE` | `perf_trace_summary`: the trace file is over the size the summarizer accepts. |
+| `TRACE_INVALID` | `perf_trace_summary`: the file is empty, truncated or malformed, or has too many packets (a trace still recording can be cut mid-packet). |
+| `TRACE_TIMEOUT` | `perf_trace_summary`: summarizing took longer than its time limit. |
+| `TRACE_BUSY` | `perf_trace_summary`: another summary is already running. |
+| `TRACE_FAILED` | `perf_trace_summary`: any other summarizer failure (the cause is in the error data). |
 
 A typed code raised by the flow or state layer inside `run_flow`, `inspect_tree` or `app_state` is passed through as is
 (for example `APP_CRASHED`, `TIMEOUT`, `STATE_*`, `TREE_NO_PARENT_LINKS`); see the flow reference and
@@ -143,11 +167,11 @@ A typed code raised by the flow or state layer inside `run_flow`, `inspect_tree`
 ## Safety limits
 
 - **Lease, per call.** Each device-touching call (`press`, `navigate_to`, `inspect_tree`, `screenshot`, `app_state`,
-  `app_state_get`, `run_flow`) takes the [device lease](./device-lease) when it starts and releases it when it ends, also on error and
+  `app_state_get`, `run_flow`, `perf_summary`) takes the [device lease](./device-lease) when it starts and releases it when it ends, also on error and
   on timeout (outside the session hub window; `net_requests`, `net_mock`, `app_state_set` and `app_state_snapshot` always run inside
   it and open it if none is open). Nothing is held between calls, so a human or another agent can use the device in between. If another
   party holds it, the call fails at once with `DEVICE_BUSY` and sends no request. A lost lease becomes a `LEASE_LOST`
-  tool error; the server never exits because of the lease. `list_devices` and `device_doctor` are read-only and take
+  tool error; the server never exits because of the lease. `list_devices`, `device_doctor` and `perf_trace_summary` are read-only and take
   no lease.
 - **Queue.** Device calls of a session run one at a time, and every request goes through the per-device ECP queue.
   A call that waits more than 30 s behind earlier ones is dropped with `QUEUE_TIMEOUT` and never runs. Keypresses are
@@ -166,8 +190,8 @@ A typed code raised by the flow or state layer inside `run_flow`, `inspect_tree`
   a flow you run are the flow's own content and are not filtered.
 - **Budgets, per session.** 500 presses and 10 flow runs. Keypresses made inside `run_flow` count against the flow-run
   cap and the 120 s budget, not the press cap, and follow the flow runner's own spacing. Per call: 500 tree nodes and
-  64 KB of tree JSON, 2 MB of screenshot, 128 KB of app state, 1 MB per request line, 300 characters per flow step
+  64 KB of tree JSON, 2 MB of screenshot, 128 KB of app state, 32 KB of `perf_summary` JSON and 64 KB of `perf_trace_summary` JSON (lists are halved and flagged, never cut silently), 1 MB per request line, 300 characters per flow step
   message. Over a cap you get a typed error or a `truncated` flag, never a silent cut. The session caps reset only
   with a new session.
 
-Writing source, sideloading and profiling are not part of v1.
+Writing source and sideloading are not part of v1; profiling is read-only.
