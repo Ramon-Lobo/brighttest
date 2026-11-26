@@ -54,6 +54,8 @@ Every key is optional; the defaults suit a standard layout.
 
 Point at a non-default config with `-c/--config <path>`.
 
+A plain `source/main.brs` is left out of the test build automatically (brighttest appends `!source/main.brs` to `sourceGlobs` and logs it), because Rooibos hooks only a `.bs` `Main`. Your own `!source/main.brs` is respected.
+
 ## Choosing a lane
 
 | Command | Device? | Coverage? | `@SGNode`? | Use for |
