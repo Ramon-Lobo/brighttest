@@ -59,6 +59,28 @@ describe('device status/log/watch strict arguments (LMON-CLI-STRICT)', () => {
   it('--tail with no value exits 2', () => {
     expect(run(['log', '--tail']).status).toBe(2)
   })
+  it('status does not take --tail: exit 2 with the usage line', () => {
+    for (const v of ['5', 'abc']) {
+      const r = run(['status', '--tail', v])
+      expect(r.status).toBe(2)
+      expect(r.stderr).toContain('unknown option(s)')
+      expect(r.stderr).toContain('--tail')
+      expect(r.stderr).toContain('usage: brighttest device status')
+      expect(r.stderr).not.toContain('undefined')
+    }
+    expect(run(['status', '--tail=5']).status).toBe(2)
+  })
+  it.each([['status', ['--json']], ['log', []], ['watch', ['--once', '--no-probe']]])('%s: --host with no value says it needs a value', (action, extra) => {
+    const r = run([action, ...extra, '--host'])
+    expect(r.status).toBe(2)
+    expect(r.stderr).toContain('--host needs a value')
+    expect(r.stderr).not.toContain('unknown option')
+  })
+  it.each([['log'], ['watch', '--once', '--no-probe']])('%s: --tail with no value says it needs a value', (...a) => {
+    const r = run([...a, '--tail'])
+    expect(r.status).toBe(2)
+    expect(r.stderr).toContain('--tail needs a value')
+  })
   it('accepts a positive --tail and a missing or empty lease dir', () => {
     expect(run(['log', '--tail', '5']).status).toBe(0)
     expect(run(['status', '--json']).status).toBe(0)

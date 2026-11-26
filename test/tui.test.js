@@ -100,6 +100,17 @@ describe('inkColor', () => {
 });
 
 describe('sanitize', () => {
+  it('a removed escape sequence never swallows the next ordinary character', () => {
+    expect(T.sanitize('a\x1b\x1b]0;x\x07b')).toBe('ab');
+    expect(T.sanitize('\x1b\x1b[31mz')).toBe('z');
+    expect(T.sanitize('\x1b\x1b\x1b[31mz')).toBe('z');
+    expect(T.sanitize('ab\x1b')).toBe('ab');
+    expect(T.sanitize('a\x1b]0;unterminated rest')).toBe('a');
+    expect(T.sanitize('a\u0080\u009b31mb\u009d')).toBe('a31mb');
+    expect(T.sanitize('caf\u00e9 \u65e5\u672c \ud83d\ude80')).toBe('caf\u00e9 \u65e5\u672c \ud83d\ude80');
+    expect(Array.from(T.sanitize('x'.repeat(400))).length).toBe(200);
+    expect(Array.from(T.sanitize('x'.repeat(400), 300)).length).toBe(300);
+  });
   it('removes OSC, CSI and other escape sequences', () => {
     expect(T.sanitize('e2e \x1b]0;pwned\x07run')).toBe('e2e run');
     expect(T.sanitize('a\x1b]8;;http://x\x1b\\link\x1b]8;;\x1b\\b')).toBe('alinkb');
