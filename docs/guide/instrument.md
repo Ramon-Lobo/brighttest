@@ -577,6 +577,11 @@ republished (only when the command asked for `ack: reflected`). A session mismat
   without the guard. A long-lived Task whose entry function never returns gets the `entry` snapshot only; `exit` is
   published when the entry function returns. Each call serializes the Task's `m` with the caps and sets a global field
   (a render-thread rendezvous), so call it at most about once per second, never per message in a hot loop.
+- Studio node read: `GET /api/state/node?id=<node id>&layer=node|m[&path=a.b][&depth=N][&raw=1]` asks the app's agent
+  (`get` op, quiet, up to 4 s) for one node's fields or one component's `m`; nodes are found by id only (id up to 256
+  characters, path up to 1 KB). Answers `200 { id, layer, path, found, value, truncated, depth, redacted }` with values masked
+  by default; agent refusals pass through (`404 NODE_NOT_FOUND`, `409 M_NOT_AVAILABLE` or `M_PATH_FORBIDDEN`,
+  `400 PATH_UNDER_NODE`, `413 STATE_TOO_LARGE`); `409 STATE_NOT_INSTRUMENTED`, `504 ACK_TIMEOUT`, `423 LOCKED` and `503 NO_HUB` as for the other state routes.
 - Studio action log, time travel and fixtures (routes under `/api/state/`, all behind the device lease: a write while
   another agent holds it answers `423 LOCKED`).
   - `GET /api/state/actions[?raw=1]` lists the `state.action` events, oldest first: `entry` (log seq), `ts`, `source`,
