@@ -67,7 +67,7 @@ Device-lane header: the device lane prints `building, deploying to <host>, and r
 
 ```text
 brighttest init [--force]
-brighttest init --brownfield [--force]
+brighttest init --brownfield [--force] [--dry-run]
 brighttest init --greenfield [--force]
 ```
 
@@ -76,10 +76,29 @@ are kept unless `--force`.
 
 - `--brownfield`: for an app you will not edit. Runs the [instrument census](/guide/instrument), writes the `instrument`
   block of `brighttest.json` (with `state.registrySections` proposed from the census), adds `.brighttest/` and
-  `*.bt-instrumented.zip` to `.gitignore`, and adds no example spec or npm script. `--force` replaces the instrument block.
+  `*.bt-instrumented.zip` to `.gitignore`, and adds no example spec or npm script. An existing `brighttest.json` is merged
+  (below). `--force` replaces the instrument block. `--dry-run` prints the planned changes and writes nothing.
 - `--greenfield`: for an app built with brighttest in mind. Also copies `BTStore.brs` and `BTHttp.brs` into
   `source/brighttest/` and adds `BT_AGENT=false` to `bs_const`. With `--greenfield`, `--force` refreshes only the two
   templates. Cannot be combined with `--brownfield`.
+
+### Merging into an existing brighttest.json
+
+`init --brownfield` is safe to run on a project that already has `brighttest.json`. It reads the file, checks the keys init
+sets (`rootDir`, `sourceGlobs`, `testsFilePattern`, `stagingDir`, `instrument.strict`, `instrument.exclude`,
+`instrument.state` with `registrySections`) and changes only what is needed:
+
+| File state | Result |
+|---|---|
+| Valid and complete | Not rewritten (bytes and mtime unchanged). Prints `brighttest.json: unchanged (valid)` |
+| Key missing | Added with the detected default |
+| Value of the wrong type | Replaced with the default (a list keeps its string entries) |
+| Valid value that differs from what detection would propose | Kept |
+| Unknown keys | Kept, in order |
+| Not valid JSON | Exit 1, nothing written |
+
+Each change prints as `added|changed <key>: <old> -> <new>`. When it writes, the previous file is kept as `brighttest.json.bak`
+and the file's indentation is preserved.
 
 ## `brighttest skills`
 
