@@ -284,6 +284,19 @@ User docs: [Device lease](/guide/device-lease). Lock files under `~/.brighttest/
 - `device-hook.js` is a syntactic guard: any internal failure allows (a broken guard must not brick a session).
 - Exit codes 75 (busy/timeout), 77 (lost/expired), 78 (lease directory) are exported and gated in `skills/facts.json`.
 
+## Type checking (`tsconfig.json`, ADR 0043)
+
+The code stays plain CommonJS with no build step. TypeScript is a dev-only checker: `typescript` and `@types/node` are
+devDependencies, nothing is emitted, and nothing changes at runtime or in the published package.
+
+- `npm run typecheck` runs `tsc -p tsconfig.json` and `tsc -p tsconfig.strict.json`.
+- `tsconfig.json` has `allowJs`, `checkJs: false` and `noEmit`, so a file is checked only when it starts with
+  `// @ts-check`. Opt a file in, run the command, and fix what it reports with JSDoc (`@param`, `@typedef`) or small
+  type-only comments. Do not change behaviour to satisfy the checker.
+- `tsconfig.strict.json` extends it and adds `strictNullChecks` for the files listed in its `files` array (empty for now).
+- Today `lib/mcp/tools.js` and `lib/instrument/events.js` are opted in as smoke files.
+- CI runs the `typecheck` job on Node 22. It is non-required until the rollout reaches phase A3.
+
 ## Skills and the facts gate (`lib/skills.js`)
 
 `npm run skills:manifest` regenerates `skills/manifest.json` and `skills/facts.json` (CLI version, subcommands, flags,

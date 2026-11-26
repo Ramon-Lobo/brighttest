@@ -72,6 +72,24 @@ jobs:
       - run: npm run test:unit
         shell: bash
 
+  # Type check (ADR 0043): `tsc --noEmit` over files that opt in with `// @ts-check`. Non-required until phase A3
+  # of the TypeScript adoption plan; continue-on-error keeps a red result from blocking merges meanwhile.
+  typecheck:
+    runs-on: ubuntu-latest
+    name: typecheck (node 22)
+    continue-on-error: true
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+
   # Dependency security gate.
   #
   # Scoped to --omit=dev on purpose. Auditing the full tree would pin this job permanently red on
