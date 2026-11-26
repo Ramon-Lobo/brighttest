@@ -373,7 +373,7 @@ function parseDeviceArgs(rest) {
   const o = {
     deviceAction: null, host: null, password: null, ecpPort: null, as: null, purpose: null, wait: null, max: null, idle: null,
     expect: null, keepalive: null, noHygiene: false, json: false, tail: null, force: false, reason: null, kill: false, lease: null,
-    cmd: [], help: false, unknown: [], once: false, plain: false, all: false, noProbe: false, interval: null,
+    cmd: [], help: false, unknown: [], once: false, plain: false, all: false, noProbe: false, interval: null, tailRaw: null,
   };
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
@@ -393,7 +393,7 @@ function parseDeviceArgs(rest) {
     else if ((v = val('--idle')) !== undefined) o.idle = v;
     else if (a === '--keepalive') o.keepalive = rest[i + 1] !== undefined && /^\d+$/.test(rest[i + 1]) ? rest[++i] : '';
     else if (a.startsWith('--keepalive=')) o.keepalive = a.slice(12);
-    else if ((v = val('--tail')) !== undefined) o.tail = parseInt(v, 10) || null;
+    else if ((v = val('--tail')) !== undefined) { o.tail = parseInt(v, 10) || null; o.tailRaw = v; }
     else if ((v = val('--reason')) !== undefined) o.reason = v;
     else if ((v = val('--lease')) !== undefined) o.lease = v;
     else if (a === '--no-hygiene') o.noHygiene = true;

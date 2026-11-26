@@ -78,6 +78,8 @@ brighttest by default and loaded only when the interactive screen starts. If it 
 shows the plain live view instead, with exit code 0. `--once`, `--json`, `--plain` and any run without a terminal
 never load it. To add it later: `npm i ink react`.
 
+`device watch` exits 0 on quit, `--once` and `--json`. It exits 2 on an unknown flag or a bad value (`--interval`, or `--tail`, which takes a whole number from 1 to 200), and 78 when the lease directory exists but cannot be read or is not a directory. A missing lease directory is an empty board (exit 0). `device status` and `device log` apply the same rules (`device log --tail` goes up to 10000).
+
 ## Wrapping anything else: `device with`
 
 ```bash
