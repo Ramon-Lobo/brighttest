@@ -1,4 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
 import { parseHosts, parseTargets, buildPlan } from '../lib/e2e/run.js'
 
 afterEach(() => { delete process.env.ROKU_HOST; delete process.env.ROKU_PASSWORD })
@@ -14,8 +17,10 @@ describe('parseHosts', () => {
     process.env.ROKU_HOST = 'a,b'
     expect(parseHosts({})).toEqual(['a', 'b'])
   })
-  it('returns [] when nothing is set', () => {
-    expect(parseHosts({})).toEqual([])
+  it('returns [] when nothing is set (no env, empty .env dir, empty cache)', () => {
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-plan-'))
+    process.env.BRIGHTTEST_CACHE = path.join(d, 'devices.json')
+    try { expect(parseHosts({ cwd: d })).toEqual([]) } finally { delete process.env.BRIGHTTEST_CACHE; fs.rmSync(d, { recursive: true, force: true }) }
   })
 })
 

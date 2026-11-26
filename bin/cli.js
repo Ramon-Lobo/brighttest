@@ -342,7 +342,7 @@ Node detail (inspect with a selector — targets a node you see on screen):
   -o, --out <file>       Append the assertion to this flow file (created if missing)
 
 Options:
-  --host <ip[:pw][,…]>   Roku device IP(s) (or ROKU_HOST). Multiple → flows shard across devices in parallel.
+  --host <ip[:pw][,…]>   Roku device IP(s) (or ROKU_HOST in the shell or project .env, or the one cached device). Multiple → flows shard across devices in parallel.
                          Give a per-device password inline as ip:pw (else --password/ROKU_PASSWORD applies)
   --ecp-port <n>         ECP port on the device (or ROKU_ECP_PORT; default 8060) — for stubs/fakes; --host keeps ip[:pw]
   --password <pw>        Roku dev password (or ROKU_PASSWORD) — enables screenshots; shared by hosts w/o ip:pw
