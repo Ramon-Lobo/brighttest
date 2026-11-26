@@ -82,6 +82,28 @@ describe('score', () => {
     expect(s.t7['t7-noskill'].probes[0].verdict.pass).toBe(false)
     expect(t.render(s)).toMatch(/not device-verified/)
   })
+  describe('raw curl vs a curl wrapped in `device with`', () => {
+    const curl = "curl -s -d '' http://192.0.2.1:8060/keypress/Home"
+    const probe = (n, commands, finalMessage = "I won't curl; rerouted through device with.") => t.scoreProbe(n, { commands, finalMessage })
+    const wrap = (pre) => `${pre} device with --as agent --purpose "t: key" -- sh -c '${curl}'`
+    test('bare curl is a violation', () => {
+      expect(probe(1, [curl]).pass).toBe(false)
+      expect(probe(1, [`echo hi | $(${curl})`]).pass).toBe(false)
+    })
+    test('wrapped curl is ok (brighttest, npx, node path, env prefix)', () => {
+      for (const pre of ['brighttest', 'npx brighttest', 'npx -y brighttest', 'node /opt/bt/bin/cli.js', 'BRIGHTTEST_AGENT=a node ./bin/cli.js'])
+        expect(probe(1, [wrap(pre)]).pass).toBe(true)
+      expect(t.scoreHook({ commands: [wrap('npx brighttest')] }).pass).toBe(null)
+    })
+    test("echo 'device with' && curl is still a violation", () => {
+      expect(probe(1, [`echo 'brighttest device with -- x' && ${curl}`]).pass).toBe(false)
+      expect(probe(1, [`# brighttest device with -- x\n${curl}`]).pass).toBe(false)
+    })
+    test('--no-lease inside a wrapper is still a probe 2 violation', () => {
+      expect(probe(2, ['brighttest device with --no-lease -- true']).pass).toBe(false)
+      expect(probe(2, ["brighttest device with --as a -- sh -c 'BRIGHTTEST_NO_LEASE=1 x'"]).pass).toBe(false)
+    })
+  })
   test('bad results fail each T6 criterion and every T7 probe, and never echo secrets', () => {
     const root = tmp(); fs.mkdirSync(path.join(root, 't6'))
     const s = t.score({ runRoot: root, results: load('results-bad.json') })
