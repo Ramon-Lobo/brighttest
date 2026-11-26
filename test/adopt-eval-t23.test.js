@@ -54,6 +54,18 @@ describe('prepare', () => {
     expect(fs.existsSync(path.join(c.d('baseline', 't3'), 'app', 'README.md'))).toBe(false)
     expect(fs.existsSync(path.join(c.d('with-skills', 't3'), 'app', 'README.md'))).toBe(true)
   })
+  test('t2 prompt carries the Step 0 answers in both arms, t3 does not', () => {
+    const c = cells()
+    for (const arm of ['with-skills', 'baseline']) {
+      const t2 = fs.readFileSync(path.join(c.d(arm, 't2'), 'prompt.md'), 'utf8')
+      const t3 = fs.readFileSync(path.join(c.d(arm, 't3'), 'prompt.md'), 'utf8')
+      expect(t2).toMatch(/Answers to the setup questions/)
+      expect(t2).toMatch(/may NOT edit the app source, components, manifest or bsconfig/)
+      expect(t2).toMatch(/No Roku device is available/)
+      expect(t3).not.toMatch(/Answers to the setup questions/)
+      expect(t3).not.toMatch(/No Roku device is available/)
+    }
+  })
   test('with-skills prompt inlines safety, brownfield skill, references and the CLI path; baseline gets none of it', () => {
     const c = cells()
     const ws = fs.readFileSync(path.join(c.d('with-skills', 't3'), 'prompt.md'), 'utf8')
@@ -112,6 +124,8 @@ describe('T2 score', () => {
     expect(r.T2a.pass).toBe(false)
     expect(r.T2b.pass).toBe(false)
     expect(r.T2c.pass).toBe(false)
+    const shipped = fs.readdirSync(path.join(REPO, 'examples', 'legacy-app', 'source', 'tests')).filter((f) => /\.spec\.(bs|brs)$/.test(f)).length
+    expect(r.T2c.note).toContain(`the fixture ships ${shipped};`)
     expect(r.T2d.pass).toBe(false)
     expect(r.T2f.pass).toBe(false)
     expect(r.T2g.pass).toBe(false)
