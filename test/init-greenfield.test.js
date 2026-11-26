@@ -15,6 +15,13 @@ const cli = path.join(root, 'bin', 'cli.js')
 function init(cwd, extra = []) {
   return spawnSync(process.execPath, [cli, 'init', '--greenfield', ...extra], { cwd, encoding: 'utf8', timeout: 60000 })
 }
+// spawnSync returns once the CLI process exits, but a straggler it started (engine child, cache writer) can still
+// be writing into the tree for a moment, which makes a plain rmSync fail with ENOTEMPTY. Retry for ~10 s and log
+// (never throw) if the dir still cannot be removed: cleanup must not fail the test.
+function rmTemp(d) {
+  try { fs.rmSync(d, { recursive: true, force: true, maxRetries: 20, retryDelay: 500 }) }
+  catch (e) { console.warn(`init-greenfield cleanup failed for ${d}: ${e.message}`) }
+}
 function scratch(manifest) {
   const d = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-gf-'))
   if (manifest !== null) fs.writeFileSync(path.join(d, 'manifest'), manifest)
@@ -33,7 +40,7 @@ describe('init --greenfield', () => {
       }
       const m = fs.readFileSync(path.join(d, 'manifest'), 'utf8')
       expect(m).toContain('bs_const=FOO=true;BT_AGENT=false')
-    } finally { fs.rmSync(d, { recursive: true, force: true }) }
+    } finally { rmTemp(d) }
   })
 
   it('adds a bs_const line when none exists', () => {
@@ -43,7 +50,7 @@ describe('init --greenfield', () => {
       const m = fs.readFileSync(path.join(d, 'manifest'), 'utf8')
       expect(m.match(/^bs_const=/gm)).toHaveLength(1)
       expect(m).toContain('bs_const=BT_AGENT=false')
-    } finally { fs.rmSync(d, { recursive: true, force: true }) }
+    } finally { rmTemp(d) }
   })
 
   it('is idempotent on re-run', () => {
@@ -58,7 +65,7 @@ describe('init --greenfield', () => {
       expect(fs.readFileSync(path.join(d, 'manifest'), 'utf8')).toBe(before)
       expect(fs.readFileSync(tpl, 'utf8')).toContain("' local edit")
       expect((before.match(/BT_AGENT/g) || [])).toHaveLength(1)
-    } finally { fs.rmSync(d, { recursive: true, force: true }) }
+    } finally { rmTemp(d) }
   })
 
   it('does not flip an existing BT_AGENT const', () => {
@@ -66,7 +73,7 @@ describe('init --greenfield', () => {
     try {
       init(d)
       expect(fs.readFileSync(path.join(d, 'manifest'), 'utf8')).toContain('bs_const=BT_AGENT=true')
-    } finally { fs.rmSync(d, { recursive: true, force: true }) }
+    } finally { rmTemp(d) }
   })
 
   it('without --greenfield nothing is copied', () => {
@@ -75,7 +82,7 @@ describe('init --greenfield', () => {
       spawnSync(process.execPath, [cli, 'init'], { cwd: d, encoding: 'utf8', timeout: 60000 })
       expect(fs.existsSync(path.join(d, 'source', 'brighttest'))).toBe(false)
       expect(fs.readFileSync(path.join(d, 'manifest'), 'utf8')).not.toContain('BT_AGENT')
-    } finally { fs.rmSync(d, { recursive: true, force: true }) }
+    } finally { rmTemp(d) }
   })
 })
 
@@ -87,7 +94,7 @@ describe('init --greenfield (hardening)', () => {
       const m = fs.readFileSync(path.join(d, 'manifest'), 'utf8')
       expect(m).toContain('bs_const=bt_agent=true')
       expect(m.match(/bt_agent/gi)).toHaveLength(1)
-    } finally { fs.rmSync(d, { recursive: true, force: true }) }
+    } finally { rmTemp(d) }
   })
 
   it('preserves CRLF line endings', () => {
@@ -96,7 +103,7 @@ describe('init --greenfield (hardening)', () => {
       init(d)
       const m = fs.readFileSync(path.join(d, 'manifest'), 'utf8')
       expect(m).toBe('title=X\r\nbs_const=FOO=true;BT_AGENT=false\r\nmajor_version=1\r\n')
-    } finally { fs.rmSync(d, { recursive: true, force: true }) }
+    } finally { rmTemp(d) }
   })
 
   it('--force refreshes only the templates, not brighttest.json or Example.spec.bs', () => {
@@ -112,7 +119,7 @@ describe('init --greenfield (hardening)', () => {
       expect(fs.readFileSync(path.join(d, 'brighttest.json'), 'utf8')).toBe('{"mine":true}')
       expect(fs.readFileSync(path.join(d, 'source', 'tests', 'Example.spec.bs'), 'utf8')).toBe("' mine\n")
       expect(fs.readFileSync(tpl, 'utf8')).toMatch(/brighttest-template: BTStore/)
-    } finally { fs.rmSync(d, { recursive: true, force: true }) }
+    } finally { rmTemp(d) }
   })
 
   it('rejects --greenfield with --brownfield', () => {
@@ -122,14 +129,14 @@ describe('init --greenfield (hardening)', () => {
       expect(r.status).toBe(1)
       expect(r.stderr).toMatch(/cannot be combined/)
       expect(fs.existsSync(path.join(d, 'source', 'brighttest'))).toBe(false)
-    } finally { fs.rmSync(d, { recursive: true, force: true }) }
+    } finally { rmTemp(d) }
   })
 
   it('prints the script tag wiring in the Next output', () => {
     const d = scratch('title=X\n')
     try {
       expect(init(d).stdout).toContain('uri="pkg:/source/brighttest/BTStore.brs"')
-    } finally { fs.rmSync(d, { recursive: true, force: true }) }
+    } finally { rmTemp(d) }
   })
 })
 
@@ -156,7 +163,7 @@ describe('templates compile with brighterscript', () => {
       const files = {}
       for (const f of ['BTStore.brs', 'BTHttp.brs']) files[`source/brighttest/${f}`] = fs.readFileSync(path.join(d, 'source', 'brighttest', f), 'utf8')
       expect(compileErrors(files)).toEqual([])
-    } finally { fs.rmSync(d, { recursive: true, force: true }) }
+    } finally { rmTemp(d) }
   })
 })
 
@@ -183,7 +190,7 @@ end sub
       fs.writeFileSync(file, store + main)
       const r = spawnSync(process.execPath, [brsCli, file], { encoding: 'utf8', timeout: 30000 })
       expect(r.stdout + r.stderr).toMatch(/A=free[\s\S]*B=premium[\s\S]*N=1/)
-    } finally { fs.rmSync(d, { recursive: true, force: true }) }
+    } finally { rmTemp(d) }
   })
 })
 
@@ -213,7 +220,7 @@ end namespace
       expect(r.stdout).toMatch(/\b[23] passed, 0 failed/)
       const cfg = JSON.parse(fs.readFileSync(path.join(d, 'brighttest.json'), 'utf8'))
       expect(cfg.sourceGlobs).toContain('!source/main.brs')
-    } finally { fs.rmSync(d, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 }) }
+    } finally { rmTemp(d) }
   }, 150000)
 
   it('does not add the main.brs exclusion when there is no source/main.brs', () => {
@@ -222,6 +229,6 @@ end namespace
       init(d)
       const cfg = JSON.parse(fs.readFileSync(path.join(d, 'brighttest.json'), 'utf8'))
       expect(cfg.sourceGlobs).not.toContain('!source/main.brs')
-    } finally { fs.rmSync(d, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 }) }
+    } finally { rmTemp(d) }
   })
 })
