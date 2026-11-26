@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="Child" extends="Group">
+  <script type="text/brightscript" uri="pkg:/components/Child.brs" />
+  <interface>
+    <field id="label" type="string" alias="lbl.text" />
+    <field id="dflt" type="integer" value="42" />
+    <field id="obs" type="integer" value="0" onChange="onObs" />
+    <field id="ro" type="integer" value="1" alwaysNotify="false" />
+    <function name="add" />
+    <function name="noret" />
+    <function name="echoArgs" />
+    <function name="echoAA" />
+    <function name="readGlobal" />
+    <function name="innerText" />
+    <function name="changeCount" />
+    <function name="scopedObserve" />
+    <function name="scopedResult" />
+    <function name="scopedUnobserve" />
+    <function name="initRan" />
+    <function name="obsSync" />
+    <function name="globalObserve" />
+    <function name="alwaysNotifyTest" />
+    <function name="unobserveTest" />
+  </interface>
+  <children>
+    <Label id="lbl" />
+  </children>
+</component>
