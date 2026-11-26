@@ -57,7 +57,7 @@
 
 <svelte:window onkeydown={(e) => { if (e.key === 'ArrowLeft') go(-1); if (e.key === 'ArrowRight') go(1); }} />
 
-<div class="page">
+<div class="page" data-testid="page-runs">
   <div class="phead">
     <h1>Runs</h1>
     {#if steps.length}<span class="tally"><b class="ok">{passed}</b> passed{#if failed} · <b class="bad">{failed}</b> failed{/if}{#if isLive && running} · running…{/if}</span>{/if}
@@ -68,9 +68,9 @@
     <div class="empty">No runs yet. Hit <b>Run</b> on a flow — each run's frames are captured so you can scrub back through it here.</div>
   {:else}
     <!-- run history -->
-    <div class="runs">
+    <div class="runs" data-testid="run-history" role="group" aria-label="Run history">
       {#each history as r}
-        <button class="run" class:sel={r.id === selId} class:live={r.id === runId && running} onclick={() => select(r.id)}>
+        <button class="run" data-testid="run-history-item" class:sel={r.id === selId} class:live={r.id === runId && running} onclick={() => select(r.id)}>
           <span class="rdot" class:ok={r.ok === true} class:bad={r.ok === false}></span>
           <span class="rflow">{r.flow}</span>
           <span class="rmeta">{r.passed}/{r.total} · {ago(r.startedAt)}</span>
@@ -78,11 +78,11 @@
       {/each}
     </div>
 
-    <div class="trace">
+    <div class="trace" data-testid="trace-viewer" role="region" aria-label="Trace viewer">
       <div class="viewer">
         <div class="bezel">
           {#if step && step.frame}
-            <img src={api.traceFrame(selId, cur)} alt={`step ${cur + 1}`} />
+            <img src={api.traceFrame(selId, cur)} data-testid="trace-frame" alt={`step ${cur + 1}`} />
             {#if step.scene && step.nodes}
               <svg viewBox="0 0 {step.scene.w} {step.scene.h}" preserveAspectRatio="none">
                 {#each step.nodes as n}
@@ -99,11 +99,11 @@
             <div class="noframe">{isLive && running ? 'capturing…' : 'no frame for this step'}</div>
           {/if}
         </div>
-        <div class="scrubctl">
-          <button onclick={() => go(-1)} disabled={cur <= 0} aria-label="previous">◀</button>
-          <input type="range" min="0" max={Math.max(0, steps.length - 1)} value={cur} oninput={(e) => (picked = +e.currentTarget.value)} />
-          <button onclick={() => go(1)} disabled={cur >= steps.length - 1} aria-label="next">▶</button>
-          <span class="pos">{steps.length ? cur + 1 : 0}/{steps.length}</span>
+        <div class="scrubctl" data-testid="trace-scrubber" role="group" aria-label="Step scrubber">
+          <button data-testid="trace-prev" onclick={() => go(-1)} disabled={cur <= 0} aria-label="previous">◀</button>
+          <input type="range" data-testid="trace-slider" aria-label="step" min="0" max={Math.max(0, steps.length - 1)} value={cur} oninput={(e) => (picked = +e.currentTarget.value)} />
+          <button data-testid="trace-next" onclick={() => go(1)} disabled={cur >= steps.length - 1} aria-label="next">▶</button>
+          <span class="pos" data-testid="trace-position" aria-live="polite">{steps.length ? cur + 1 : 0}/{steps.length}</span>
         </div>
         {#if step}<div class="stepinfo {step.status}"><span class="op">{step.op}</span>{#if step.selector}<span class="sel">{JSON.stringify(step.selector)}</span>{/if}<span class="det">{step.detail}</span></div>{/if}
 
@@ -137,10 +137,10 @@
         {/if}
       </div>
 
-      <ol class="steps">
+      <ol class="steps" data-testid="trace-steps" aria-label="Steps">
         {#each steps as s, i}
           <li class="{s.status}" class:cur={i === cur}>
-            <button onclick={() => (picked = i)}><span class="n">{i + 1}</span><span class="cue"></span><span class="op">{s.op}</span></button>
+            <button data-testid="trace-step" aria-label="step {i + 1}: {s.op}" onclick={() => (picked = i)}><span class="n">{i + 1}</span><span class="cue"></span><span class="op">{s.op}</span></button>
           </li>
         {/each}
       </ol>

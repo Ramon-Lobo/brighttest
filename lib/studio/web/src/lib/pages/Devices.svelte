@@ -50,10 +50,10 @@
   }
 </script>
 
-<div class="page">
-  <div class="phead"><h1>Devices</h1><button class="ghost" onclick={scan} disabled={scanning}>{scanning ? 'Scanning…' : 'Discover'}</button></div>
+<div class="page" data-testid="page-devices">
+  <div class="phead"><h1>Devices</h1><button class="ghost" data-testid="devices-discover" aria-label="Discover devices" onclick={scan} disabled={scanning}>{scanning ? 'Scanning…' : 'Discover'}</button></div>
 
-  <div class="current">
+  <div class="current" data-testid="device-current" role="status" aria-label="Connected device">
     <span class="dot" class:on={dev?.connected}></span>
     {#if dev?.connected}
       <div><div class="model">{dev.model}</div><div class="meta">{dev.host} · fw {dev.firmware}</div></div>
@@ -63,17 +63,17 @@
     {/if}
   </div>
 
-  {#if msg}<p class="msg">{msg}</p>{/if}
+  {#if msg}<p class="msg" data-testid="devices-message" role="status">{msg}</p>{/if}
 
   {#if list.length}
     <div class="eyebrow">on this network</div>
-    <ul>
+    <ul data-testid="device-list" aria-label="Discovered devices">
       {#each list as d}
-        <li>
+        <li data-testid="device-row">
           <span class="ddot" class:on={d.host === dev?.host && dev?.connected}></span>
           <div class="dinfo"><span class="dname">{d.name}</span><span class="dmeta">{d.model} · {d.host}</span></div>
           {#if d.hasPassword}<span class="cached">password cached</span>{/if}
-          <button class="connect" onclick={() => connect(d)} disabled={connecting === d.host}>
+          <button class="connect" data-testid="device-connect" aria-label="Connect to {d.name}" onclick={() => connect(d)} disabled={connecting === d.host}>
             {connecting === d.host ? 'Connecting…' : d.host === dev?.host && dev?.connected ? 'Reconnect' : 'Connect'}
           </button>
         </li>

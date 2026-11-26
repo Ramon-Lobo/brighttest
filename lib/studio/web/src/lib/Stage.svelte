@@ -29,10 +29,10 @@
   };
 </script>
 
-<div class="monitor" role="presentation" onclick={() => (studio.selectedPath = null)}>
+<div class="monitor" data-testid="monitor-stage" role="presentation" onclick={() => (studio.selectedPath = null)}>
   <div class="bezel">
-    <img src={shotSrc} alt="live device screen" draggable="false" />
-    <svg viewBox="0 0 {studio.scene.w} {studio.scene.h}" preserveAspectRatio="none">
+    <img src={shotSrc} data-testid="monitor-screenshot" alt="live device screen" draggable="false" />
+    <svg viewBox="0 0 {studio.scene.w} {studio.scene.h}" preserveAspectRatio="none" data-testid="monitor-overlay" aria-label="node overlay">
       {#each studio.nodes as n (n.path)}
         {#if drawable(n)}
           {@const r = rectOf(n)}
