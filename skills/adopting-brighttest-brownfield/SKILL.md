@@ -42,10 +42,7 @@ Install the package with `setting-up-brighttest`. `doctor --engines` exits 0 whe
 it fails or disagrees with package metadata, 2 when no engine is installed. `census` writes `census.json` and
 `census.md` into that folder, which sits outside the app, so `git status` stays unchanged. List `could not instrument` entries and `Not covered` reasons as known gaps. Do not enable strict yet.
 
-Engine smoke step: on the legacy-app copy, with the engine `-bt.1` pins from main at 7332b12, two bounded default
-runs (which include the `@SGNode` suites) finished green in about 5 s (17 passed, 0 failed, 7 suites, exit 0), and
-`--no-sgnode` finished green in about 1 s (8 passed, 4 `@SGNode` suites skipped). An earlier engine version printed
-nothing after "building the test bundle" for over 100 s on the same copy. So do the default run bounded, with a hard
+Engine smoke step: with the pinned `-bt.1` engines, two bounded default runs (which include the `@SGNode` suites) finished green in about 5 s on the reference copy; an earlier engine version hung. So do the default run bounded, with a hard
 timeout, and report it as green, failed or hung; add `--timeout <sec>` when you try `@SGNode`. `--no-sgnode` stays
 available as a fallback. Do not claim it always works: the `@SGNode` result does not block the first green run.
 

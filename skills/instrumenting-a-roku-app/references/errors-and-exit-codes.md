@@ -9,7 +9,7 @@ zip and on an unknown option). Not device-verified.
 | Command | Code | Meaning | Next step |
 |---|---|---|---|
 | `instrument build` | 0 | package written | `instrument verify` on it must exit 3 |
-| `instrument build` | 1 | build failure: bsc or plugin error, `BT9003 staged-output-invalid`; with `--sideload` also auth, port 80 closed, installer failure | read stderr, one line per blocking item |
+| `instrument build` | 1 | build failure: bsc or plugin error, `BT9003 staged-output-invalid`; with `--sideload` also auth, port 80 closed, installer failure; or `--net` with `BRIGHTTEST_HUB_TOKEN` unset or not 32 hex | read stderr, one line per blocking item |
 | any `instrument` action | 2 | usage error: unknown action or option, `verify` without a path or with a missing or unreadable one, a census failure | fix the command |
 | `instrument verify` | 3 | instrumentation markers found: do not release this package | rebuild the store package without `instrument build` |
 | `instrument build` | 4 | strict mode: valid build, but something could not be instrumented | read the `strict:` lines |
