@@ -28,7 +28,8 @@ Run `npx brighttest assess . --json` and read `recommendation.path`, `blockers` 
 - `brownfield`: existing-app path. Start from the assess report.
 - `greenfield`: a manifest with fewer than 5 components and no specs. For an existing app the next step is
   `npx brighttest init`; do not run `init --greenfield`, which edits the manifest and writes into `source/`.
-  Use `init --greenfield` only for an app with nothing written yet.
+  Use `init --greenfield` only for an app with nothing written yet. For a no-edit app the step is
+  `init --brownfield` (try `--dry-run` first): it merges into an existing `brighttest.json` instead of overwriting it.
 - `not-a-roku-app`: stop and ask the human; assess must run from the folder with the manifest.
 - `editPermission` is always `unknown`: ask the human (section 3).
 - A blocker means brighttest cannot see, or does not honor, part of the app. Every blocker `assess` can emit
