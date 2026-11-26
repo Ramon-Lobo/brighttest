@@ -22,8 +22,8 @@ Each item has a reason. If a task seems to need one of these, stop and ask the h
 device ports, `nc`, and a bare `rooibos` run unless the command is wrapped by a lease-aware command or carries
 a live token. It always denies the lease bypass flags for agents.
 
-The rule is syntactic. It cannot see script files, URLs built from variables, `python` or `node` one-liners,
-or MCP tools. A passing hook does not make a command safe: you still wrap those in `device with`. If the hook
+The rule is syntactic. It cannot see script files, `python` or `node` one-liners, a variable that holds a whole URL,
+or MCP tools. It does deny `curl http://$ROKU_HOST/keypress/Home` (a variable host with a mutating ECP path or port 8060). A passing hook does not make a command safe: you still wrap those in `device with`. If the hook
 itself fails it allows the command, so it is a backstop, not a gate.
 
 ## What the lease cannot stop

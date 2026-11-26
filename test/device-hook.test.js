@@ -184,3 +184,60 @@ describe('brighttest device hook (CLI)', () => {
     fs.rmSync(d, { recursive: true, force: true })
   })
 })
+
+// ENG-HOOK-VARIABLE-HOST: URLs whose host is an environment variable.
+const VAR_TABLE = [
+  ['v1', 'curl -s -X POST http://$ROKU_HOST/keypress/Home', 'deny'],
+  ['v2', 'curl -X POST http://$ROKU_HOST:8060/keypress/Home', 'deny'],
+  ['v3', 'curl -d "" "http://${ROKU_HOST}:8060/launch/dev"', 'deny'],
+  ['v4', 'curl -d "" "http://${ROKU_HOST:-192.168.1.5}:8060/launch/dev"', 'deny'],
+  ['v5', 'curl -s -X POST "http://$ROKU_IP/keypress/Home"', 'deny'],
+  ['v6', 'curl --url http://$DEVICE_HOST/keypress/Home -d x', 'deny'],
+  ['v7', 'curl http://$ROKU_ADDR:$ROKU_PORT/install -F a=@x.zip', 'deny'],
+  ['v8', 'wget --post-data= http://$HOST/keypress/Home', 'deny'],
+  ['v9', 'http POST $ROKU_HOST:8060/keypress/Home', 'deny'],
+  ['v10', 'sh -c "curl -X POST http://$ROKU_HOST/keypress/Home"', 'deny'],
+  ['v11', "bash -c 'curl -X POST http://${ROKU_HOST}:8060/keypress/Home'", 'deny'],
+  ['v12', 'ls && curl -X POST http://$ROKU_HOST/keypress/Home', 'deny'],
+  ['v13', 'ls; curl -X POST http://$ROKU_HOST/keypress/Home', 'deny'],
+  ['v14', 'echo go | curl -d @- http://$ROKU_HOST/keypress/Home', 'deny'],
+  ['v15', 'x=$(curl -X POST http://$ROKU_HOST/keypress/Home)', 'deny'],
+  ['v16', 'echo "$(curl -X POST http://$ROKU_HOST/keypress/Home)"', 'deny'],
+  ['v17', 'echo `curl -X POST http://$ROKU_HOST/keypress/Home`', 'deny'],
+  ['v18', 'curl http://$ROKU_HOST:8060/query/icon/12', 'deny'],
+  ['v19', 'curl -X POST http://$ROKU_HOST:8060/query/device-info', 'deny'],
+  ['v20', 'brighttest device with --as dev#1 --purpose x -- curl -X POST http://$ROKU_HOST/keypress/Home', 'allow'],
+  ['v21', 'brighttest device with --as dev#1 --purpose x -- sh -c "curl -X POST http://$ROKU_HOST/keypress/Home"', 'allow'],
+  ['v22', 'brighttest device with --as dev#1 --purpose x -- true && curl -X POST http://$ROKU_HOST/keypress/Home', 'deny'],
+  ['v23', 'brighttest device with --as dev#1 --purpose x -- true; curl -X POST http://$ROKU_HOST/keypress/Home', 'deny'],
+  ['v24', `BRIGHTTEST_LEASE=${VALID} curl -X POST http://$ROKU_HOST/keypress/Home`, 'allow'],
+  ['u1', 'echo $ROKU_HOST', 'allow'],
+  ['u2', 'curl https://example.com/$PATH_VAR', 'allow'],
+  ['u3', 'curl http://localhost:3000/keypress', 'allow'],
+  ['u4', 'curl http://$API_HOST/health', 'allow'],
+  ['u5', 'curl -X POST http://$API_HOST:3000/keypress/Home', 'allow'],
+  ['u6', 'curl http://example.com/$X/keypress/Home', 'allow'],
+  ['u7', "echo '$(curl -X POST http://$ROKU_HOST/keypress/Home)'", 'allow'],
+  ['r1', 'curl http://$ROKU_HOST:8060/query/device-info', 'allow'], // read-only /query stays allowed
+  ['r2', 'curl "http://${ROKU_HOST}:8060/query/apps"', 'allow'],
+]
+
+describe('hook classify: host is an environment variable', () => {
+  for (const [id, cmd, want] of VAR_TABLE) {
+    it(`${id} ${want}: ${cmd.slice(0, 70).replace(/\n/g, ' ')}`, () => {
+      expect(classify(cmd, opts).decision).toBe(want)
+    })
+  }
+  it('works with no registered hosts', () => {
+    expect(classify('curl -X POST http://$ROKU_HOST/keypress/Home', { hosts: [] }).decision).toBe('deny')
+  })
+  it('extractSubstitutions skips single quotes and handles nesting', () => {
+    const { extractSubstitutions } = hook
+    expect(extractSubstitutions("echo '$(a)' \"$(b $(c))\" `d`")).toEqual(['b $(c)', 'c', 'd'])
+  })
+  it('malformed or odd input does not throw', () => {
+    for (const c of ['$(', '`', 'curl http://${', 'curl http://$', "echo '$(", undefined, null, 42]) {
+      expect(() => classify(c, opts)).not.toThrow()
+    }
+  })
+})
