@@ -26,14 +26,14 @@
   }
 </script>
 
-<section class="lease" aria-label="Lease">
+<section class="lease" data-testid="lease-board" aria-label="Lease">
   <div class="eyebrow">lease</div>
   {#if error}<p class="msg">{error}</p>{/if}
   {#if !board && !error}<p class="hint">Loading the lease board…</p>{/if}
   {#if board && !devices.length}<p class="hint">No devices in the lease directory yet. {board.hidden?.keys ? `${board.hidden.keys} hidden (loopback or idle).` : ''}</p>{/if}
 
   {#each devices as d (d.id)}
-    <article class="card">
+    <article class="card" data-testid="lease-device">
       <header>
         <span class="sdot {bgClass(stateRole(d.state))}"></span>
         <span class="label">{clean(d.label)}</span>

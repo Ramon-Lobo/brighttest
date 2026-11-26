@@ -199,28 +199,28 @@
   </div>
 {/snippet}
 
-<div class="profile">
-  <div class="controls card">
+<div class="profile" data-testid="page-profile">
+  <div class="controls card" data-testid="profile-controls">
     <div class="eyebrow">live profiling <span class="tip2">polls /query/chanperf + /query/r2d2-bitmaps</span></div>
     <div class="row">
       {#if running}
-        <button class="stop" onclick={stop}>■ Stop</button>
+        <button class="stop" data-testid="profile-stop" aria-label="Stop session" onclick={stop}>■ Stop</button>
       {:else}
-        <button class="go" onclick={start}>● Start session</button>
+        <button class="go" data-testid="profile-start" aria-label="Start session" onclick={start}>● Start session</button>
       {/if}
       <label class="ivl">every
-        <select bind:value={intervalMs} disabled={running}>
+        <select data-testid="profile-interval" bind:value={intervalMs} disabled={running}>
           <option value={500}>0.5s</option><option value={1000}>1s</option><option value={2000}>2s</option><option value={5000}>5s</option>
         </select>
       </label>
-      <button class="ghost" onclick={mark} disabled={!running}>+ marker</button>
+      <button class="ghost" data-testid="profile-marker" aria-label="Add marker" onclick={mark} disabled={!running}>+ marker</button>
       <span class="spacer"></span>
-      <a class="ghost btn" href="/api/perf/export?format=json" class:off={!exists} download>Export JSON</a>
-      <a class="ghost btn" href="/api/perf/export?format=csv" class:off={!exists} download>Export CSV</a>
+      <a class="ghost btn" data-testid="profile-export-json" href="/api/perf/export?format=json" class:off={!exists} download>Export JSON</a>
+      <a class="ghost btn" data-testid="profile-export-csv" href="/api/perf/export?format=csv" class:off={!exists} download>Export CSV</a>
     </div>
     {#if sessErr}<p class="err">device: {sessErr}</p>{/if}
     {#if last}
-      <div class="tiles">
+      <div class="tiles" data-testid="profile-tiles" aria-label="Latest sample">
         <div class="tile"><span class="k">cpu</span><b>{last.cpuUser === null ? '—' : `${(last.cpuUser + (last.cpuSys || 0)).toFixed(1)}%`}</b></div>
         <div class="tile"><span class="k">memory</span><b>{last.memUsed === null ? '—' : `${(last.memUsed / MB).toFixed(0)} MB`}</b><span class="sub">of {last.memLimit === null ? '—' : (last.memLimit / MB).toFixed(0)}</span></div>
         <div class="tile"><span class="k">texture</span><b>{last.texUsed === null ? '—' : `${(last.texUsed / MB).toFixed(0)} MB`}</b><span class="sub">of {last.texMax === null ? '—' : (last.texMax / MB).toFixed(0)}</span></div>
@@ -238,7 +238,7 @@
   <div class="card">
     <div class="eyebrow">texture inventory <span class="tip2">every bitmap in texture memory, largest first</span></div>
     <div class="row">
-      <button class="ghost" onclick={snapshotTextures}>Snapshot textures</button>
+      <button class="ghost" data-testid="profile-snapshot-textures" aria-label="Snapshot textures" onclick={snapshotTextures}>Snapshot textures</button>
       {#if textures}<span class="meta">{textures.bitmapCount} bitmaps · {(textures.texture.used / MB).toFixed(0)} of {(textures.texture.max / MB).toFixed(0)} MB</span>{/if}
     </div>
     {#if texErr}<p class="err">{texErr}</p>{/if}
@@ -265,7 +265,7 @@
     <div class="eyebrow">device console <span class="tip2">SceneGraph debug console, telnet :8080</span></div>
     <div class="row">
       {#each CONSOLE_CMDS as c}
-        <button class="ghost sm2" disabled={conBusy} onclick={() => consoleRun(c)}>{c.replace(/_/g, ' ')}</button>
+        <button class="ghost sm2" data-testid="profile-console-{c.replace(/_/g, '-')}" disabled={conBusy} onclick={() => consoleRun(c)}>{c.replace(/_/g, ' ')}</button>
       {/each}
     </div>
     <p class="note">sgperf: start → drive the app → report (node ops + rendezvous per thread). logrendezvous prints to the :8085 console.</p>
@@ -277,12 +277,12 @@
   <div class="card bsprof">
     <div class="eyebrow">perfetto system trace <span class="tip2">threads, scheduling, heap graphs — Roku OS 15.2+, opens in ui.perfetto.dev</span></div>
     <div class="row">
-      <button class="ghost" disabled={pfBusy} onclick={() => pfAct('enable')}>1. Enable for channel</button>
+      <button class="ghost" disabled={pfBusy} data-testid="profile-perfetto-enable" onclick={() => pfAct('enable')}>1. Enable for channel</button>
       {#if pf && pf.tracing}
-        <button class="stop" disabled={pfBusy} onclick={() => pfAct('stop')}>■ Stop trace</button>
-        <button class="ghost" disabled={pfBusy} onclick={() => pfAct('heap-snapshot')}>+ heap snapshot</button>
+        <button class="stop" disabled={pfBusy} data-testid="profile-perfetto-stop" onclick={() => pfAct('stop')}>■ Stop trace</button>
+        <button class="ghost" disabled={pfBusy} data-testid="profile-perfetto-heap" onclick={() => pfAct('heap-snapshot')}>+ heap snapshot</button>
       {:else}
-        <button class="go" disabled={pfBusy} onclick={() => pfAct('start')}>● 2. Start trace</button>
+        <button class="go" disabled={pfBusy} data-testid="profile-perfetto-start" onclick={() => pfAct('start')}>● 2. Start trace</button>
       {/if}
       {#if pf}
         <span class="meta">
@@ -307,8 +307,8 @@
   <div class="card bsprof">
     <div class="eyebrow">brightScript profiler (.bsprof) <span class="tip2">Roku's official profiler output — manifest bsprof_enable=1</span></div>
     <div class="row">
-      <label class="ghost btn">Import .bsprof<input type="file" accept=".bsprof" onchange={importFile} hidden /></label>
-      <button class="ghost" onclick={pullFromDevice} disabled={pulling}>{pulling ? 'Pulling…' : 'Pull from device :8090'}</button>
+      <label class="ghost btn">Import .bsprof<input type="file" data-testid="profile-bsprof-import" aria-label="Import .bsprof" accept=".bsprof" onchange={importFile} hidden /></label>
+      <button class="ghost" data-testid="profile-bsprof-pull" onclick={pullFromDevice} disabled={pulling}>{pulling ? 'Pulling…' : 'Pull from device :8090'}</button>
       {#if report}<span class="meta">{report.header.target} · {report.header.deviceModel} · fw {report.header.firmware} · {report.totals.functions} functions</span>{/if}
     </div>
     {#if bsprofErr}<p class="err">{bsprofErr}</p>{/if}

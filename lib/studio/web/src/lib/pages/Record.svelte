@@ -6,7 +6,7 @@
   $effect(() => { recText; if (pre) pre.scrollTop = pre.scrollHeight; });
 </script>
 
-<div class="work">
+<div class="work" data-testid="page-record">
   <section class="left">
     <div class="card feed">
       <div class="eyebrow">program monitor <span class="tip">right-click a node to record an assertion</span></div>
@@ -24,16 +24,16 @@
         <div class="eyebrow">recording</div>
         <div class="ctl">
           {#if !active}
-            <button class="primary" onclick={onstart}>● Record</button>
+            <button class="primary" data-testid="record-start" aria-label="Start recording" onclick={onstart}>● Record</button>
           {:else}
-            <button class="stop" onclick={onstop}>■ Stop</button>
+            <button class="stop" data-testid="record-stop" aria-label="Stop recording" onclick={onstop}>■ Stop</button>
           {/if}
-          <button class="ghost" onclick={onclear} disabled={!stepCount}>Clear</button>
-          <button class="ghost" onclick={onsave} disabled={!stepCount}>Save…</button>
-          <span class="msg">{msg}</span>
+          <button class="ghost" data-testid="record-clear" aria-label="Clear recording" onclick={onclear} disabled={!stepCount}>Clear</button>
+          <button class="ghost" data-testid="record-save" aria-label="Save recording" onclick={onsave} disabled={!stepCount}>Save…</button>
+          <span class="msg" data-testid="record-message" role="status">{msg}</span>
         </div>
       </div>
-      <pre bind:this={pre} class="doc">{recText || '# Press ● Record, then drive the remote.\n# Each press is captured live below.'}</pre>
+      <pre bind:this={pre} class="doc" data-testid="record-doc" aria-label="Recorded steps">{recText || '# Press ● Record, then drive the remote.\n# Each press is captured live below.'}</pre>
       <p class="hint">Every remote press is captured live — repeats coalesce into a count. Right-click a node on the monitor to record an assertion built from its real values.</p>
     </div>
   </section>

@@ -10,17 +10,17 @@
   }
 </script>
 
-<div class="remote" class:busy>
+<div class="remote" class:busy data-testid="remote" role="group" aria-label="Remote control">
   <div class="dpad">
-    <button class="up" onclick={() => press('Up')} aria-label="Up">▲</button>
-    <button class="left" onclick={() => press('Left')} aria-label="Left">◀</button>
-    <button class="ok" onclick={() => press('Select')} aria-label="Select">OK</button>
-    <button class="right" onclick={() => press('Right')} aria-label="Right">▶</button>
-    <button class="down" onclick={() => press('Down')} aria-label="Down">▼</button>
+    <button class="up" data-testid="remote-key-up" onclick={() => press('Up')} aria-label="Up">▲</button>
+    <button class="left" data-testid="remote-key-left" onclick={() => press('Left')} aria-label="Left">◀</button>
+    <button class="ok" data-testid="remote-key-select" onclick={() => press('Select')} aria-label="Select">OK</button>
+    <button class="right" data-testid="remote-key-right" onclick={() => press('Right')} aria-label="Right">▶</button>
+    <button class="down" data-testid="remote-key-down" onclick={() => press('Down')} aria-label="Down">▼</button>
   </div>
   <div class="aux">
-    <button onclick={() => press('Back')}>Back</button>
-    <button onclick={() => press('Home')}>Home</button>
+    <button data-testid="remote-key-back" aria-label="Back" onclick={() => press('Back')}>Back</button>
+    <button data-testid="remote-key-home" aria-label="Home" onclick={() => press('Home')}>Home</button>
   </div>
 </div>
 

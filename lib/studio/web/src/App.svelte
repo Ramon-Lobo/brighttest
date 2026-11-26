@@ -223,53 +223,53 @@
   });
 </script>
 
-<div class="app">
-  <header>
+<div class="app" data-testid="studio-app">
+  <header data-testid="studio-header" aria-label="Studio status">
     <div class="brand"><span class="dot"></span><b>brighttest</b><span class="sub">studio</span></div>
-    <span class="device">{sim ? 'no device' : studio.device?.connected ? `${studio.device.model} · fw ${studio.device.firmware}` : studio.device ? 'no device' : 'connecting…'}</span>
+    <span class="device" data-testid="device-summary" role="status">{sim ? 'no device' : studio.device?.connected ? `${studio.device.model} · fw ${studio.device.firmware}` : studio.device ? 'no device' : 'connecting…'}</span>
     <div class="spacer"></div>
     {#if sim}
-      <details class="leasebadge simbadge {simCls(studio.device)}">
+      <details class="leasebadge simbadge {simCls(studio.device)}" data-testid="sim-badge">
         <summary><span class="ldot"></span><span class="simtext" aria-live="polite">{simText(studio.device)}</span></summary>
         {#if simTail(studio.device).length}
-          <pre class="simtail" aria-label="engine output">{simTail(studio.device).join('\n')}</pre>
+          <pre class="simtail" data-testid="sim-tail" aria-label="engine output">{simTail(studio.device).join('\n')}</pre>
         {:else}
           <p class="simnote">The app runs in the local simulator; no device is used.</p>
         {/if}
       </details>
     {:else if studio.leaseInfo?.host || studio.leaseInfo?.pool}
       {@const b = badge(studio.leaseInfo)}
-      <details class="leasebadge {b.cls}">
-        <summary title="device lease: {b.text}; {b.own}"><span class="ldot"></span>{b.text} · {b.own}</summary>
+      <details class="leasebadge {b.cls}" data-testid="lease-badge">
+        <summary title="device lease: {b.text}; {b.own}" data-testid="lease-badge-summary" aria-label="device lease: {b.text}; {b.own}"><span class="ldot"></span>{b.text} · {b.own}</summary>
         {#if studio.leaseInfo.queue?.length}
-          <ol class="lqueue" aria-label="lease queue">
+          <ol class="lqueue" data-testid="lease-queue" aria-label="lease queue">
             {#each studio.leaseInfo.queue as q}<li><b>{q.agent}</b> {q.purpose ? `— ${q.purpose}` : ''}</li>{/each}
           </ol>
         {/if}
       </details>
     {/if}
     {#if studio.page === 'inspect'}
-      <label class="tog" title="also outline structural containers with no id, text or focus"><input type="checkbox" bind:checked={studio.showAll} /> all nodes</label>
-      <label class="tog" title="also outline nodes the device isn't drawing — hidden, transparent, or scrolled out of view"><input type="checkbox" bind:checked={studio.showOffscreen} /> offscreen</label>
-      <label class="tog"><input type="checkbox" bind:checked={studio.live} /> live</label>
-      {#if !sim}<span class="status">{studio.status}</span>{/if}
+      <label class="tog" title="also outline structural containers with no id, text or focus"><input type="checkbox" data-testid="toggle-all-nodes" bind:checked={studio.showAll} /> all nodes</label>
+      <label class="tog" title="also outline nodes the device isn't drawing — hidden, transparent, or scrolled out of view"><input type="checkbox" data-testid="toggle-offscreen" bind:checked={studio.showOffscreen} /> offscreen</label>
+      <label class="tog"><input type="checkbox" data-testid="toggle-live" bind:checked={studio.live} /> live</label>
+      {#if !sim}<span class="status" data-testid="live-status" role="status">{studio.status}</span>{/if}
     {/if}
   </header>
   {#if studio.lease}
-    <div class="leasebar" role="status">
+    <div class="leasebar" role="status" data-testid="lease-bar">
       <span>{leaseText(studio.lease)}{studio.lease.lease?.queue?.length ? ` · ${studio.lease.lease.queue.length} queued` : ''}</span>
       {#if studio.lease.lease?.queued}
-        <span class="queued">Studio is queued — it takes the device when free</span>
+        <span class="queued" data-testid="lease-queued">Studio is queued — it takes the device when free</span>
       {:else}
-        <button onclick={takeOver}>Take over when free</button>
+        <button data-testid="lease-take-over" onclick={takeOver}>Take over when free</button>
       {/if}
     </div>
   {/if}
 
   <div class="body">
-    <nav class="rail">
+    <nav class="rail" data-testid="page-nav" aria-label="Studio pages">
       {#each PAGES as p}
-        <button class:active={studio.page === p.id} onclick={() => (studio.page = p.id)}>
+        <button class:active={studio.page === p.id} data-testid="nav-{p.id}" aria-label={p.label} aria-current={studio.page === p.id ? 'page' : undefined} onclick={() => (studio.page = p.id)}>
           <span class="ico">{@html ic[p.id]}</span>
           <span class="lbl">{p.label}</span>
         </button>
@@ -278,30 +278,30 @@
 
     <main class="view">
       <!-- Inspect stays mounted (hidden when inactive) so the editor keeps its state -->
-      <div class="inspect" class:hidden={studio.page !== 'inspect'}>
+      <div class="inspect" data-testid="page-inspect" class:hidden={studio.page !== 'inspect'}>
         <div class="work">
           <section class="editorcol" style="grid-template-columns: {treeOpen ? '196px 1fr' : '1fr'}">
             {#if treeOpen}
-              <div class="card treecard">
+              <div class="card treecard" data-testid="flow-tree">
                 <FileTree {flows} current={currentFlow} onopen={openFlow} onnew={newFlow} ontoggle={() => (treeOpen = false)} />
               </div>
             {/if}
-            <div class="card flow">
+            <div class="card flow" data-testid="flow-editor" role="region" aria-label="Flow editor">
               <div class="flowhead">
                 {#if !treeOpen}
-                  <button class="ghost sm" onclick={() => (treeOpen = true)} title="show file tree" aria-label="show file tree">›</button>
+                  <button class="ghost sm" onclick={() => (treeOpen = true)} title="show file tree" aria-label="show file tree" data-testid="flow-tree-show">›</button>
                 {/if}
                 <div class="eyebrow">flow</div>
-                <span class="fname">{currentFlow ?? 'no file open'}</span>
+                <span class="fname" data-testid="flow-name">{currentFlow ?? 'no file open'}</span>
               </div>
-              <div class="editorwrap"><Editor bind:value={flowText} bind:this={editor} getSelected={selectedNode} /></div>
+              <div class="editorwrap" data-testid="flow-editor-text"><Editor bind:value={flowText} bind:this={editor} getSelected={selectedNode} /></div>
               <div class="flowbar">
-                <button class="ghost" onclick={saveFlow}>Save</button>
-                <button class="run" onclick={() => run()} disabled={running || sim} title={sim ? 'needs a device; start Studio with --host' : ''}>{running ? 'Running…' : 'Run ▶'}</button>
-                <span class="msg" class:err={flowErr}>{flowMsg}</span>
+                <button class="ghost" data-testid="flow-save" aria-label="Save flow" onclick={saveFlow}>Save</button>
+                <button class="run" data-testid="flow-run" aria-label="Run flow" onclick={() => run()} disabled={running || sim} title={sim ? 'needs a device; start Studio with --host' : ''}>{running ? 'Running…' : 'Run ▶'}</button>
+                <span class="msg" data-testid="flow-message" role="status" class:err={flowErr}>{flowMsg}</span>
               </div>
               {#if runSteps.length}
-                <ol class="transport">
+                <ol class="transport" data-testid="flow-run-steps" aria-label="Run steps">
                   {#each runSteps as s}
                     <li class={s.status}><span class="cue"></span><span class="op">{s.op}</span><span class="det">{s.detail}</span></li>
                   {/each}
@@ -311,10 +311,10 @@
           </section>
 
           <section class="sim">
-            <div class="card feed">
+            <div class="card feed" data-testid="live-monitor" role="region" aria-label="Program monitor">
               <div class="eyebrow">program monitor <span class="tip">right-click a node for actions</span></div>
               {#if sim}
-                <div class="needsdev" role="note">Screen mirror needs a device. Start Studio with --host to use it.</div>
+                <div class="needsdev" data-testid="monitor-needs-device" role="note">Screen mirror needs a device. Start Studio with --host to use it.</div>
               {:else}
                 <Stage {shotSrc} oncontext={onNodeContext} />
               {/if}
@@ -322,14 +322,14 @@
             <!-- Inspector tabs and the remote sit side by side: driving the device and reading the
                  resulting node state are the same loop, so they should not compete for vertical space. -->
             <div class="simrow">
-              <div class="card panel">
-                <div class="tabs">
-                  <button class:on={tab === 'node'} onclick={() => (tab = 'node')}>Node</button>
-                  <button class:on={tab === 'tree'} onclick={() => (tab = 'tree')}>Tree</button>
-                  <button class:on={tab === 'selector'} onclick={() => (tab = 'selector')}>Selector</button>
-                  <button class:on={tab === 'state'} onclick={() => (tab = 'state')}>State</button>
-                  <button class:on={tab === 'actions'} onclick={() => (tab = 'actions')}>Actions</button>
-                  <button class:on={tab === 'net'} onclick={() => (tab = 'net')}>Network</button>
+              <div class="card panel" data-testid="inspector-panel">
+                <div class="tabs" role="tablist" aria-label="Inspector tabs">
+                  <button class:on={tab === 'node'} data-testid="tab-node" role="tab" aria-selected={tab === 'node'} onclick={() => (tab = 'node')}>Node</button>
+                  <button class:on={tab === 'tree'} data-testid="tab-tree" role="tab" aria-selected={tab === 'tree'} onclick={() => (tab = 'tree')}>Tree</button>
+                  <button class:on={tab === 'selector'} data-testid="tab-selector" role="tab" aria-selected={tab === 'selector'} onclick={() => (tab = 'selector')}>Selector</button>
+                  <button class:on={tab === 'state'} data-testid="tab-state" role="tab" aria-selected={tab === 'state'} onclick={() => (tab = 'state')}>State</button>
+                  <button class:on={tab === 'actions'} data-testid="tab-actions" role="tab" aria-selected={tab === 'actions'} onclick={() => (tab = 'actions')}>Actions</button>
+                  <button class:on={tab === 'net'} data-testid="tab-net" role="tab" aria-selected={tab === 'net'} onclick={() => (tab = 'net')}>Network</button>
                 </div>
                 <div class="panelbody">
                   {#if tab === 'node'}
@@ -347,10 +347,10 @@
                   {/if}
                 </div>
               </div>
-              <div class="card remotecard">
+              <div class="card remotecard" data-testid="remote-panel" role="region" aria-label="Remote">
                 <div class="eyebrow">remote</div>
                 <div class="remotewrap">
-                  {#if sim}<div class="needsdev" role="note">The remote needs a device.</div>{:else}<Remote onact={onRemote} />{/if}
+                  {#if sim}<div class="needsdev" data-testid="remote-needs-device" role="note">The remote needs a device.</div>{:else}<Remote onact={onRemote} />{/if}
                 </div>
               </div>
             </div>

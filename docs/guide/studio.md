@@ -133,6 +133,32 @@ tracing cannot be switched off from Studio.
 (capture remote presses into a flow), **Devices** (discover and switch Rokus) and **Settings** (a placeholder with no
 working controls). The **Network** tab shows the hub's HTTP traffic; see [E2E: Network panel](/e2e/#network-panel).
 
+## Driving Studio from a browser agent
+
+Studio's controls carry a stable `data-testid` (selector `[data-testid="flow-run"]`) and, for icon-only controls, an
+`aria-label`, so a browser agent or a test can find them without relying on layout or wording. The ids are part of the
+Studio contract: they do not change between releases without a changelog note, and a unit test
+(`test/studio-agent-labels.test.js`) fails if one goes missing. They name controls only; Studio has no WebMCP tools.
+
+| Area | Ids |
+|---|---|
+| Shell and device | `studio-app`, `studio-header`, `device-summary` (model and firmware, or "no device"), `page-nav`, `nav-inspect`, `nav-runs`, `nav-record`, `nav-devices`, `nav-profile`, `nav-settings` |
+| Lease and device status | `lease-badge`, `lease-badge-summary`, `lease-queue`, `lease-bar` (banner while another holder has the device), `lease-queued`, `lease-take-over`, `sim-badge`, `sim-tail` |
+| Live monitor | `live-monitor`, `monitor-stage`, `monitor-screenshot` (the live screenshot), `monitor-overlay` (the node outlines), `monitor-needs-device`, `toggle-live`, `toggle-all-nodes`, `toggle-offscreen`, `live-status` |
+| Inspect page | `page-inspect`, `inspector-panel`, `tab-node`, `tab-tree`, `tab-selector`, `tab-state`, `tab-actions`, `tab-net` |
+| Remote | `remote-panel`, `remote`, `remote-key-up`, `remote-key-down`, `remote-key-left`, `remote-key-right`, `remote-key-select`, `remote-key-back`, `remote-key-home`, `remote-needs-device` |
+| Flow editor | `flow-tree`, `flow-tree-show`, `flow-editor`, `flow-name`, `flow-editor-text`, `flow-save`, `flow-run`, `flow-message`, `flow-run-steps` |
+| Record page | `page-record`, `record-start`, `record-stop`, `record-clear`, `record-save`, `record-message`, `record-doc` |
+| Devices page | `page-devices`, `devices-discover`, `device-current`, `devices-message`, `device-list`, `device-row`, `device-connect` (one per row), `lease-board`, `lease-device` |
+| Runs page and trace viewer | `page-runs`, `run-history`, `run-history-item`, `trace-viewer`, `trace-frame`, `trace-scrubber`, `trace-prev`, `trace-slider`, `trace-next`, `trace-position`, `trace-steps`, `trace-step` |
+| Profile page | `page-profile`, `profile-controls`, `profile-start`, `profile-stop`, `profile-interval`, `profile-marker`, `profile-export-json`, `profile-export-csv`, `profile-tiles`, `profile-snapshot-textures`, `profile-perfetto-enable`, `profile-perfetto-start`, `profile-perfetto-stop`, `profile-perfetto-heap`, `profile-bsprof-import`, `profile-bsprof-pull` |
+| Profile console buttons | `profile-console-free`, `profile-console-sgperf-start`, `profile-console-sgperf-report`, `profile-console-sgperf-stop`, `profile-console-loaded-textures`, `profile-console-fps-display-on`, `profile-console-fps-display-off`, `profile-console-logrendezvous-on`, `profile-console-logrendezvous-off` |
+
+Studio has no refresh or screenshot button: the monitor refreshes on its own (about once a second) while `toggle-live`
+is on, and `monitor-screenshot` always holds the latest frame. Controls that need a device are disabled or replaced by a
+`*-needs-device` note when Studio runs on the simulator target. The screenshot and node outlines show the device screen,
+so treat an agent's captures of them like any other device output.
+
 ## Simulator target (no device)
 
 ```sh
