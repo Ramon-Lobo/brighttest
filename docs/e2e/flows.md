@@ -99,6 +99,8 @@ over a fixed `wait`; reach for `wait: <ms>` only when a step must pause for a *f
 to poll on (a timed splash, an animation, a debounce). Note the units: `wait` is **milliseconds**, while
 `timeout`/`waitFor` are seconds. A flow stops at its first failing step (fail-fast within a flow).
 
+**Adding a step (maintainers).** Every step name lives in `lib/e2e/step-catalog.js` (group, detail, snippet, map keys, example). The parser rejects a step that is not listed there, and `test/e2e-step-catalog.test.js` fails when the parser or runner handles a step the catalog lacks, or when a catalog step is missing from this page or the flow-reference skill.
+
 ## Selectors
 
 A selector matches nodes in the live tree. Combine keys to narrow (all must hold):

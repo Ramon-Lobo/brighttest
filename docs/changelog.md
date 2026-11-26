@@ -87,6 +87,10 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
   reported as the country code).
 
 ### Improvements
+- **E2E:** every flow step is now listed once in `lib/e2e/step-catalog.js`, which the parser uses as its allow-list
+  (an unlisted step is still `unknown step`) and which `state` and `net` steps read their allowed map keys from. A test
+  fails when a step is added to the parser or runner without a catalog entry, or is missing from the flows doc or the
+  flow-reference skill. No change to flow syntax. ([flows](./e2e/flows.md#steps))
 - **E2E:** preflight fails fast on unreachable, Limited or dev-disabled devices, and only for the affected host in a
   multi-device run; falls back to the app UI query when SceneGraph reads keep failing. The `snapshot` step takes
   `nodes`, a list of node ids, so `restore` can write node fields back ([flows](./e2e/flows.md),
