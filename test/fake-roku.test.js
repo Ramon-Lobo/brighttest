@@ -647,6 +647,103 @@ describe('FIX-07 fetch through the hub', () => {
   })
 })
 
+describe('fake-roku perf ECP queries (MCP-PERF-T2)', () => {
+  const perfLib = require('../lib/studio/perf.js')
+  const get = async (a, p) => (await ecp(a, p)).text()
+
+  it('serves parseable chanperf, r2d2-bitmaps and graphics-frame-rate by default', async () => {
+    const { a } = await boot('healthy')
+    const chan = perfLib.parseChanperf(await get(a, '/query/chanperf'))
+    expect(chan.ok).toBe(true)
+    expect(chan.memory.used).toBeGreaterThan(0)
+    expect(chan.procStat.majflt).toBeGreaterThan(0)
+    const r = perfLib.parseR2d2(await get(a, '/query/r2d2-bitmaps'))
+    expect(r.ok).toBe(true)
+    expect(r.bitmapCount).toBe(3)
+    expect(r.texture.used).toBeGreaterThan(0)
+    expect(perfLib.parseFrameRate(await get(a, '/query/graphics-frame-rate'))).toEqual({ ok: true, fps: 59.5 })
+  })
+
+  it('chanperf counters grow between calls', async () => {
+    const { a } = await boot('healthy')
+    const one = perfLib.parseChanperf(await get(a, '/query/chanperf'))
+    const two = perfLib.parseChanperf(await get(a, '/query/chanperf'))
+    expect(two.procStat.minflt).toBeGreaterThan(one.procStat.minflt)
+  })
+
+  it('a PerfSession samples the stub end to end', async () => {
+    const { a } = await boot('healthy')
+    const dev = { ecpGet: async (p) => ({ text: await get(a, p) }) }
+    const ps = new perfLib.PerfSession(dev)
+    await ps.sampleOnce()
+    expect(ps.samples[0].cpuUser).not.toBeNull()
+    expect(ps.samples[0].fps).toBe(59.5)
+  })
+
+  it('perf: no-channel answers FAILED bodies on all three', async () => {
+    const { a } = await boot('healthy', { perf: 'no-channel' })
+    expect(perfLib.parseChanperf(await get(a, '/query/chanperf'))).toEqual({ ok: false, error: 'Channel not running' })
+    expect(perfLib.parseR2d2(await get(a, '/query/r2d2-bitmaps')).ok).toBe(false)
+    expect(perfLib.parseFrameRate(await get(a, '/query/graphics-frame-rate')).ok).toBe(false)
+  })
+
+  it('perf: no-dev-mode keeps chanperf and fails r2d2-bitmaps with 404', async () => {
+    const { a } = await boot('healthy', { perf: 'no-dev-mode' })
+    expect(perfLib.parseChanperf(await get(a, '/query/chanperf')).ok).toBe(true)
+    expect((await ecp(a, '/query/r2d2-bitmaps')).status).toBe(404)
+  })
+
+  it('fps: failed answers a FAILED frame-rate body only', async () => {
+    const { a } = await boot('healthy', { fps: 'failed' })
+    expect(perfLib.parseFrameRate(await get(a, '/query/graphics-frame-rate'))).toEqual({ ok: false, error: 'Frame rate unavailable' })
+    expect(perfLib.parseChanperf(await get(a, '/query/chanperf')).ok).toBe(true)
+  })
+
+  it('perfBitmaps sets the bitmap count; bitmap 0 is the largest', async () => {
+    const { a } = await boot('healthy', { perfBitmaps: 500 })
+    const r = perfLib.parseR2d2(await get(a, '/query/r2d2-bitmaps'))
+    expect(r.bitmapCount).toBe(500)
+    expect(r.bitmaps[0].bytes).toBeGreaterThanOrEqual(r.bitmaps[1].bytes)
+    expect(r.bitmaps[0].name).toBe('pkg:/images/fake-0000.png')
+    const none = await boot('healthy', { perfBitmaps: 0 })
+    expect(perfLib.parseR2d2(await get(none.a, '/query/r2d2-bitmaps')).bitmapCount).toBe(0)
+  })
+
+  it('perfBitmapName passes a URL with userinfo, query and fragment through to the name', async () => {
+    const name = 'https://user:pw@cdn.invalid/img/a.png?token=abc&x=1#frag'
+    const { a } = await boot('healthy', { perfBitmapName: name })
+    const r = perfLib.parseR2d2(await get(a, '/query/r2d2-bitmaps'))
+    expect(r.bitmaps[0].name).toBe(name.replace(/&/g, '&amp;'))
+  })
+
+  it('perfBitmapName passes control and bidi characters through raw; markup is escaped', async () => {
+    const name = 'a\u0007b\u202Ec\u2066d<x>\u009Fe'
+    const { a } = await boot('healthy', { perfBitmapName: name })
+    const text = await get(a, '/query/r2d2-bitmaps')
+    expect(text).toContain('a\u0007b\u202Ec\u2066d&lt;x&gt;\u009Fe')
+    expect(perfLib.parseR2d2(text).bitmaps[0].name).toBe('a\u0007b\u202Ec\u2066d&lt;x&gt;\u009Fe')
+  })
+
+  it('limited ECP mode refuses the perf queries like other non-basic ones', async () => {
+    const { a } = await boot('limited')
+    for (const p of ['/query/chanperf', '/query/r2d2-bitmaps', '/query/graphics-frame-rate']) expect((await ecp(a, p)).status).toBe(403)
+  })
+
+  it('perf requests are logged as ECP GETs and change no state', async () => {
+    const { stub, a } = await boot('healthy')
+    await get(a, '/query/chanperf')
+    const e = stub.log.find((x) => x.endpoint === '/query/chanperf')
+    expect(e).toMatchObject({ service: 'ecp', method: 'GET', status: 200 })
+    expect(stub.keypresses).toEqual([])
+    expect(stub.state.activeApp).toBe('dev')
+  })
+
+  it('CLI flags map to the perf options', () => {
+    expect(parseArgs(['--perf', 'no-dev-mode', '--perf-bitmaps', '7', '--perf-bitmap-name', 'n', '--fps', 'failed']))
+      .toEqual({ perf: 'no-dev-mode', perfBitmaps: 7, perfBitmapName: 'n', fps: 'failed' })
+  })
+})
+
 describe('fake-roku identifier hygiene (TP-SEC style)', () => {
   it('fixture sources contain only placeholder identifiers', () => {
     const dir = path.join(__dirname, 'fixtures', 'fake-roku')

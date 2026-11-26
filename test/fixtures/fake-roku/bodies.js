@@ -178,6 +178,35 @@ function rooibosTranscript(kind) {
   return lines;
 }
 
+// ---- Perf ECP queries (read-only): /query/chanperf, /query/r2d2-bitmaps, /query/graphics-frame-rate ----
+// Shapes follow the captures in test/studio-perf.test.js (including the firmware's "sytem-memory" spelling).
+// All numbers are placeholders. Counters (proc-stat) grow a little per call so deltas are non-zero.
+function perfFailed(root, error) {
+  return XML + `<${root}><status>FAILED</status><error>${esc(error)}</error></${root}>`;
+}
+function chanperfOk(n = 0) {
+  return XML + `<chanperf><timestamp>${1000 + n}</timestamp><plugin>
+<cpu-percent><duration-seconds>1.000000</duration-seconds><user>${(8 + (n % 3) * 0.5).toFixed(1)}</user><sys>0.3</sys></cpu-percent>
+<proc-stat><utime>${16000 + n * 10}</utime><stime>${700 + n}</stime><cutime>0</cutime><cstime>0</cstime><minflt>${90000 + n * 100}</minflt><majflt>${2800 + n}</majflt><starttime>1000</starttime><state>S</state><clk-tck>100</clk-tck></proc-stat>
+<memory><used>${61956096 + n * 4096}</used><res>61956096</res><anon>39653376</anon><swap>0</swap><file>22122496</file><shared>180224</shared><limit>859832320</limit></memory>
+</plugin><status>OK</status></chanperf>`;
+}
+// `count` bitmaps; bitmap 0 is the largest and carries `firstName` (raw text, XML-escaped here, control and
+// bidi characters left as given); the others are pkg:/images/fake-NNNN.png with shrinking sizes.
+function r2d2Ok({ count = 3, firstName = null } = {}) {
+  const bitmaps = [];
+  for (let i = 0; i < count; i++) {
+    const name = i === 0 && firstName !== null ? firstName : `pkg:/images/fake-${String(i).padStart(4, '0')}.png`;
+    const w = Math.max(1, 1920 - i), h = Math.max(1, 1080 - i);
+    bitmaps.push(`<bitmap><width>${w}</width><height>${h}</height><size>${w * h * 4}</size><name>${esc(name)}</name></bitmap>`);
+  }
+  return XML + `<r2d2-bitmaps><timestamp>1</timestamp><channel-id>dev</channel-id><graphics-instances>
+<rographics><sytem-memory><used>1255248</used></sytem-memory><texture-memory><used>130191360</used><available>109808640</available><max>240000000</max></texture-memory>
+${bitmaps.join('\n')}
+</rographics></graphics-instances></r2d2-bitmaps>`;
+}
+const frameRateOk = () => XML + '<graphics-frame-rate><timestamp>1</timestamp><frame-rate>59.5</frame-rate></graphics-frame-rate>';
+
 const DEBUG_HISTORY = [
   '------ Compiling dev \'Fake Channel\' ------',
   '------ Running dev \'Fake Channel\' main ------',
@@ -199,4 +228,5 @@ const DEBUG_CRASH = [
 module.exports = {
   SERIAL, DEVICE_ID, IP, deviceInfo, activeApp, apps, buildTree, sgnodesAll, sgnodesRoots, sgnodesNode,
   sgnodesFailed, appUi, installPage, SGPERF_REPORT, CHANPERF, CONSOLE_BANNER, consoleBanner, rooibosTranscript, DEBUG_HISTORY, DEBUG_CRASH,
+  perfFailed, chanperfOk, r2d2Ok, frameRateOk,
 };
