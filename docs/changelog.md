@@ -46,6 +46,7 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
   picture. It is on by default and remembered per browser. While off, clicking the picture selects nothing (the selection
   is kept) and Studio stops reading the tree unless the Node, Tree or Selector tab is open (then once a second), which
   leaves the device free for screenshots and key presses. New test id `toggle-overlay`.
+- **Studio:** a flow started with Run can be stopped: `POST /api/run/stop` with the run id ends it between steps or mid-step (a polling step such as `waitFor` stops within about 250 ms), saves it as **stopped** (not failed) and keeps the device lease. Closing the page stops the run too, and a second Run while one is active answers 409 `RUN_IN_PROGRESS`. A queued `setState`, `snapshot`, `restore` or `callFunc` is not recalled and may still apply. ([Studio guide](./guide/studio.md))
 - **Instrumentation and app state:** `brighttest instrument build | verify | census` builds an instrumented copy of
   your app (no source edits) with a state agent that reads and writes scene, global, node, `m` and registry state, with
   redaction (including masking of `redact.paths` state in Studio's live tree and saved run traces) and a publish rate
