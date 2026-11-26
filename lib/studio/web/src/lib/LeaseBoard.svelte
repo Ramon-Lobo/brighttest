@@ -6,7 +6,7 @@
   const pools = $derived(board?.pools || []);
 
   const stateRole = (s) => (s === 'held' || s === 'free' || s === 'stale' || s === 'corrupt' ? s : 'unknown');
-  const reachText = (r) => (r?.state === 'up' ? 'reachable' : r?.state === 'unreachable' ? 'unreachable' : 'reach unknown');
+  const reachText = (r) => (r?.state === 'up' ? 'reachable' : r?.state === 'unreachable' ? 'unreachable' : r?.idle ? 'idle, not probed' : 'reach unknown');
 
   // Bar strip: one bar per run, oldest left. Height by hold (scaled to the longest), the wait part on top in amber.
   const W = 360, H = 56;
