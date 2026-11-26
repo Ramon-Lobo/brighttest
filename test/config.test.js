@@ -207,7 +207,7 @@ describe('deviceIdleTimeout', () => {
   })
 })
 
-describe('writeBsConfig plain source/main.brs auto-exclude', () => {
+describe('writeBsConfig plain source/main.brs auto-exclude (headless-scene only)', () => {
   const putMain = (name) => {
     fs.mkdirSync(path.join(tmp, 'source'), { recursive: true })
     fs.writeFileSync(path.join(tmp, 'source', name), 'sub Main()\nend sub\n')
@@ -215,35 +215,78 @@ describe('writeBsConfig plain source/main.brs auto-exclude', () => {
   let log
   beforeEach(() => { log = vi.spyOn(console, 'log').mockImplementation(() => {}) })
   afterEach(() => { log.mockRestore() })
-  const excludeLogs = () => log.mock.calls.filter((c) => String(c[0]).includes('excluded source/main.brs'))
+  const excludeLogs = () => log.mock.calls.filter((c) => String(c[0]).includes('excluded source/'))
+  const filesFor = (lane, globs, extra) => readBsConfig(writeBsConfig(cfgAt(tmp, globs ? { sourceGlobs: globs } : {}), lane, extra).bsconfigPath).files
+  const DEFAULT = ['manifest', 'source/**/*', 'components/**/*']
 
   it('appends !source/main.brs and logs once for a plain main.brs', () => {
     putMain('main.brs')
-    const bs = readBsConfig(writeBsConfig(cfgAt(tmp), 'headless-scene').bsconfigPath)
-    expect(bs.files.filter((f) => f === '!source/main.brs')).toHaveLength(1)
+    expect(filesFor('headless-scene').filter((f) => f === '!source/main.brs')).toHaveLength(1)
     expect(excludeLogs()).toHaveLength(1)
   })
 
-  it('does nothing when the user already excludes it', () => {
+  it('logs once per run even when writeBsConfig is called twice', () => {
     putMain('main.brs')
-    const globs = ['manifest', 'source/**/*', '!source/main.brs']
-    const bs = readBsConfig(writeBsConfig(cfgAt(tmp, { sourceGlobs: globs }), 'headless').bsconfigPath)
-    expect(bs.files).toEqual(globs)
+    filesFor('headless-scene'); filesFor('headless-scene')
+    expect(excludeLogs()).toHaveLength(1)
+  })
+
+  it.each(['headless-coverage', 'headless', 'device'])('does not exclude on the %s lane', (lane) => {
+    putMain('main.brs')
+    expect(filesFor(lane)).toEqual(DEFAULT)
     expect(excludeLogs()).toHaveLength(0)
   })
 
-  it('respects a user exclude written as a glob', () => {
+  it('does nothing when the user already excludes it (exact)', () => {
     putMain('main.brs')
-    const globs = ['manifest', 'source/**/*', '!source/main.*']
-    const bs = readBsConfig(writeBsConfig(cfgAt(tmp, { sourceGlobs: globs }), 'device').bsconfigPath)
-    expect(bs.files).toEqual(globs)
+    const globs = ['manifest', 'source/**/*', '!source/main.brs']
+    expect(filesFor('headless-scene', globs)).toEqual(globs)
+    expect(excludeLogs()).toHaveLength(0)
+  })
+
+  it('respects a user exclude written as a glob, with ./ and backslashes', () => {
+    putMain('main.brs')
+    for (const g of ['!source/main.*', '!./source/main.brs', '!source\\main.brs', '!**/main.brs']) {
+      const globs = ['manifest', 'source/**/*', g]
+      expect(filesFor('headless-scene', globs)).toEqual(globs)
+    }
     expect(excludeLogs()).toHaveLength(0)
   })
 
   it('leaves a .bs Main untouched', () => {
     putMain('main.bs')
-    const bs = readBsConfig(writeBsConfig(cfgAt(tmp), 'headless-scene').bsconfigPath)
-    expect(bs.files).toEqual(['manifest', 'source/**/*', 'components/**/*'])
+    expect(filesFor('headless-scene')).toEqual(DEFAULT)
     expect(excludeLogs()).toHaveLength(0)
+  })
+
+  it('does nothing when the globs do not compile main.brs', () => {
+    putMain('main.brs')
+    const globs = ['manifest', 'components/**/*']
+    expect(filesFor('headless-scene', globs)).toEqual(globs)
+    expect(excludeLogs()).toHaveLength(0)
+  })
+
+  it('excludes when a **/* glob compiles main.brs', () => {
+    putMain('main.brs')
+    expect(filesFor('headless-scene', ['manifest', '**/*'])).toEqual(['manifest', '**/*', '!source/main.brs'])
+  })
+
+  it('matches **/ across zero or more directories', () => {
+    putMain('main.brs')
+    expect(filesFor('headless-scene', ['manifest', '**/main.brs'])).toContain('!source/main.brs')
+  })
+
+  it('does not let * match a slash', () => {
+    putMain('main.brs')
+    expect(filesFor('headless-scene', ['manifest', 'source/*'])).toContain('!source/main.brs')
+    expect(filesFor('headless-scene', ['manifest', '*.brs'])).not.toContain('!source/main.brs')
+    expect(filesFor('headless-scene', ['manifest', 'source/**/*', '!*.brs'])).toContain('!source/main.brs')
+  })
+
+  it('uses the real casing of Main.brs and skips the duplicate when that is already excluded', () => {
+    putMain('Main.brs')
+    expect(filesFor('headless-scene')).toEqual([...DEFAULT, '!source/Main.brs'])
+    const globs = ['manifest', 'source/**/*', '!source/Main.brs']
+    expect(filesFor('headless-scene', globs)).toEqual(globs)
   })
 })
