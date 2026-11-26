@@ -11,7 +11,10 @@ metadata:
 # Using brighttest Studio and its profiling tools
 
 `brighttest studio` opens a local web app that mirrors a running Roku. It is for a person at a browser; an
-agent that needs live device access should use the MCP server (`using-brighttest-mcp`).
+agent that needs live device access should use the MCP server (`using-brighttest-mcp`), not drive Studio. If a person
+asks an agent to operate Studio in a browser, every control has a stable `data-testid` (e.g. `[data-testid="flow-run"]`)
+and icon-only ones an `aria-label`; the id table is in `docs/guide/studio.md` ("Driving Studio from a browser agent").
+There is no refresh or screenshot button and no WebMCP tools; `monitor-screenshot` shows the device screen.
 
 ## Start it
 
@@ -20,8 +23,7 @@ brighttest studio --host <ip> [--password <pw>] [--port 8700] [--app dev] [--flo
 ```
 
 - The device comes from `--host` or `ROKU_HOST`; `--password` or `ROKU_PASSWORD` enables screenshots.
-- Port 8700 by default; if busy, the first free of 8701-8709 (`bin/cli.js`, `studio --help`).
-- The device needs developer mode and ECP network access set to Permissive.
+- Port 8700 by default; if busy, the first free of 8701-8709 (`bin/cli.js`, `studio --help`). The device needs developer mode and ECP network access Permissive.
 - With `deviceLease.pool` set and no `--host`, Studio binds one free pool member when it takes the lease, but the instrument hub (Network and State panels) is not started in pool mode: pass `--host <ip>` to use them (connecting to a device later does not start the hub; restart with `--host`).
 - Studio takes the device lease like every other device lane (`lib/studio/lease.js`; see
   `docs/guide/device-lease.md`). When Studio releases the device it stops any running profiling session or Perfetto capture
@@ -41,19 +43,18 @@ brighttest studio --host <ip> [--password <pw>] [--port 8700] [--app dev] [--flo
 
 `brighttest studio --simulator` builds the app instrumented and runs it on the local brs-node engine, so the State tab
 works with no device and no lease. It is state-only: tree, screenshot, remote, run, connect and profiling routes answer
-409 `SIMULATOR_TARGET`. The header badge shows the engine and its state (`simulator · brs-node@2.7.1 (stock) · running`).
+409 `SIMULATOR_TARGET`. The header badge shows the engine and its state (`simulator · brs-node@2.7.1 (stock) · running`; `(patched)` when the patched engine is installed, since the default engine is `auto`).
 State shows global, scene, node and registry layers (not `focus`); before the app says hello, or when the engine is
 `no-hello` or exited, `GET /api/state` answers 200 with `layers: null` and `agentCode: SIM_NOT_CONNECTED`. Combining
 `--simulator` with `--host` or `deviceLease.pool` exits 2. See `docs/guide/studio.md`.
 
 ## What the UI gives you
 
-Pages (`lib/studio/web/src/App.svelte`): Inspect, Runs, Record, Devices, Profile, Settings. In the editor view, tabs next to the
+Pages (`lib/studio/web/src/App.svelte`): Inspect, Runs, Record, Devices (with a lease board of who holds which device), Profile, Settings. In the editor view, tabs next to the
 Node/Tree/Selector inspector include State, Actions (action log with Travel; route-only snapshot recording) and Network.
 
 - Inspect the live SceneGraph and build selectors; use "+" on a node or state leaf to add a step.
-- Drive the remote from the browser (`POST /api/keypress`).
-- Run a flow and scrub the step-by-step trace; each frame keeps the screen and the app state at that step.
+- Drive the remote from the browser (`POST /api/keypress`); run a flow and scrub the step trace (each frame keeps the screen and app state).
 - Record: each remote press becomes a flow step, live.
 
 ## Profile page

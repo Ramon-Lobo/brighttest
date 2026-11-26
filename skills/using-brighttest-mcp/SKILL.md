@@ -20,6 +20,8 @@ Register it in your MCP client as a stdio server whose command is `brighttest mc
 the working directory. The device comes only from brighttest's normal resolution chain (`ROKU_HOST`, the
 project `.env`, the device cache). **No tool takes a host, password or absolute path.** Set `ROKU_HOST` (and
 `ROKU_PASSWORD` for screenshots) out of band. Protocol output goes to stdout; logs go to stderr.
+**An unset or empty `ROKU_HOST` falls back to the cached device (the last one connected), which may be a real
+one.** Set it explicitly and call `list_devices` first: it shows the target and its `source` (`env` or `cache`).
 
 ## Tools
 
@@ -92,7 +94,7 @@ A failed call returns `isError` with a typed `code`. Common ones: `NO_DEVICE`, `
 `DEVICE_BUSY`, `LEASE_LOST`, `INVALID_SELECTOR`, `INVALID_KEY`, `KEY_NOT_ALLOWED`, `FOCUS_FAILED` (carries the
 last focused node), `PRESS_BUDGET_EXHAUSTED`, `FLOW_BUDGET_EXHAUSTED`, `FLOW_NOT_FOUND`, `PATH_REJECTED`,
 `FLOW_INVALID`, `FLOW_FAILED` (names the failing step), `NO_DEV_PASSWORD`, `STATE_NOT_PUBLISHED`,
-`STATE_NO_HUB_TOKEN`, `STATE_AGENT_UNREACHABLE`, `STATE_AGENT_GONE`, `STATE_CMD_FAILED`, `QUEUE_TIMEOUT`, `TOOL_TIMEOUT`. Read the message: it states the fix. Do not retry a budget or validation
+`STATE_NO_HUB_TOKEN`, `STATE_AGENT_UNREACHABLE`, `STATE_AGENT_GONE`, `STATE_CMD_FAILED`, `QUEUE_TIMEOUT`, `TOOL_TIMEOUT`. The full code table is in `docs/guide/mcp.md`. Read the message: it states the fix. Do not retry a budget or validation
 error unchanged.
 
 ## Suggested loop
@@ -100,13 +102,11 @@ error unchanged.
 1. `device_doctor` once, then `inspect_tree` to see where you are.
 2. `navigate_to` a selector (or `press` for a known key sequence), then `inspect_tree` with a selector to verify.
 3. `screenshot` only when the tree does not answer the question.
-4. Once the behaviour is understood, write it down as a flow (see the `writing-e2e-flows` skill) and use
-   `run_flow` to confirm it.
+4. Once understood, write it down as a flow (`writing-e2e-flows` skill) and confirm with `run_flow`.
 
 ## When not to use it
 
 - Full or repeated runs, CI, multi-device matrices: use `brighttest e2e` and the Rooibos lanes from the CLI.
 - Headless logic tests: no device is involved; use the `writing-rooibos-tests` skill.
-- Setup and first-run problems: use the `setting-up-brighttest` and `debugging-failing-tests` skills.
-- Anything needing a password, host or file path as a tool argument: not supported by design.
+- Setup and first-run problems: use `setting-up-brighttest` and `debugging-failing-tests`. A password, host or file path as a tool argument is not supported.
 - Lease rules, exit codes and what an agent must never do on a shared device: use `using-a-roku-device-safely`.
