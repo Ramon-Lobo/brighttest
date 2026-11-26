@@ -474,3 +474,42 @@ describe('features render command', () => {
     expect(r.warnings[0]).toMatch(/over the 8\.0 MB limit/)
   })
 })
+
+describe('render notes of every shape never print [object Object]', () => {
+  const SHAPES = {
+    string: ['plain note'],
+    'object with text': [{ rule: 'U2', text: 'object text note' }],
+    'object with message': [{ message: 'object message note' }],
+    'array of strings (nested)': [['nested a', 'nested b']],
+    'unknown object': [{ platform: 'x', keys: ['a', 'b'] }],
+    mixed: ['s', { text: 't' }, 7, null],
+  }
+  for (const [name, notes] of Object.entries(SHAPES)) {
+    it(`member notes: ${name}`, () => {
+      const { g, tree } = synth({ files: ['lib/a.brs'] })
+      for (const n of g.nodes) if (n.testability) n.testability.notes = notes
+      const { html } = render.renderReport(tree, g, FIXED)
+      expect(html).not.toContain('[object Object]')
+      expect(html).toContain(notes.length === 1 && typeof notes[0] === 'string' ? notes[0] : 'Notes')
+    })
+  }
+  it('renders the text of an object note', () => {
+    const { g, tree } = synth({ files: ['lib/a.brs'] })
+    for (const n of g.nodes) if (n.testability) n.testability.notes = [{ rule: 'U2', text: 'object text note' }]
+    expect(render.renderReport(tree, g, FIXED).html).toContain('object text note')
+  })
+  it('feature-level notes as array or object', () => {
+    for (const notes of [['a', 'b'], { text: 'feature text' }]) {
+      const { g, tree } = synth({ files: ['lib/a.brs'] }, { notes })
+      expect(render.renderReport(tree, g, FIXED).html).not.toContain('[object Object]')
+    }
+  })
+  it('unclassified node (tool-written note object) renders', () => {
+    const { g, tree } = synth({ files: ['lib/a.brs'], classes: { 'lib/a.brs': 'unknown' } })
+    for (const n of g.nodes) if (n.testability && n.testability.primary.class === 'unknown') n.testability.notes = [{ rule: null, text: 'not classified: no rule fired' }]
+    const { html } = render.renderReport(tree, g, FIXED)
+    expect(html).not.toContain('[object Object]')
+    expect(html).toContain('not classified: no rule fired')
+  })
+  it('the golden report has none', () => { expect(golden.html).not.toContain('[object Object]') })
+})
