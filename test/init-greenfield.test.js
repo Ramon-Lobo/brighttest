@@ -195,7 +195,7 @@ end sub
 })
 
 describe('init with a plain source/main.brs', () => {
-  it('writes the main.brs exclusion and the scene-lane headless run finishes', () => {
+  it('leaves main.brs in sourceGlobs and the scene-lane headless run still finishes (runtime exclusion)', () => {
     const d = scratch(null)
     try {
       fs.cpSync(path.join(root, 'examples', 'greenfield-skeleton'), d, { recursive: true })
@@ -219,11 +219,12 @@ end namespace
       expect(r.status).toBe(0)
       expect(r.stdout).toMatch(/\b[23] passed, 0 failed/)
       const cfg = JSON.parse(fs.readFileSync(path.join(d, 'brighttest.json'), 'utf8'))
-      expect(cfg.sourceGlobs).toContain('!source/main.brs')
+      expect(cfg.sourceGlobs).not.toContain('!source/main.brs')
+      expect(r.stdout).toMatch(/excluded source\/main\.brs from the test build/)
     } finally { rmTemp(d) }
   }, 150000)
 
-  it('does not add the main.brs exclusion when there is no source/main.brs', () => {
+  it('does not write a main.brs exclusion when there is no source/main.brs', () => {
     const d = scratch('title=X\n')
     try {
       init(d)
