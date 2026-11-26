@@ -7,20 +7,18 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
 ## Unreleased {#unreleased}
 
 ### Breaking changes
-- **Device lane:** a device run now passes only when Rooibos prints its final `[Rooibos Result]` line. A run that
-  stopped partway after some tests passed used to pass and now fails. [Upgrade notes](#upgrade-0-8-0)
-- **Device and cross-check lanes:** a crashed test now counts as a failure and gets a failure line in the device
-  summary. [Upgrade notes](#upgrade-0-8-0)
+- **Device lane:** a device run now passes only when Rooibos prints its final `[Rooibos Result]` line; a run that
+  stopped partway after some tests passed used to pass and now fails. A crashed test (device and cross-check lanes) now
+  counts as a failure and gets a failure line in the device summary. [Upgrade notes](#upgrade-0-8-0)
 - **Reporting:** the run fails when Rooibos's final test report has a CRASH or FAIL entry that the totals missed.
   [Upgrade notes](#upgrade-0-8-0)
 - **Reporting:** a run where an `@async` case inside an `@SGNode` suite never finishes, so the later cases are dropped, used
   to exit 0 with fewer cases counted. It now fails and lists the dropped cases. [Upgrade notes](#upgrade-0-8-0)
-- **Reporting:** a headless scene run where the engine crashed partway (`EXIT_BRIGHTSCRIPT_CRASH`) used to exit 0 with
-  the cases streamed so far counted as passed. It now fails, says the run crashed, and reports the case that was
-  running as failed (also in JUnit). [Upgrade notes](#upgrade-0-8-0)
-- **Reporting:** a headless run where the engine aborted with a native `FATAL ERROR` (no `EXIT_*` line) used to exit 0
-  and report the cases streamed so far as passed. It now fails with RUN CRASHED. A headless coverage run that prints no
-  LCOV block now fails with "coverage requested but no LCOV in output" instead of exiting 0 without a coverage file.
+- **Reporting:** a headless scene run where the engine crashed partway (`EXIT_BRIGHTSCRIPT_CRASH`) or aborted with a
+  native `FATAL ERROR` used to exit 0 with the cases streamed so far counted as passed. It now fails, says the run
+  crashed, and reports the case that was running as failed (also in JUnit). A headless coverage run that prints no LCOV
+  block now fails with "coverage requested but no LCOV in output" instead of exiting 0 without a coverage file.
+  [Upgrade notes](#upgrade-0-8-0)
 - **Studio:** `brighttest studio` no longer connects to the last device used. Without `--host` it uses `ROKU_HOST`, or
   the one cached device; with several cached devices it refuses to start. It also refuses to start when it has a
   device but no dev password (from `--password`, `ROKU_PASSWORD`, a project `.env` or the device cache); before, it
@@ -31,9 +29,17 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
 - **Headless scene lanes:** `@SGNode` specs and `--coverage` now take the device identity from the `deviceInfo` block when the engine supports `--device-data` (`@ramonlobo/brs-node` 2.7.1-bt.1 or later). A project with an existing `deviceInfo` block now gets the block's model, resolution and connection inside `@SGNode` specs instead of the engine defaults. With an engine without the flag, brighttest warns once and keeps the engine defaults.
 
 ### Security
-- **Studio:** rejects cross-origin and non-JSON requests to its local API, and requests with a non-local `Host` header
-  ([Studio guide](./guide/studio.md)).
-- **Devices:** the credential cache is written atomically with owner-only permissions.
+- **Studio and devices:** Studio rejects cross-origin and non-JSON requests to its local API, and requests with a
+  non-local `Host` header ([Studio guide](./guide/studio.md)). The device credential cache is written atomically with
+  owner-only permissions.
+
+### Security
+- **Studio and devices:** Studio rejects cross-origin and non-JSON requests to its local API, and requests with a
+  non-local `Host` header ([Studio guide](./guide/studio.md)). The device credential cache is written atomically with
+  owner-only permissions.
+- **Agent guard hook:** also denies a raw ECP `curl` whose host is an environment variable (`$ROKU_HOST`,
+  `${ROKU_HOST:-x}`) when the path mutates the device or the port is 8060; read-only `/query` reads stay allowed
+  ([sharing a device](./guide/device-lease.md)).
 
 ### Features
 - **Instrumentation and app state:** `brighttest instrument build | verify | census` builds an instrumented copy of
@@ -45,7 +51,8 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
   --simulator` works with no extra install. A `brs-node` in your own project still wins. A fresh install grows by about
   50 MB ([guide](./guide/studio.md)).
 - **Studio:** state inspector with edit in place, snapshots, diff and export/import; action log with time travel;
-  network panel; lease badge, queue and device pool (uses `deviceLease.pool` when configured) ([guide](./guide/studio.md)).
+  network panel; lease badge, queue and device pool (uses `deviceLease.pool` when configured); stable test ids and
+  accessible labels on the main controls so browser agents can drive it ([guide](./guide/studio.md)).
 - **Studio Profile page:** performance sampling, `.bsprof` profiler pull and import, a Perfetto system trace (kept per
   device, with auto-restart and a frame-budget summary), SceneGraph console commands and graphics frame rate. The node
   overlay now matches what the device draws ([guide](./guide/studio.md)).
@@ -56,35 +63,42 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
 - **E2E:** app-state steps (`assertState`, `waitForAgent`, `setState`, `snapshot`, `restore`, `callFunc`) with typed
   error codes; launch readiness gate; fast `APP_CRASHED` failure; `--reset-device`; log capture with `assertLog` and
   `expectNoLog` plus failure bundles; `--junit`; `--fail-on-skip`; flow `requires`, `holdKey`, key validation and
-  `noSystemDialog`; per-step timing; `--ecp-port`; faster selector reads on large trees ([flow reference](./e2e/flows.md)).
-- **E2E lint:** `brighttest e2e lint <flow...>` checks flow files without a device ([flow reference](./e2e/flows.md)).
+  `noSystemDialog`; per-step timing; `--ecp-port`; faster selector reads on large trees; `brighttest e2e lint <flow...>`
+  checks flow files without a device ([flow reference](./e2e/flows.md)).
 - **Adoption:** `brighttest assess` writes a read-only readiness report (blockers, secret and risky-pattern scans,
-  Markdown output) and redacts absolute and home paths; `init --brownfield` and `init --greenfield` (store and HTTP
-  templates); `skills install` adds an always-on safety block, installs agent definitions for Claude and Copilot, and
-  can merge an optional guard hook and MCP entry; `skills --check` for CI
-  ([assess](./guide/assess.md), [agent skills](./guide/agent-skills.md)).
-- **Agent surface (MCP):** `brighttest mcp` stdio server, including a leased network window with `net_requests` and
-  `net_mock` tools ([guide](./guide/mcp.md)).
-- **Devices and lease:** `brighttest device lock | renew | unlock | with | status | hook | reset | log` to share a
+  Markdown output) and redacts absolute and home paths; `init --brownfield` merges into an existing `brighttest.json`
+  (valid siblings are kept) and `--dry-run` prints the planned changes and writes nothing; `init --greenfield` (store
+  and HTTP templates); `skills install` adds an always-on safety block, installs agent definitions for Claude and
+  Copilot, and can merge an optional guard hook and MCP entry; `skills --check` for CI
+  ([assess](./guide/assess.md), [agent skills](./guide/agent-skills.md), [CLI reference](./guide/cli-reference.md)).
+- **Agent surface (MCP):** `brighttest mcp` stdio server with a leased network window (`net_requests`, `net_mock`),
+  app-state tools on the session hub window (`app_state_get`, `app_state_set`, `app_state_snapshot`) and read-only
+  profiling tools (`perf_summary`, `perf_trace_summary`) ([guide](./guide/mcp.md)).
+- **Devices and lease:** `brighttest device lock | renew | unlock | with | status | watch | hook | reset | log` to share a
   device safely, with a device pool (`--device any`), queue ETA and a warning when the dev channel runs with no lease
-  holder; `brighttest doctor` (device readiness, engine capability table, hub checks)
-  ([sharing a device](./guide/device-lease.md)).
-- **Device lane:** `--device` and `--cross-check` take the host and password from `ROKU_HOST` / `ROKU_PASSWORD` or the
-  device cache (when exactly one device is cached), so the flags are optional ([CLI reference](./guide/cli-reference.md)).
-- **Spec helpers:** `BTState_load` and `BTState_seedGlobals` for snapshot fixtures ([state fixtures](./writing-tests/state-fixtures.md));
-  `BTMedia` for headless Video and Audio state ([media state](./writing-tests/media-state.md)).
-- **Config:** `deviceInfo` sets the headless engine identity.
-- **Config:** `deviceInfo` accepts `friendlyName` (up to 256 characters) and `country` (two uppercase letters, reported as the country code).
+  holder; `device status` and `device watch` reject unknown flags and a bad `--tail`, and exit 78 on an unusable lease
+  directory; `brighttest doctor` (device readiness, engine capability table, hub checks). `--device` and
+  `--cross-check` take the host and password from `ROKU_HOST` / `ROKU_PASSWORD` or the device cache (when exactly one
+  device is cached), so the flags are optional ([sharing a device](./guide/device-lease.md),
+  [CLI reference](./guide/cli-reference.md)).
+- **Spec helpers and config:** `BTState_load` and `BTState_seedGlobals` for snapshot fixtures ([state fixtures](./writing-tests/state-fixtures.md));
+  `BTMedia` for headless Video and Audio state ([media state](./writing-tests/media-state.md)). `deviceInfo` sets the
+  headless engine identity and accepts `friendlyName` (up to 256 characters) and `country` (two uppercase letters,
+  reported as the country code).
 
 ### Improvements
 - **E2E:** preflight fails fast on unreachable, Limited or dev-disabled devices, and only for the affected host in a
-  multi-device run; falls back to the app UI query when SceneGraph reads keep failing.
+  multi-device run; falls back to the app UI query when SceneGraph reads keep failing. The `snapshot` step takes
+  `nodes`, a list of node ids, so `restore` can write node fields back ([flows](./e2e/flows.md),
+  [app state](./e2e/app-state.md)).
 - **Device lane:** a run that stops early now says why (no device output for N s, or a runtime error in a named
   suite) instead of a generic deploy or device error ([CI integration](./guide/ci.md)).
-- **Skills:** `skills install` migrates older flattened installs to the current layout (see upgrade notes).
-- **Headless lane:** warns when it meets a Task component.
-- **E2E:** the `snapshot` step takes `nodes`, a list of node ids, so `restore` can write node fields back
-  ([flows](./e2e/flows.md), [app state](./e2e/app-state.md)).
+- **Skills:** the shipped skills are refreshed against the current device, MCP, Studio, e2e and init behavior, and a test
+  now checks their limits (idle timeout, hook ports, MCP caps, exit codes) against the code. `skills install` migrates
+  older flattened installs to the current layout (see upgrade notes).
+- **Warnings:** the headless lane warns when it meets a Task component. With a stock engine or stock Rooibos, brighttest
+  prints one warning when `globalFields` seeding or a bare `@deviceOnly` will be ignored
+  ([engines](./guide/engines.md)).
 - **Engines:** the headless engine and the Rooibos fork are pinned to exact `-bt.1` builds (`@ramonlobo/brs-node`
   2.7.1-bt.1, `@ramonlobo/rooibos-roku` 5.17.0-bt.1, Rooibos 5.17). The engine's undocumented `rt-http-fixtures.json`
   hook is removed (use the network fault proxy, see [net faults](./guide/net-faults.md)), and floats now print the way
@@ -94,9 +108,9 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
 - **Init:** `brighttest init` no longer writes `!source/main.brs` into `sourceGlobs` when the app has a plain `source/main.brs`. The exclusion removed the file from every lane: helpers defined in it failed to compile in tests, and `--coverage` left it out of the coverage total. The default scene lane still drops it at run time. Existing `brighttest.json` files keep their entry; delete it if you want the file back on the other lanes.
 - **Engines:** `BRIGHTTEST_ENGINES=<package>` now resolves each engine kind's own package. A package name of the other kind picks the same flavor (patched or stock) of this kind, and the not-found hint names the package that was looked up.
 - **Headless coverage with the state agent:** `--coverage` no longer fails now and then (about 1 run in 14) after a 150 to 230 second stall with `RUN CRASHED`. The injected runtime is no longer coverage-instrumented.
-- **E2E:** focus navigation keeps pressing through a keyboard-style control whose cursor moves inside one focused
-  node; the focused selector picks the deepest node; launch with params reaches an already running channel ([flow reference](./e2e/flows.md)).
-- **Studio:** serves the last tree instead of an error on transient read failures.
+- **E2E and Studio:** focus navigation keeps pressing through a keyboard-style control whose cursor moves inside one focused
+  node; the focused selector picks the deepest node; launch with params reaches an already running channel
+  ([flow reference](./e2e/flows.md)). Studio serves the last tree instead of an error on transient read failures.
 
 ### Upgrade notes {#upgrade-0-8-0}
 - Re-run `npx brighttest skills install` once; see [Migrating from older installs](./guide/agent-skills.md#migrating-from-older-flattened-installs).
