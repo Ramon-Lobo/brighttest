@@ -718,3 +718,27 @@ other kept minor at `/vX.Y/` (built from its highest patch tag), and `main` at `
 
 Release flow: pushing the `vX.Y.Z` tag redeploys the site and the root moves to the new release; there is no extra
 step. To retire or hide a minor, add it to `exclude` (or lower `keep`) and redeploy.
+
+## Refresh the probe baseline {#refresh-probe-baseline}
+
+The `engines-matrix` workflow probes each engine flavor with the RSG coverage probes in `test/engine-probes/` and
+diffs the result against `test/engine-probes/baseline-patched.txt`. On the pinned patched build any difference
+fails the leg, so a bump of the `@ramonlobo/brs-node` pin must refresh the baseline in the same change. The first
+line of the file (`# engine @ramonlobo/brs-node@<version>`) is checked against the pin by a unit test.
+
+From the repo root, after `npm ci` with the new pin installed. Use new, empty work directories each time; the
+probes pin `TZ=UTC` and `LC_ALL=C.UTF-8` themselves, so the result does not depend on your machine.
+
+```sh
+W=$(mktemp -d)
+node test/engine-probes/probe-api.js --install node_modules/@ramonlobo/brs-node --out "$W/api.json" --work "$W/api" --jobs 4
+node test/engine-probes/probe-behavior.js --install node_modules/@ramonlobo/brs-node --out "$W/behavior.json" --work "$W/behavior"
+node test/engine-probes/baseline.js diff test/engine-probes/baseline-patched.txt "$W/api.json" "$W/behavior.json"
+node test/engine-probes/baseline.js make "$W/api.json" "$W/behavior.json" test/engine-probes/baseline-patched.txt
+```
+
+Read the `diff` output before running `make`: every changed line is a behavior change in the engine, and should be
+explained in the pull request. The baseline leaves out timings, random values and the key-injection event records.
+
+`test/engine-probes/docs-model.json` (what exists on a Roku) is frozen: the script that generated it is not in this
+repo (it was built from the Roku developer docs at devdoc commit `a7ab74f`). Edit it only by hand, with care.
