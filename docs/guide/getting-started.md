@@ -36,6 +36,10 @@ Defaults work for a conventional layout. To customize, add `brighttest.json` at 
 | `testsFilePattern` | Written to the generated `bsconfig.json`; the Rooibos fork does not currently read it (it selects specs with `includeFilters`, default `**/*.spec.bs`). | `**/*.spec.bs` |
 | `stagingDir` | Scratch dir for generated builds/config. Git-ignore it. | `.brighttest` |
 
+::: tip A plain `source/main.brs`
+The Rooibos plugin only adds its launch hook to a `Main` it can transpile (`main.bs`). If `source/main.brs` exists, `brighttest init` writes `"!source/main.brs"` into `sourceGlobs` so the app's own `Main()` (and its event loop) cannot replace the test runner and hang the headless run. Add it yourself if you wrote `brighttest.json` by hand.
+:::
+
 ::: tip Git-ignore the scratch dirs
 Add `.brighttest/`, `coverage/`, and `reports/` to your `.gitignore`.
 :::
