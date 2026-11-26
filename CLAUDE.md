@@ -19,10 +19,11 @@ Write Rooibos specs once; run **headless** (brs-node simulator, default), **on-d
 ## Hard rules
 1. **Never `npm audit fix`.** It downgrades the postman-request chain and reintroduces a critical advisory (see `package.json` `//overrides`).
 2. Engine/framework behavior lives in **patch queues on upstream** (`Ramon-Lobo/brs-engine`, `Ramon-Lobo/rooibos`,
-   branches `bt/<upstream-version>`), published as `@ramonlobo/brs-node` / `@ramonlobo/rooibos-roku`
-   `<upstream>-bt.<N>`. Don't patch or vendor engines in this repo. One fix = one small patch with upstream-style tests
-   = one upstream PR, tracked in `design/patches.json`. New fixes go upstream first. brighttest must also run on stock
-   engines: any behavior that depends on a patch is capability-gated with a fallback (`design/fork-strategy.md` §6).
+   branches `bt/<upstream-version>`): an exact upstream tag plus an ordered queue of small patches, published as
+   `@ramonlobo/brs-node` / `@ramonlobo/rooibos-roku` `<upstream>-bt.<N>`. Don't patch or vendor engines in this repo:
+   make the change in the fork, publish, bump the exact pin. Each patch is written so it can be offered upstream;
+   whether and when to offer it is an owner decision, and nothing is sent upstream until the owner says so.
+   brighttest must also run on stock engines: any behavior that depends on a patch is capability-gated with a fallback.
 3. CLI stays **zero-build, plain CommonJS, minimal runtime deps**. Adding a dependency needs an architect decision record.
 4. Device-lane / e2e / Studio behavior can only be confirmed on a real Roku. If no device is reachable, say so — never claim device verification you didn't do.
 5. Don't push, merge to `main`, publish, or bump versions unless asked. Developer agents MAY commit (Conventional Commits; plain messages with no Claude or co-author trailers, owner decision 2026-11-20) on their own `feat/*`/`fix/*` worktree branches (owner decision OD-03, 2026-11-19); everyone else commits only when asked. Branch off `main` (or the owner-designated base branch); never work on `main` directly.
