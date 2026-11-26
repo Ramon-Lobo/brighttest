@@ -44,6 +44,8 @@ sub CAP_Print(id as string, ok as dynamic)
     print "CAP " + id + " " + v.toStr()
 end sub
 
+' Note: a user-set deviceInfo.friendlyName would make the host refuse if the probe were ever run through engine-run;
+' lib/engine-caps.js deliberately passes no deviceInfo, so the default friendly name applies.
 ' The headless engine reports this fixed friendly name; a real Roku reports the user's device name.
 function CAP_IsHostEngine() as boolean
     di = CreateObject("roDeviceInfo")
