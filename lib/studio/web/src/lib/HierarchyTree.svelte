@@ -25,6 +25,7 @@
   const matches = $derived.by(() => (q.trim() ? studio.nodes.filter(hit) : null));
 
   const pick = (n) => (studio.selectedPath = n.path);
+  const inspect = (n) => { studio.selectedPath = n.path; studio.nodeView = 'state'; studio.openTab = 'node'; };
   const hover = (n) => (studio.hoverPath = n.path);
   const unhover = (n) => { if (studio.hoverPath === n.path) studio.hoverPath = null; };
 
@@ -86,6 +87,7 @@
       <button class="rowbtn" onclick={() => pick(n)} onmouseenter={() => hover(n)} onmouseleave={() => unhover(n)}>
         {@render label(n)}
       </button>
+      <button class="stbtn" data-testid="tree-node-state" title="inspect this node's state" onclick={() => inspect(n)}>state</button>
     </div>
     {#if n.children.length && !collapsed[n.path]}
       {#each n.children as c}{@render branch(c, depth + 1)}{/each}
@@ -126,6 +128,9 @@
   }
   .line:hover .rowbtn, .line.sel .rowbtn { color: var(--color-text); }
   .line.sel .rowbtn { color: #cfc9ff; }
+  .stbtn { flex: none; background: transparent; border: 1px solid var(--color-line); border-radius: 6px; color: #b7c0ff; font-size: 11px; padding: 0 6px; cursor: pointer; opacity: 0; margin-right: 4px; }
+  .line:hover .stbtn, .line.sel .stbtn { opacity: 1; }
+  .stbtn:hover { border-color: var(--color-violet); }
   .caret { background: transparent; border: none; cursor: pointer; color: #5b6178; width: 14px; padding: 0; transition: transform .1s; }
   .caret.closed { transform: rotate(-90deg); }
   .caret.ph { visibility: hidden; cursor: default; }

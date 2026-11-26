@@ -126,6 +126,9 @@
   function onRemote() { setTimeout(grabTree, 90); setTimeout(grabShot, 280); }
   function addStep(line) { editor?.insert(line); setMsg('added — unsaved'); }
 
+  function onInspectState(n) { studio.selectedPath = n.path; studio.nodeView = 'state'; studio.page = 'inspect'; tab = 'node'; }
+  // Tree rows ask for the Node tab through the store.
+  $effect(() => { if (studio.openTab) { tab = studio.openTab; studio.openTab = null; } });
   let menu = $state(null); // node context menu { node, x, y }
   function onNodeContext(node, x, y) { menu = { node, x, y }; }
 
@@ -381,7 +384,7 @@
   </div>
 
   {#if menu}
-    <ContextMenu node={menu.node} x={menu.x} y={menu.y} onpick={onMenuPick} onclose={() => (menu = null)} />
+    <ContextMenu node={menu.node} x={menu.x} y={menu.y} onpick={onMenuPick} onclose={() => (menu = null)} oninspect={onInspectState} />
   {/if}
 
   {#if promptState}

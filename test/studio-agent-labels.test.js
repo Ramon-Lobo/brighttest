@@ -18,6 +18,13 @@ const STATIC = {
     'monitor-needs-device', 'inspector-panel', 'remote-panel', 'remote-needs-device',
     'tab-node', 'tab-tree', 'tab-selector', 'tab-state', 'tab-actions', 'tab-net',
   ],
+  'lib/Inspector.svelte': ['node-view-fields', 'node-view-state'],
+  'lib/NodeState.svelte': [
+    'node-state', 'node-state-id', 'node-state-noid', 'node-state-layer-node', 'node-state-layer-m', 'node-state-refresh', 'node-state-raw',
+    'node-state-age', 'node-state-dup', 'node-state-reason', 'node-state-large', 'node-state-field', 'node-state-path', 'node-state-notfound',
+    'node-state-rows', 'node-state-goto', 'node-state-goto-under', 'node-state-edit', 'node-state-input', 'node-state-load', 'node-state-chip', 'node-state-step',
+  ],
+  'lib/HierarchyTree.svelte': ['tree-node-state'],
   'lib/Stage.svelte': ['monitor-stage', 'monitor-screenshot', 'monitor-overlay'],
   'lib/Remote.svelte': [
     'remote', 'remote-key-up', 'remote-key-down', 'remote-key-left', 'remote-key-right', 'remote-key-select',
@@ -40,6 +47,7 @@ const STATIC = {
 const DYNAMIC = [
   ['App.svelte', 'data-testid="nav-{p.id}"', ['nav-inspect', 'nav-runs', 'nav-record', 'nav-devices', 'nav-profile', 'nav-settings']],
   ['lib/pages/Profile.svelte', 'data-testid="profile-console-{c.replace(', ['profile-console-free', 'profile-console-sgperf-start', 'profile-console-sgperf-report', 'profile-console-sgperf-stop', 'profile-console-loaded-textures', 'profile-console-fps-display-on', 'profile-console-fps-display-off', 'profile-console-logrendezvous-on', 'profile-console-logrendezvous-off']],
+  ['lib/ContextMenu.svelte', "testid: 'menu-inspect-state'", ['menu-inspect-state']],
 ];
 const ALL = [...Object.values(STATIC).flat(), ...DYNAMIC.flatMap((d) => d[2])];
 
