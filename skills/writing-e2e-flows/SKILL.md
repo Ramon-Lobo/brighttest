@@ -124,14 +124,18 @@ line-referenced error rather than being silently misparsed.
 Key names are validated at parse time (`press: Rigth` fails with the valid list). `holdKey: { key: Right, ms: 500 }`
 holds a key (keydown, wait, keyup; the keyup is always sent). `requires: { firmware: ">=12.5", videoMode: 1080p,
 deviceClass: box }` at the top of a flow (or as a step) skips instead of failing; quote `firmware` versions. A run
-where every flow is skipped exits 1 (`no flow ran`). `config: { noSystemDialog: true }` refuses key presses while a
+where every flow is skipped exits 1 (`no flow ran`); `e2e run --fail-on-skip` exits 1 on any skip. `config: { noSystemDialog: true }` refuses key presses while a
 system dialog is in front. Details: docs `e2e/flows`.
 
 ## Shared devices
 
 `brighttest e2e run|inspect|record` take a per-device **lease**: if another terminal, agent or CI job is
 using the Roku, the command waits its turn (FIFO) and prints who holds it. `e2e run` presses Home twice after
-acquiring so every run starts from the home screen. Check with `npx brighttest device status`; wrap any other
+acquiring its own lease so every run starts from the home screen (not between flows, so a later flow starts where
+the previous one left the device). Under an existing lease (`device lock`, or `device with -- brighttest e2e run`)
+it adds no hygiene press, except that a run with state or net steps presses Home twice at the start so a resident
+app restarts and says hello to the new hub; a nested `device with -- e2e run` therefore repeats the presses. A flow
+with state or net steps needs an instrumented build (see the flow reference). `--no-hygiene` skips the presses. Check with `npx brighttest device status`; wrap any other
 device command (`curl` keypresses, scripts) in `npx brighttest device with -- <cmd>`. Exit 75 = the device
 stayed busy past `--wait`; 77 = the lease was lost or hit its deadline. Never pass `--no-lease` when others
 share the device.
@@ -156,7 +160,7 @@ Follow these five or your flows will fail to connect, flake, or silently pass. S
 
 ## Reference files — read the one you need
 
-- **[references/flow-reference.md](references/flow-reference.md)** — every step, all selector keys/filters,
+- **[references/flow-reference.md](references/flow-reference.md)** — every step (incl. `holdKey`, `requires`, state, net, log and media steps), all selector keys/filters,
   focus navigation tuning, text entry, and a complete search-flow example. Read this while writing a flow.
 - **[references/authoring.md](references/authoring.md)** — `inspect`, interactive `record`, and `stamp`
   (making an un-annotated app selectable, incl. the BrighterScript plugin form). Read this to go from a
