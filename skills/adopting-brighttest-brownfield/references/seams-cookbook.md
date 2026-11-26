@@ -100,7 +100,7 @@ The spec checks input and output; the caller assigns the result. `m.global` writ
 |---|---|
 | Logic inside an inline CDATA script in the XML | The instrument plugin reports `inline-cdata-scene` for it, and a spec cannot import it. Propose moving the script to a `.brs` file as its own patch. |
 | Observer chains across nodes | Characterize the visible result in an e2e flow, not a spec. |
-| Task nodes | Do not test them with `@SGNode` (on the legacy-app copy the default run, which includes an `@SGNode` suite, printed nothing for over 100 s). Test the pure request and parse functions. |
+| Task nodes | Do not test them with `@SGNode` (on an earlier engine version the default run on the legacy-app copy, which includes an `@SGNode` suite, printed nothing for over 100 s; newer pins finished green, so run it bounded and report the outcome). Test the pure request and parse functions. |
 | `Eval`, dynamic `CreateObject(name)` | Leave them. Note them as risks in the report (`assessing-a-roku-app`, `references/risky-patterns.md`). |
 
 ## Writing a proposal as a patch, never applying it
