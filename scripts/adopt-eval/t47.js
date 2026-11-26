@@ -129,7 +129,7 @@ function scoreT4({ cell, appDir, repoRoot }) {
   r.scriptTags = !brs.length ? bad('review', 'no new component .brs files found; read what was added') : missing.length ? bad('auto', `no <script> tag for: ${missing.join(', ')}`) : ok('auto', `${brs.length} new .brs file(s) all tagged`)
   const nodes = interactiveNodes(appDir), noId = nodes.filter((n) => !n.hasId)
   r.ids = !nodes.length ? bad('review', 'no interactive nodes found in components/') : noId.length ? bad('review', `no id on: ${noId.map((n) => `${n.tag} in ${n.file}`).join(', ')}`) : ok('review', `${nodes.length} interactive node(s) have ids; check that the list and detail nodes are among them`)
-  const specs = walk(path.join(appDir, 'source'), (p) => /tests?\//.test(path.relative(appDir, p)) && p.endsWith('.brs'))
+  const specs = walk(path.join(appDir, 'source'), (p) => /tests?\//.test(path.relative(appDir, p).split(path.sep).join('/')) && p.endsWith('.brs'))
   const specCmd = commands.find(isSpecRun)
   const specKey = Object.keys(cell.exitCodes || {}).find(isSpecRun), sc = specKey === undefined ? undefined : cell.exitCodes[specKey]
   r.spec = !specs.length ? bad('review', 'no spec file under source/tests') : sc === 0 ? ok('auto', `headless run exit 0, ${specs.length} spec file(s)`) : sc !== undefined ? bad('auto', `headless run exit ${sc}`) : bad('review', `${specs.length} spec file(s); ${specCmd ? 'headless command recorded' : 'no headless command recorded'} but no exit code`)
