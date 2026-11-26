@@ -52,6 +52,14 @@ describe('identity lane holds both keys', () => {
     expect(fs.existsSync(path.join(dir, L.keyFromIdentity(SERIAL), 'holder.json'))).toBe(false);
     b.release();
   });
+  it('release(why, { exitCode }) writes exitCode on both keys', async () => {
+    const dir = mk();
+    const a = await L.acquire({ dir, lookup, host: '127.0.0.1', port: 9101, deviceId: SERIAL, waitMs: 0, timers: false });
+    a.release('x', { exitCode: 5 });
+    for (const k of [L.keyFromIdentity(SERIAL), addrKey(9101)]) {
+      expect(events(dir, k).find((e) => e.ev === 'released')).toMatchObject({ exitCode: 5 });
+    }
+  });
   it('pool member and another identity lane at the same address are blocked too', async () => {
     const dir = mk();
     const a = await L.acquire({ dir, lookup, host: '127.0.0.1', deviceId: SERIAL, waitMs: 0, timers: false });

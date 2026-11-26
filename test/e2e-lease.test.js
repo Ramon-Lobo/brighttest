@@ -23,11 +23,12 @@ afterEach(() => { vi.restoreAllMocks(); fs.rmSync(dir, { recursive: true, force:
 const createDevice = ({ host }) => ({
   deviceInfo: async () => { log.push(`info ${host}`); if (host === 'down') throw new Error('unreachable'); return { model: 'Stub', developerEnabled: true } },
 })
+const releaseArgs = []
 function acquireForLane(busy = []) {
   return async ({ host, hygiene }) => {
     log.push(`acquire ${host} hygiene=${hygiene}`)
     if (busy.includes(host)) return { code: 75 }
-    return { lease: { release: () => log.push(`release ${host}`) } }
+    return { lease: { release: (...a) => { log.push(`release ${host}`); releaseArgs.push(a) } } }
   }
 }
 
@@ -36,6 +37,12 @@ describe('e2e run under the lease', () => {
     const code = await e2e.run(cfg, { e2eAction: 'run', flows: [flow, flow], host: '10.0.0.1' }, { createDevice, acquireForLane: acquireForLane() })
     expect(code).toBe(1) // the flow is bad; the lease wiring is what we check
     expect(log).toEqual(['acquire 10.0.0.1 hygiene=true', 'info 10.0.0.1', 'release 10.0.0.1'])
+  })
+
+  it('releases with exit code 1 when a unit failed on the host', async () => {
+    releaseArgs.length = 0
+    await e2e.run(cfg, { e2eAction: 'run', flows: [flow], host: '10.0.0.1' }, { createDevice, acquireForLane: acquireForLane() })
+    expect(releaseArgs).toEqual([[undefined, { exitCode: 1 }]])
   })
 
   it('sharded hosts are independent: a busy host does not block the other; exit 75 wins', async () => {
