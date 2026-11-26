@@ -17,7 +17,15 @@ function copyApp(name) {
   fs.cpSync(path.join(EXAMPLES, name), d, { recursive: true, filter: (s) => !/[\\/](\.brighttest|coverage)$/.test(s) })
   return d
 }
-afterAll(() => { cleanupTemp(); for (const d of tmp) fs.rmSync(d, { recursive: true, force: true }) })
+// Remove only this suite's own dirs. A straggler process can still be writing into the tree for a moment, which
+// makes a plain rmSync fail with ENOTEMPTY, so retry; a cleanup failure is logged and never fails the suite.
+afterAll(() => {
+  try { cleanupTemp() } catch (e) { console.warn(`bt-examples cleanupTemp failed: ${e.message}`) }
+  for (const d of tmp) {
+    try { fs.rmSync(d, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }) }
+    catch (e) { console.warn(`bt-examples cleanup failed for ${d}: ${e.message}`) }
+  }
+})
 
 describe('greenfield-app', () => {
   it('passes headless with pure and @SGNode suites; ignored suites do not run', () => {
