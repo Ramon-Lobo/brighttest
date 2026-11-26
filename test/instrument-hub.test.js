@@ -61,8 +61,8 @@ describe('hub token, route and refusal rules', () => {
     expect((await req(hub, 'POST', `/bt/${TOKEN}/hello`, '{}')).status).toBe(200);
   });
 
-  it('a net hello (?role=net) is counted apart, replies the same, and never resyncs the agent session', async () => {
-    const hub = await start();
+  it('a net hello (?role=net) with a proxy mounted is counted apart, answers active, and never resyncs the agent session', async () => {
+    const hub = await start({ netProxy: { handle() {} } });
     await req(hub, 'GET', `/bt/${TOKEN}/hello`);
     const q = JSON.parse((await req(hub, 'POST', `/bt/${TOKEN}/state`, JSON.stringify({ op: 'ping' }))).body);
     expect(hub.stateOps.get(q.id).status).toBe('pending');
@@ -76,6 +76,19 @@ describe('hub token, route and refusal rules', () => {
     expect(hub.stateOps.get(q.id).status).toBe('pending'); // not abandoned
     expect(hub.netHellos).toBe(1);
     expect(hub.lastNetHelloAt).toBeGreaterThanOrEqual(t0);
+    expect(hub.hellos).toBe(1);
+  });
+
+  it('a net hello with no proxy mounted answers active:false and an empty netBase, still counted and no resync', async () => {
+    const hub = await start();
+    await req(hub, 'GET', `/bt/${TOKEN}/hello`);
+    const q = JSON.parse((await req(hub, 'POST', `/bt/${TOKEN}/state`, JSON.stringify({ op: 'ping' }))).body);
+    const j = JSON.parse((await req(hub, 'GET', `/bt/${TOKEN}/hello?role=net`)).body);
+    expect(j.active).toBe(false);
+    expect(j.netBase).toBe('');
+    expect(j.session).toBe(hub.sessionId);
+    expect(hub.stateOps.get(q.id).status).toBe('pending');
+    expect(hub.netHellos).toBe(1);
     expect(hub.hellos).toBe(1);
   });
 

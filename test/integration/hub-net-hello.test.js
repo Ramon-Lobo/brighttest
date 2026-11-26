@@ -21,7 +21,7 @@ function req(hub, method, p, body) {
 describe('net hello does not disturb the agent session', () => {
   it('a pending command stays pending across a net hello from a second client and acks into the original session', async () => {
     const lease = { held: () => true, onLost() {}, leaseId: 'l1' }
-    const hub = await startHub({ host: '127.0.0.1', port: 0, mode: 'headless', lease, tokens: [TOKEN] })
+    const hub = await startHub({ host: '127.0.0.1', port: 0, mode: 'headless', lease, tokens: [TOKEN], netProxy: { handle() {} } })
     hubs.push(hub)
     const agent = JSON.parse((await req(hub, 'GET', `/bt/${TOKEN}/hello`)).body)
     const q = JSON.parse((await req(hub, 'POST', `/bt/${TOKEN}/state`, JSON.stringify({ op: 'ping' }))).body)
