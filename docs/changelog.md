@@ -42,6 +42,10 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
   ([sharing a device](./guide/device-lease.md)).
 
 ### Features
+- **Studio:** an **overlay** switch in the header (Inspect and Record) hides the node outlines to show only the device
+  picture. It is on by default and remembered per browser. While off, clicking the picture selects nothing (the selection
+  is kept) and Studio stops reading the tree unless the Node, Tree or Selector tab is open (then once a second), which
+  leaves the device free for screenshots and key presses. New test id `toggle-overlay`.
 - **Instrumentation and app state:** `brighttest instrument build | verify | census` builds an instrumented copy of
   your app (no source edits) with a state agent that reads and writes scene, global, node, `m` and registry state, with
   redaction (including masking of `redact.paths` state in Studio's live tree and saved run traces) and a publish rate

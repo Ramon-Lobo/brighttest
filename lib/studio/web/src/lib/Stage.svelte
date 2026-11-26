@@ -29,9 +29,10 @@
   };
 </script>
 
-<div class="monitor" data-testid="monitor-stage" role="presentation" onclick={() => (studio.selectedPath = null)}>
+<div class="monitor" data-testid="monitor-stage" role="presentation" onclick={() => { if (studio.overlay) studio.selectedPath = null; }}>
   <div class="bezel">
     <img src={shotSrc} data-testid="monitor-screenshot" alt="live device screen" draggable="false" />
+    {#if studio.overlay}
     <svg viewBox="0 0 {studio.scene.w} {studio.scene.h}" preserveAspectRatio="none" data-testid="monitor-overlay" aria-label="node overlay">
       {#each studio.nodes as n (n.path)}
         {#if drawable(n)}
@@ -57,6 +58,7 @@
         {/if}
       {/each}
     </svg>
+    {/if}
   </div>
 </div>
 

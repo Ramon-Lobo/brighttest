@@ -129,6 +129,20 @@ Agents can read the same data without Studio's UI through the [`perf_summary` an
 ![Profile page with the live profiling, console, Perfetto and bsprof panels](/images/studio/profile.png)
 *Profile page against the fake Roku: the panels are shown empty because the fake serves no profiling data.*
 
+## Overlay switch
+
+The **overlay** checkbox in the header (Inspect and Record pages) turns the node outlines on the picture on or off. It
+is on by default and Studio remembers the choice in the browser (`localStorage`, per origin); nothing is stored on the
+server or in config.
+
+- **Off:** nothing is drawn over the picture (no outlines, hover or run highlight), clicking the picture selects
+  nothing, and **all nodes** and **offscreen** are disabled. The selected node stays selected, so the Node tab and the
+  context-menu steps still work from the Tree tab. The monitor header shows "overlay off".
+- **Tree reads:** with the overlay off, Studio reads the SceneGraph tree only while the Node, Tree or Selector tab is open
+  on the Inspect page, or the State tab shows the read-only app state; then once a second instead of every 300 ms.
+  Otherwise it reads nothing, which frees the device for screenshots and key presses.
+- Turning the overlay on reads the tree at once.
+
 ## Other pages
 
 **Runs** (run flows and step through a time-travel trace; each run frame carries the app state snapshot), **Record**
@@ -146,7 +160,7 @@ Studio contract: they do not change between releases without a changelog note, a
 |---|---|
 | Shell and device | `studio-app`, `studio-header`, `device-summary` (model and firmware, or "no device"), `page-nav`, `nav-inspect`, `nav-runs`, `nav-record`, `nav-devices`, `nav-profile`, `nav-settings` |
 | Lease and device status | `lease-badge`, `lease-badge-summary`, `lease-queue`, `lease-bar` (banner while another holder has the device), `lease-queued`, `lease-take-over`, `sim-badge`, `sim-tail` |
-| Live monitor | `live-monitor`, `monitor-stage`, `monitor-screenshot` (the live screenshot), `monitor-overlay` (the node outlines), `monitor-needs-device`, `toggle-live`, `toggle-all-nodes`, `toggle-offscreen`, `live-status` |
+| Live monitor | `live-monitor`, `monitor-stage`, `monitor-screenshot` (the live screenshot), `monitor-overlay` (the node outlines), `monitor-needs-device`, `toggle-live`, `toggle-overlay`, `toggle-all-nodes`, `toggle-offscreen`, `live-status` |
 | Inspect page | `page-inspect`, `inspector-panel`, `tab-node`, `tab-tree`, `tab-selector`, `tab-state`, `tab-actions`, `tab-net` |
 | Remote | `remote-panel`, `remote`, `remote-key-up`, `remote-key-down`, `remote-key-left`, `remote-key-right`, `remote-key-select`, `remote-key-back`, `remote-key-home`, `remote-needs-device` |
 | Flow editor | `flow-tree`, `flow-tree-show`, `flow-editor`, `flow-name`, `flow-editor-text`, `flow-save`, `flow-run`, `flow-message`, `flow-run-steps` |
