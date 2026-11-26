@@ -117,6 +117,10 @@ function fakeTerm() {
 }
 const mkView = (over = {}) => { const v = { closed: 0, snapshot: () => makeBoard(), close() { v.closed++; }, ...over }; return v; };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+async function waitFor(cond, ms, what) {
+  const end = Date.now() + ms;
+  while (!cond()) { if (Date.now() > end) throw new Error(`timed out waiting for ${what}`); await sleep(20); }
+}
 async function mount(t, view, flags = {}) {
   const p = A.mountWatchApp({ ink: mods.ink, React: mods.React, view, flags: { intervalMs: 5000, ...flags }, proc: t.proc,
     io: { stdout: t.stdout, stdin: t.stdin, stderr: t.stderr, env: { COLORTERM: 'truecolor' }, now: () => NOW } });
@@ -157,12 +161,15 @@ describe('mountWatchApp on fake streams', () => {
   it('keys move the selection and ? opens the help overlay', async (ctx) => {
     if (!have()) return ctx.skip();
     const t = fakeTerm(); const { p } = await mount(t, mkView());
-    t.stdin.write('j'); await sleep(80);
-    t.stdin.write('?'); await sleep(80);
+    t.stdin.write('j'); await sleep(80); // separate writes: ink reads one chunk as one input string
+    t.stdin.write('?');
+    await waitFor(() => strip(t.out()).includes('move selection'), 15000, 'the help overlay to render');
     expect(strip(t.out())).toContain('move selection');
-    t.stdin.write('q'); // closes help first (any key), then q quits
-    await sleep(50); t.stdin.write('q');
-    expect(await p).toBe(0);
+    // the first q closes help, the next quits; keep sending q until the app exits so a slow frame cannot lose a key
+    let done = false; p.then(() => { done = true; });
+    const deadline = Date.now() + 15000;
+    while (!done && Date.now() < deadline) { t.stdin.write('q'); await sleep(100); }
+    expect(await Promise.race([p, sleep(5000).then(() => 'timeout')])).toBe(0);
   });
   it('a render error restores the terminal, prints the error and returns 1', async (ctx) => {
     if (!have()) return ctx.skip();
