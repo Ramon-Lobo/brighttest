@@ -57,7 +57,8 @@ limit is researched from Roku's public docs, not verified here (see `references/
 7. Release gate, on the package you will publish, never the debug zip:
    `npx brighttest instrument verify build/store.zip` must exit 0 (clean). Then compare the zip size against the
    budget in `references/package-size.md`.
-8. Device-to-hub reach: `npx brighttest doctor --host <device-ip>` reports it as `not-tested` by default. The opt-in
+8. To test network behaviour on a device, build with `--net` and export the same `BRIGHTTEST_HUB_TOKEN` (32 lowercase hex) for the run, never printing it. `--net` also needs `instrument.hub.host` in `brighttest.json` (or a LAN address) so the build knows where the device dials.
+9. Device-to-hub reach: `npx brighttest doctor --host <device-ip>` reports it as `not-tested` by default. The opt-in
    `BRIGHTTEST_DOCTOR_HUB_PROBE=1` (with `ROKU_PASSWORD` exported, never printed) proves reach by sideloading a no-icon
    probe package; it replaces the dev channel slot and takes the lease. Firewall problems are the human's to fix.
 
@@ -74,7 +75,7 @@ Guide: `docs/guide/instrument.md`, "In headless tests".
 | Command | Code | Meaning |
 |---|---|---|
 | build | 0 | package written |
-| build | 1 | build failure (bsc or plugin error, `BT9003`); with `--sideload` also auth, port 80 or installer failure |
+| build | 1 | build failure (bsc or plugin error, `BT9003`); with `--sideload` also auth, port 80 or installer failure; or `--net` with `BRIGHTTEST_HUB_TOKEN` unset or not 32 hex |
 | build, verify, census | 2 | usage error (verify: missing or unreadable input) |
 | verify | 3 | instrumentation markers found: do not release |
 | build | 4 | strict mode: a could-not-instrument entry |

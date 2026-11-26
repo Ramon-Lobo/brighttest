@@ -58,10 +58,9 @@ flip in the spec only, never in app code.
 
 ## 4. Engine smoke step
 
-Run `npx brighttest doctor --engines` (exit 0 passes). A default run includes `@SGNode` suites. On the legacy-app
-copy with the engine `-bt.1` pins from main at 7332b12, two bounded default runs finished green (about 5 s each,
-17 passed, 0 failed, 7 suites) and `--no-sgnode` finished green (8 passed, 4 skipped). An earlier engine version did
-not finish on the same copy. Do the default run bounded with a hard timeout and record which outcome you saw
+Run `npx brighttest doctor --engines` (exit 0 passes). A default run includes `@SGNode` suites. With the pinned `-bt.1`
+engines, two bounded default runs finished green in about 5 s on the reference copy; an earlier engine version hung.
+Do the default run bounded with a hard timeout and record which outcome you saw
 (default run green, failed or hung; `--no-sgnode` green). The `@SGNode` outcome does not block the first green run:
 do not block on it, and do not claim it works or fails beyond the run you did.
 
@@ -77,6 +76,7 @@ do not block on it, and do not claim it works or fails beyond the run you did.
 | Crash on `invalid` when a widget reads a global | Seed `globalFields` in `brighttest.json` (scene-field to value). |
 | Nothing printed after "building the test bundle" | Possibly an `@SGNode` suite hanging on this engine (seen on an earlier engine version): stop the run at the hard timeout, repeat with `--no-sgnode`, and report it. |
 | Warning "declares a Task node; the headless lane cannot run Task" | Expected with `--no-sgnode`. Tasks need a device. |
+| Warning `lacks ROO-04 globalFields seeding` or `bare @deviceOnly needs the patched rooibos (ROO-05)` | You are on a stock engine. Run `npx brighttest doctor --engines`; use `@tags("deviceOnly")`; `globalFields` is ignored. |
 
 ## Before you hand off, all of these
 
