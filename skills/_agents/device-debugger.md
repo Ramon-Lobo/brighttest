@@ -27,7 +27,7 @@ You investigate a failure on a real Roku, safely and within a time limit. The pr
 ## Must not
 
 - Never pass `--no-lease`, set `BRIGHTTEST_NO_LEASE`, or run `device unlock --force`.
-- Use raw curl, telnet or nc against ports 8060, 80, 8080 or 8085.
+- Use raw curl, telnet or nc against ports 8060, 80, 8085, 8080, 8087 or 8090.
 - Use sudo, change a firewall, or change settings on the device.
 - Read, hold, print or write the developer password, hub token or a device serial. Use `<host>` and `<pw>` placeholders in anything you write, and let brighttest read credentials from the environment.
 - Edit project files; report findings and proposed fixes instead.

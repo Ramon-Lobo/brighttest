@@ -302,6 +302,12 @@ devDependencies, nothing is emitted, and nothing changes at runtime or in the pu
 `npm run skills:manifest` regenerates `skills/manifest.json` and `skills/facts.json` (CLI version, subcommands, flags,
 exit codes, defaults, skill and agent lists). `brighttest skills --check` fails on facts drift and on skill text that
 contradicts the facts (Node claims, skill lists, subcommands in shell fences, exit codes, defaults, banned claims, size).
+The facts also pin the device idle-watchdog default (`DEFAULT_IDLE_S`), the six hook ports (`DEVICE_PORTS` in
+`lib/device-hook.js`), the MCP caps the MCP skill quotes (`LIMITS` in `lib/mcp/tools.js`) and the usage exit code, so a
+changed constant fails `skills --check` until the skill text follows. The device hard-rules block repeats in seven
+`SKILL.md` files; its one source is `skills/_shared/device-rules.md` (ports filled in from the code). Edit that file, run
+`npm run skills:manifest`, and the marked regions are rewritten; `skills --check` fails when a region differs or a copy sits
+outside the markers. `skills/_always-on/safety.md` is installed verbatim, so it is asserted (ports, key rules), not generated.
 The installer validates manifest entries and refs, refuses path escapes, writes atomically, manages a marked safety block
 in the agent's always-on file, migrates retired skills, and merges the guard hook and MCP entry only with
 `--with-hook` / `--with-mcp`. Run the manifest script after any change to skills, the version, a dependency range, a

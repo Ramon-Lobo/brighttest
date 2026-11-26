@@ -6,6 +6,7 @@
     "test-author"
   ],
   "cliVersion": "0.7.0",
+  "deviceIdleTimeoutDefault": 120,
   "engines": {
     "brsNode": "2.7.1-bt.1",
     "rooibos": "5.17.0-bt.1"
@@ -15,6 +16,7 @@
     "leaseBusy": 75,
     "leaseDir": 78,
     "leaseLost": 77,
+    "usage": 2,
     "verifyInstrumented": 3
   },
   "featureTree": {
@@ -171,6 +173,14 @@
     "-o",
     "-v"
   ],
+  "hookPorts": [
+    8060,
+    80,
+    8085,
+    8080,
+    8087,
+    8090
+  ],
   "hubDefaultPort": 8790,
   "instrumentDefaults": {
     "strict": false
@@ -181,6 +191,13 @@
     "sessionMax": "45m",
     "studioIdle": "5m",
     "wait": "30m"
+  },
+  "mcpLimits": {
+    "maxFlowRunsPerSession": 10,
+    "maxNetRequests": 500,
+    "maxPressesPerSession": 500,
+    "maxStateKb": 128,
+    "maxTreeNodes": 500
   },
   "nodeMin": 22,
   "schema": "brighttest-facts/v1",

@@ -10,6 +10,11 @@ const root = path.join(__dirname, '..', 'skills');
 
 const { generateManifest } = require('../lib/skills');
 
+// Shared hard-rules block: skills/_shared/device-rules.md is the one source, rendered into every marked region of a SKILL.md.
+const { syncSharedRules } = require('../lib/skills');
+const synced = syncSharedRules(root);
+if (synced.length) console.log(`updated the shared device rules in: ${synced.join(', ')}`);
+
 // Throws (non-zero exit) when an agent names an unknown skill or host, or the always-on block is over its line cap.
 const manifest = generateManifest(root);
 const skills = manifest.skills;
