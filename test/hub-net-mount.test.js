@@ -1,16 +1,17 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { createRequire } from 'module';
 import net from 'net';
+import http from 'http';
 
 const require = createRequire(import.meta.url);
-const { startHub } = require('../lib/instrument/hub.js');
+const { startHub, LONG_POLL_MS } = require('../lib/instrument/hub.js');
 const { createNetProxy } = require('../lib/instrument/net-proxy.js');
 const { request } = require('./fixtures/net/harness.js');
 const { createOrigin } = require('./fixtures/fake-origin/server.js');
 
 const TOKEN = 'tok-mount-0123456789';
 const cleanups = [];
-afterEach(async () => { while (cleanups.length) await cleanups.pop()(); });
+afterEach(async () => { vi.useRealTimers(); while (cleanups.length) await cleanups.pop()(); });
 
 async function setup({ proxyOpts = {}, lease, hubOpts = {}, withProxy = true } = {}) {
   const o = createOrigin({ port: 0 });
@@ -105,5 +106,100 @@ describe('hub mounts net-proxy at /bt/<token>/net/;<url>', () => {
       setTimeout(() => { c.destroy(); }, 3000);
     });
     expect(out).toMatch(/405/);
+  });
+});
+
+// STA-S-T15 T1: net hello follows the mounted proxy; mountNet; agentLive.
+const MN_TOKEN = 'tok-abcdef0123456789';
+const mnHubs = [];
+function mnLease() { return { held: () => true, onLost() {}, leaseId: 'lease-1' }; }
+async function mnStart(o = {}) {
+  const hub = await startHub({ host: '127.0.0.1', port: 0, mode: 'headless', lease: mnLease(), tokens: [MN_TOKEN], ...o });
+  mnHubs.push(hub); cleanups.push(() => hub.stop());
+  return hub;
+}
+function mnReq(hub, method, p, { abortAfter } = {}) {
+  return new Promise((resolve, reject) => {
+    const r = http.request({ host: '127.0.0.1', port: hub.port, method, path: p }, (res) => {
+      let b = '';
+      res.on('data', (d) => { b += d; });
+      res.on('end', () => resolve({ status: res.statusCode, body: b }));
+    });
+    r.on('error', (e) => { if (abortAfter) resolve({ aborted: true }); else reject(e); });
+    r.end();
+    if (abortAfter) setTimeout(() => r.destroy(), abortAfter);
+  });
+}
+const mnProxy = (tag) => ({ tag, handle(rq, res, target) { res.writeHead(200, { 'content-type': 'text/plain' }); res.end(`proxied:${target}`); } });
+
+describe('net hello follows the mounted proxy', () => {
+  it('no proxy: active:false, empty netBase, and the net route is 404', async () => {
+    const hub = await mnStart();
+    expect(hub.netMounted).toBe(false);
+    const j = JSON.parse((await mnReq(hub, 'GET', `/bt/${MN_TOKEN}/hello?role=net`)).body);
+    expect(j.active).toBe(false);
+    expect(j.netBase).toBe('');
+    expect((await mnReq(hub, 'GET', `/bt/${MN_TOKEN}/net/;http://x.test/a`)).status).toBe(404);
+  });
+
+  it('after mountNet: active:true, netBase set, and the net route serves', async () => {
+    const hub = await mnStart();
+    hub.mountNet(mnProxy('a'));
+    expect(hub.netMounted).toBe(true);
+    const j = JSON.parse((await mnReq(hub, 'GET', `/bt/${MN_TOKEN}/hello?role=net`)).body);
+    expect(j.active).toBe(true);
+    expect(j.netBase).toBe(`/bt/${MN_TOKEN}/net/;`);
+    const r = await mnReq(hub, 'GET', `/bt/${MN_TOKEN}/net/;http://x.test/a`);
+    expect(r.status).toBe(200);
+    expect(r.body).toBe('proxied:http://x.test/a');
+  });
+
+  it('a second mount with another proxy throws USAGE; the same proxy is a no-op', async () => {
+    const hub = await mnStart();
+    const a = mnProxy('a');
+    hub.mountNet(a);
+    hub.mountNet(a);
+    expect(() => hub.mountNet(mnProxy('b'))).toThrow(expect.objectContaining({ code: 'USAGE' }));
+    expect(() => hub.mountNet({})).toThrow(expect.objectContaining({ code: 'USAGE' }));
+  });
+
+  it('a proxy passed at start still answers active:true; the agent hello path is unchanged', async () => {
+    const hub = await mnStart({ netProxy: mnProxy('a') });
+    expect(hub.netMounted).toBe(true);
+    expect(JSON.parse((await mnReq(hub, 'GET', `/bt/${MN_TOKEN}/hello?role=net`)).body).active).toBe(true);
+    const bare = await mnStart();
+    const j = JSON.parse((await mnReq(bare, 'GET', `/bt/${MN_TOKEN}/hello`)).body);
+    expect(j.active).toBe(true); // agent hello keeps active:true with no proxy
+    expect(j.netBase).toBe(`/bt/${MN_TOKEN}/net/;`);
+  });
+});
+
+describe('agentLive', () => {
+  it('false before a hello, even if polls arrive', async () => {
+    const hub = await mnStart();
+    expect(hub.agentLive()).toBe(false);
+    await mnReq(hub, 'GET', `/bt/${MN_TOKEN}/cmd?after=0`, { abortAfter: 50 });
+    expect(hub.agentLive()).toBe(false);
+  });
+
+  it('true while a poll is open, then false LONG_POLL_MS + 5 s after the last poll', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(1_000_000);
+    const hub = await mnStart();
+    await mnReq(hub, 'GET', `/bt/${MN_TOKEN}/hello`);
+    expect(hub.agentLive()).toBe(false); // hello alone, no poll yet
+    const poll = mnReq(hub, 'GET', `/bt/${MN_TOKEN}/cmd?after=0`, { abortAfter: 100 });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(hub.stats.waiters).toBe(1);
+    expect(hub.agentLive()).toBe(true); // open poll
+    await poll; // agent gone: socket closed, waiter released
+    await new Promise((r) => setTimeout(r, 20));
+    expect(hub.stats.waiters).toBe(0);
+    const t = Date.now();
+    expect(hub.agentLive(t + LONG_POLL_MS + 5000 - 1)).toBe(true);
+    expect(hub.agentLive(t + LONG_POLL_MS + 5000)).toBe(true);
+    expect(hub.agentLive(t + LONG_POLL_MS + 5000 + 1)).toBe(false);
+    vi.setSystemTime(t + LONG_POLL_MS + 5 * 1000 + 1);
+    expect(hub.agentLive()).toBe(false);
   });
 });

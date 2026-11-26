@@ -282,7 +282,7 @@ function brsProgram(host, port, body) {
 describe('BT_url / BT_unurl identity rules (TP-NET-02, fork engine)', () => {
   let hub
   beforeAll(async () => {
-    hub = await startHub({ host: '127.0.0.1', port: 0, mode: 'headless', lease: localLease(), tokens: ['tok0123456789abcdef'] })
+    hub = await startHub({ host: '127.0.0.1', port: 0, mode: 'headless', lease: localLease(), tokens: ['tok0123456789abcdef'], netProxy: { handle() {} } }) // net hello is active only with a proxy (STA-S-T15)
   })
   afterAll(async () => { await hub.stop() })
   const TOKEN_BASE = () => `http://127.0.0.1:${hub.port}/bt/tok0123456789abcdef/net/;`
