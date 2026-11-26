@@ -54,13 +54,23 @@ which make headless SceneGraph testing work:
   seeding, and the `@deviceOnly` annotation.
 
 A plain `npm i -D brighttest` pulls both from npm — there is **no vendoring, no `patch-package`, and no
-postinstall step**. To change engine or framework behavior, edit the corresponding fork
+postinstall step**. Each package is an exact upstream release tag plus a short, ordered queue of patches (branch
+`bt/<upstream-version>` in the fork), published as `<upstream-version>-bt.<N>`; brighttest pins the exact `-bt.N`
+version. Every patch is also offered upstream as its own change, except the local-only ones, and is dropped at the next
+rebase once upstream releases it. brighttest also runs on stock `brs-node` / `rooibos-roku` (`engines` config or
+`BRIGHTTEST_ENGINES`); features that need a missing patch are detected at startup and fall back or are skipped with a
+message, and `doctor --engines` says which build it found (see [Engines and patches](/guide/engines)).
+
+To change engine behavior: open an upstream issue, write the patch in a worktree of the fork
 ([Ramon-Lobo/brs-engine](https://github.com/Ramon-Lobo/brs-engine),
-[Ramon-Lobo/rooibos](https://github.com/Ramon-Lobo/rooibos)), bump its version and publish, then bump the
-dependency here. The forks are being rebuilt as short, documented patch queues on exact upstream tags, so each can be
-rebased and each patch offered upstream on its own; until those releases are published, brighttest depends on the
-earlier fork releases. brighttest already resolves patched or stock engines, and `doctor --engines` says which it
-found. The eventual goal is to upstream these fixes and depend on the stock packages.
+[Ramon-Lobo/rooibos](https://github.com/Ramon-Lobo/rooibos)) on its own branch, add it to the `bt/<version>` queue,
+publish `-bt.<N+1>`, and bump the exact pin here. The eventual goal is to depend on the stock packages.
+
+::: warning One patch is non-device
+`Label.forceUpperCase` (patch `BRS-02`) exists only in the patched headless engine; a real Roku has no such field and
+the patch is never offered upstream. `doctor --engines` marks it `NON-DEVICE` and headless runs warn on each use. Do not
+let specs or shipped code depend on it. Details: [Engines and patches](/guide/engines#non-device-behavior).
+:::
 
 ::: warning Historical sections below
 The sections on `patch-package` and vendored `brs-node` bundles describe the **pre-publication** model.
@@ -303,8 +313,8 @@ This section describes the pre-publication model. `patch-package`, `patches/`, `
 :::
 
 This is the mechanism that lets `@SGNode` node suites run **headless** (in the `--coverage` lane and, by
-extension, `--cross-check`). It's a two-hunk patch to `rooibos-roku`, applied automatically by
-[patch-package](#patch-package-mechanics) on install and living in `patches/rooibos-roku+5.16.4.patch`.
+extension, `--cross-check`). It's a two-hunk patch to `rooibos-roku`, applied by
+patch-package on install. It now lives in the `@ramonlobo/rooibos-roku` fork queue (see [Delivery model](#delivery-model)); the `patches/` file no longer exists.
 
 ### Root cause
 
@@ -468,7 +478,7 @@ bump `brs-node`, re-verify the `FIND` strings still match and re-run the lanes.
 
 ### patch-package mechanics {#patch-package-mechanics}
 
-- `patches/rooibos-roku+5.16.4.patch` is generated with `npx patch-package rooibos-roku` after editing the
+- `patches/rooibos-roku+5.16.4.patch` (removed from this repo) was generated with `npx patch-package rooibos-roku` after editing the
   files under `node_modules/rooibos-roku/dist/...`.
 - `"postinstall": "patch-package"` re-applies it on every `npm install`, so a fresh install of the pristine
   package is re-patched automatically. `patches/` is in the `files` array so it ships with the package.

@@ -191,4 +191,4 @@ reports them as headless-only, not as a divergence.
   any other way (`CreateObject(var)`, `ifHttpAgent` on nodes, video and poster URIs) are not intercepted.
 - Faults model what the device reports, but a headless engine may not give the identical response code for
   `timeout`/`reset` as hardware. Treat them as logic tests, and use the device lane for fidelity.
-- The `tmp:/rt-http-fixtures.json` hook of the old simulator fork is not part of this feature and may go away.
+- The `tmp:/rt-http-fixtures.json` hook of the old simulator fork was removed in the `2.7.1-bt.1` engine. It is not part of this feature, and nothing reads that file.

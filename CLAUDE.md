@@ -18,7 +18,11 @@ Write Rooibos specs once; run **headless** (brs-node simulator, default), **on-d
 
 ## Hard rules
 1. **Never `npm audit fix`.** It downgrades the postman-request chain and reintroduces a critical advisory (see `package.json` `//overrides`).
-2. Engine/framework behavior lives in the forks (`@ramonlobo/brs-node`, `@ramonlobo/rooibos-roku`). Don't patch or vendor in this repo; change the fork, publish, bump the dep.
+2. Engine/framework behavior lives in **patch queues on upstream** (`Ramon-Lobo/brs-engine`, `Ramon-Lobo/rooibos`,
+   branches `bt/<upstream-version>`), published as `@ramonlobo/brs-node` / `@ramonlobo/rooibos-roku`
+   `<upstream>-bt.<N>`. Don't patch or vendor engines in this repo. One fix = one small patch with upstream-style tests
+   = one upstream PR, tracked in `design/patches.json`. New fixes go upstream first. brighttest must also run on stock
+   engines: any behavior that depends on a patch is capability-gated with a fallback (`design/fork-strategy.md` §6).
 3. CLI stays **zero-build, plain CommonJS, minimal runtime deps**. Adding a dependency needs an architect decision record.
 4. Device-lane / e2e / Studio behavior can only be confirmed on a real Roku. If no device is reachable, say so — never claim device verification you didn't do.
 5. Don't push, merge to `main`, publish, or bump versions unless asked. Developer agents MAY commit (Conventional Commits; plain messages with no Claude or co-author trailers, owner decision 2026-11-20) on their own `feat/*`/`fix/*` worktree branches (owner decision OD-03, 2026-11-19); everyone else commits only when asked. Branch off `main` (or the owner-designated base branch); never work on `main` directly.
