@@ -611,6 +611,7 @@ Options:
                         (default 120; 0 disables; config: deviceIdleTimeout; also passed to the Rooibos CLI)
       Engines: env BRIGHTTEST_ENGINES=auto|patched|stock|<package> (or "engines" in brighttest.json)
                         picks the brs-node/rooibos build; env wins over config. Default auto = patched.
+                        A package of the other kind picks the same flavor of this kind.
       --host <ip>       Roku device IP (device mode)
       --password <pw>   Roku developer password (device mode)
       --lcov [path]     Write an LCOV report from the device run (device mode;

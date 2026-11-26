@@ -88,6 +88,19 @@ describe('BRIGHTTEST_ENGINES naming a package', () => {
     expect(viaEnv('brsNode', 'rooibos-roku').name).toBe('brs-node')
     expect(viaEnv('rooibos', 'rooibos-roku').name).toBe('rooibos-roku')
   })
+  it('the not-found hint names the package looked up for this kind', () => {
+    pkg('brs-node', { version: '2.7.0', bin: { 'brs-cli': 'x.js' } })
+    expect(() => E.resolveEngine('rooibos', '@ramonlobo/brs-node', P())).toThrow(/npm i @ramonlobo\/rooibos-roku/)
+    expect(() => E.resolveEngine('brsNode', 'rooibos-roku', P())).not.toThrow()
+    expect(() => E.resolveEngine('rooibos', 'brs-node', P())).toThrow(/npm i rooibos-roku/)
+  })
+  it('no false override when env and config pick the same package for the kind', () => {
+    const env = { BRIGHTTEST_ENGINES: '@ramonlobo/brs-node' }
+    expect(E.engineMode('brsNode', { env, cfg: { engines: { brsNode: '@ramonlobo/brs-node' } } }).overrides).toBeNull()
+    expect(E.engineMode('brsNode', { env, cfg: { engines: { brsNode: 'patched' } } }).overrides).toBeNull()
+    expect(E.engineMode('rooibos', { env, cfg: { engines: { rooibos: '@ramonlobo/rooibos-roku' } } }).overrides).toBeNull()
+    expect(E.engineMode('brsNode', { env, cfg: { engines: { brsNode: 'stock' } } }).overrides).toBe('stock')
+  })
   it('unset env still resolves auto (patched first)', () => {
     both()
     expect(E.engineFor('rooibos', {}, { ...P(), env: {} }).name).toBe('@ramonlobo/rooibos-roku')

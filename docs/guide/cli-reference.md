@@ -59,7 +59,7 @@ feature; nothing on this page is a claim of device verification.
 Exit codes: `0` all tests passed, `1` a failure (including a crashed test, a device run with no result line, a
 timeout or idle abort), `2` usage or engine-resolution error (an unreadable `brighttest.json` currently exits 1; a `--config` path that does not exist is ignored and the defaults are used), and the lease codes `75`, `77`, `78`
 ([device lease](/guide/device-lease#exit-codes)). The engine build is chosen by `BRIGHTTEST_ENGINES`
-(`auto|patched|stock|<package>`) or `engines` in `brighttest.json`; the environment wins.
+(`auto|patched|stock|<package>`) or `engines` in `brighttest.json`; the environment wins. A package name of the other engine kind picks the same flavor of this kind.
 
 Device-lane header: the device lane prints `building, deploying to <host>, and running…` and never prints the serial number.
 
@@ -329,7 +329,7 @@ every 30 s (details in the lease guide). `device reset` is described in [Resetti
 | `BRIGHTTEST_HOOK_TIMEOUT_MS` | `device hook` | Hook time budget in ms (default 4000) |
 | `BRIGHTTEST_NO_LEASE=1` | lease | Same as `--no-lease`; never for agents |
 | `BRIGHTTEST_LEASE_NO_FOREGROUND_CHECK=1` | lease | Turn off the foreground advisory |
-| `BRIGHTTEST_ENGINES` | all lanes | `auto`, `patched`, `stock` or a package name; wins over config |
+| `BRIGHTTEST_ENGINES` | all lanes | `auto`, `patched`, `stock` or a package name (a package of the other engine kind picks the same flavor of this kind); wins over config |
 | `BRIGHTTEST_HUB_TOKEN` | instrument, e2e, mcp, studio | 32 hex hub token shared by the build and the hub |
 | `BRIGHTTEST_DOCTOR_HUB_PROBE=1` | doctor | Opt in to the device-to-hub reach probe (needs `ROKU_PASSWORD`; replaces the dev channel) |
 | `BRIGHTTEST_CACHE` | devices | Device cache path (default `~/.brighttest/devices.json`) |
