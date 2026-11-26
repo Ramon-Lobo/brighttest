@@ -1,0 +1,8 @@
+title=RSG Probe Core
+major_version=1
+minor_version=2
+build_version=3
+subtitle=probe
+custom_key=custom_value
+bs_const=FOO=true
+ui_resolutions=fhd

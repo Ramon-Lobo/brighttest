@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="ProbeTask" extends="Task">
+  <script type="text/brightscript" uri="pkg:/components/ProbeTask.brs" />
+  <interface>
+    <field id="input" type="integer" />
+    <field id="output" type="string" />
+    <field id="progress" type="integer" />
+  </interface>
+</component>

@@ -1,0 +1,98 @@
+name: Upstream canary
+
+# Early warning: builds upstream master of brs-engine and rooibos from a read-only anonymous clone and runs
+# brighttest's integration suite and example apps against them, before a release lands.
+#
+# Contact with upstream is limited to `git clone` of two public repositories. This workflow holds no token,
+# uses no secrets, and never opens, comments on, changes or pushes to anything upstream. The result goes to
+# this run's job summary and status; there is no tracking issue because creating one needs a token.
+#
+# Manual only. The nightly schedule below stays commented out until the owner approves enabling it.
+on:
+  workflow_dispatch:
+  # schedule:
+  #   - cron: "43 3 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: upstream-canary
+  cancel-in-progress: true
+
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      BRIGHTTEST_ENGINES: stock
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+
+      - name: Clone upstream master (read-only, anonymous)
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/upstream"
+          git clone --depth 1 --branch master https://github.com/lvcabral/brs-engine.git "$RUNNER_TEMP/upstream/brs-engine"
+          git clone --depth 1 --branch master https://github.com/rokucommunity/rooibos.git "$RUNNER_TEMP/upstream/rooibos"
+          for r in brs-engine rooibos; do
+            echo "$r $(git -C "$RUNNER_TEMP/upstream/$r" rev-parse --short HEAD)" | tee -a "$RUNNER_TEMP/upstream/heads.txt"
+          done
+
+      - name: Build and pack brs-engine
+        working-directory: ${{ runner.temp }}/upstream/brs-engine
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm run build
+          npm pack --pack-destination "$RUNNER_TEMP/upstream"
+
+      - name: Build and pack rooibos
+        working-directory: ${{ runner.temp }}/upstream/rooibos
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm run build
+          npm pack --pack-destination "$RUNNER_TEMP/upstream"
+
+      - name: Install the upstream builds as the stock engines
+        run: |
+          set -euo pipefail
+          npm install --no-save --no-audit --no-fund "$RUNNER_TEMP"/upstream/*.tgz
+          node bin/cli.js doctor --engines | head -3
+
+      - name: Unit tests
+        run: npm run test:unit
+
+      - name: Integration tests
+        run: npm run test:integration
+
+      - name: Example apps
+        run: |
+          set -euo pipefail
+          cli="$GITHUB_WORKSPACE/bin/cli.js"
+          scratch="$(mktemp -d)"
+          for app in sample-app streaming-app; do
+            cp -R "examples/$app" "$scratch/$app"
+            (cd "$scratch/$app" && timeout 600 node "$cli")
+          done
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "### upstream-canary: ${{ job.status }}"
+            echo
+            echo "Upstream master heads built (read-only clone):"
+            echo '```'
+            cat "$RUNNER_TEMP/upstream/heads.txt" 2>/dev/null || echo "clone did not complete"
+            echo '```'
+            echo "No upstream issue or PR is created or touched. Re-run after fixing, or compare against the last green run."
+          } >> "$GITHUB_STEP_SUMMARY"
