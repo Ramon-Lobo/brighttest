@@ -49,7 +49,9 @@ describe('using-brighttest-mcp skill matches the MCP server (TP-MCP-15)', () => 
 
   test('every error code named exists in the server', () => {
     const src = fs.readFileSync(path.join(__dirname, '..', 'lib', 'mcp', 'server.js'), 'utf8') +
-      fs.readFileSync(path.join(__dirname, '..', 'lib', 'mcp', 'tools.js'), 'utf8');
+      fs.readFileSync(path.join(__dirname, '..', 'lib', 'mcp', 'tools.js'), 'utf8') +
+      fs.readFileSync(path.join(__dirname, '..', 'lib', 'mcp', 'state-tools.js'), 'utf8') +
+      fs.readFileSync(path.join(__dirname, '..', 'lib', 'e2e', 'state-steps.js'), 'utf8'); // STATE_CMD_FAILED / STATE_ACK_TIMEOUT pass through from the state layer
     const sect = SKILL.slice(SKILL.indexOf('## Typed errors'), SKILL.indexOf('## Suggested loop'));
     const codes = ticks(sect).filter((c) => /^[A-Z_]+$/.test(c));
     expect(codes.length).toBeGreaterThan(10);

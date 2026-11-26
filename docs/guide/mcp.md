@@ -31,12 +31,15 @@ Set `ROKU_HOST` explicitly in the MCP server configuration, and use `list_device
 | `navigate_to` | Move focus onto the first node matching a `selector`; returns the keys pressed and the focused node. |
 | `screenshot` | Inline image of the sideloaded app (dev channel in front). |
 | `app_state` | The app's self-published state from an instrumented build: the `__bt_agent` node (global, scene and focus layers) first, else the legacy `__bt_state` node. |
+| `app_state_get` | Read the agent's published layers over ECP, narrowed by `layer` (global, scene, focus) and a dotted `path`. Needs no hub and never opens the window. |
+| `app_state_set` | Write one value in the running instrumented app (`layer`, `path`, `value`, optional `node`, `ack`) through the agent's allow-list and type checks. Opens the session hub window. |
+| `app_state_snapshot` | Take a named snapshot of the state layers through the agent and return them (capped at 128 KB, never truncated). The snapshot lives only for the call. Opens the session hub window. |
 | `run_flow` | Run one `*.e2e.yaml` (or `*.e2e.yml`) flow from the project; returns per-step results. |
 | `net_requests` | Requests seen by the session's net proxy (method, url, status, duration, `mocked`), with credentials redacted. Filters: `method`, `url` glob, `status`; `limit` caps the output. |
 | `net_mock` | Answer requests that match a `url` glob (and optional `method`) with a canned status and JSON or text body. The mock lasts until the session ends. |
 
-::: warning Net tools: the net window
-The first `net_requests` or `net_mock` call opens a **net window**: the session takes one device lease for the whole
+::: warning Session hub window (net tools and state writes)
+The first `net_requests`, `net_mock`, `app_state_set` or `app_state_snapshot` call opens the **session hub window**: the session takes one device lease for the whole
 window and starts its own hub on the configured hub port (`instrument.hub.port`, default 8790). The app sees live
 traffic only through this session hub, so the build must point at the same host and port. `net_requests` shows the
 hub (`hub`: `host`, `port`, `leaseId`, `startedAt`) while the window is open, and `null` otherwise. `leaseId` is only the
@@ -60,6 +63,21 @@ new window. If the hub cannot start (for example its port is in use), the window
 [network recipe](./network-recipe) for the manual alternatives, including the observe-only `[bt:net]` breadcrumbs
 (`instrument.net.observe: true`).
 
+**State writes in the window.** `app_state_set` and `app_state_snapshot` need a build made with
+`instrument build --net` and `BRIGHTTEST_HUB_TOKEN` in the server environment (same value as the build; without it they
+fail with `STATE_NO_HUB_TOKEN` before any lease is taken). The first write checks that the running app publishes the
+`__bt_agent` node (`STATE_NOT_INSTRUMENTED` otherwise, no hub started, no session lease held), opens the window, and
+**waits up to 35 s for the app's agent to connect**: the agent dials the hub on its own 30 s retry, so the first write
+can take that long. The call budget is 45 s (30 s for the other tools). Later writes in the same window find the agent
+connected and return in about the time of the ack. If the agent never dials, the call fails with
+`STATE_AGENT_UNREACHABLE` (check the baked token, port and LAN address; `brighttest doctor` with
+`BRIGHTTEST_DOCTOR_HUB_PROBE=1` probes hub reach) and the window stays open until its idle timeout, so a fixed build can
+still connect. If it connected and then stopped polling (the app exited), the call fails with `STATE_AGENT_GONE`.
+The app's network is untouched unless a net tool runs: a window opened by a state write starts the hub without the
+proxy and the hub answers the app's net hellos as inactive; the first `net_*` call in the window mounts the proxy.
+The app is neither relaunched nor sent to Home. `app_state_get` never opens a window: it takes a command lease per call
+outside a window and reuses the window's lease inside one.
+
 Both tools mask headers and query values with the defaults plus your `instrument.net.redact` config, and drop
 `user:password@` from URLs. Limits: URL globs are at most 256 characters with at most 8 `*` (`NET_PATTERN_TOO_COMPLEX`),
 `net_requests` output is capped at 128 KB (`NET_OUTPUT_TOO_LARGE`, narrow the filters), and a session accepts at most 100
@@ -80,11 +98,11 @@ requests use JSON-RPC errors instead (`-32602` for bad arguments or an unknown t
 | `NO_DEVICE` | No device is configured: none of `ROKU_HOST`, a project `.env` or the device cache gave one. |
 | `DEVICE_UNREACHABLE` | `device_doctor` could not reach the device (`checks` is in the error data). |
 | `DEVICE_BUSY` | Another brighttest session holds the device lease; no request was sent. Retry later. |
-| `LEASE_LOST` | The lease is no longer held (taken over, expired, or lost during a net window); the call is stopped. |
+| `LEASE_LOST` | The lease is no longer held (taken over, expired, or lost during the session hub window); the call is stopped. |
 | `LEASE_DIR_UNUSABLE` | The lease directory cannot be used (permissions, disk). |
 | `LEASE_FAILED` | Taking the lease failed for any other reason. |
 | `QUEUE_TIMEOUT` | The call waited over 30 s behind earlier calls of the session and was dropped before it ran. |
-| `TOOL_TIMEOUT` | The call exceeded its run budget (30 s, 120 s for `run_flow`) and was stopped. |
+| `TOOL_TIMEOUT` | The call exceeded its run budget (30 s, 45 s for the state write tools, 120 s for `run_flow`) and was stopped. |
 | `SESSION_CLOSED` | The client closed the session (stdin) while the call was running. |
 | `ECP_TIMEOUT` | A device request timed out and no more specific code applied. |
 | `TOOL_FAILED` | Any other failure without a typed code. |
@@ -97,6 +115,12 @@ requests use JSON-RPC errors instead (`-32602` for bad arguments or an unknown t
 | `SCREENSHOT_NOT_FOREGROUND` | `screenshot` was refused because the dev channel is not in front. |
 | `SCREENSHOT_TOO_LARGE` | The screenshot is over the 2 MB cap; nothing is truncated. |
 | `STATE_NOT_PUBLISHED` | `app_state` found no `__bt_agent` or `__bt_state` node (the build is not instrumented). |
+| `STATE_NO_HUB_TOKEN` | `app_state_set` or `app_state_snapshot` without a valid `BRIGHTTEST_HUB_TOKEN` in the server environment; no lease taken, no request sent. |
+| `STATE_NOT_INSTRUMENTED` | A state write found no `__bt_agent` node in the running app (not instrumented, or not running); no hub started. |
+| `STATE_AGENT_UNREACHABLE` | The agent node is published but did not connect to the session hub within 35 s; the window stays open. |
+| `STATE_AGENT_GONE` | The agent connected earlier and has stopped polling the session hub (the app exited or restarted). |
+| `STATE_CMD_FAILED` | The agent refused the write (allow-list, type mismatch) or the command failed; the app keeps running. |
+| `STATE_ACK_TIMEOUT` | The agent did not acknowledge the command in time. |
 | `STATE_UNREADABLE` | A state node is published but cannot be read. |
 | `APP_STATE_TOO_LARGE` | The app state is over the 128 KB cap; nothing is truncated. |
 | `PATH_REJECTED` | `run_flow` path is absolute, has `..`, leaves the project through a symlink, is not `*.e2e.yaml` or `*.e2e.yml`, or the project root is unreadable. |
@@ -104,7 +128,7 @@ requests use JSON-RPC errors instead (`-32602` for bad arguments or an unknown t
 | `FLOW_INVALID` | The flow file does not parse or fails validation. |
 | `FLOW_BUDGET_EXHAUSTED` | The session's 10 flow-run cap is used up. |
 | `FLOW_FAILED` | A step failed; the data holds the per-step summary and `failedStep`. A flow skipped by `requires:` is not an error: the result carries `skipped`. |
-| `NET_FAILED` | The net window or session hub could not start (for example the hub port is in use) or the proxy errored. |
+| `NET_FAILED` | The session hub window or hub could not start (for example the hub port is in use) or the proxy errored. |
 | `NET_BAD_FILTER` | `net_requests` got a filter the proxy rejects (an out-of-range `status` or `limit` is a `-32602` error). Defensive; not expected once schema validation passed. |
 | `NET_PATTERN_TOO_COMPLEX` | A URL glob has more than 8 `*` (a glob over 256 characters is a `-32602` error). |
 | `NET_OUTPUT_TOO_LARGE` | The request list is over 128 KB; narrow the filters. |
@@ -119,9 +143,9 @@ A typed code raised by the flow or state layer inside `run_flow`, `inspect_tree`
 ## Safety limits
 
 - **Lease, per call.** Each device-touching call (`press`, `navigate_to`, `inspect_tree`, `screenshot`, `app_state`,
-  `run_flow`) takes the [device lease](./device-lease) when it starts and releases it when it ends, also on error and
-  on timeout (outside a net window; `net_requests` and `net_mock` always run inside a net window and open one if none is
-  open). Nothing is held between calls, so a human or another agent can use the device in between. If another
+  `app_state_get`, `run_flow`) takes the [device lease](./device-lease) when it starts and releases it when it ends, also on error and
+  on timeout (outside the session hub window; `net_requests`, `net_mock`, `app_state_set` and `app_state_snapshot` always run inside
+  it and open it if none is open). Nothing is held between calls, so a human or another agent can use the device in between. If another
   party holds it, the call fails at once with `DEVICE_BUSY` and sends no request. A lost lease becomes a `LEASE_LOST`
   tool error; the server never exits because of the lease. `list_devices` and `device_doctor` are read-only and take
   no lease.
@@ -129,7 +153,7 @@ A typed code raised by the flow or state layer inside `run_flow`, `inspect_tree`
   A call that waits more than 30 s behind earlier ones is dropped with `QUEUE_TIMEOUT` and never runs. Keypresses are
   never retried after a 5xx or a timeout, since the device may already have acted on them. `press` also keeps a
   250 ms gap between presses of the session.
-- **Timeouts stop the work.** The run budget starts when a call gets its turn: 30 s (120 s for `run_flow`). On
+- **Timeouts stop the work.** The run budget starts when a call gets its turn: 30 s (45 s for `app_state_set` and `app_state_snapshot`, 120 s for `run_flow`). On
   `TOOL_TIMEOUT` (or when the client closes stdin) no further device request is sent for that call. A request already
   in flight may still finish, so the lease is released only after it has ended (up to about 12 s), never while
   such a request could still reach the device.
