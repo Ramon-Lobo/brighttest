@@ -73,6 +73,27 @@ describe('engineMode precedence', () => {
   })
 })
 
+describe('BRIGHTTEST_ENGINES naming a package', () => {
+  const both = () => {
+    pkg('@ramonlobo/brs-node', { version: '2.7.0-bt.1', bin: { 'brs-cli': 'x.js' }, brighttest: STAMP })
+    pkg('brs-node', { version: '2.7.0', bin: { 'brs-cli': 'x.js' } })
+    pkg('@ramonlobo/rooibos-roku', { version: '5.17.0-bt.1', bin: { rooibos: 'x.js' }, brighttest: { patches: {} } })
+    pkg('rooibos-roku', { version: '5.17.0', bin: { rooibos: 'x.js' } })
+  }
+  const viaEnv = (kind, name) => E.engineFor(kind, {}, { ...P(), env: { BRIGHTTEST_ENGINES: name } })
+  it('each kind resolves its own package of the named flavor', () => {
+    both()
+    expect(viaEnv('brsNode', '@ramonlobo/brs-node').name).toBe('@ramonlobo/brs-node')
+    expect(viaEnv('rooibos', '@ramonlobo/brs-node').name).toBe('@ramonlobo/rooibos-roku')
+    expect(viaEnv('brsNode', 'rooibos-roku').name).toBe('brs-node')
+    expect(viaEnv('rooibos', 'rooibos-roku').name).toBe('rooibos-roku')
+  })
+  it('unset env still resolves auto (patched first)', () => {
+    both()
+    expect(E.engineFor('rooibos', {}, { ...P(), env: {} }).name).toBe('@ramonlobo/rooibos-roku')
+  })
+})
+
 describe('banner', () => {
   it('names name, version and flavor for both engines; marks non-device and env override', () => {
     pkg('@ramonlobo/brs-node', { version: '2.7.0-bt.1', brighttest: STAMP })
