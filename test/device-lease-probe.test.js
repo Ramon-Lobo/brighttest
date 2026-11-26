@@ -176,3 +176,58 @@ describe('fake ECP on loopback', () => {
     view.close();
   });
 });
+
+describe('probe scope (stale history is not probed)', () => {
+  const NOW = Date.parse('2026-11-25T12:00:00.000Z');
+  const DAY = 24 * 3600 * 1000;
+
+  it('shouldProbe: held, queued, configured, recent history, stale history, --no-probe', () => {
+    const base = { held: false, configured: false, newest: 0, now: NOW, noProbe: false };
+    expect(V.shouldProbe({ ...base, held: true })).toBe(true); // held or queued (busy)
+    expect(V.shouldProbe({ ...base, configured: true })).toBe(true);
+    expect(V.shouldProbe({ ...base, newest: NOW - DAY + 1000 })).toBe(true);
+    expect(V.shouldProbe({ ...base, newest: NOW - DAY - 1000 })).toBe(false);
+    expect(V.shouldProbe(base)).toBe(false);
+    expect(V.shouldProbe({ ...base, newest: NaN })).toBe(false);
+    expect(V.shouldProbe({ ...base, held: true, configured: true, noProbe: true })).toBe(false);
+  });
+
+  const stale = (dir, key, ageMs) => {
+    fs.mkdirSync(path.join(dir, key), { recursive: true });
+    const f = path.join(dir, key, 'events.log');
+    fs.writeFileSync(f, JSON.stringify({ ev: 'released', ts: new Date(NOW - ageMs).toISOString() }) + '\n');
+    const t = new Date(NOW - ageMs);
+    fs.utimesSync(f, t, t);
+  };
+
+  it('a stale-only key is listed as idle, not probed, with no fetch; a configured one is probed', async () => {
+    const dir = mkdir();
+    stale(dir, '203.0.113.9', 3 * DAY);
+    stale(dir, '203.0.113.8', 3 * DAY);
+    const f = okFetch();
+    const view = V.createView({ dir, env: {}, now: () => NOW, hostname: 'h', knownDevices: () => [{ host: '203.0.113.8', name: 'cfg' }],
+      prober: V.createProber({ fetchImpl: f, now: () => NOW }) });
+    const snap = view.snapshot({ all: true });
+    await view.settle();
+    const byHost = Object.fromEntries(snap.devices.map((d) => [d.hosts[0], d]));
+    expect(byHost['203.0.113.9']).toBeTruthy();
+    expect(byHost['203.0.113.9'].reach).toEqual({ state: 'unknown', at: null, idle: true });
+    const urls = f.mock.calls.map((c) => c[0]);
+    expect(urls.some((u) => u.includes('203.0.113.9'))).toBe(false);
+    expect(urls.some((u) => u.includes('203.0.113.8'))).toBe(true);
+    view.close();
+  });
+
+  it('an explicit --host is probed, malformed keys do not crash', async () => {
+    const dir = mkdir();
+    stale(dir, '203.0.113.9', 3 * DAY);
+    fs.mkdirSync(path.join(dir, 'not a key!!'), { recursive: true });
+    const f = okFetch();
+    const view = V.createView({ dir, env: {}, now: () => NOW, hostname: 'h', knownDevices: () => [],
+      prober: V.createProber({ fetchImpl: f, now: () => NOW }) });
+    expect(() => view.snapshot({ all: true })).not.toThrow();
+    view.snapshot({ host: '203.0.113.9' }); await view.settle();
+    expect(f.mock.calls.some((c) => c[0].includes('203.0.113.9'))).toBe(true);
+    view.close();
+  });
+});

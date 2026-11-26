@@ -64,7 +64,9 @@ npx brighttest device watch --host 192.168.1.50 --interval 5s --tail 20 --all
 waiting line with estimates, and the recent runs with wait time, hold time and how each ended. It never takes,
 changes or cleans a lease. Its one network call is a reachability probe: `GET /query/device-info` with a 1 second
 bound, at most once per device every 30 seconds, never a lease or a `device` command (`--once` and `--json` run one
-probe pass first). `--no-probe` makes no connection at all and the column reads "not probed".
+probe pass first). Only a device that is held or queued, configured (`devices.json`, `deviceLease.pool`, `ROKU_HOST`,
+`--host`) or held within the last 24 hours is probed; a device that exists only as older lease history is still listed
+but reads "idle, not probed". `--no-probe` makes no connection at all and the column reads "not probed".
 
 The interactive screen keeps Studio's look (alternate screen, the Studio palette in truecolor with 256 and 16 color
 fallbacks, `NO_COLOR` honoured). Keys: arrows or `j`/`k` move, `enter` or `tab` switch pane, `a` shows all keys,
