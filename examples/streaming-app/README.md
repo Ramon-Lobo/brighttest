@@ -82,8 +82,8 @@ node via `BTState_publish`. brighttest reads it back: `e2e inspect` prints an **
 shows a **State** tab and per-step state in the run trace, and flows assert on it:
 
 ```yaml
-- assertState: { path: current, equals: SearchPanel }
-- assertState: { path: global.lastverb, equals: search }
+- assertState: { layer: global, path: lastVerb, equals: search }
+- assertState: { layer: global, path: titleCount, equals: 7 }
 ```
 
 See [App state](../../docs/e2e/app-state.md) for the full story. The `StateProbe` `@SGNode` suite proves
