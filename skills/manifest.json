@@ -1,6 +1,6 @@
 {
   "schema": "brighttest-skills/v2",
-  "cliVersion": "0.7.0",
+  "cliVersion": "0.8.0-rc.0",
   "skills": [
     {
       "name": "adopting-brighttest",
