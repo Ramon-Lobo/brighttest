@@ -387,3 +387,43 @@ describe('instrument.enabled on a scratch copy of the legacy example app', () =>
     expect(exists(dir, '.brighttest')).toBe(false)
   })
 })
+
+describe('--no-sgnode keeps helpers defined in a plain source/main.brs callable', () => {
+  let res, dir
+  beforeAll(() => {
+    dir = makeProject()
+    fs.writeFileSync(path.join(dir, 'source', 'main.brs'), [
+      'sub Main()',
+      '  print "app main"',
+      'end sub',
+      'function AppHelper(x as integer) as integer',
+      '  return x * 10',
+      'end function',
+      '',
+    ].join('\n'))
+    fs.writeFileSync(path.join(dir, 'source', 'tests', 'Helper.spec.bs'), [
+      'namespace tests',
+      '  @suite("helper")',
+      '  class HelperTests extends rooibos.BaseTestSuite',
+      '    @describe("h")',
+      '    @it("calls a helper from main.brs")',
+      '    function _()',
+      '      m.assertEqual(AppHelper(2), 20)',
+      '    end function',
+      '  end class',
+      'end namespace',
+      '',
+    ].join('\n'))
+    res = runCli(dir, ['--no-sgnode'])
+  })
+
+  it('runs the spec and passes (no "non-function" crash)', () => {
+    expect(res.output).not.toContain('attempted on non-function')
+    expect(res.output).toContain('✓ h > calls a helper from main.brs')
+    expect(res.status).toBe(0)
+  })
+
+  it('leaves the project main.brs untouched', () => {
+    expect(readFile(dir, 'source/main.brs')).toContain('sub Main()')
+  })
+})
