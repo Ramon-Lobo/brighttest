@@ -163,6 +163,9 @@ does with what its `package.json#brighttest` metadata claims. No device is conta
 the patch and both values), 2 when no engine is installed. An engine without a stamp has no metadata to
 compare, so its probe column is shown as the evidence only.
 
+The probe app is **host-only** (`brighttest_host_only=1` in its manifest). It checks patched-engine behavior and creates
+nodes without a scene, which crashes a real Roku, so its `Main` prints a refusal and exits when it is not on the headless engine.
+
 `BRS-02` (`Label.forceUpperCase`) is a **non-device** capability: a headless convenience that a real Roku
 does not have. The table marks it NON-DEVICE, and any headless run on an engine that has it prints a warning
 on stderr for each use in your sources, for example

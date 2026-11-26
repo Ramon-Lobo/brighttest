@@ -2,3 +2,4 @@ title=engine-caps probe
 major_version=1
 minor_version=0
 build_version=0
+brighttest_host_only=1

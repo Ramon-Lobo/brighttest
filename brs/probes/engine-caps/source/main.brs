@@ -2,7 +2,14 @@
 ' Run by `brighttest doctor --engines` with the resolved brs-cli. Keep it tiny: it must finish in about 2 s.
 ' Probes follow design fork-strategy.md section 6.2. Rooibos patches are not probed here (build-time checks).
 
+' HOST-ONLY: this app checks patched-engine behavior (BRS-02 is a field a real Roku does not have) and creates Label/Group/Poster
+' nodes straight from Main with no scene, which crashes a real Roku. Do not sideload it; Main refuses on a device.
 sub Main()
+    if not CAP_IsHostEngine() then
+        print "engine-caps probe is host-only: it checks the headless brs engine and must not run on a Roku device. Not running."
+        return
+    end if
+
     ' BRS-01: assigning invalid to a string field yields the scalar default ("")
     n = CreateObject("roSGNode", "Node")
     n.addFields({ s: "abc" })
@@ -36,3 +43,9 @@ sub CAP_Print(id as string, ok as dynamic)
     if ok = true then v = 1
     print "CAP " + id + " " + v.toStr()
 end sub
+
+' The headless engine reports this fixed friendly name; a real Roku reports the user's device name.
+function CAP_IsHostEngine() as boolean
+    di = CreateObject("roDeviceInfo")
+    return di <> invalid and di.getFriendlyName() = "BrightScript Engine Library"
+end function
