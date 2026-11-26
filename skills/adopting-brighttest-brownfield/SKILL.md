@@ -66,6 +66,8 @@ suggested `rootDir` and `sourceGlobs`).
 
 Follow `references/first-green-run.md`: write 3 meaningful specs for pure functions, run `npx brighttest
 --no-sgnode`, read the pass count (zero tests is not green), flip one expectation to see a failure, restore it.
+Before handing off, work through its "Before you hand off, all of these" checklist: the `.env` ignore check, the
+engine smoke step with one bounded default run, and at least 3 new specs even when the app already ships specs.
 
 ## Step 5: characterization tests first, then seams
 
