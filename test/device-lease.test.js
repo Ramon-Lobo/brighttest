@@ -171,6 +171,28 @@ describe('acquire / release', () => {
     expect(rel[1]).not.toHaveProperty('exitCode') // no code given: the field is absent
   })
 
+  it('three acquirers: the second waiter records queuedAhead 1', async () => {
+    const a = await acquire(opts({ agent: 'a' }))
+    const nap = async (ms) => { clock.t += ms; await new Promise((r) => setTimeout(r, 2)) }
+    const evs = () => events().filter((e) => e.ev === 'queued')
+    const until = async (n) => { const end = Date.now() + 5000; while (evs().length < n && Date.now() < end) await new Promise((r) => setTimeout(r, 5)) }
+    let b = null; let c = null
+    const pb = acquire(opts({ pid: 1002, pidStartValue: 'start-1002', agent: 'b', sleep: nap })).then((l) => { b = l })
+    await until(1)
+    clock.t += 50
+    const pc = acquire(opts({ pid: 1003, pidStartValue: 'start-1003', agent: 'c', sleep: nap })).then((l) => { c = l })
+    await until(2)
+    a.release()
+    await pb
+    b.release()
+    await pc
+    c.release()
+    const q = events().filter((e) => e.ev === 'queued')
+    expect(q.map((e) => [e.agent, e.queuedAhead])).toEqual([['b', 0], ['c', 1]])
+    const acq = events().filter((e) => e.ev === 'acquired')
+    expect(acq.map((e) => [e.agent, e.queuedAhead])).toEqual([['a', 0], ['b', 0], ['c', 1]])
+  })
+
   it('F1: two acquirers on a free device — one links, the other queues then gets it', async () => {
     const a = await acquire(opts({ agent: 'a' }))
     let b = null

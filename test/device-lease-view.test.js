@@ -168,6 +168,27 @@ describe('board from a fixture lease dir', () => {
     expect(runs.find((r) => r.leaseId8 === 'oldoldol')).toMatchObject({ exitCode: null, queuedAhead: null });
   });
 
+  it('a dual-key run keeps the largest queuedAhead across its legs', () => {
+    const dir = mk();
+    const idKey = ID_A;
+    const adKey = '192.0.2.10';
+    fs.writeFileSync(path.join(dir, 'identity-cache.json'), JSON.stringify({ [adKey]: ID_A }));
+    const a = { leaseId: 'dualdual1', agent: 'a', purpose: 'with x' };
+    putEvents(dir, idKey, [
+      ev('queued', 700000, { ...a, queuedAhead: 2 }),
+      ev('acquired', 600000, { ...a, waitedMs: 100000, queued: true, queuedAhead: 2 }),
+      ev('released', 500000, { ...a, heldMs: 100000, exitCode: 0 }),
+    ]);
+    putEvents(dir, adKey, [
+      ev('acquired', 599000, { ...a, waitedMs: 0, queuedAhead: 0 }),
+      ev('released', 500000, { ...a, heldMs: 99000, exitCode: 0 }),
+    ]);
+    const runs = view(dir).snapshot({ all: true }).devices.flatMap((d) => d.runs).filter((r) => r.leaseId8 === 'dualdual');
+    expect(runs.length).toBeGreaterThan(0);
+    expect(Math.max(...runs.map((r) => r.queuedAhead))).toBe(2);
+    expect(runs.every((r) => r.queuedAhead === 2)).toBe(true);
+  });
+
   it('--all shows hidden keys; --host filters', () => {
     const { dir } = fixture();
     const all = view(dir).snapshot({ all: true });

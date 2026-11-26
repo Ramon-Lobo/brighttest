@@ -34,10 +34,11 @@ function fakeChild({ out = '', err = '', code = 0, delay = 5, fail = false } = {
   }, delay)
   return c
 }
+const releaseArgs = []
 const stubLease = () => ({
   leaseId: 'x', reentrant: false,
   addChild: (pid) => log.push(`addChild ${pid}`),
-  release: () => log.push('release'),
+  release: (...a) => { log.push('release'); releaseArgs.push(a) },
 })
 const acquireOk = (lease = stubLease()) => async (o) => { log.push(`acquire ${o.host}`); return { lease } }
 const opts = { host: '127.0.0.1', password: 'pw' }
@@ -47,6 +48,12 @@ describe('device lane under the lease', () => {
     const spawn = (...a) => { log.push('spawn'); return fakeChild({ out: '[Rooibos Result]\n' }) }
     await device.run(cfg, opts, { homeBeforeDeploy: async () => null, acquireForLane: acquireOk(), spawn })
     expect(log).toEqual(['acquire 127.0.0.1', 'spawn', 'addChild 4242', 'release'])
+  })
+
+  it('releases with the lane exit code (rooibos fail -> 1)', async () => {
+    releaseArgs.length = 0
+    const code = await device.run(cfg, opts, { homeBeforeDeploy: async () => null, acquireForLane: acquireOk(), spawn: () => fakeChild({ out: '[Rooibos Result]\n' }) })
+    expect(releaseArgs).toEqual([[undefined, { exitCode: code }]])
   })
 
   it('releases when the child fails to start', async () => {
@@ -149,6 +156,35 @@ describe('acquireForLane', () => {
     const b = await deviceCommand.acquireForLane({ cfg, opts: { wait: '0' }, host: '127.0.0.1', env: env() })
     expect(b).toEqual({ code: 75 })
     a.lease.release()
+  })
+})
+
+describe('device with: the exit code is recorded on released', () => {
+  const run = async (cmd) => {
+    const prev = process.env.BRIGHTTEST_LEASE_DIR
+    process.env.BRIGHTTEST_LEASE_DIR = path.join(dir, 'leases')
+    try {
+      const code = await deviceCommand.run({ deviceAction: 'with', host: '127.0.0.1', noHygiene: true, wait: '0', cmd }, cfg)
+      const evs = fs.readdirSync(path.join(dir, 'leases')).flatMap((k) => fs.readFileSync(path.join(dir, 'leases', k, 'events.log'), 'utf8').trim().split('\n').map((l) => JSON.parse(l)))
+      return { code, released: evs.filter((e) => e.ev === 'released') }
+    } finally {
+      if (prev === undefined) delete process.env.BRIGHTTEST_LEASE_DIR; else process.env.BRIGHTTEST_LEASE_DIR = prev
+    }
+  }
+  it('child exit 3 -> released.exitCode 3', async () => {
+    const r = await run([process.execPath, '-e', 'process.exit(3)'])
+    expect(r.code).toBe(3)
+    expect(r.released[0]).toMatchObject({ exitCode: 3 })
+  })
+  it('a spawn that throws synchronously -> released.exitCode 127', async () => {
+    const r = await run(['bad\0command'])
+    expect(r.code).toBe(127)
+    expect(r.released[0]).toMatchObject({ exitCode: 127 })
+  })
+  it('a command that cannot start -> released.exitCode 127', async () => {
+    const r = await run(['/nonexistent/brighttest-no-such-cmd'])
+    expect(r.code).toBe(127)
+    expect(r.released[0]).toMatchObject({ exitCode: 127 })
   })
 })
 
