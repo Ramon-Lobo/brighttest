@@ -218,13 +218,14 @@ values from a Roku Ultra (model `4850X`, 1080p UI, Wi-Fi):
 | `connectionType` | `WiredConnection`, `WiFiConnection` | `WiFiConnection` |
 | `locale` | any `xx_YY` string, e.g. `fr_CA` | engine default (`en_US`) |
 | `osVersion` | the engine's encoded firmware string, e.g. `48G.04E05531A` (15.0.4 build 5531) | engine default |
+| `friendlyName` | any non-empty string | engine default |
+| `country` | two-letter uppercase code, e.g. `CA` (reported as the country code) | engine default |
 
 Limits to know:
 
-- **Scene lanes ignore the block.** The block applies to the SceneGraph-off lane only. `@SGNode` specs and
-  `--coverage` run on the scene lanes, which keep the engine identity (`8000X`, 720p, wired). Adding one `@SGNode`
-  spec moves the whole project to the scene lane, so the identity changes with it. Applying the block to the scene
-  lanes is an open follow-up.
+- **Scene lanes need a patched engine.** `@SGNode` specs and `--coverage` run on the scene lanes, which pass the block to
+  the engine with `--device-data`. That flag exists only in the patched `@ramonlobo/brs-node` (2.7.1-bt.1 or later); on a
+  stock engine brighttest prints a one-time warning and the scene lanes keep the engine identity (`8000X`, 720p, wired).
 - **`model` cannot simulate a TV.** The engine's models table is not available on this path, so `GetModelType` is
   always `STB` and `GetModelDisplayName` is `Roku (<model>)`.
 - **`locale`:** the engine ships translations only for `de_DE`, `es_ES`, `es_MX`, `fr_CA`, `it_IT` and `pt_BR`, plus
