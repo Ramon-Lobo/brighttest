@@ -32,11 +32,15 @@ Both are device settings. Tell the human; do not guess at other settings.
 | 80 | dev installer: sideload, `Delete` | needs the dev password (Digest auth) |
 | 8085 | BrightScript console, log capture | exactly one client; `ROKU_LOG_PORT` changes the console port |
 | 8080 | debug port | one client (the debug ports 8080 and 8085 take one client each) |
+| 8087 | no brighttest lane uses it | the guard hook denies raw access to it |
+| 8090 | BrightScript profile pull (`bsprof_data_dest=network`, Studio) | the guard hook denies raw access to it |
+
+The guard hook watches all six ports (8060, 80, 8085, 8080, 8087, 8090).
 
 If capture fails with "Console connection is already in use", close the other client on 8085. A device lane
 keys the lease by the device identity (serial hash) and also holds the address key, so another address or port of
 the same device still queues; if the identity read fails the lane falls back to the address key and logs it.
-Still use the device IP and the default ECP port: Studio, MCP and pool picks lease by address only.
+Still use the device IP and the default ECP port: Studio, MCP and pool picks lease by address only (`docs/guide/device-lease.md`, section on identity keys).
 
 ## Long runs stop at about 10 minutes
 
@@ -68,3 +72,6 @@ focus. Do not change the screensaver setting; that is the device owner's call.
 `npx brighttest device reset --host <device-ip>` takes the lease, sends the installer `Delete` (password from
 `ROKU_PASSWORD`), presses Home and waits for the Home screen. Exit 0 when Home is reached, 1 on failure. The
 sideloaded app is gone, so sideload again.
+
+`device reset` restarts only the dev channel. No ECP command reboots a Roku. A reboot is a human action: tell the
+human and stop. Do not script the Settings menu or look for a key sequence.
