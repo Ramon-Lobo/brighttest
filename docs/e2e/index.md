@@ -7,6 +7,10 @@ resulting UI — on a **real device**. Think Maestro, adapted to Roku's focus-ba
 
 It is fully deterministic — you write a readable flow file and watch it run. No model is in the loop.
 
+`e2e run` launches the app but never installs it. Install your build first (`brighttest instrument build --sideload`
+or `brighttest builds install --latest`), then run the flow. With `device lock`, install and launch after the lock,
+because the lock presses Home when it acquires the device (or use `device lock --no-hygiene`).
+
 ## How it works
 
 Everything rides on stock Roku ECP — no on-device test library to install:
