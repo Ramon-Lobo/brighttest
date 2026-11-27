@@ -184,12 +184,91 @@ const FULL_SIDEBAR_UNPREFIXED = [
   },
 ]
 
+// The lite sidebar (docs/lite pages at the usual URLs). Same grouping as the full guide, plus a "For AI agents" entry.
+const LITE_SIDEBAR = [
+  { text: 'Start', collapsed: false, items: [
+    { text: 'Overview', link: '/' },
+    { text: 'Quick start', link: '/guide/getting-started' },
+    { text: 'Example apps', link: '/guide/examples' },
+    { text: 'Adopting brighttest', link: '/guide/adopting' },
+    { text: 'Assess a project', link: '/guide/assess' },
+    { text: 'Map the app', link: '/guide/feature-tree' },
+    { text: 'Examples of mapping', link: '/guide/external-examples' },
+    { text: 'Mapping results', link: '/guide/mapping-results' },
+    { text: 'Motivation', link: '/motivation' },
+    { text: 'Architecture', link: '/architecture' },
+  ] },
+  { text: 'Write tests', collapsed: false, items: [
+    { text: 'Start here', link: '/writing-tests/' },
+    { text: '1. Your first test', link: '/writing-tests/first-test' },
+    { text: '2. Anatomy of a test file', link: '/writing-tests/anatomy' },
+    { text: '3. Assertions', link: '/writing-tests/assertions' },
+    { text: '4. Organizing tests', link: '/writing-tests/organizing' },
+    { text: '5. Parameterized tests', link: '/writing-tests/parameterized' },
+    { text: '6. Setup and teardown', link: '/writing-tests/setup-teardown' },
+    { text: '7. Mocks, stubs and spies', link: '/writing-tests/test-doubles' },
+    { text: '8. SceneGraph and async', link: '/writing-tests/scenegraph-async' },
+    { text: '9. Headless vs device', link: '/writing-tests/headless-vs-device' },
+    { text: '10. Global context', link: '/writing-tests/global-context' },
+    { text: '11. Cookbook', link: '/writing-tests/cookbook' },
+    { text: '12. Common mistakes', link: '/writing-tests/mistakes' },
+    { text: 'Media state (headless)', link: '/writing-tests/media-state' },
+    { text: 'State fixtures (headless)', link: '/writing-tests/state-fixtures' },
+  ] },
+  { text: 'Run on a device', collapsed: false, items: [
+    { text: 'E2E overview', link: '/e2e/' },
+    { text: 'Flow reference', link: '/e2e/flows' },
+    { text: 'Authoring flows', link: '/e2e/authoring' },
+    { text: 'Scaling and CI', link: '/e2e/scaling' },
+  ] },
+  { text: 'Studio', collapsed: false, items: [
+    { text: 'Studio', link: '/guide/studio' },
+  ] },
+  { text: 'Instrument and state', collapsed: false, items: [
+    { text: 'Instrumented builds', link: '/guide/instrument' },
+    { text: 'App state', link: '/e2e/app-state' },
+  ] },
+  { text: 'Network', collapsed: false, items: [
+    { text: 'Network recipe', link: '/guide/network-recipe' },
+    { text: 'Network fault model', link: '/guide/net-faults' },
+    { text: 'HTTP fixtures in specs', link: '/writing-tests/http-fixtures' },
+    { text: 'roChannelStore fixtures', link: '/guide/store-fixtures' },
+  ] },
+  { text: 'Builds', collapsed: false, items: [
+    { text: 'Builds', link: '/guide/builds' },
+  ] },
+  { text: 'Lease and sharing', collapsed: false, items: [
+    { text: 'Sharing a device (lease)', link: '/guide/device-lease' },
+    { text: 'Several agents on one device', link: '/guide/multi-agent-device' },
+  ] },
+  { text: 'CI', collapsed: false, items: [
+    { text: 'CI integration', link: '/guide/ci' },
+    { text: 'Device shelf (CI)', link: '/guide/ci-device-shelf' },
+  ] },
+  { text: 'MCP and agents', collapsed: false, items: [
+    { text: 'Agent surface (MCP)', link: '/guide/mcp' },
+    { text: 'Agent skills', link: '/guide/agent-skills' },
+    { text: 'For AI agents', link: '/guide/agent-skills#for-ai-agents' },
+  ] },
+  { text: 'Reference', collapsed: false, items: [
+    { text: 'Command cheat sheet', link: '/cheat-sheet' },
+    { text: 'CLI reference', link: '/guide/cli-reference' },
+    { text: 'Engines and patches', link: '/guide/engines' },
+    { text: 'Maintainer pages', link: '/maintainer-pages' },
+  ] },
+  { text: 'Troubleshooting', collapsed: false, items: [
+    { text: 'Troubleshooting', link: '/guide/troubleshooting' },
+    { text: 'Reporting issues', link: '/guide/reporting-issues' },
+  ] },
+]
+
 const labeledFullSidebar = labelSidebar(FULL_SIDEBAR_UNPREFIXED)
-// Tiered: the lite sidebar (a copy of the full one until docs/lite adds its own) at /, the full one at /full/.
+const labeledLiteSidebar = labelSidebar(LITE_SIDEBAR)
+// Tiered: the lite sidebar at /, the full one at /full/.
 const sidebarConfig: any = hasTiers
   ? {
       '/full/': tiersMod.prefixFull(labeledFullSidebar, tiers),
-      '/': labeledFullSidebar,
+      '/': labeledLiteSidebar,
     }
   : labeledFullSidebar
 
@@ -282,7 +361,8 @@ export default withMermaid({
     languageAlias: { brightscript: 'vb' },
     config(md) {
       if (!hasTiers) return
-      // [text](full:/guide/x) -> /full/guide/x (same tab); the dead-link check validates the target.
+      // [text](full:/guide/x) -> /full/guide/x (same tab); a full-only target (changelog, maintainers, ...) keeps its usual URL.
+      // The dead-link check validates the target.
       // On a full-tier page, absolute links to tiered pages stay in /full/.
       md.core.ruler.push('bt-tier-links', (state) => {
         // env.relativePath is the routed path: full-tier pages are served under full/.
@@ -293,7 +373,7 @@ export default withMermaid({
           for (const t of blk.children) {
             if (t.type !== 'link_open') continue
             const href = t.attrGet('href') || ''
-            if (href.startsWith('full:')) t.attrSet('href', '/full/' + href.slice('full:'.length).replace(/^\/+/, ''))
+            if (href.startsWith('full:')) t.attrSet('href', tiersMod.fullLink('/' + href.slice('full:'.length).replace(/^\/+/, ''), tiers))
             else if (inFull) t.attrSet('href', tiersMod.fullLink(absoluteInSource(href, relPath), tiers))
           }
         }
@@ -351,6 +431,7 @@ export default withMermaid({
         ],
       },
       { text: 'E2E', link: '/e2e/' },
+      ...(hasTiers ? [{ text: 'Cheat sheet', link: '/cheat-sheet' }] : []),
       { text: 'Changelog', link: '/changelog' },
       {
         text: 'CI',

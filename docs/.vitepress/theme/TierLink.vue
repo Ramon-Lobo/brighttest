@@ -12,7 +12,7 @@ const href = computed(() => (link.value ? withBase('/' + link.value.path) : ''))
 </script>
 
 <template>
-  <p v-if="link" class="bt-tier-link" data-testid="tier-link">
+  <p v-if="link" class="bt-tier-link" data-testid="tier-link" role="region" aria-label="Page version">
     <template v-if="link.kind === 'to-full'">Short version. <a :href="href">Full guide</a></template>
     <template v-else>Full guide. <a :href="href">Short version</a></template>
   </p>
