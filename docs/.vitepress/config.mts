@@ -143,6 +143,7 @@ export default withMermaid({
           { text: 'CLI reference', link: '/guide/cli-reference' },
           { text: 'Example apps', link: '/guide/examples' },
           { text: 'Troubleshooting & how it works', link: '/guide/troubleshooting' },
+          { text: 'Reporting issues', link: '/guide/reporting-issues' },
         ],
       },
       { text: 'Writing tests', link: '/writing-tests/' },
@@ -219,6 +220,7 @@ export default withMermaid({
           { text: 'CLI reference', link: '/guide/cli-reference' },
           { text: 'Example apps', link: '/guide/examples' },
           { text: 'Troubleshooting & how it works', link: '/guide/troubleshooting' },
+          { text: 'Reporting issues', link: '/guide/reporting-issues' },
         ],
       },
       {

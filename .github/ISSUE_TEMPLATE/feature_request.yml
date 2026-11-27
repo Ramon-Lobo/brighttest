@@ -1,7 +1,7 @@
 name: Feature request
 description: Suggest an idea or improvement for brighttest
 title: "[Feature]: "
-labels: ["enhancement"]
+labels: ["enhancement", "needs-triage"]
 body:
   - type: textarea
     id: problem
@@ -24,3 +24,32 @@ body:
       description: Any workarounds you're using now, or other approaches you thought about.
     validations:
       required: false
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Headless
+        - Headless + coverage
+        - Device
+        - Cross-check
+        - End-to-end (e2e)
+        - Studio
+        - Instrument
+        - Net (hub, mocks)
+        - Assess / features
+        - MCP
+        - Skills
+        - Device lease
+        - CLI / config
+        - Docs
+        - Other
+    validations:
+      required: true
+  - type: checkboxes
+    id: redaction
+    attributes:
+      label: Before filing
+      options:
+        - label: I removed names of companies, clients and apps, hosts, IPs, tokens, passwords, serials and personal paths.
+          required: true
