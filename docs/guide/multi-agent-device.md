@@ -85,8 +85,9 @@ When the device is busy a lane prints a waiting line with your place in the queu
 - When you get the device, check the installed line before you test: the last holder left their build on it.
 - Never use `device unlock --force` or `--no-lease` to get ahead of the queue.
 
-Coming in a later release: one shared queue per device across the CLI, Studio and MCP, and more installed-build
-detail. This page describes only what is released today.
+There is one queue per device: a command waiting on the device queues once, whichever key it uses, and its wait
+line names the real holder and your place in line. Studio gives the device to a waiter about a minute after its
+last action.
 
 ## Habits that avoid trouble
 
