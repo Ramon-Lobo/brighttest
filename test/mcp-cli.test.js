@@ -12,6 +12,8 @@ describe('brighttest mcp (CLI)', () => {
     expect(r.status).toBe(0)
     for (const t of ['list_devices', 'device_doctor', 'inspect_tree', 'press', 'navigate_to', 'screenshot', 'app_state', 'run_flow', 'net_requests', 'net_mock']) expect(r.stdout).toContain(t)
     expect(r.stdout).toContain('net window')
+    expect(r.stdout).toContain('net_requests, net_mock, app_state_set and app_state_snapshot open a net window')
+    expect(r.stdout).toContain('app_state_get never does')
   })
   it('--help lists exactly the tools tools/list returns', () => {
     const r = spawnSync('node', [cli, 'mcp', '--help'], { encoding: 'utf8', timeout: 20000 })
