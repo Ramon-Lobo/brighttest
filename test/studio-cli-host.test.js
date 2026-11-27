@@ -16,6 +16,14 @@ describe('brighttest studio passes the raw host and password', () => {
   })
 })
 
+describe('brighttest studio --as', () => {
+  it('becomes the lease holder label; absent leaves leaseOpts unset', () => {
+    expect(studioStartOptions(parseStudioArgs(['--as', 'dev#2']), {}).leaseOpts).toEqual({ acquireOpts: { agent: 'dev#2' } })
+    expect(studioStartOptions(parseStudioArgs(['--as=qa:1']), {}).leaseOpts.acquireOpts.agent).toBe('qa:1')
+    expect(studioStartOptions(parseStudioArgs([]), {}).leaseOpts).toBeUndefined()
+  })
+})
+
 describe('brighttest studio --simulator', () => {
   const { studioExitCode, studioTargetLabel } = require('../bin/cli')
   const engines = require('../lib/engines')

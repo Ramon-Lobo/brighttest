@@ -45,6 +45,7 @@
         <div class="holder">
           <span class={textClass('held')}>{clean(d.holder.agent) || 'unknown'}</span>
           <span class={textClass('meta')}>{clean(d.holder.purpose)} · held {fmtDur(d.holder.heldMs)}{d.holder.foreign ? ` · on ${clean(d.holder.hostname)}` : ''}</span>
+          {#if d.holder.interactive}<div class={textClass('meta')} data-testid="lease-interactive">{clean(d.holder.interactive)}</div>{/if}
           {#if d.holder.staleReason}<div class={textClass('stale')}>stale: {clean(d.holder.staleReason)}</div>{/if}
         </div>
       {/if}

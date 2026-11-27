@@ -58,6 +58,8 @@ The header badge shows who holds the device.
 
 In short: the lease is held only while Studio is used. With a waiter queued it yields after 60 seconds idle; otherwise it
 releases after 5 minutes idle. A `423` means another agent holds the device, and **Take over** is the explicit override.
+
+Studio marks its lease record as interactive (with its yield and idle timings, the time of your last action and whether a run is in flight). A waiting command sees `interactive: yields to waiters 60s after its last action; last action 12s ago` in its wait line and in `device status`, so it can tell a Studio session from a stuck process. `brighttest studio --as <agent>` sets the holder label (`BRIGHTTEST_AGENT` also works).
 From a source checkout, build the web bundle with `npm run studio:build`.
 
 ![Header badge and banner saying the device is in use by another session, with Take over when free](/images/studio/device-held.png)
