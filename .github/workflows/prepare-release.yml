@@ -79,6 +79,8 @@ jobs:
               npm version "$BUMP" --no-git-tag-version ;;
           esac
           npm run skills:manifest
+          # The mapping-results pages embed the CLI version; regenerate them or the docs-mapping-results check fails.
+          npm run docs:mapping-results
           # `npm version` exports npm_package_version to the version script only; set it for this check.
           npm_package_version=$(node -p "require('./package.json').version") node scripts/changelog.js check --version-env
       - name: Open the release PR
@@ -95,7 +97,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -b "$BRANCH"
-          git add -A package.json package-lock.json docs/changelog.md docs/.vitepress/release-pages.json skills
+          git add -A package.json package-lock.json docs/changelog.md docs/.vitepress/release-pages.json skills docs/public/mapping-results
           git commit -m "chore(release): v${VERSION}"
           git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$BRANCH"
           WARN=""
