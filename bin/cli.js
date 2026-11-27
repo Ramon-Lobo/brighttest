@@ -373,7 +373,14 @@ function parseE2eArgs(rest) {
     else if (a === '--junit') opts.junit = rest[++i];
     else if (a.startsWith('--junit=')) opts.junit = a.slice(8);
     else if (a === '--help' || a === '-h') opts.help = true;
-    else if (a.startsWith('-')) console.error(`[brighttest e2e] unknown option ${a.split('=')[0]} for e2e ${opts.e2eAction}; ignored`);
+    else if (a.startsWith('-')) {
+      console.error(`[brighttest e2e] unknown option ${a.split('=')[0]} for e2e ${opts.e2eAction}; ignored`);
+      // Space form (`--unknown value flow`): the value is not a flow path. Skip the next token unless it
+      // looks like a flow (a *.yaml/*.yml file or an existing directory) so `--unknown flow.e2e.yaml` still works.
+      const n = rest[i + 1];
+      if (!a.includes('=') && n !== undefined && !n.startsWith('-') && !/\.ya?ml$/i.test(n)
+        && !(require('fs').existsSync(n) && require('fs').statSync(n).isDirectory())) i++;
+    }
     else opts.flows.push(a);
   }
   return opts;
