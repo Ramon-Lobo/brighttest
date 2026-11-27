@@ -228,11 +228,55 @@ describe.skipIf(!chrome || !built)('Studio Inspect tile grid (headless Chrome)',
       await click('tiles-reset')
       await click('tiles-confirm')
 
+      // Keyboard: arrows on a focused handle move the tile, Shift+arrow resizes, focus stays, Escape goes to the grid.
+      const keyDown = async (key, code, vk, modifiers = 0) => {
+        await cdp('Input.dispatchKeyEvent', { type: 'rawKeyDown', key, code, windowsVirtualKeyCode: vk, modifiers })
+        await cdp('Input.dispatchKeyEvent', { type: 'keyUp', key, code, windowsVirtualKeyCode: vk, modifiers })
+      }
+      const active = () => js(`document.activeElement && document.activeElement.getAttribute('data-testid')`)
+      const live = () => js(`${q('layout-live')}.textContent`)
+      await js(`${q('tile-monitor-handle')}.focus()`)
+      const k0 = (await saved()).monitor
+      await keyDown('ArrowLeft', 'ArrowLeft', 37)
+      let k1 = (await saved()).monitor
+      expect(k1.x).toBe(k0.x - 1)
+      expect(await active()).toBe('tile-monitor-handle')
+      expect(await live()).toBe(`Program monitor tile, column ${k1.x + 1}, row ${k1.y + 1}, ${k1.w} by ${k1.h}`)
+      await keyDown('ArrowRight', 'ArrowRight', 39, 8) // Shift
+      const k2 = (await saved()).monitor
+      expect(k2.w).toBe(k1.w + 1)
+      expect(await live()).toContain(`${k2.w} by ${k2.h}`)
+      expect(await active()).toBe('tile-monitor-handle')
+      // At the right edge a move is refused and says so.
+      for (let i = 0; i < 12; i++) await keyDown('ArrowRight', 'ArrowRight', 39)
+      expect(await live()).toContain('cannot go right any further')
+      const ax = await cdp('Accessibility.getFullAXTree')
+      const val = (n, k) => (n[k] && n[k].value) || ''
+      const nodes = ax.nodes
+      expect(nodes.some((n) => val(n, 'role') === 'region' && val(n, 'name') === 'Program monitor')).toBe(true)
+      expect(nodes.some((n) => val(n, 'role') === 'button' && val(n, 'name').toLowerCase() === 'program monitor' && val(n, 'description').includes('Arrow keys move this tile') && (n.properties || []).some((p) => p.name === 'roledescription' && p.value.value === 'movable tile') && (n.properties || []).some((p) => p.name === 'focused' && p.value.value === true))).toBe(true)
+      expect(nodes.some((n) => val(n, 'name') === 'Inspect layout')).toBe(true)
+      expect(nodes.some((n) => val(n, 'role') === 'StaticText' && val(n, 'name').includes('cannot go right any further'))).toBe(true)
+      await keyDown('Escape', 'Escape', 27)
+      expect(await active()).toBe('layout-grid')
+      // Menu: Move left keeps focus on the tile's menu button and announces.
+      const m0 = (await saved()).monitor
+      await click('tile-monitor-menu')
+      await js(`[...document.querySelectorAll('[data-testid="tile-monitor"] [role=menuitem]')].find((b) => b.textContent.trim() === 'Move left').click()`)
+      expect((await saved()).monitor.x).toBe(m0.x - 1)
+      expect(await active()).toBe('tile-monitor-menu')
+      expect(await live()).toContain('Program monitor tile, column')
+      await shot('11a-keyboard-moved.png')
+      await click('tiles-menu')
+      await click('tiles-reset')
+      await click('tiles-confirm')
+
       // Narrow: one column, no drag handle.
       await cdp('Emulation.setDeviceMetricsOverride', { width: 900, height: 1400, deviceScaleFactor: 1, mobile: false })
       await until(`${q('layout-grid')}.classList.contains('narrow')`, 'narrow mode')
       expect(await js(`${q('tile-monitor-handle')}.disabled`)).toBe(true)
       expect(await js(`!!${q('tile-monitor-resize')}`)).toBe(false)
+      expect(await js(`${q('layout-narrow-note')}.textContent`)).toContain('moving and resizing are off')
       const colsOf = await js(`getComputedStyle(${q('layout-grid')}).gridTemplateColumns.split(' ').length`)
       expect(colsOf).toBe(1)
       await shot('11-narrow-900.png')

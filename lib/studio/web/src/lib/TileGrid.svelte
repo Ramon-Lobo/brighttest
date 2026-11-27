@@ -4,7 +4,7 @@
   // the layout is committed (and saved) once, on drop.
   import { onMount, tick } from 'svelte';
   import Tile from './Tile.svelte';
-  import { stackOrder, setState } from './layout.js';
+  import { stackOrder, setState, describeTile, sameBox } from './layout.js';
   import { metrics, isNarrow, pastThreshold, dragPreview, stepTile, keyStep } from './drag.js';
 
   let { layout, registry, oncommit, content } = $props();
@@ -80,24 +80,45 @@
   function onEsc(e) { if (e.key === 'Escape' && drag) { e.stopPropagation(); cancel(); } }
 
   function say(id, next, what = '') {
-    const t = next.find((o) => o.id === id);
+    if (!next.some((o) => o.id === id)) return;
+    live = what || describeTile(next, id, specOf(id).title);
+  }
+  // Keep focus on the tile after a keyboard or menu step (keyed reordering can drop it).
+  async function refocus(id, which) {
+    await tick();
+    document.querySelector(`[data-testid="tile-${id}-${which}"]`)?.focus();
+  }
+  const WORDS = { left: 'left', right: 'right', up: 'up', down: 'down', wider: 'wider', narrower: 'narrower', taller: 'taller', shorter: 'shorter' };
+  function step(id, a, which) {
+    const next = stepTile(layout, id, STEPS[a], registry);
+    if (sameBox(layout, next, id)) say(id, next, `${specOf(id).title} tile cannot go ${WORDS[a]} any further`);
+    else { oncommit(next); say(id, next); }
+    refocus(id, which);
+  }
+  const STEPS = { left: keyStep('ArrowLeft'), right: keyStep('ArrowRight'), up: keyStep('ArrowUp'), down: keyStep('ArrowDown'),
+    wider: keyStep('ArrowRight', true), narrower: keyStep('ArrowLeft', true), taller: keyStep('ArrowDown', true), shorter: keyStep('ArrowUp', true) };
+  const ARROWS = { ArrowLeft: ['left', 'narrower'], ArrowRight: ['right', 'wider'], ArrowUp: ['up', 'shorter'], ArrowDown: ['down', 'taller'] };
+  // Keys on a tile's handle: arrows move, Shift+arrows resize, Escape returns focus to the grid.
+  function key(e, id) {
+    if (narrow || drag) return;
+    if (e.key === 'Escape') { gridEl.focus(); return; }
+    const pair = ARROWS[e.key];
+    if (!pair || e.ctrlKey || e.metaKey || e.altKey) return;
+    const t = layout.find((o) => o.id === id);
     if (!t) return;
-    live = what || `${specOf(id).title} tile, column ${t.x + 1}, row ${t.y + 1}, ${t.w} by ${t.hOpen || t.h}`;
+    e.preventDefault();
+    if (e.shiftKey && t.state !== 'open') { say(id, layout, `${specOf(id).title} tile is minimized, restore it to resize`); return; }
+    step(id, pair[e.shiftKey ? 1 : 0], 'handle');
   }
   async function action(id, a) {
     let next = layout;
     if (a === 'min') next = setState(layout, id, 'min', registry);
     else if (a === 'open') next = setState(layout, id, 'open', registry);
     else if (a === 'hide') next = setState(layout, id, 'hidden', registry);
-    else {
-      const step = { left: keyStep('ArrowLeft'), right: keyStep('ArrowRight'), up: keyStep('ArrowUp'), down: keyStep('ArrowDown'),
-        wider: keyStep('ArrowRight', true), narrower: keyStep('ArrowLeft', true), taller: keyStep('ArrowDown', true), shorter: keyStep('ArrowUp', true) }[a];
-      next = stepTile(layout, id, step, registry);
-    }
+    else { step(id, a, 'menu'); return; }
     oncommit(next);
     if (a === 'hide') { live = `${specOf(id).title} tile hidden`; await tick(); document.querySelector('[data-testid="tiles-menu"]')?.focus(); }
-    else if (a === 'min' || a === 'open') live = `${specOf(id).title} tile ${a === 'min' ? 'minimized' : 'restored'}`;
-    else say(id, next);
+    else live = `${specOf(id).title} tile ${a === 'min' ? 'minimized' : 'restored'}`;
   }
   function showAll() {
     let next = layout;
@@ -106,12 +127,17 @@
   }
 </script>
 
-<div class="grid" class:narrow class:dragging={drag?.active} role="group" aria-label="Inspect layout" data-testid="layout-grid" bind:this={gridEl}>
+<div class="grid" class:narrow class:dragging={drag?.active} role="group" aria-label="Inspect layout" data-testid="layout-grid" tabindex="-1" bind:this={gridEl}>
+  {#if narrow}
+    <p class="note" data-testid="layout-narrow-note" role="note">Single-column view: moving and resizing are off because the window is narrow. Widen it to arrange tiles.</p>
+  {:else}
+    <span id="layout-keys-help" class="sr">Arrow keys move this tile one cell. Shift with an arrow key resizes it. Escape returns to the grid.</span>
+  {/if}
   {#each ids as id (id)}
     {@const t = tileOf(id)}
     {#if t}
       <Tile tile={t} title={specOf(id).title} keepMounted={!!specOf(id).keepMounted} {narrow} dragging={ghostTile?.id === id}
-        {content} onhandledown={(e, i) => down(e, i, 'move')} ongripdown={(e, i) => down(e, i, 'resize')} onaction={action} />
+        {content} onkey={key} onhandledown={(e, i) => down(e, i, 'move')} ongripdown={(e, i) => down(e, i, 'resize')} onaction={action} />
     {/if}
   {/each}
   {#if ghostTile}
@@ -136,6 +162,8 @@
 
 <style>
   .grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-auto-rows: 32px; gap: 12px; align-items: stretch; }
+  .grid:focus { outline: none; }
+  .note { grid-column: 1 / -1; margin: 0; font-size: 12px; color: var(--color-haze); }
   .grid.narrow { grid-template-columns: minmax(0, 1fr); }
   .grid.dragging { cursor: grabbing; }
   .placeholder { border: 2px dashed var(--color-violet); border-radius: 12px; background: rgba(124,108,255,.08); pointer-events: none; }

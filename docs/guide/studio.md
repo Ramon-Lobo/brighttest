@@ -193,6 +193,12 @@ Selector, State, Actions, Network). There are no tabs; every panel is on screen 
   while they are open. Restoring the monitor starts the screenshots again.
 - **Narrow windows:** under 960 px of grid width the tiles stack in one column in reading order; drag and resize are off,
   minimize, hide and the Tiles menu still work, and the saved layout is not changed.
+- **Keyboard:** Tab to a tile's title (its drag handle). The arrow keys move the tile one cell, Shift with an arrow key makes
+  it wider, narrower, taller or shorter, and the tile never leaves the grid or goes below its minimum size. Each step is
+  announced, for example "Program monitor tile, column 6, row 1, 6 by 11", and a step that cannot go further says so. The tile
+  keeps focus after a move, **Escape** returns focus to the grid, and Tab follows the visual order. The tile menu has the same
+  moves as **Move left**, **Move right**, **Move up** and **Move down**. In the single-column narrow view keyboard moves are off,
+  and a line at the top of the grid says why. Nothing animates on keyboard moves.
 - While a run is active and the Flow tile is not open, a **Running · Stop** chip (`header-run-stop`) shows in the header.
   `Cmd+.` or `Ctrl+.` still stops a run from anywhere.
 
