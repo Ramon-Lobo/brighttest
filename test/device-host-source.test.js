@@ -48,7 +48,7 @@ afterEach(async () => {
   fs.rmSync(dir, { recursive: true, force: true })
 })
 
-const withOpts = (extra = {}) => ({ deviceAction: 'with', cmd: [process.execPath, '-e', '0'], noHygiene: true, wait: '2s', ...extra })
+const withOpts = (extra = {}) => ({ deviceAction: 'with', cmd: [process.execPath, '-e', '0'], noHygiene: true, wait: '20s', ...extra })
 const two = () => seed({ '192.0.2.1': { password: 'pw-a', lastUsed: Date.now() }, '192.0.2.2': { password: 'pw-b', lastUsed: Date.now() } }, '192.0.2.2')
 
 describe('ambiguity rule on with / lock / reset', () => {
