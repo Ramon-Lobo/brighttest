@@ -145,6 +145,23 @@ describe('npm package scope', () => {
   })
 })
 
+describe('Roku model name', () => {
+  // A device-cache name can equal the model; the deny-term pass must keep the model and still mask names.
+  const c = () => ctx({ denyTerms: ['3960X', 'C020X', 'Examplecorp'], knownSecrets: [{ name: 'T', value: 'sekrit-value-1' }] })
+  test('a model line in a collect-style block survives unchanged', () => {
+    const block = '- device: 3960X, stb, firmware 12.5.0 (build 4210)\nmodel: 4210X\n"model": "C020X"\nmodel=3960X'
+    expect(R.redact(block, c())).toBe(block)
+    expect(R.verify(block, c())).toEqual([])
+  })
+  test('other deny terms next to a model name are still masked', () => {
+    expect(R.redact('Examplecorp 3960X and Examplecorp-3960X', c())).toBe('<name-1> 3960X and <name-1>-3960X')
+  })
+  test('a host and a token next to a model name are still redacted', () => {
+    const out = R.redact('model: 3960X host https://box.example.test/x ip 192.0.2.7 token=abc123 sekrit-value-1', c())
+    expect(out).toBe('model: 3960X host https://<host-1>/x ip <ip-1> token=<redacted:token> <secret:T>')
+  })
+})
+
 describe('long lines', () => {
   test('a 1 MB single line redacts in bounded time', () => {
     const shapes = ['a', 'abcdefghij0123456789', 'ab.cd.ef.', 'hello world foo=bar x.y ', 'http://a.b.c/x?y=1 ']
