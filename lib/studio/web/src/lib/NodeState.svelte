@@ -3,9 +3,14 @@
   import { api } from './api.js';
   import { studio } from './store.svelte.js';
   import {
-    rowsOfNode, readOnlyReason, parseEdit, refusalText, splitError, readFailure, dupCount, dupText, nodeByIdPath,
+    readOnlyReason, parseEdit, refusalText, splitError, readFailure, dupCount, dupText, nodeByIdPath,
     setAt, nodeRefOnPath, assertLine, assertStateLine, effectiveId, NO_ID_TEXT, TOO_LARGE_TEXT,
   } from './nodestate.js';
+  import StateTree from './StateTree.svelte';
+  import StateSearch from './StateSearch.svelte';
+  import Marked from './Marked.svelte';
+  import { treeRows } from './statetree.js';
+  import { createStateSearch } from './statesearch.svelte.js';
 
   // Node State view (STUDIO-NS-T2): one node's fields (layer node) or its component's `m`, read through the agent's
   // `get` op (GET /api/state/node) and edited through /api/state/cmd, with the State tab's ack chip. Without a hub, a
@@ -26,17 +31,21 @@
   let msg = $state('');
   let pathInput = $state('');
   let loadedPaths = $state([]);     // sub-paths read on top of the root read (load buttons, large mode)
+  const search = createStateSearch();
+  let tree = $state(null);
   let busy = false, alive = true, timer = null, tick = null;
 
   const id = $derived(effectiveId(node, typed));
   const dups = $derived(node && node.id ? dupCount(studio.nodes, node.id) : 0);
-  const rows = $derived(value && typeof value === 'object' ? rowsOfNode(value) : []);
+  const rows = $derived(value && typeof value === 'object' ? treeRows(value) : []);
   const pending = $derived(Object.values(chips).some((c) => c.status === 'pending'));
   const fieldNames = $derived(layer === 'node' && node ? Object.keys(node.attrs || {}) : []);
   const unread = $derived(fieldNames.filter((f) => !loadedPaths.includes(f)));
   const age = $derived(readAt ? Math.max(0, Math.round((now - readAt) / 1000)) : null);
   const failMsg = (r) => `${r.code || r.status}: ${r.error || 'request failed'}`;
   const fmt = (v, t) => (t === 'string' ? `"${v}"` : String(v));
+
+  $effect(() => { search.setOrder(['node']); });
 
   function reset() {
     value = null; found = true; err = null; large = false; readAt = 0; editing = null; chips = {}; msg = ''; loadedPaths = []; pathInput = '';
@@ -181,47 +190,48 @@
       <p class="empty" data-testid="node-state-notfound">{layer === 'm' ? 'No m on this node.' : 'The agent found no fields for this node.'}</p>
     {/if}
 
-    <dl class="rows" data-testid="node-state-rows">
-      {#each rows as r}
-        <div class="row" style="padding-left: {r.depth * 14}px">
-          <dt>{r.key}</dt>
-          {#if r.branch}
-            <dd class="badge">{r.badge}</dd>
-          {:else if editing && editing.path === r.path}
-            <input class="f ed" data-testid="node-state-input" bind:value={editing.text}
-              onkeydown={(e) => { if (e.key === 'Enter') commit(); else if (e.key === 'Escape') editing = null; }} />
-            <button onclick={commit}>set</button>
-          {:else}
-            <dd class="valwrap">
-              {#if r.kind === 'node'}
-                <button class="val link" data-testid="node-state-goto" title={nodeByIdPath(studio.nodes, r.id) ? 'select that node' : 'not in the tree'}
-                  disabled={!nodeByIdPath(studio.nodes, r.id)} onclick={() => goto(r.id)}>→ #{r.id}{r.subtype ? ` (${r.subtype})` : ''}</button>
-              {:else if r.editable && !err}
-                <button class="val {r.type} edit" data-testid="node-state-edit" title="click to edit" onclick={() => startEdit(r)}>{fmt(r.value, r.type)}</button>
-              {:else}
-                <span class="val {r.type}" title={readOnlyReason(r, { canEdit: !err, why: err && err.text })}>{fmt(r.value, r.type)}</span>
-              {/if}
-              {#if r.load}<button data-testid="node-state-load" title="read this sub-path" onclick={() => load(r.path)}>load</button>{/if}
-            </dd>
-            {#if chips[r.path]}
-              {@const c = chips[r.path]}
-              <span class="chip {chipClass(c)}" data-testid="node-state-chip" title={c.error || ''}>{chipText(c)}</span>
-              {#if c.status === 'failed' && c.code === 'PATH_UNDER_NODE' && nodeRefOnPath(value, r.path)}
-                <button data-testid="node-state-goto-under" onclick={() => goto(nodeRefOnPath(value, r.path))}>go to node</button>
-              {/if}
-              {#if onadd && c.step && c.status !== 'failed'}<button class="add on" data-testid="node-state-step" title="add this edit to the flow" onclick={() => onadd(c.step)}>+ setState step</button>{/if}
-            {:else if onadd}
-              {#if assertLine(node, layer, r)}
-                <button class="add" title="add assertField to the flow (ECP value)" onclick={() => onadd(assertLine(node, layer, r))}>+</button>
-              {/if}
-              {#if assertStateLine(id, layer, r)}
-                <button class="add" data-testid="node-state-assert" title="add assertState to the flow (read through the hub)" onclick={() => onadd(assertStateLine(id, layer, r))}>+ assert</button>
-              {/if}
-            {/if}
+    {#if rows.length}
+      <StateSearch s={search} oncollapse={() => tree?.collapseEvery()} onexpand={() => tree?.expandEvery()} />
+    {/if}
+    {#snippet cell(r, sr)}
+      {#if editing && editing.path === r.path}
+        <input class="f ed" data-testid="node-state-input" bind:value={editing.text}
+          onkeydown={(e) => { if (e.key === 'Enter') commit(); else if (e.key === 'Escape') editing = null; }} />
+        <button onclick={commit}>set</button>
+      {:else if r.kind === 'node'}
+        <button class="val link" data-testid="node-state-goto" title={nodeByIdPath(studio.nodes, r.id) ? 'select that node' : 'not in the tree'}
+          disabled={!nodeByIdPath(studio.nodes, r.id)} onclick={() => goto(r.id)}>→ #{r.id}{r.subtype ? ` (${r.subtype})` : ''}</button>
+      {:else if r.editable && !err}
+        <button class="val {r.type} edit" data-testid="node-state-edit" title="click to edit" onclick={() => startEdit(r)}>{#if r.type === 'string'}"<Marked text={r.value} search={sr} />"{:else}<Marked text={String(r.value)} search={sr} />{/if}</button>
+      {:else}
+        <span class="val {r.type}" title={readOnlyReason(r, { canEdit: !err, why: err && err.text })}>{#if r.type === 'string'}"<Marked text={r.value} search={sr} />"{:else}<Marked text={String(r.value)} search={sr} />{/if}</span>
+      {/if}
+      {#if r.load}<button data-testid="node-state-load" title="read this sub-path" onclick={() => load(r.path)}>load</button>{/if}
+    {/snippet}
+    {#snippet actions(r)}
+      {#if !r.branch && !(editing && editing.path === r.path)}
+        {#if chips[r.path]}
+          {@const c = chips[r.path]}
+          <span class="chip {chipClass(c)}" data-testid="node-state-chip" title={c.error || ''}>{chipText(c)}</span>
+          {#if c.status === 'failed' && c.code === 'PATH_UNDER_NODE' && nodeRefOnPath(value, r.path)}
+            <button data-testid="node-state-goto-under" onclick={() => goto(nodeRefOnPath(value, r.path))}>go to node</button>
           {/if}
-        </div>
-      {/each}
-    </dl>
+          {#if onadd && c.step && c.status !== 'failed'}<button class="add on" data-testid="node-state-step" title="add this edit to the flow" onclick={() => onadd(c.step)}>+ setState step</button>{/if}
+        {:else if onadd}
+          {#if assertLine(node, layer, r)}
+            <button class="add" title="add assertField to the flow (ECP value)" onclick={() => onadd(assertLine(node, layer, r))}>+</button>
+          {/if}
+          {#if assertStateLine(id, layer, r)}
+            <button class="add" data-testid="node-state-assert" title="add assertState to the flow (read through the hub)" onclick={() => onadd(assertStateLine(id, layer, r))}>+ assert</button>
+          {/if}
+        {/if}
+      {/if}
+    {/snippet}
+    <div data-testid="node-state-rows">
+      <StateTree bind:this={tree} {rows} storageKey={`node:${id}:${layer}`} surface="node"
+        search={search.searchFor('node')} onmatches={(m) => search.report('node', m)}
+        editing={editing ? editing.path : null} {cell} {actions} />
+    </div>
     {#each Object.entries(chips).filter(([p, c]) => c.status === 'failed' && !rows.some((r) => r.path === p)) as [p, c]}
       <div class="chip bad" data-testid="node-state-chip">{p}: {c.error}</div>
     {/each}
@@ -249,20 +259,14 @@
   button:disabled { opacity: .5; cursor: default; }
   button.on { border-color: var(--color-violet); color: #fff; }
   .names { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0; }
-  .rows { margin: 0; display: grid; gap: 1px; }
-  .row { display: grid; grid-template-columns: 1fr auto auto auto; align-items: baseline; gap: 10px; padding: 3px 0; border-top: 1px solid var(--color-line); }
-  dt { color: var(--color-haze); font-size: 12px; font-family: var(--font-mono); }
-  dd { margin: 0; font-size: 12px; font-family: var(--font-mono); word-break: break-word; text-align: right; }
-  .valwrap { display: inline-flex; justify-content: flex-end; gap: 6px; }
   button.val { background: none; border: none; padding: 0; font: inherit; }
   button.val.link { color: var(--color-violet); text-decoration: underline; }
   .val.edit { cursor: text; }
   .val.edit:hover { text-decoration: underline dotted; }
-  .ed { grid-column: 2 / 4; }
-  .badge { color: var(--color-haze); opacity: .7; }
+  .ed { width: 160px; flex: none; }
   .val.string { color: #9ece6a; } .val.number { color: #ff9e64; } .val.boolean { color: var(--color-violet); } .val.null { color: var(--color-haze); }
   .chip { font-size: 11px; font-family: var(--font-mono); border: 1px solid var(--color-line); border-radius: 10px; padding: 0 7px; }
   .ok { color: #9ece6a; } .bad { color: var(--color-amber); } .pend { color: var(--color-haze); }
   .add { opacity: 0; transition: opacity .12s; padding: 2px 7px; }
-  .add.on, .row:hover .add { opacity: 1; }
+  .add.on { opacity: 1; }
 </style>
