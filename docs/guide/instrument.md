@@ -370,7 +370,7 @@ with HTTP 599 and a hint body, and records a `net.error` of kind `unmatched`. `p
 `instrument.net.unmatched`, then `passthrough` when recording, then `fail` once any rule config (a fixture file) is loaded, and
 `passthrough` otherwise. Any other value exits 2 (`--net-unmatched must be "fail" or "passthrough"`).
 
-Studio's Network tab reads `instrument.net` `upstreamHosts`, `unmatched` and `redact` the same way. In Studio `record` is off and `fixtures` are not loaded, and a bad value is shown as the panel message (see the Network panel in [e2e](../e2e/index.md)).
+`passthrough` needs `upstreamHosts`: with an empty list every request is refused (403), so `--net-unmatched passthrough` (or `instrument.net.unmatched: "passthrough"`) with no `upstreamHosts` exits 2 with `passthrough needs config.net.upstreamHosts; with an empty list every request is refused (403)`. Studio's Network tab reads `instrument.net` `upstreamHosts`, `unmatched` and `redact` the same way. In Studio `record` is off and `fixtures` are not loaded, and a bad value is shown as the panel message (see the Network panel in [e2e](../e2e/index.md)).
 
 The flag does not change the exit code by itself: the app sees the 599, so a spec that depends on the call fails in the
 usual way. At the end of the run the failing requests are printed, up to 20, and the rest are in the NDJSON file:
@@ -533,6 +533,12 @@ steps:
   "recording buffer overflow" error and nothing is written. It refuses without `config.net.upstreamHosts`.
 - `config.net` keys: `fixtures` (list of files in the project root, flow-scoped), `unmatched` (`fail` | `passthrough`; default
   `fail` when fixtures are listed, else `passthrough`), `upstreamHosts`, `record`, `redact`. A bad value is a flow parse error.
+  `upstreamHosts` is required for any passthrough, not only for `recordHttp`: `unmatched: passthrough` with an empty list is an
+  error in `e2e lint` and before `e2e run` touches the device, because the proxy would refuse every request with 403.
+- **Inheritance.** A flow starts from `instrument.net` in `brighttest.json` (`fixtures`, `unmatched`, `upstreamHosts`, `redact`;
+  never `record`) and its own `config.net` overrides per key, so the allow-list is written once. Studio's Run merges the same way.
+- **Refused requests.** When a step fails, the run prints `12 requests refused by the passthrough allow-list: host (n), ... Add them to config.net.upstreamHosts.`
+  and the failure bundle holds the same line as `net-refused.txt` (and `netRefused` in `error.json`).
 - **Fail fast.** A flow with network steps and no hub (lease bypassed, hub failed to start) fails before the device is touched.
   On a build that is not instrumented, the run fails right after `launch` (within 5 s) with
   ``no agent.hello/BT_url handshake seen: build with `brighttest instrument build --net` `` instead of waiting for step timeouts.

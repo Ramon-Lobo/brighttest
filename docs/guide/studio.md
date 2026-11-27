@@ -20,15 +20,20 @@ shows the model and the lease badge.*
 
 ```sh
 npm run studio:build          # once, when working from a source checkout (the UI bundle is not committed)
-brighttest studio --host <roku-ip> --password <dev-password> --open
+export ROKU_PASSWORD=<dev-password>
+brighttest studio --host <roku-ip> --open
 ```
 
-Stop it with Ctrl-C. The server listens on `127.0.0.1` only. Flags (from `brighttest studio --help`):
+Stop it with Ctrl-C. The server listens on `127.0.0.1` only. Studio prints one line about its instrument hub at startup:
+`hub: on (port 8790, passthrough to 2 hosts)`, or `hub: off (<why>)` where the reason is `BRIGHTTEST_HUB_TOKEN not set`, a
+malformed token (it must be 32 lowercase hex characters), no device, or a device pool. It warns when the passthrough
+allow-list (`instrument.net.upstreamHosts`) is empty and `unmatched` is not `fail`. When a flow runs from Studio's Run, the hub's
+net config is `instrument.net` merged with the flow's `config.net` (the flow wins per key), the same as `e2e run`. Flags (from `brighttest studio --help`):
 
 | Flag | Meaning |
 | --- | --- |
 | `--host <ip>` | Roku IP (or `ROKU_HOST`). Without one, Studio uses the only cached device; with several cached devices it refuses to guess and exits; with none it starts with no device and you pick one on the Devices page. |
-| `--password <pw>` | Roku dev password (or `ROKU_PASSWORD`, `.env`, or the device cache); Studio refuses to start for a host with no known password. |
+| `--password <pw>` | Discouraged: the password shows in the process list. Set `ROKU_PASSWORD` (or use `.env` or the device cache) instead. Studio refuses to start for a host with no known password. |
 | `--port <n>` | Local port, default 8700. Without `--port`, a busy 8700 falls back to the first free port of 8701-8709 and prints it; an explicit busy port fails. |
 | `--app <id>` | Channel to launch and drive (default `dev`). |
 | `--flows-dir <dir>` | Where flows (`*.e2e.yaml`) are read and written (default `./flows`). |

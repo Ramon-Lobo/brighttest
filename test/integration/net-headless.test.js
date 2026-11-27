@@ -81,13 +81,12 @@ describe('unmatched requests fail by default and are listed in the summary', () 
     expect(ndjson(dir).some((e) => e.kind === 'net.error' && e.data.kind === 'unmatched')).toBe(true)
   })
 
-  it('--net-unmatched passthrough without an allow-list is refused, not fetched', async () => {
+  it('--net-unmatched passthrough without an allow-list is a config error, not a 403 at run time', async () => {
     const dir = makeProject('net-headless')
     fs.writeFileSync(path.join(dir, 'source/tests/Feed.spec.bs'), spec('feed', 'http://127.0.0.1:9/x', '"x"', 'assertNotInvalid'))
     const res = await runAsync(dir, ['--no-sgnode', '--net-unmatched', 'passthrough'])
-    const ev = ndjson(dir)
-    expect(ev.some((e) => e.kind === 'net.error' && e.data.kind === 'upstream' && /refused/.test(e.data.detail))).toBe(true)
-    expect(res.output).toContain('Network failures')
+    expect(res.output).toContain('passthrough needs config.net.upstreamHosts; with an empty list every request is refused (403)')
+    expect(res.status).not.toBe(0)
   })
 })
 
