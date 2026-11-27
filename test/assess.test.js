@@ -97,6 +97,39 @@ describe('assess: no side effects', () => {
     expect(rep.project.files.brs).toBe(1)
   })
 
+  test('skipped paths are named with the reason and cap, never their contents', async () => {
+    fs.cpSync(SKELETON, tmp, { recursive: true })
+    fs.writeFileSync(path.join(tmp, 'source', 'big.brs'), Buffer.alloc(assess.MAX_BYTES + 1, 'a'))
+    fs.writeFileSync(path.join(tmp, 'signing.key'), 'probe-secret-9999')
+    const r = await run([tmp, '--json'])
+    expect(r.out).not.toContain('probe-secret-9999')
+    const rep = JSON.parse(r.out)
+    expect(rep.scan.maxBytes).toBe(assess.MAX_BYTES)
+    expect(rep.scan.skipped).toEqual([
+      { path: 'signing.key', reason: 'sensitive', size: null },
+      { path: 'source/big.brs', reason: 'over-size-cap', size: assess.MAX_BYTES + 1 },
+    ])
+    expect(rep.scan.skippedMore).toBe(0)
+    const text = (await run([tmp])).out
+    expect(text).toContain('source/big.brs (over size cap')
+    expect(text).toContain('signing.key (sensitive)')
+    expect(text).not.toContain('probe-secret-9999')
+  })
+
+  test('task counts: direct and inherited are both reported and labelled', async () => {
+    fs.cpSync(SKELETON, tmp, { recursive: true })
+    fs.mkdirSync(path.join(tmp, 'components'), { recursive: true })
+    const comp = (n, ex) => `<?xml version="1.0" encoding="utf-8" ?>\n<component name="${n}" extends="${ex}"><script type="text/brightscript" uri="${n}.brs" /></component>\n`
+    fs.writeFileSync(path.join(tmp, 'components', 'BaseTask.xml'), comp('BaseTask', 'Task'))
+    fs.writeFileSync(path.join(tmp, 'components', 'ChildTask.xml'), comp('ChildTask', 'BaseTask'))
+    fs.writeFileSync(path.join(tmp, 'components', 'BaseTask.brs'), 'sub execute()\nend sub\n')
+    fs.writeFileSync(path.join(tmp, 'components', 'ChildTask.brs'), 'sub run()\nend sub\n')
+    const rep = await json(tmp)
+    expect(rep.census.directTasks).toBe(1)
+    expect(rep.census.tasks).toBe(2)
+    expect((await run([tmp])).out).toContain('2 tasks (1 direct)')
+  })
+
   test('skipped directories are not scanned', async () => {
     fs.cpSync(SKELETON, tmp, { recursive: true })
     for (const d of ['node_modules/x', '.git', 'out', 'dist', 'build', '.brighttest', 'coverage', 'reports']) {
@@ -147,7 +180,7 @@ describe('assess: --json shape (brighttest-assess/v1)', () => {
     expect(keys(r.brighttest)).toEqual(['config', 'engines', 'installed'])
     expect(keys(r.brighttest.config)).toEqual(['deprecatedKeys', 'file', 'keys', 'present'])
     expect(r.brighttest.engines).toHaveProperty('warnings')
-    expect(keys(r.census)).toEqual(['components', 'couldNotInstrument', 'error', 'globalFields', 'inlineCdataScenes', 'notCovered', 'registrySections', 'scenes', 'setUrlCovered', 'setUrlSites', 'tasks'])
+    expect(keys(r.census)).toEqual(['components', 'couldNotInstrument', 'error', 'globalFields', 'inlineCdataScenes', 'notCovered', 'registrySections', 'scenes', 'setUrlCovered', 'setUrlSites', 'tasks'].sort().flatMap((k) => (k === 'tasks' ? ['directTasks', 'tasks'] : [k])).sort())
     expect(keys(r.ci)).toEqual(['nodeOk', 'nodeVersions', 'runsBrighttest', 'selfHosted', 'systems'])
     expect(keys(r.gitignore)).toEqual(['brighttest', 'coverage', 'env', 'instrumentedZip', 'present'])
     expect(keys(r.recommendation)).toEqual(['blockers', 'editPermission', 'nextSteps', 'path', 'unknowns'])
