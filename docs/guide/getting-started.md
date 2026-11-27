@@ -64,6 +64,21 @@ end namespace
 
 Then walk through it in detail in the [Writing tests guide](/writing-tests/).
 
+## Point brighttest at your Roku
+
+Headless runs need no device. For the device lane, `e2e`, `doctor`, Studio and MCP, save your Roku once:
+
+```sh
+npx brighttest setup                  # finds Rokus on your network, checks the one you pick, asks before saving
+npx brighttest setup --host 192.0.2.10   # same, for a known address
+```
+
+Setup writes `ROKU_HOST=<ip>` to the project `.env` and adds `.env` to `.gitignore` in a git work tree. It checks
+the device like `doctor` (device info only: no lease, no keypress). It never asks for, stores or prints the dev
+password: set `ROKU_PASSWORD` in your environment, or run `brighttest devices` to cache it. Agents and scripts use
+`brighttest setup --host <ip> --write --json`. In CI, set `ROKU_HOST` and `ROKU_PASSWORD` as secrets instead (see
+[CI integration](/guide/ci)).
+
 ## Run
 
 ```bash
@@ -80,7 +95,7 @@ npx brighttest --coverage --lcov coverage/lcov.info
 npx brighttest --device --host <roku-ip> --password <dev-pw> --lcov coverage/lcov.info
 ```
 
-`--device` and `--cross-check` resolve the target like the other device lanes: `--host` (also `ip:pw`), else `ROKU_HOST`, else the cached device (only when exactly one device is cached; with several, pass `--host` or set `ROKU_HOST`); the password comes from `--password`, the inline `ip:pw`, `ROKU_PASSWORD`, or the cache. An explicit `--host` always wins over `ROKU_HOST`.
+Every device command (`--device`, `--cross-check`, `e2e`, `doctor`, `device`, Studio, MCP) resolves the target in one order: `--host` (also `ip:pw`), then `ROKU_HOST` in the shell, then `ROKU_HOST` in the project `.env`, then the cached device (only when exactly one device is cached; with several, pass `--host` or run `brighttest setup`). The shell variable wins over `.env`. The password comes from `--password`, the inline `ip:pw`, `ROKU_PASSWORD`, or the cache. `doctor` and `brighttest setup` show where the host came from.
 
 
 Add scripts to `package.json`:

@@ -47,6 +47,13 @@ More keys (`engines`, `deviceInfo`, `deviceLease`, `deviceIdleTimeout`, `instrum
 
 On the default scene lane (coverage off) a plain `source/main.brs` is left out of the test build at run time (logged); `brighttest init` does not write that exclusion, and coverage, device and `--no-sgnode` runs keep the file. The reason: Rooibos does not hook a plain `.brs` Main there and the app's own loop would hang the run. Your own `!source/main.brs` in `sourceGlobs` is respected.
 
+## Pointing brighttest at a Roku
+
+`npx brighttest setup` saves `ROKU_HOST=<ip>` to `./.env` (and `.env` to `.gitignore`) after a device-info-only check.
+**Agents run `npx brighttest setup --host <ip> --write --json`** (no prompt, no secret fields).
+**Never ask for the dev password or write it anywhere**: tell the human to set `ROKU_PASSWORD` or run `brighttest devices`. Every device command resolves the host as `--host`, shell `ROKU_HOST`,
+`.env` `ROKU_HOST`, then the one cached device (`doctor` says which applied). CI uses secrets, not `setup`.
+
 ## Choosing a lane
 
 | Command | Device? | Coverage? | `@SGNode`? | Use for |
@@ -87,7 +94,7 @@ coverage/
 reports/
 ```
 
-These are all generated. `.brighttest/` is the build scratch dir; never commit it.
+All generated; `.brighttest/` is the build scratch dir, never commit it.
 
 ## CI
 
