@@ -108,6 +108,7 @@
     "--flows-dir",
     "--focused",
     "--force",
+    "--from",
     "--greenfield",
     "--help",
     "--host",

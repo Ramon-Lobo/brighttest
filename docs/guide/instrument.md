@@ -201,6 +201,26 @@ counted). It also scans the packaged `.brs` and `.xml` for `pkg:/` string litera
 file that is not in the package. Neither warning fails the build. `instrument.exclude` only stops the plugin rewriting a
 file: excluded files are still compiled by bsc and shipped as they are (they are not copied around the compiler).
 
+### Apps with their own build step: `--from`
+
+Some apps run a build step of their own before they can ship: a packaging script, or placeholders (`{{NAME}}`,
+`__NAME__`) that the script fills in. The source tree is then not the package, so instrument the build output instead:
+run your build first, then point `--from` at the result.
+
+```bash
+npm run build                                   # your own step; writes dist/ (or a zip)
+npx brighttest instrument build --from dist     # a directory ...
+npx brighttest instrument build --from build/app.zip --out debug.bt-instrumented.zip   # ... or a zip
+```
+
+The input must have `manifest` and `source/` or `components/` at its top level (a package zip has them at the zip root).
+A zip is unpacked into a fresh temporary folder, refused if an entry has a `..` or an absolute path or if it is too large
+(20000 entries, 512 MB unpacked), and the folder is removed when the build ends. The input is never written to. Everything
+else is the normal instrument build: the same packaging rules, `--net`, `--sideload` and exit codes; a bad `--from` input
+exits 1 with `--from <input>: <reason>`. `brighttest assess` prints a `build:` line recommending `--from` when it finds a
+`build`, `package` or `bundle` script in `package.json` or placeholder tokens in the manifest or config (advisory; the
+exit code does not change).
+
 ### bsc diagnostics and `diagnosticFilters`
 
 brighterscript validates the whole program, and an app that was never written for it can report hundreds of errors

@@ -132,7 +132,7 @@ See [Agent skills](/guide/agent-skills).
 ## `brighttest instrument`
 
 ```text
-instrument build [--out <zip>] [--strict | --no-strict] [--fail-on-bsc-errors] [--net] [--verbose] [--sideload --host <ip>] [--config <path>]
+instrument build [--out <zip>] [--strict | --no-strict] [--from <dir|zip>] [--fail-on-bsc-errors] [--net] [--verbose] [--sideload --host <ip>] [--config <path>]
 instrument verify <zip|dir>
 instrument census [--json] [--out <dir>] [--config <path>]
 ```
@@ -140,6 +140,7 @@ instrument census [--json] [--out <dir>] [--config <path>]
 | Flag | Meaning |
 |---|---|
 | `-o`, `--out <zip>` | Package path (default `<stagingDir>/instrument/app.bt-instrumented.zip`); written only after every check passed |
+| `--from <dir\|zip>` | Instrument an already-built package (for apps with their own build step) instead of the source tree; a directory needs `manifest` plus `source/` or `components/`, a zip is unpacked to a temp folder with path and size checks; the input is never written to (see [Apps with their own build step](/guide/instrument#apps-with-their-own-build-step-from)) |
 | `--net` | Bake the hub token from `BRIGHTTEST_HUB_TOKEN` (32 hex); exit 1 when unset or malformed |
 | `--strict` / `--no-strict` | Fail (exit 4) when something could not be instrumented / override the config |
 | `--fail-on-bsc-errors` | Fail on every bsc error. By default only plugin errors (`BT9xxx`) and parse errors fail; other bsc validation errors are warnings with a per-code histogram and a `diagnosticFilters` line (see [bsc diagnostics](/guide/instrument#bsc-diagnostics-and-diagnosticfilters)) |
