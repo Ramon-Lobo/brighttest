@@ -27,6 +27,9 @@ const STATIC = {
     'node-state-rows', 'node-state-goto', 'node-state-goto-under', 'node-state-edit', 'node-state-input', 'node-state-load', 'node-state-chip', 'node-state-step',
   ],
   'lib/HierarchyTree.svelte': ['tree-node-state'],
+  'lib/Network.svelte': ['net-panel', 'net-filter', 'net-clear', 'net-export-har', 'net-show-secrets', 'net-list', 'net-detail-splitter'],
+  'lib/NetDetail.svelte': ['net-detail', 'net-detail-close', 'net-detail-orient', 'net-detail-general', 'net-detail-req-headers', 'net-detail-res-headers', 'net-redaction-badge', 'net-not-in-har', 'net-refused-hint', 'net-copy-url', 'net-copy-req-headers', 'net-copy-res-headers', 'net-query', 'net-mock-this', 'net-copy-rule', 'net-block', 'net-clear-rules'],
+  'lib/BodyView.svelte': ['net-body', 'net-body-pretty', 'net-body-raw', 'net-body-show-all', 'net-body-download', 'net-body-truncated', 'net-body-binary', 'net-body-search', 'net-body-search-next', 'net-body-search-prev', 'net-body-search-count', 'net-body-search-case', 'net-body-copy'],
   'lib/Stage.svelte': ['monitor-stage', 'monitor-screenshot', 'monitor-overlay'],
   'lib/Remote.svelte': [
     'remote', 'remote-key-up', 'remote-key-down', 'remote-key-left', 'remote-key-right', 'remote-key-select',
@@ -56,6 +59,8 @@ const DYNAMIC = [
   ['lib/ContextMenu.svelte', "testid: 'menu-inspect-state'", ['menu-inspect-state']],
   ['App.svelte', 'data-testid="tiles-menu-item-{id}"', per('tiles-menu-item-')],
   ['App.svelte', 'data-testid="tiles-restore-{id}"', per('tiles-restore-')],
+  ['lib/Network.svelte', 'data-testid="net-row"', ['net-row']],
+  ['lib/NetDetail.svelte', "data-testid={'net-detail-tab-' + k}", ['net-detail-tab-headers', 'net-detail-tab-payload', 'net-detail-tab-response']],
   ['lib/Tile.svelte', 'data-testid="tile-{tile.id}"', per('tile-')],
   ['lib/Tile.svelte', 'data-testid="tile-{tile.id}-handle"', per('tile-', '-handle')],
   ['lib/Tile.svelte', 'data-testid="tile-{tile.id}-minimize"', per('tile-', '-minimize')],
