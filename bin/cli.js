@@ -897,6 +897,11 @@ async function main() {
     process.stdout.write('', () => process.exit(code));
     return;
   }
+  if (argv[0] === 'issue') {
+    const code = require('../lib/issue').run(argv.slice(1));
+    process.stdout.write('', () => process.exit(code));
+    return;
+  }
   if (argv[0] === 'doctor') {
     const o = parseDoctorArgs(argv.slice(1));
     if (o.help) { console.log(DOCTOR_HELP); process.exit(0); }

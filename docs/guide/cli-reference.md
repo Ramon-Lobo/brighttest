@@ -320,6 +320,26 @@ serial is hidden unless `--show-serial`. `--engines` runs the engine-capability 
 contacts no device. Exit `0` all checks passed, `1` a check failed or the device is unreachable (with `--engines`:
 the probe failed or disagrees with the package metadata), `2` usage. See [troubleshooting](/guide/troubleshooting#brighttest-doctor-is-the-device-ready).
 
+## `brighttest issue`
+
+```text
+issue redact [<file>... | -] [-o <file|dir>] [--project <dir>] [--json]
+issue check  [<file>... | -] [--project <dir>] [--json]
+```
+
+Prepares text for a public issue. Both run locally: files or stdin (`-`, the default) in, files or stdout out; no
+network, no device, no lease. `redact` masks names, hosts, IPs, tokens, serials and personal paths with numbered
+placeholders (one mapping across all inputs), writes to stdout for one input or to `-o` (a file, or a directory for
+several), then checks what it wrote. `check` re-detects what a redaction would still change and lints the structure of
+a [field report](/guide/reporting-issues) (missing required sections, empty Actual behavior, a severity outside
+`blocker`/`high`/`medium`/`low`, no brighttest version); text with none of those headings is treated as an attachment
+and not linted. Findings print as `file:line kind` on stderr and never include the matched value. It ends with
+`fingerprint: bt-xxxxxxxx`, stable for the same area and first error line.
+
+Exit `0` no findings (structure warnings alone do not fail), `1` findings (`redact` still writes its output so you can
+fix the rest by hand), `2` usage. `--json` prints `{ leaks: [{file,line,kind}], warnings, fingerprint, sections }`
+(`redact` adds `summary`). Names to mask beyond the automatic ones go in `.brighttest/issue-deny.txt`, one per line.
+
 ## `brighttest mcp`
 
 ```text
