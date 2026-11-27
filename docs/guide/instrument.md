@@ -191,6 +191,7 @@ Current limitations (the full design is not implemented yet):
 | `strict` | A "could not instrument" entry fails the build (exit 4). `--strict` / `--no-strict` override it per run. | `false` |
 | `files` | Globs (or `{ src, dest }` entries) of what goes into the package. Unset means everything under `rootDir` the Roku packager would ship (images, fonts, root JSON, callee files outside `source/` and `components/`) minus dotfiles and dot folders, `node_modules`, test specs (`source/tests/**`, `*.spec.*`), tool config (`brighttest.json`, `bsconfig.json`, `package*.json`), zips and the staging dir. It does not use `sourceGlobs`, so widening it never changes the headless lanes. | everything under `rootDir`, minus the list above |
 | `exclude` | Globs of files the plugin leaves alone (relative to `rootDir`). The default exclusions (Rooibos, `roku_modules`, vendor, specs) apply on top. | `[]` |
+| `strictAccept` | Globs (relative to `rootDir`) of files you excluded on purpose: an `excluded-candidate` entry in a matching file no longer fails `--strict` (it stays in the report as informational). Any other exclude still fails. It does not exclude anything by itself and does not affect other kinds. Not an array of non-empty strings is a config error. | `[]` |
 | `net` | `true` or `false` turns the `setUrl` / `getUrl` rewrite on or off. An object configures it: `unknown`, `receivers` (see below), plus the headless net keys `fixtures`, `unmatched`, `upstreamHosts`, `redact`, `observe`. Any other type is `BT9005`. | `true` |
 | `scene` | Bootstrap every non-excluded Scene `init` and ship the state agent. `false` also drops the agent components. | `true` |
 | `op` | Add the `BT_op` function to instrumented component chains (the `m` layer). | `true` |
@@ -265,7 +266,7 @@ The map is written outside the package after the transpile and never ships in th
 
 | Report entry (`kind`) | Fails strict |
 |---|---|
-| `excluded-candidate` in a file **you** excluded | yes |
+| `excluded-candidate` in a file **you** excluded | yes, unless the file matches `instrument.strictAccept` |
 | `excluded-candidate` in a default-excluded path (`source/rooibos/**`, `source/vendor/**`, `roku_modules/**`, specs, ...) | no, informational |
 | `empty-init`, `inline-cdata-scene`, `unknown-scene-subtype`, `init-in-excluded-file`, `init-shared-with-excluded-scene` (via import or via `extends`) | yes |
 | `indexed-seturl`, `indexed-geturl`, `bare-geturl`, `xml-parse-failed` | yes |

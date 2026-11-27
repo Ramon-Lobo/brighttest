@@ -43,6 +43,7 @@ export interface InstrumentConfig {
   strict: boolean;
   enabled?: boolean;
   exclude?: string[];
+  strictAccept?: string[];
   state?: boolean | InstrumentStateConfig;
   net?: InstrumentNetConfig;
   [key: string]: unknown;
