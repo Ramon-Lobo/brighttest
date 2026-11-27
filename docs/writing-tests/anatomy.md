@@ -3,16 +3,16 @@
 Let's dissect the spec from the last page, one piece at a time.
 
 ```brightscript
-namespace tests                                   // 1
-  @suite("math utils")                            // 2
-  class MathUtilsTests extends rooibos.BaseTestSuite   // 3
+namespace tests                                   ' 1
+  @suite("math utils")                            ' 2
+  class MathUtilsTests extends rooibos.BaseTestSuite   ' 3
 
-    @describe("addNumbers")                        // 4
+    @describe("addNumbers")                        ' 4
 
-    @it("adds two positive numbers")               // 5
-    function _()                                    // 6
-      result = addNumbers(2, 3)                     // 7
-      m.assertEqual(result, 5)                      // 8
+    @it("adds two positive numbers")               ' 5
+    function _()                                    ' 6
+      result = addNumbers(2, 3)                     ' 7
+      m.assertEqual(result, 5)                      ' 8
     end function
 
   end class

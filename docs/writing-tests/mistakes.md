@@ -68,10 +68,12 @@ m.assertTrue(value = 2147483647)
 
 **Symptom:** a crash / no result for an `@SGNode` test under `npx brighttest`.
 
-**Cause:** node tests need the real render thread; the headless simulator can't provide it.
+**Cause:** `@SGNode` suites run headless by default (the lane boots a SceneGraph scene), so a failure here is
+usually a bug in the test or the component, or `--no-sgnode` was passed and skipped the node suites. Only real
+wall-clock render timing (animations, Task I/O) needs a device.
 
-**Fix:** run node tests with `--device`. Better: extract the logic into a pure function and test that
-headless — see [SceneGraph & async tests](/writing-tests/scenegraph-async).
+**Fix:** run `npx brighttest` without `--no-sgnode`, and use `--device` only for timing-dependent behaviour. Better:
+extract the logic into a pure function and test that headless — see [SceneGraph & async tests](/writing-tests/scenegraph-async).
 
 ## Un-injectable dependencies (hard-to-test code)
 

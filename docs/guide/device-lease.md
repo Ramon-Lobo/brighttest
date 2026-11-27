@@ -42,7 +42,7 @@ npx brighttest e2e run flows/ --purpose "LSE-T5 check"
 While a command waits, it prints (on stderr, once and then every 30 s):
 
 ```
-[brighttest lease] 192.168.1.50 is held by device-qa#1 — "e2e run flows/home.e2e.yaml"
+[brighttest lease] 192.0.2.50 is held by device-qa#1 — "e2e run flows/home.e2e.yaml"
   since 14:02:11 (4m12s, deadline 15:02:11), worktree …/roku-test-wt-a (feat/ecp-queue).
   You are #2 in queue.
   Waiting up to 25m48s more (BRIGHTTEST_LEASE_WAIT / --wait). Ctrl-C to leave the queue.
@@ -60,7 +60,7 @@ npx brighttest device watch --once          # one static board, then exit
 npx brighttest device watch --json          # the same board as JSON (schema brighttest-lease-board/v1)
 npx brighttest device watch --plain         # one static board every interval, no screen control (for tee and logs)
 npx brighttest device watch --plain --for 10m   # stop after a duration (no terminal and no --for: the plain loop stops after 10 minutes)
-npx brighttest device watch --host 192.168.1.50 --interval 5s --tail 20 --all
+npx brighttest device watch --host 192.0.2.50 --interval 5s --tail 20 --all
 ```
 
 `watch` is read-only. It lists every known device with its state (held, free, stale), holder, how long, the
@@ -134,7 +134,7 @@ device setting, and it applies to `device with` only (not to `e2e run`).
 ## Resetting a stuck device: `device reset`
 
 ```bash
-npx brighttest device reset --host 10.0.0.5:changeme
+npx brighttest device reset --host 192.0.2.5:<dev-password>
 ```
 
 Takes the lease (no Home x2 press), sends the installer `Delete` (the dev password is required; this frees a
@@ -149,9 +149,9 @@ app is removed, so sideload again afterwards. For CI see `e2e run --reset-device
 it reads the output), take a **session** lease instead:
 
 ```bash
-TOKEN=$(npx brighttest device lock --host 192.168.1.50 --as device-qa#1 --purpose "debug launch")
-BRIGHTTEST_LEASE=$TOKEN npx brighttest device with -- curl -d '' http://192.168.1.50:8060/keypress/Home
-npx brighttest device with --lease "$TOKEN" -- npx rooibos --host 192.168.1.50 --password "$ROKU_PASSWORD"
+TOKEN=$(npx brighttest device lock --host 192.0.2.50 --as device-qa#1 --purpose "debug launch")
+BRIGHTTEST_LEASE=$TOKEN npx brighttest device with -- curl -d '' http://192.0.2.50:8060/keypress/Home
+npx brighttest device with --lease "$TOKEN" -- npx rooibos --host 192.0.2.50 --password "$ROKU_PASSWORD"
 npx brighttest device renew --lease "$TOKEN"
 npx brighttest device unlock --lease "$TOKEN"
 ```
@@ -214,7 +214,7 @@ you want it, take the lock with `device lock --no-hygiene` instead. `e2e run` la
 - If you must free a device by hand (the holder is yours and stuck):
 
   ```bash
-  npx brighttest device unlock --force --host 192.168.1.50 --reason "stuck after laptop sleep" [--kill]
+  npx brighttest device unlock --force --host 192.0.2.50 --reason "stuck after laptop sleep" [--kill]
   ```
 
   The old holder is told it lost the lease (it notices within a second and exits 77); it does not take the
@@ -261,7 +261,7 @@ All optional, in `brighttest.json`:
   "hygiene": "home",     // "home" | "none": Home ×2 after acquiring, for e2e run and device with
   "studioIdle": "5m",    // Studio releases after this long without user activity
   "studioYield": "60s",  // …or after this long when someone is queued
-  "pool": ["192.168.1.10", "192.168.1.11"]  // devices for `--device any` (see below)
+  "pool": ["192.0.2.10", "192.0.2.11"]  // devices for `--device any` (see below)
 }
 ```
 
@@ -364,8 +364,8 @@ If port 8700 is taken (another worktree's Studio), `brighttest studio` uses the 
 ## CI and several users
 
 - **CI on the same machine as the same user**: nothing to set up. Give runs a label and a longer wait:
-  `BRIGHTTEST_AGENT=ci:<run id>` and `BRIGHTTEST_LEASE_WAIT=45m`, and add
-  `npx brighttest device status` steps before and after the device steps (see [CI integration](./ci)).
+  `BRIGHTTEST_AGENT=ci:<run id>` and `BRIGHTTEST_LEASE_WAIT=45m`, and keep
+  `npx brighttest device status` out of the CI workflow and logs, because it prints device addresses; run it from your own shell (see [CI integration](./ci)).
 - **CI as another OS user on the same machine** is not supported: the lease directory and its files are
   created private to one user (0700/0600). Run CI as the same user that runs the other device work.
 - **Another machine** cannot see the lease. Dedicate the device to that machine while it runs.

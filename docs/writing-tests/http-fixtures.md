@@ -44,7 +44,7 @@ The same rule object is used in rule files, in HAR conversion and in `BTNet_mock
 | `status`, `headers` | Response status (default 200) and headers. |
 | `body`, `json`, `file`, `bodyBase64` | The response body; use one. `file` is relative to the project root and confined to it. |
 | `delayMs` | Wait before answering. |
-| `fault` or `kind` | `timeout`, `reset`, or `status` (with `status`). Optional `holdMs`, `partialBytes`. | Device failure codes: see [Network fault model](/guide/net-faults). |
+| `fault` or `kind` | `timeout`, `reset`, or `status` (with `status`). Optional `holdMs`, `partialBytes`. Device failure codes: see [Network fault model](/guide/net-faults). |
 | `responses` | A sequence: one entry per match, the last repeating. |
 | `passthrough: true` | Send this match to the real origin (the host must be allowed, see below). |
 

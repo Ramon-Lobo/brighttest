@@ -38,14 +38,14 @@ jobs:
   headless:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
       - run: npm ci
       - run: npx brighttest --coverage --lcov coverage/lcov.info --junit reports/junit.xml
       - if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: junit
           path: reports/junit.xml
@@ -71,8 +71,8 @@ matches real firmware via `--cross-check` (fails on any divergence). Gate it to 
     needs: headless
     if: github.ref == 'refs/heads/main'   # e.g. only on main / nightly
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
       - run: npm ci

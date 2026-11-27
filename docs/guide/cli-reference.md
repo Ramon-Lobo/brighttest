@@ -20,6 +20,9 @@ brighttest setup                 save a Roku as the project default (ROKU_HOST i
 brighttest mcp                   MCP stdio server for AI agents
 brighttest devices               discover Rokus, cache credentials
 brighttest device <action>       the device lease
+brighttest builds <action>       the build history store
+brighttest issue redact|check    mask and lint a bug report
+brighttest features render       HTML report of a feature tree
 ```
 
 Durations (`--wait`, `--max`, `--expect`, `--idle`) are `90s`, `10m`, `1h` or plain milliseconds. Flags accept
@@ -43,7 +46,7 @@ feature; nothing on this page is a claim of device verification.
 | `--coverage` | Headless coverage run |
 | `--cross-check` | Headless vs device diff |
 | `--no-sgnode` | Skip `@SGNode` suites |
-| `--host <ip>` (also `ip:pw`) | Device IP. Else `ROKU_HOST`, a project `.env`, then the device cache. Several cached devices and none chosen is an error, not a guess |
+| `--host <ip>` (also `ip:pw`) | Device IP. Else `ROKU_HOST`, a project `.env`, then the device cache. Device commands take the cached device only when exactly one is cached; with several, pass `--host` or run `brighttest setup`. `doctor` is the exception: it warns and uses the last one |
 | `--password <pw>` (`--pass`) | Dev password. Else `ROKU_PASSWORD`, the device cache |
 | `--lcov [path]` | Write LCOV (default `coverage/lcov.info`); headless `--coverage` and device lanes |
 | `--junit <path>` | Write JUnit XML (headless lanes) |
@@ -133,7 +136,7 @@ See [Agent skills](/guide/agent-skills).
 ## `brighttest instrument`
 
 ```text
-instrument build [--out <zip>] [--strict | --no-strict] [--from <dir|zip>] [--fail-on-bsc-errors] [--net] [--verbose] [--sideload --host <ip>] [--config <path>]
+instrument build [--out <zip>] [--strict | --no-strict] [--from <dir|zip>] [--fail-on-bsc-errors] [--net] [--verbose] [--sideload --host <ip> [--reuse]] [--config <path>]
 instrument verify <zip|dir>
 instrument census [--json] [--out <dir>] [--config <path>]
 ```
@@ -147,6 +150,7 @@ instrument census [--json] [--out <dir>] [--config <path>]
 | `--fail-on-bsc-errors` | Fail on every bsc error. By default only plugin errors (`BT9xxx`) and parse errors fail; other bsc validation errors are warnings with a per-code histogram and a `diagnosticFilters` line (see [bsc diagnostics](/guide/instrument#bsc-diagnostics-and-diagnosticfilters)) |
 | `--verbose` | List every informational entry and every bsc warning |
 | `--sideload` | After a successful build, install under the device lease (needs `--host`; password from `ROKU_PASSWORD`). Retries once after Delete |
+| `--reuse` | With `--sideload`: skip the rebuild and install the newest stored build when the source fingerprint, flags and hub token are unchanged. Not with `--from` (exit 2) |
 | `--host <ip>` | Device for `--sideload` (never guessed from the cache) |
 | `--wait`, `--max`, `--expect <dur>`, `--as <name>`, `--purpose <text>` | Device lease options |
 | `-c`, `--config <p>` | `brighttest.json` |
@@ -168,7 +172,7 @@ e2e stamp <src> -o <d> copy a project, injecting ids onto un-annotated nodes
 
 | Flag | Applies to | Meaning |
 |---|---|---|
-| `--host <ip[:pw][,…]>` | all device actions | Device(s); else `ROKU_HOST` (shell, then project `.env`), then the one cached device (several cached and none chosen is an error). Several hosts shard the flows across devices in parallel; `ip:pw` gives a per-device password |
+| `--host <ip[:pw][,…]>` | all device actions | Device(s); else `ROKU_HOST` (shell, then project `.env`), then the one cached device (with several cached and none chosen, `e2e` refuses; pass `--host`). Several hosts shard the flows across devices in parallel; `ip:pw` gives a per-device password |
 | `--ecp-port <n>` | all | ECP port (or `ROKU_ECP_PORT`, default 8060), for stubs and fakes |
 | `--password <pw>` (`--pass`) | all | Dev password (or `ROKU_PASSWORD`); screenshots need it |
 | `--app <id>` | run, inspect, record | Channel to launch (default `dev`; also the flow's `appId`) |
@@ -197,15 +201,15 @@ failed (also `--fail-on-skip` with a skip, or no flow ran), `2` usage or device-
 ## `brighttest studio`
 
 ```text
-studio --host <ip> [--port 8700] [--app dev] [--flows-dir flows] [--open]
+studio --host <ip> [--port 8700] [--app dev] [--as <agent>] [--flows-dir flows] [--open]
 studio --simulator [--port 8700] [--flows-dir flows] [--open]
 ```
 
 `--host` (or `ROKU_HOST`), `--password` (`--pass`, or `ROKU_PASSWORD`), `--port <n>` (default 8700; if busy and `--port` was not given, the first free of
 8701-8709; an explicit busy `--port` fails), `--app <id>` (default `dev`), `--flows-dir <dir>` (default `./flows`),
-`-o`, `--open` (open the browser). Studio takes the [device lease](/guide/device-lease#studio) while you use it. See the [Studio guide](/guide/studio).
+`--as <agent>` (device lease holder label, or `BRIGHTTEST_AGENT`), `-o`, `--open` (open the browser). Studio takes the [device lease](/guide/device-lease#studio) while you use it. See the [Studio guide](/guide/studio).
 
-`--simulator` runs Studio against the local brs-node simulator instead of a device (state-only; see [Simulator target](/guide/studio#simulator-target-no-device)). It uses the stock engine (`brs-node`, shipped as a brighttest dependency) unless `engines.brsNode` or `BRIGHTTEST_ENGINES` says otherwise, takes no value, and exits 2 when combined with `--host` or a device pool. `--password` is ignored with it. Exit codes: 2 usage error or UI not built, 1 other failures.
+`--simulator` runs Studio against the local brs-node simulator instead of a device (state-only; see [Simulator target](/guide/studio#simulator-target-no-device)). The engine is `auto` (the patched engine when installed, else the stock `brs-node` shipped as a brighttest dependency) unless `engines.brsNode` or `BRIGHTTEST_ENGINES` says otherwise, takes no value, and exits 2 when combined with `--host` or a device pool. `--password` is ignored with it. Exit codes: 2 usage error or UI not built, 1 other failures.
 
 ## `brighttest builds`
 
@@ -213,12 +217,14 @@ studio --simulator [--port 8700] [--flows-dir flows] [--open]
 builds list [--json] [--all] [--kind store|instrumented] [--tag <t>] [--pinned]
 builds show <id|prefix> [--json]
 builds add <zip> [--label <text>] [--note <text>] [--tag <t>]... [--json]
-builds install <id|prefix|zip> | --latest [--host <ip>] [--wait <dur>] [--as <agent>] [--purpose <text>] [--json]
+builds install <id|prefix|zip> | --latest [--host <ip>] [--wait <dur>] [--as <agent>] [--purpose <text>] [--allow-token-mismatch] [--json]
 builds pin|unpin <id>     builds edit <id> [--label ..] [--note ..] [--tag ..] [--untag ..]
 builds rm <id> [--force]  builds prune [--dry-run] [--json]
 ```
 
-The build history store (project `.brighttest/builds`, or `BRIGHTTEST_BUILDS_DIR` / `--builds-dir`). An id is `b` plus 12 hex; any unique prefix of 4+ characters works. `install --latest` re-installs the newest build made by `instrument build`; a zip path is added to the store first. The host comes only from `--host` or `ROKU_HOST` (shell or project `.env`), never the device cache; the install takes the [device lease](/guide/device-lease). Exit codes: 0 ok, 1 failed (install, pinned `rm`), 2 usage, no host, unknown or ambiguous id, 5 package rejected (invalid, unsafe, no manifest, blob missing or corrupt), 75 lease busy, 77 store unusable or lease lost, 78 configuration error.
+The build history store (project `.brighttest/builds`, or `BRIGHTTEST_BUILDS_DIR` / `--builds-dir <dir>`, which must be an absolute path). An id is `b` plus 12 hex; any unique prefix of 4+ characters works. `install --latest` re-installs the newest build made by `instrument build`; a zip path is added to the store first. The host comes only from `--host` or `ROKU_HOST` (shell or project `.env`), never the device cache; the install takes the [device lease](/guide/device-lease). Exit codes: 0 ok, 1 failed (install, pinned `rm`), 2 usage, no host, unknown or ambiguous id, 5 package rejected (invalid, unsafe, no manifest, blob missing or corrupt), 75 lease busy, 77 store unusable or lease lost, 78 configuration error.
+
+`install` stops with `TOKEN_MISMATCH` (exit 2) when the build's hub token differs from `BRIGHTTEST_HUB_TOKEN`; `--allow-token-mismatch` installs anyway (only the enum is printed, never a token). Also accepts `--config`.
 
 See [Builds](/guide/builds) for the store, retention and the Studio Builds page.
 
@@ -376,6 +382,7 @@ The [device lease](/guide/device-lease) commands.
 
 ```text
 device status [--host <h>] [--json]
+device watch [--host <h>] [--once|--json|--plain] [--interval 2s] [--for <dur>] [--tail <n>] [--all] [--no-probe]
 device with [options] -- <cmd…>
 device with --device any -- <cmd…>
 device lock [--host <h>] [options] [--json]
