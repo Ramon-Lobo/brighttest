@@ -23,6 +23,7 @@
     "brs",
     "skills",
     "lib/*.js",
+    "lib/builds",
     "lib/e2e",
     "lib/features",
     "lib/instrument",
