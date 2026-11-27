@@ -10,7 +10,7 @@ function BT_capsFrom(cfg as dynamic) as object
     if type(cfg) = "roAssociativeArray" and type(cfg.caps) = "roAssociativeArray" then
         for each k in caps
             v = cfg.caps[k]
-            if v <> invalid and (type(v) = "Integer" or type(v) = "roInt" or type(v) = "roInteger") and v > 0 then caps[k] = v
+            if (type(v) = "Integer" or type(v) = "roInt" or type(v) = "roInteger") and v > 0 then caps[k] = v
         end for
     end if
     return caps
@@ -19,7 +19,7 @@ end function
 function BT_pubInt(cfg as dynamic, key as string, def as integer, lo as integer, hi as integer) as integer
     if type(cfg) = "roAssociativeArray" and type(cfg.publish) = "roAssociativeArray" then
         v = cfg.publish[key]
-        if v <> invalid and (type(v) = "Integer" or type(v) = "roInt" or type(v) = "roInteger") and v >= lo and v <= hi then return v
+        if (type(v) = "Integer" or type(v) = "roInt" or type(v) = "roInteger") and v >= lo and v <= hi then return v
     end if
     return def
 end function
@@ -114,9 +114,7 @@ function BT_serialize(v as dynamic, caps as object, path as string, depth as int
             return Left(v, caps.stringBytes)
         end if
         return v
-    else if t = "Boolean" or t = "roBoolean" then
-        return v
-    else if t = "Integer" or t = "roInt" or t = "roInteger" or t = "LongInteger" or t = "roLongInteger" then
+    else if t = "Boolean" or t = "roBoolean" or t = "Integer" or t = "roInt" or t = "roInteger" or t = "LongInteger" or t = "roLongInteger" then
         return v
     else if t = "Float" or t = "roFloat" or t = "Double" or t = "roDouble" then
         if v <> v then return "$type:" + t

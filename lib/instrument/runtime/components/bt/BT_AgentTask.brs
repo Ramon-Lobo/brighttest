@@ -43,7 +43,6 @@ sub BT_agentTaskRun()
         end if
         if session = "" and now >= retryAt and BT_wOrigin(cfg) <> "" then
             info = BT_wHelloInfo(cfg)
-            session = ""
             after = 0
             if info <> invalid then
                 session = info.session

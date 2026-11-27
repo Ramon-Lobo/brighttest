@@ -46,9 +46,7 @@ function BT_netHello() as string
             if msg.GetResponseCode() <> 200 then return ""
             j = ParseJson(msg.GetString())
             if type(j) <> "roAssociativeArray" then return ""
-            if j.active = invalid or j.netBase = invalid then return ""
-            if j.active <> true or not BT_netIsStr(j.netBase) then return ""
-            if j.netBase = "" then return ""
+            if j.active <> true or not BT_netIsStr(j.netBase) or j.netBase = "" then return ""
             return origin + j.netBase
         end if
     end while
