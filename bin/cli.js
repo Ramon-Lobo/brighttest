@@ -91,13 +91,15 @@ function parseDoctorArgs(rest) {
 }
 
 // `brighttest mcp`: stdio MCP server (brighttest-mcp/v1) exposing the e2e primitives to agents.
-const MCP_HELP = `
+// Tool names come from the real registry (the same list `tools/list` returns), so help cannot drift.
+function mcpToolNames() { return require('../lib/mcp/tools').TOOLS.map((t) => t.name).join(', '); }
+const mcpHelp = () => `
 brighttest mcp — serve brighttest's deterministic e2e primitives to an AI agent over MCP (stdio)
 
 Usage: brighttest mcp
 
   Speaks newline-delimited JSON-RPC 2.0 on stdin/stdout (logs go to stderr). Tools (contract brighttest-mcp/v1):
-  list_devices, device_doctor, inspect_tree, press, navigate_to, screenshot, app_state, run_flow, net_requests, net_mock, perf_summary, perf_trace_summary
+  ${mcpToolNames()}
   (net_requests and net_mock open a net window, see https://ramon-lobo.github.io/brighttest/guide/mcp).
 
   The device comes only from the usual resolution chain (ROKU_HOST, ROKU_PASSWORD, project .env, device cache);
@@ -764,7 +766,7 @@ async function main() {
   }
   if (argv[0] === 'mcp') {
     if (argv.length > 1 && argv[1] !== '--help' && argv[1] !== '-h') { console.error('[brighttest mcp] takes no arguments (see: brighttest mcp --help)'); process.exit(2); }
-    if (argv[1]) { console.log(MCP_HELP); process.exit(0); }
+    if (argv[1]) { console.log(mcpHelp()); process.exit(0); }
     process.exit(await require('../lib/mcp/server').run({ cwd: process.cwd() }));
   }
   if (argv[0] === 'net') {
@@ -872,6 +874,11 @@ async function main() {
 }
 
 // Only run the CLI when executed directly (not when required by tests).
-if (require.main === module) main();
+if (require.main === module) {
+  // A reader that closes early (`brighttest skills list | head`) is not an error: exit quietly with status 0.
+  // Any other stdout write error stays visible (rethrown as uncaught).
+  process.stdout.on('error', (e) => { if (e && e.code === 'EPIPE') process.exit(0); throw e; });
+  main();
+}
 
 module.exports = { parseNetArgs, studioStartOptions, parseArgs, parseInstrumentArgs, INSTRUMENT_ACTIONS, parseSkillsArgs, parseInitArgs, parseE2eArgs, parseStudioArgs, studioExitCode, studioTargetLabel, parseDeviceArgs, parseDoctorArgs, SKILLS_ACTIONS, E2E_ACTIONS, DEVICE_ACTIONS, SCREENSHOT_MODES };
