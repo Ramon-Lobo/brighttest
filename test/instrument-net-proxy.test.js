@@ -436,3 +436,52 @@ describe('refused requests carry status and bytes on net.error', () => {
     expect(h.events.some((e) => e.kind === 'net.error')).toBe(false);
   });
 });
+
+describe('synthetic answers, truncation flag, over-limit request, entry(id) (STUDIO-NETD-T1, ADR 0051)', () => {
+  it('records unmatched, refused and bad-target answers as synthetic: no net.response, not in exchanges() or HAR', async () => {
+    const h = await harness({ upstreamHosts: ['api.example.test'], record: true });
+    h.proxy.ruleSet.addConfig([{ url: 'https://only.example.test/**', status: 200, body: 'ok' }]);
+    expect((await request(`${h.base}https://only.example.test/a`)).status).toBe(200);
+    expect((await request(`${h.base}https://nowhere.example.test/x`)).status).toBe(599);
+    h.proxy.setUnmatched('passthrough');
+    expect((await request(`${h.base}https://blocked.example.test/x`)).status).toBe(403);
+    expect((await request(`${h.base}not-a-url`)).status).toBe(400);
+    expect(kinds(h).filter((k) => k === 'net.response')).toHaveLength(1);
+    expect(h.proxy.exchanges().map((e) => e.id)).toEqual(['r-1']);
+    expect(h.proxy.har().log.entries).toHaveLength(0); // mock answers are not passthrough, generated ones never are
+    const un = h.proxy.entry('r-2');
+    expect(un).toMatchObject({ synthetic: true, status: 599, source: 'unmatched', hasResponse: true });
+    expect(un.resBody.toString()).toMatch(/no rule matched/);
+    const ref = h.proxy.entry('r-3');
+    expect(ref).toMatchObject({ synthetic: true, status: 403, source: 'refused', statusText: 'Forbidden' });
+    expect(ref.resBody.toString()).toMatch(/passthrough refused/);
+    expect(h.proxy.entry('r-4')).toMatchObject({ synthetic: true, status: 400, error: 'bad target' });
+    expect(h.proxy.entry('r-1')).toMatchObject({ synthetic: false, status: 200 });
+    expect(h.proxy.entry('r-99')).toBeNull();
+  });
+  it('records an upstream error as synthetic 502', async () => {
+    const o = await origin();
+    const h = await harness({ upstreamHosts: [`127.0.0.1:${o.port}`], unmatched: 'passthrough' });
+    const loop = await request(`${h.base}${o.url}/redirect?n=40`);
+    expect(loop.status).toBe(502);
+    const e = h.proxy.entry('r-1');
+    expect(e).toMatchObject({ synthetic: true, status: 502 });
+    expect(h.proxy.exchanges()).toHaveLength(0);
+  });
+  it('an over-16 MB request body answers 413 and leaves an entry', async () => {
+    const h = await harness();
+    const r = await request(`${h.base}https://h.test/up`, { method: 'POST', body: Buffer.alloc(17 * 1024 * 1024, 0x61) });
+    expect([413, 'ECONNRESET', 'EPIPE']).toContain(r.status ?? r.error);
+    const e = h.proxy.entry('r-1');
+    expect(e).toMatchObject({ status: 413, source: 'refused', error: 'request body too large', reqBodyTooLarge: true, synthetic: true, reqBody: null });
+    expect(h.proxy.exchanges()).toHaveLength(0);
+  });
+  it('keeps the capture-truncated flag on a passthrough body past the capture cap', async () => {
+    const o = await origin();
+    const h = await harness({ upstreamHosts: [`127.0.0.1:${o.port}`], unmatched: 'passthrough' });
+    await request(`${h.base}${o.url}/large?kb=64`);
+    const e = h.proxy.entry('r-1');
+    expect(e).toMatchObject({ synthetic: false, resTruncated: false, hasResponse: true, resBytes: 64 * 1024 });
+    expect(e.timings).toMatchObject({ wait: expect.any(Number) });
+  });
+});
