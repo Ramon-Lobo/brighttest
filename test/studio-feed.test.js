@@ -3,6 +3,14 @@ import { describe, it, expect } from 'vitest'
 const load = () => import('../lib/studio/web/src/lib/feed.js')
 const mem = (init = {}) => { const m = { ...init }; return { getItem: (k) => (k in m ? m[k] : null), setItem: (k, v) => { m[k] = String(v) }, removeItem: (k) => { delete m[k] }, m } }
 
+describe('feed CARD_HELD_HINT', () => {
+  it('names the way out and the tools it blocks', async () => {
+    const { CARD_HELD_HINT } = await load()
+    expect(CARD_HELD_HINT).toContain('Device screenshots')
+    expect(CARD_HELD_HINT).toContain('ffmpeg')
+  })
+})
+
 describe('feed autoRect', () => {
   it('uses the whole frame for 16:9 (within 1 percent)', async () => {
     const { autoRect } = await load()

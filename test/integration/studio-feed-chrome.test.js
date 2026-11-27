@@ -110,6 +110,7 @@ describe.skipIf(!chrome || !built)('Studio capture-card feed (headless Chrome, f
       await until(`${q('feed-status')}.textContent.includes('live')`, 'the feed to settle past the signal wait', 40)
       // A 4:3 frame gets the centered 16:9 picture area.
       expect(await js(`${q('monitor-video')}.style.transform`)).toContain('translate(0%, -12.5%)')
+      expect(await js(`${q('feed-card-held')}.textContent`)).toContain('Device screenshots')
       await shot('02-feed-live-auto-calibration.png')
 
       // Screenshots are off while the feed is on; the tree loop still draws the overlay and its age.
@@ -156,6 +157,14 @@ describe.skipIf(!chrome || !built)('Studio capture-card feed (headless Chrome, f
       for (let i = 0; i < 40 && shots === before; i++) await sleep(100)
       expect(shots).toBeGreaterThan(before)
       await shot('05-feed-ended-back-to-screenshots.png')
+
+      // The card hint shows only while a feed is live: back on a feed it returns, Device screenshots removes it.
+      expect(await js(`!!${q('feed-card-held')}`)).toBe(false)
+      await pickFeed()
+      await until(q('feed-card-held'), 'the card-held hint')
+      await shot('06-card-held-hint.png')
+      await js(`(() => { const s = ${q('feed-source')}; s.value = ''; s.dispatchEvent(new Event('change', { bubbles: true })) })()`)
+      await until(`!${q('feed-card-held')}`, 'the hint to go with the feed')
     } finally { clearTimeout(killer); cleanup() }
   }, 120000)
 })

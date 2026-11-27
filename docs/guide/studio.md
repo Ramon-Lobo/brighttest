@@ -253,6 +253,8 @@ and CLI are unchanged, and nothing is stored in the project.
 - **First use:** click **Allow camera access** so the browser shows the device names, then pick the card. Browsers only
   allow this on `http://localhost` or `https`. A denied permission, a missing card or a card another app holds shows a
   message and Studio stays on device screenshots.
+- **The card is busy while the feed is live.** On macOS the browser holds the capture card; ffmpeg (and similar tools)
+  on the same machine fail with `Could not lock device for configuration`. Pick **Device screenshots** to free it.
 - **Screenshots are off while a feed is live.** The tree is still read (every 300 ms) so the overlay and the remote
   work, and the device is not held up by screenshots. Switching back to **Device screenshots**, or unplugging the card,
   restores the on-demand screenshots (refresh button and shot age) at once.
