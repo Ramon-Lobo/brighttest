@@ -434,7 +434,7 @@ function parseDeviceArgs(rest) {
   const o = {
     deviceAction: null, host: null, password: null, ecpPort: null, as: null, purpose: null, wait: null, max: null, idle: null,
     expect: null, keepalive: null, noHygiene: false, json: false, tail: null, force: false, reason: null, kill: false, lease: null,
-    cmd: [], help: false, unknown: [], once: false, plain: false, all: false, noProbe: false, interval: null, tailRaw: null,
+    cmd: [], help: false, unknown: [], once: false, plain: false, all: false, noProbe: false, interval: null, for: null, tailRaw: null,
   };
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
@@ -460,6 +460,7 @@ function parseDeviceArgs(rest) {
     else if (a === '--no-hygiene') o.noHygiene = true;
     else if ((v = val('--interval')) !== undefined) o.interval = v;
     else if (a === '--interval') o.interval = ''; // no value after it: cmdWatch rejects it
+    else if ((v = val('--for')) !== undefined) o.for = v;
     else if (a === '--once') o.once = true;
     else if (a === '--plain') o.plain = true;
     else if (a === '--all') o.all = true;
@@ -481,7 +482,7 @@ brighttest device — share one Roku safely between processes, worktrees and age
 
 Usage:
   brighttest device status [--host <h>] [--json]           Who holds each device, since when, who waits
-  brighttest device watch [--host <h>] [--once|--json|--plain] [--interval 2s] [--tail <n>] [--all] [--no-probe]
+  brighttest device watch [--host <h>] [--once|--json|--plain] [--interval 2s] [--for <dur>] [--tail <n>] [--all] [--no-probe]
                                                            Live board of devices, queues and recent runs (read-only)
   brighttest device with [options] -- <cmd…>               Hold the lease while <cmd> runs (FIFO queue)
   brighttest device with --device any -- <cmd…>            Same, on the first free device of deviceLease.pool (--host wins)
