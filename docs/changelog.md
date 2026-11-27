@@ -32,11 +32,6 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
 - **Studio and devices:** Studio rejects cross-origin and non-JSON requests to its local API, and requests with a
   non-local `Host` header ([Studio guide](./guide/studio.md)). The device credential cache is written atomically with
   owner-only permissions.
-
-### Security
-- **Studio and devices:** Studio rejects cross-origin and non-JSON requests to its local API, and requests with a
-  non-local `Host` header ([Studio guide](./guide/studio.md)). The device credential cache is written atomically with
-  owner-only permissions.
 - **Agent guard hook:** also denies a raw ECP `curl` whose host is an environment variable (`$ROKU_HOST`,
   `${ROKU_HOST:-x}`) when the path mutates the device or the port is 8060; read-only `/query` reads stay allowed
   ([sharing a device](./guide/device-lease.md)).
@@ -45,6 +40,9 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
 - **Instrument:** new `instrument.strictAccept` list of globs. An `excluded-candidate` entry in an excluded file that matches it no longer fails `instrument build --strict`; any other exclude still fails. A value that is not an array of glob strings is a config error.
 - **Instrument:** `instrument build --sideload --reuse` skips the rebuild and installs the newest stored build when the source fingerprint, flags and hub token are unchanged; rebuild only after your own code changes.
 - **Device lane:** `--device --lcov` now writes function (`FN`/`FNDA`) and branch (`BRDA`) records as well as lines when the engine supports `--coverage-dir` (rooibos 5.17.0 or newer), so CI tools can show function and branch coverage. Older engines keep line records only.
+- **Studio:** a browser capture-card feed. Pick a USB capture card in **Screen source** (Inspect and Record, device targets only) to see live video instead of screenshots; the tree is still read, so the overlay and the remote work. Calibration (auto fit, nudge, zoom, alignment aid) is saved per capture device in the browser, and Studio reopens the last feed only when the camera permission is already granted. Nothing is stored in the project and agents (MCP) do not see the feed ([Studio guide](./guide/studio.md)).
+- **Studio:** `POST /api/lease` with `{ "action": "acquire", "wait": "2m" }` holds the request until Studio has the device (200) or the wait ends (423, and Studio leaves the queue), so a script can wait in one call. `wait` may not exceed `deviceLease.wait`; a bad value is 400 `BAD_WAIT`. Without `wait` the call behaves as before ([Studio guide](./guide/studio.md)).
+- **Issue reports:** `brighttest issue collect` writes a folder with an environment block (versions, engine flavours, names but never values of `BRIGHTTEST_*` and `ROKU_*` variables, config keys), an `ISSUE.md` skeleton, redacted text attachments and a counts-only `redaction.json`, checks the folder, and exits 1 if anything survived redaction. `--host` adds the device model and firmware from a device-info read, with no lease, password or serial. A new `reporting-a-brighttest-issue` skill covers picking findings, reproducing on a generic fixture and anonymizing with `issue redact` and `issue check` ([CLI reference](./guide/cli-reference.md), [agent skills](./guide/agent-skills.md)).
 - **Studio:** the Inspect page is now a grid of tiles (monitor, flow, remote, node, tree, selector, state, actions, network) that you can drag, resize, minimize, hide and restore from a Tiles menu, with presets and Reset; the layout is saved per browser. The tab test ids (`inspector-panel`, `tab-node`, `tab-tree`, `tab-selector`, `tab-state`, `tab-actions`, `tab-net`) are gone; use the `tile-*` and `tiles-*` ids listed in the [Studio guide](./guide/studio.md).
 - **Instrument:** `instrument build --from <dir|zip>` instruments an already-built package for apps with their own build step, and `assess` recommends it when it finds a packaging script or placeholder tokens. [Guide](/guide/instrument#apps-with-their-own-build-step-from)
 - **E2E and Studio:** `assertState` takes `layer: node` or `layer: m` with `node: { id }` and reads that node through
@@ -165,6 +163,10 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
   2.7.1-bt.1, `@ramonlobo/rooibos-roku` 5.17.0-bt.1, Rooibos 5.17). The engine's undocumented `rt-http-fixtures.json`
   hook is removed (use the network fault proxy, see [net faults](./guide/net-faults.md)), and floats now print the way
   a device prints them, so output that compared against the old float text may differ.
+- **Docs:** the short pages are now the default at the usual URLs, and the original full pages are under `/full/`. `llms.txt` and the `.md` twins stay on the full pages.
+- **Studio:** while the live capture-card feed is on, a hint says it holds the capture card (macOS lets one app configure the card, so ffmpeg or OBS cannot open it) and points to Device screenshots as the way out.
+- **Device lease:** the wait line for an interactive holder such as Studio now shows an estimate based on its yield window instead of an unknown ETA, and `device watch --once`, `--plain` and the non-terminal loop print the interactive-holder line that was only in `--json` and the live screen.
+- **Studio:** the net requests route reports `agentHellos` and `netHellos` next to `hellos` (their sum), so the count no longer disagrees with `/api/state`.
 
 ### Fixes
 - **Studio:** node boxes now line up with the picture for apps whose manifest sets `ui_resolutions=hd`. They were drawn at
@@ -192,6 +194,16 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
 - **E2E and Studio:** focus navigation keeps pressing through a keyboard-style control whose cursor moves inside one focused
   node; the focused selector picks the deepest node; launch with params reaches an already running channel
   ([flow reference](./e2e/flows.md)). Studio serves the last tree instead of an error on transient read failures.
+- **CLI:** `brighttest devices --help` prints usage instead of scanning the LAN. `studio --help` now says `--simulator` uses the auto engine (the patched engine when installed, else the bundled stock one), and `mcp --help` lists `app_state_set` and `app_state_snapshot` among the tools that open a net window.
+- **Instrument:** `instrument build --sideload` takes the device from `--host`, then `ROKU_HOST` in the shell, then the project `.env`, like `builds install`. The device cache is still not used.
+- **Instrument:** `instrument build --reuse` no longer prints a `TOKEN_MISMATCH` note saying `--allow-token-mismatch` was given when you did not pass it.
+- **State:** `e2e` state steps and MCP state reads hold a hub watch, so the app agent leaves its slow idle sampling cadence and a read no longer returns a stale snapshot.
+- **Device:** `device watch --for` now ends the live watch screen in a terminal; before only the plain output honored it.
+- **Issue:** `issue check` and `issue redact` given a directory say `<path> is a directory; pass the files to check ... or - for stdin` instead of `cannot read: EISDIR`.
+- **Redaction:** a single 1 MB line is redacted in seconds instead of minutes. npm package specs (`@scope/name`) and Roku model numbers or `model` values are no longer replaced by a name placeholder; hosts, tokens, emails and secrets next to them are still redacted. Serial values written as `serial: v` or `Serial Number: v` are masked.
+- **Studio:** the builds upload honors `?filename=` (the `X-Build-Filename` header still works), and the State edit field accepts a string wrapped in double quotes without storing the quote characters.
+- **Studio:** the Record layout grid has its own label and test ids (`record-layout-grid`, `record-layout-live`), so they no longer duplicate the Inspect grid, and a saved layout drops tiles that no longer exist.
+- **Docs:** 14 mismatches between the full guides and the code are fixed, among them the doctor warning with several cached devices, the 16 MCP tools, `@SGNode` suites running headless by default and the `--simulator` engine.
 
 ### Upgrade notes {#upgrade-0-8-0}
 - Re-run `npx brighttest skills install` once; see [Migrating from older installs](./guide/agent-skills.md#migrating-from-older-flattened-installs).
