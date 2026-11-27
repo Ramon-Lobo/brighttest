@@ -8,7 +8,7 @@ import { createRequire } from 'node:module'
 
 // Studio Network details split pane in headless Chrome (raw CDP, no device): open and close, splitter by keyboard and
 // pointer, selection kept in view, Headers / Payload / Response, Pretty and Raw, search, show secrets, refused and
-// not-in-HAR, truncated and binary bodies. Uses the in-repo fake Roku and the fake net proxy harness; hosts are
+// not-in-HAR, truncated and binary bodies, JSON tree, Copy as cURL and image preview. Uses the in-repo fake Roku and the fake net proxy harness; hosts are
 // example.test. Skips when no Chrome or no Studio build. BT_NETD_SHOTS=<dir> saves a screenshot per case.
 const require = createRequire(import.meta.url)
 const root = path.join(__dirname, '..', '..')
@@ -102,11 +102,13 @@ describe.skipIf(!chrome || !built)('Studio Network details (headless Chrome)', (
       harness.proxy.ruleSet.add({ id: 'home', url: 'https://api.example.test/v1/home*', status: 200, headers: { 'content-type': 'application/json', 'set-cookie': 'sid=cookie-secret' }, json: { title: 'Hero', rail: ['a', 'b'], token: 'resp-secret-1' } })
       harness.proxy.ruleSet.add({ id: 'bin', url: 'https://api.example.test/v1/blob', status: 200, headers: { 'content-type': 'application/octet-stream' }, bodyBase64: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0, 1, 2, 3, 255, 254]).toString('base64') })
       harness.proxy.ruleSet.add({ id: 'big', url: 'https://api.example.test/v1/big', status: 200, headers: { 'content-type': 'text/plain' }, body: 'é'.repeat(700 * 1024) })
-      await request(harness.base + 'https://api.example.test/v1/home?page=1&access_token=abc123secret', { method: 'POST', headers: { authorization: 'Bearer auth-secret-1', 'content-type': 'application/json' }, body: JSON.stringify({ q: 'x', token: 'req-secret-1' }) })
+      await request(harness.base + 'https://api.example.test/v1/home?page=1&access_token=abc123secret', { method: 'POST', headers: { authorization: 'Bearer auth-secret-1', 'content-type': 'application/json' }, body: JSON.stringify({ q: "it's", token: 'req-secret-1' }) })
       await request(harness.base + 'https://blocked.example.test/v1/nope')
       await request(harness.base + 'https://api.example.test/v1/blob')
       await request(harness.base + 'https://api.example.test/v1/big')
-      const ids = { home: 'r-31', refused: 'r-32', bin: 'r-33', big: 'r-34' }
+      harness.proxy.ruleSet.add({ id: 'png', url: 'https://api.example.test/v1/pic', status: 200, headers: { 'content-type': 'image/png' }, bodyBase64: PNG })
+      await request(harness.base + 'https://api.example.test/v1/pic')
+      const ids = { home: 'r-31', refused: 'r-32', bin: 'r-33', big: 'r-34', png: 'r-35' }
 
       await cdp('Page.enable')
       await cdp('Fetch.enable', { patterns: [{ urlPattern: '*/api/screenshot*' }] })
@@ -157,14 +159,24 @@ describe.skipIf(!chrome || !built)('Studio Network details (headless Chrome)', (
 
       // Payload and Response: Pretty by default for JSON, Raw toggles, search highlights.
       await click('net-detail-tab-payload')
+      await click('net-body-pretty')
       const req = await text('net-body')
-      expect(req).toContain('"q": "x"')
+      expect(req).toContain('"q": "it\'s"')
       expect(req).not.toContain('req-secret-1')
       expect(await js(`${q('net-body')}.dataset.side`)).toBe('req')
       expect(await has('net-query')).toBe(true)
       expect(await text('net-query')).not.toContain('abc123secret')
       await click('net-detail-tab-response')
       expect(await js(`${q('net-body')}.dataset.side`)).toBe('res')
+      // JSON opens as a tree first (the shared state tree); Pretty is one click away.
+      expect(await js(`${q('net-body')}.dataset.kind`)).toBe('json')
+      await until(`!!${q('net-body-tree-view')}`, 'JSON tree')
+      expect(await js(`${q('net-body-tree-view')}.querySelectorAll('[data-testid="state-row"]').length`)).toBeGreaterThanOrEqual(3)
+      expect(await text('net-body-tree-view')).toContain('Hero')
+      expect(await text('net-body-tree-view')).not.toContain('resp-secret-1')
+      await shot('02a-response-tree.png')
+      await js(`${q('net-body-tree-view')}.querySelector('[data-testid="state-row-toggle"]').click()`)
+      await click('net-body-pretty')
       expect((await text('net-body')).includes('\n  "title": "Hero"')).toBe(true)
       expect(await text('net-body')).not.toContain('resp-secret-1')
       await shot('03-response-pretty.png')
@@ -278,6 +290,37 @@ describe.skipIf(!chrome || !built)('Studio Network details (headless Chrome)', (
       await until(`${q('net-body')}.textContent.includes('passthrough refused')`, 'refused body')
       const har = await getJson(`${base}/api/net/har`)
       expect(har.log.entries.map((e) => e.request.url).some((u) => u.includes('blocked.example.test'))).toBe(false)
+
+      // Copy as cURL: redacted by default, raw with show secrets; single quotes in the body are escaped.
+      await js(`window.__clip = []; navigator.clipboard.writeText = (t) => { window.__clip.push(t); return Promise.resolve() }`)
+      await pick(ids.home)
+      await until(`!!${q('net-copy-curl')} && !${q('net-copy-curl')}.disabled`, 'cURL button')
+      await click('net-copy-curl')
+      const curl = await js(`window.__clip[window.__clip.length - 1]`)
+      expect(curl).toMatch(/^curl -X POST 'http:\/\/|^curl -X POST 'https:\/\//)
+      expect(curl).toContain("-H 'authorization: <redacted>'")
+      expect(curl).toContain('--data-raw')
+      for (const secret of ['auth-secret-1', 'req-secret-1', 'abc123secret']) expect(curl).not.toContain(secret)
+      await shot('12-copy-curl-redacted.png')
+      await click('net-show-secrets')
+      await click('net-detail-tab-headers')
+      await until(`${q('net-redaction-badge')} && ${q('net-redaction-badge')}.textContent.startsWith('raw')`, 'raw details')
+      await click('net-copy-curl')
+      const rawCurl = await js(`window.__clip[window.__clip.length - 1]`)
+      expect(rawCurl).toContain("-H 'authorization: Bearer auth-secret-1'")
+      expect(rawCurl).toContain('req-secret-1')
+      await shot('13-copy-curl-raw.png')
+      await click('net-show-secrets')
+      await until(`${q('net-redaction-badge')}.textContent === 'redacted'`, 'redacted again')
+
+      // Image preview: a small PNG shows as an image; the 1.4 MB text body keeps its message.
+      await pick(ids.png)
+      await click('net-detail-tab-response')
+      await until(`!!${q('net-body-image-img')}`, 'image preview')
+      await until(`${q('net-body-image-img')}.complete && ${q('net-body-image-img')}.naturalWidth > 0`, 'image decoded')
+      expect(await has('net-body-binary')).toBe(false)
+      await shot('14-image-preview.png')
+      await pick(ids.refused)
 
       // Esc closes from inside the details and from the list, and focus returns to the selected row.
       await js(`${q('net-detail-tab-response')}.focus()`)

@@ -167,3 +167,67 @@ describe('network details: search and colour', () => {
     expect(t.filter((x) => x.cls === 'lit').map((x) => x.text)).toEqual(['true', 'null'])
   })
 })
+
+describe('network details: Copy as cURL, image preview and JSON tree', () => {
+  const entry = (over = {}) => ({
+    method: 'POST', url: 'https://api.example.test/v1/home?page=1', raw: false,
+    request: {
+      headers: { authorization: 'Bearer abc', Cookie: 'sid=1', 'content-type': 'application/json', 'content-length': '12', host: 'api.example.test', 'x-trace': 'keep' },
+      body: { kind: 'json', text: '{"q":"it\'s"}', bytes: 12 },
+    },
+    ...over,
+  })
+
+  it('quotes single quotes in the shell way', async () => {
+    const { curlQuote } = await load()
+    expect(curlQuote("it's")).toBe(`'it'\\''s'`)
+    expect(curlQuote('a b')).toBe(`'a b'`)
+    expect(curlQuote("''")).toBe(`''\\'''\\'''`)
+  })
+
+  it('builds a command, redacted by default', async () => {
+    const { buildCurl } = await load()
+    const c = buildCurl(entry())
+    expect(c).toBe(`curl -X POST 'https://api.example.test/v1/home?page=1' -H 'authorization: <redacted>' -H 'Cookie: <redacted>' -H 'content-type: application/json' -H 'x-trace: keep' --data-raw '{"q":"it'\\''s"}'`)
+    expect(c).not.toContain('abc')
+    expect(c).not.toMatch(/content-length|host:/i)
+  })
+
+  it('keeps the real values only for a raw entry', async () => {
+    const { buildCurl } = await load()
+    const c = buildCurl(entry({ raw: true }))
+    expect(c).toContain(`'authorization: Bearer abc'`)
+    expect(c).toContain(`'Cookie: sid=1'`)
+  })
+
+  it('omits GET and notes bodies it cannot include', async () => {
+    const { buildCurl } = await load()
+    const g = buildCurl(entry({ method: 'GET', request: { headers: {}, body: { kind: 'empty', bytes: 0 } } }))
+    expect(g).toBe(`curl 'https://api.example.test/v1/home?page=1'`)
+    expect(buildCurl(entry({ request: { headers: {}, body: { kind: 'binary', encoding: 'base64', text: 'AAA=', bytes: 2 } } }))).toMatch(/\n# binary request body not included$/)
+    expect(buildCurl(entry({ request: { headers: {}, body: { kind: 'text', text: 'x', truncated: true, bytes: 9 } } }))).toMatch(/\n# request body was cut/)
+    expect(buildCurl(null)).toBe('')
+  })
+
+  it('previews only small image bodies', async () => {
+    const { imagePreview, IMAGE_MAX } = await load()
+    const v = { kind: 'binary', encoding: 'base64', text: 'iVBORw0K', bytes: 6 }
+    expect(imagePreview(v, 'image/png')).toBe('data:image/png;base64,iVBORw0K')
+    expect(imagePreview(v, 'image/jpeg; charset=x')).toBe('data:image/jpeg;base64,iVBORw0K')
+    expect(imagePreview(v, 'image/svg+xml')).toBeNull()
+    expect(imagePreview(v, 'application/octet-stream')).toBeNull()
+    expect(imagePreview({ ...v, bytes: IMAGE_MAX + 1 }, 'image/png')).toBeNull()
+    expect(imagePreview({ ...v, truncated: true }, 'image/png')).toBeNull()
+    expect(imagePreview(null, 'image/png')).toBeNull()
+  })
+
+  it('offers a tree for JSON objects and arrays only', async () => {
+    const { jsonTreeValue, jsonLeaf } = await load()
+    expect(jsonTreeValue({ kind: 'json', text: '{"a":[1]}' })).toEqual({ a: [1] })
+    expect(jsonTreeValue({ kind: 'json', text: '5' })).toBeNull()
+    expect(jsonTreeValue({ kind: 'json', text: '{bad' })).toBeNull()
+    expect(jsonTreeValue({ kind: 'json', text: '{}', truncated: true })).toBeNull()
+    expect(jsonTreeValue({ kind: 'text', text: '{}' })).toBeNull()
+    expect(jsonLeaf(null)).toMatchObject({ type: 'null', kind: 'value', editable: false })
+  })
+})

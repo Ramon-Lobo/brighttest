@@ -2,7 +2,7 @@
   import { api } from './api.js';
   import BodyView from './BodyView.svelte';
   import { isRefused, refusedHint, canMock } from './net-state.js';
-  import { generalRows, notInHarText, redactionText, headersText, queryPairs } from './netdetail.js';
+  import { generalRows, notInHarText, redactionText, headersText, queryPairs, buildCurl } from './netdetail.js';
 
   // Details of the selected request (design 5.2): actions, General, Headers, Payload and Response tabs. The entry is
   // fetched from /api/net/entry on selection, on a raw toggle, and once more when a pending row completes (its row
@@ -49,6 +49,7 @@
     <div class="acts">
       <button data-testid="net-mock-this" onclick={() => onmock(row)} disabled={!canMock(row)} title={!canMock(row) ? 'No completed exchange to mock (unmatched, refused or failed request)' : 'Add a mockHttp step from this response'}>Mock this</button>
       <button data-testid="net-copy-rule" onclick={() => oncopyrule(row)} disabled={!canMock(row)} title={!canMock(row) ? 'No completed exchange to copy (unmatched, refused or failed request)' : 'Copy the rule JSON for this response'}>Copy as rule JSON</button>
+      <button data-testid="net-copy-curl" title={d && d.raw ? 'Copy as cURL (raw values: secrets included)' : 'Copy as cURL (secrets replaced by a placeholder)'} disabled={!d} onclick={() => copyText(d && d.raw ? 'cURL (raw)' : 'cURL', buildCurl(d))}>Copy as cURL</button>
       <button data-testid="net-block" onclick={() => onblock(row)}>Block (503)</button>
       <button data-testid="net-clear-rules" onclick={onclearrules}>Clear live rules</button>
     </div>

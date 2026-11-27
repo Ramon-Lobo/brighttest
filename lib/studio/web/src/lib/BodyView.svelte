@@ -1,12 +1,13 @@
 <script>
   import { tick } from 'svelte';
   import { api } from './api.js';
-  import { bodyText, renderSlice, bodyNotices, findMatches, segments, nextIndex, jsonTokens, hexDump, formatBytes, formPairs } from './netdetail.js';
+  import { bodyText, renderSlice, bodyNotices, findMatches, segments, nextIndex, jsonTokens, hexDump, formatBytes, formPairs, imagePreview, jsonTreeValue, jsonLeaf } from './netdetail.js';
+  import StateTree from './StateTree.svelte';
 
   // One body (request or response) of a network entry (design 5.3). `view` is the server's body view for that side.
   let { view, side, id, raw = false, contentType = '' } = $props();
 
-  let mode = $state('pretty');   // pretty | raw (Pretty is only used when the body is JSON that parses)
+  let mode = $state('tree');     // tree | pretty | raw (Tree and Pretty only apply to JSON that parses; Tree is the first view)
   let showAll = $state(false);
   let query = $state('');
   let caseSens = $state(false);
@@ -14,7 +15,10 @@
   let note = $state('');
   let box = $state(null);
 
-  const shown = $derived(bodyText(view, mode));
+  const treeValue = $derived(jsonTreeValue(view));
+  const treeMode = $derived(mode === 'tree' && treeValue !== null);
+  const shown = $derived(bodyText(view, mode === 'tree' ? 'pretty' : mode));
+  const image = $derived(side === 'res' ? imagePreview(view, contentType) : null);
   const sliced = $derived(renderSlice(shown.text, showAll));
   const starts = $derived(findMatches(sliced.text, query, caseSens));
   const segs = $derived(starts.length ? segments(sliced.text, starts, query.length) : null);
@@ -34,6 +38,10 @@
   const url = $derived(api.netBodyUrl(id, side, raw));
 </script>
 
+{#snippet cell(r)}
+  <span class={r.type === 'string' ? 'str' : r.type === 'number' ? 'num' : 'lit'}>{r.type === 'string' ? JSON.stringify(r.value) : typeof r.value === 'object' && r.value !== null ? JSON.stringify(r.value) : String(r.value)}</span>
+{/snippet}
+
 <div class="body" data-testid="net-body" data-side={side} data-kind={view ? view.kind : 'none'}>
   {#if !view}
     <p class="muted">No data.</p>
@@ -47,14 +55,17 @@
       <div class="tools">
         {#if !binary}
           {#if shown.canPretty}
+            {#if treeValue !== null}<button class:on={mode === 'tree'} data-testid="net-body-tree" onclick={() => (mode = 'tree')}>Tree</button>{/if}
             <button class:on={mode === 'pretty'} data-testid="net-body-pretty" onclick={() => (mode = 'pretty')}>Pretty</button>
             <button class:on={mode === 'raw'} data-testid="net-body-raw" onclick={() => (mode = 'raw')}>Raw</button>
           {/if}
+          {#if !treeMode}
           <input class="s" data-testid="net-body-search" aria-label="search in body" placeholder="search" bind:value={query} onkeydown={onSearchKey} />
           <button data-testid="net-body-search-prev" aria-label="previous match" onclick={() => step(-1)} disabled={!starts.length}>&lsaquo;</button>
           <button data-testid="net-body-search-next" aria-label="next match" onclick={() => step(1)} disabled={!starts.length}>&rsaquo;</button>
           <span class="count" data-testid="net-body-search-count">{query ? (starts.length ? `${cur + 1}/${starts.length}` : '0') : ''}</span>
           <button class:on={caseSens} data-testid="net-body-search-case" aria-label="match case" aria-pressed={caseSens} onclick={() => (caseSens = !caseSens)}>Aa</button>
+          {/if}
           <button data-testid="net-body-copy" onclick={copy}>Copy</button>
         {/if}
         <a class="btn" data-testid="net-body-download" href={url} download>Download body</a>
@@ -63,10 +74,19 @@
       {#if form.length}
         <table class="kv"><tbody>{#each form as [k, v]}<tr><td>{k}</td><td>{v}</td></tr>{/each}</tbody></table>
       {/if}
-      {#if binary}
+      {#if image}
+        <div data-testid="net-body-image">
+          <img src={image} alt="response preview" data-testid="net-body-image-img" />
+          <p class="muted">{contentType.split(';')[0]}, {formatBytes(view.bytes)}</p>
+        </div>
+      {:else if binary}
         <div data-testid="net-body-binary">
           <p class="muted">Binary body, {formatBytes(view.bytes)}{contentType ? `, ${contentType}` : ''}. First {Math.min(512, view.bytes)} bytes:</p>
           <pre class="txt">{hexDump(view.text)}</pre>
+        </div>
+      {:else if treeMode}
+        <div data-testid="net-body-tree-view">
+          <StateTree value={treeValue} classify={jsonLeaf} storageKey={`net:${side}`} surface="net" {cell} />
         </div>
       {:else}
         <pre class="txt" bind:this={box}>{#if segs}{#each segs as s}{#if s.hit}<mark class:cur={s.cur}>{s.text}</mark>{:else}{s.text}{/if}{/each}{:else if tokens}{#each tokens as t}<span class={t.cls}>{t.text}</span>{/each}{:else}{sliced.text}{/if}</pre>
@@ -95,5 +115,6 @@
   .kv td:first-child { color: var(--color-haze); width: 35%; }
   mark { background: #5a4a14; color: inherit; }
   mark.cur { background: #b8892a; color: #000; }
+  img { max-width: 100%; max-height: 240px; image-rendering: auto; background: repeating-conic-gradient(#1a1e2b 0% 25%, #12151f 0% 50%) 0 / 12px 12px; border: 1px solid var(--color-line); }
   .key { color: #7aa2f7; } .str { color: #9ece6a; } .num { color: #ff9e64; } .lit { color: #bb9af7; }
 </style>
