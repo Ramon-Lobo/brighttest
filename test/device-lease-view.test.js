@@ -21,15 +21,15 @@ const ahead = (ms) => new Date(NOW + ms).toISOString();
 function holderRec({ key, host, port = 8060, leaseId, agent = 'dev#1', purpose = 'e2e run smoke', pid = LIVE_PID, heldMs = 60000, mode = 'command', deadlineMs = 3600000, hostname = HOST }) {
   return {
     schema: 'brighttest-lease/v1', leaseId, mode, device: { key, host, port, serialHash: 'abcdef123456' },
-    holder: { agent, purpose, pid, pidStart: null, childPids: [], hostname, user: 'u', cwd: '/x', worktree: 'wt', branch: 'feat/x', command: ['secret', 'cmd'] },
+    holder: { agent, purpose, verb: 'e2e', pid, pidStart: null, childPids: [], hostname, user: 'u', cwd: '/x', worktree: 'wt', branch: 'feat/x', command: ['secret', 'cmd'] },
     acquiredAt: ago(heldMs), heartbeatAt: ago(1000), expiresAt: null, idleMs: null, deadline: ahead(deadlineMs), expectMs: null,
   };
 }
 function putHolder(dir, key, rec) { fs.mkdirSync(path.join(dir, key, 'queue'), { recursive: true }); fs.writeFileSync(path.join(dir, key, 'holder.json'), JSON.stringify(rec)); }
-function putTicket(dir, key, { leaseId, agent, purpose = 'with x', queuedMs, pid = LIVE_PID, waitUntilMs = 600000, mtimeAgoMs = 1000 }) {
+function putTicket(dir, key, { leaseId, agent, purpose = 'with x', verb, queuedMs, pid = LIVE_PID, waitUntilMs = 600000, mtimeAgoMs = 1000 }) {
   const q = path.join(dir, key, 'queue'); fs.mkdirSync(q, { recursive: true });
   const f = path.join(q, `${String(NOW - queuedMs).padStart(15, '0')}-${leaseId}.json`);
-  fs.writeFileSync(f, JSON.stringify({ leaseId, agent, purpose, pid, pidStart: null, hostname: HOST, queuedAt: ago(queuedMs), waitUntil: ahead(waitUntilMs), mode: 'command' }));
+  fs.writeFileSync(f, JSON.stringify({ leaseId, agent, purpose, ...(verb ? { verb } : {}), pid, pidStart: null, hostname: HOST, queuedAt: ago(queuedMs), waitUntil: ahead(waitUntilMs), mode: 'command' }));
   const t = new Date(NOW - mtimeAgoMs); fs.utimesSync(f, t, t);
 }
 const ev = (e, atMs, extra = {}) => JSON.stringify({ t: ago(atMs), ev: e, ...extra });
@@ -89,6 +89,23 @@ describe('pure helpers exported from the lease', () => {
     expect(r.etaMs).toBe(500);
     expect(L.computeEta(null, [], [], NOW)).toEqual({ etaMs: 0, perTicket: [] });
   });
+  it('computeEta groups past holds by the verb field; events without verb group under other', () => {
+    const events = [{ ev: 'released', heldMs: 100, verb: 'run' }, { ev: 'released', heldMs: 900, verb: 'e2e' }, { ev: 'released', heldMs: 500, purpose: 'old text' }];
+    const holder = { acquiredAt: ago(0), holder: { verb: 'run' } };
+    const r = L.computeEta(holder, [{ verb: 'e2e' }, {}, { verb: 'sideload' }], events, NOW);
+    expect(r.perTicket).toEqual([100, 1000, 1500]); // run 100 left; + e2e 900; + other 500
+    expect(r.etaMs).toBeNull(); // nothing recorded for sideload
+  });
+  it('computeEta: an overdue holder gives no ETA and says by how much; no data says no --expect', () => {
+    const over = L.computeEta({ acquiredAt: ago(5000), expectMs: 2000, holder: {} }, [{}], [], NOW);
+    expect(over).toMatchObject({ etaMs: null, perTicket: [null], overdueMs: 3000 });
+    expect(L.etaNote(over.etaMs, over.overdueMs)).toBe('past expected hold by 3s; ETA unknown');
+    const none = L.computeEta({ acquiredAt: ago(5000), holder: {} }, [], [], NOW);
+    expect(none.etaMs).toBeNull();
+    expect(none.overdueMs).toBeUndefined();
+    expect(L.etaNote(none.etaMs, none.overdueMs)).toBe('ETA unknown (no --expect)');
+    expect(L.etaNote(1000)).toBeNull();
+  });
 });
 
 describe('board from a fixture lease dir', () => {
@@ -97,14 +114,14 @@ describe('board from a fixture lease dir', () => {
     const host = '192.0.2.10';
     // device A: identity key + address key, one holder (same lease on both), queue of 2 live + 1 dead
     for (const k of [ID_A, host]) putHolder(dir, k, holderRec({ key: k, host, leaseId: 'aaaaaaaa11112222', heldMs: 4 * 60000 }));
-    putTicket(dir, ID_A, { leaseId: 'bbbbbbbb00000001', agent: 'dev#3', queuedMs: 62000, purpose: 'e2e run smoke' });
-    putTicket(dir, host, { leaseId: 'bbbbbbbb00000001', agent: 'dev#3', queuedMs: 62000, purpose: 'e2e run smoke' });
+    putTicket(dir, ID_A, { leaseId: 'bbbbbbbb00000001', agent: 'dev#3', queuedMs: 62000, purpose: 'e2e run smoke', verb: 'e2e' });
+    putTicket(dir, host, { leaseId: 'bbbbbbbb00000001', agent: 'dev#3', queuedMs: 62000, purpose: 'e2e run smoke', verb: 'e2e' });
     putTicket(dir, ID_A, { leaseId: 'cccccccc00000002', agent: 'device-qa#2', queuedMs: 20000 });
     putTicket(dir, ID_A, { leaseId: 'dddddddd00000003', agent: 'gone', queuedMs: 500000, pid: 1, mtimeAgoMs: 300000 });
     fs.writeFileSync(path.join(dir, 'identity-cache.json'), JSON.stringify({ [host]: ID_A, '127.0.0.1_p9100': ID_B }));
     const run = (id, atEnd, waited, held, extra = {}) => [
-      ev('acquired', atEnd + held, { leaseId: id, agent: 'dev#1', purpose: 'e2e run smoke', waitedMs: waited, queued: waited > 0 }),
-      ev(extra.end || 'released', atEnd, { leaseId: id, agent: 'dev#1', purpose: 'e2e run smoke', heldMs: held, ...(extra.more || {}) })];
+      ev('acquired', atEnd + held, { leaseId: id, agent: 'dev#1', purpose: 'e2e run smoke', verb: 'e2e', waitedMs: waited, queued: waited > 0 }),
+      ev(extra.end || 'released', atEnd, { leaseId: id, agent: 'dev#1', purpose: 'e2e run smoke', verb: 'e2e', heldMs: held, ...(extra.more || {}) })];
     const lines = [...run('r1xxxxxxxxxxxx', 3600000, 0, 120000), ...run('r2xxxxxxxxxxxx', 1800000, 5000, 240000), ...run('r3xxxxxxxxxxxx', 900000, 0, 60000, { end: 'lost', more: { reason: 'deadline' } }),
       ev('queued', 100000, { leaseId: 'tttttttt00000009', agent: 'x', purpose: 'p' }), ev('timeout', 90000, { leaseId: 'tttttttt00000009', agent: 'x', purpose: 'p', waitedMs: 10000 }),
       ev('acquired', 240000, { leaseId: 'aaaaaaaa11112222', agent: 'dev#1', purpose: 'e2e run smoke', waitedMs: 0 })];
@@ -142,9 +159,11 @@ describe('board from a fixture lease dir', () => {
     const live = a.queue.filter((q) => !q.dead);
     expect(live.map((q) => [q.pos, q.agent])).toEqual([[1, 'dev#3'], [2, 'device-qa#2']]);
     expect(live[0].waitingMs).toBe(62000);
-    // the median of past "e2e run" holds is 180000 and the holder has already held longer: the first waiter is next
-    expect(live.map((q) => q.etaMs)).toEqual([0, 180000]);
-    expect(a.etaMs).toBeNull(); // the second waiter's verb has no history, so the whole line has no total
+    // the median of past "e2e" holds is 180000 and the holder has already held 240000: overdue, so no ETA is invented
+    expect(live.map((q) => q.etaMs)).toEqual([null, null]);
+    expect(live.map((q) => q.etaNote)).toEqual(['past expected hold by 1m00s; ETA unknown', 'past expected hold by 1m00s; ETA unknown']);
+    expect(a.etaMs).toBeNull();
+    expect(a.etaNote).toMatch(/^past expected hold by /);
     const c = b.devices.find((d) => d.label === '192.0.2.20');
     expect(c.state).toBe('stale');
     expect(c.holder.staleReason).toBe('dead');
