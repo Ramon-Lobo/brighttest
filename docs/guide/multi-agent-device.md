@@ -101,3 +101,6 @@ last action.
   lanes. An estimate is only a guess: when the holder runs past it, the wait has no known end.
 - Wrap long background commands in `timeout` and clean them up; never leave a watcher or a poll loop running.
 - `device unlock --force` is for humans. If a holder looks stuck, read `device status` and `device log` first.
+- Order inside a session: `device lock` presses Home twice (an app launched earlier is closed), so lock, then install
+  (`instrument build --sideload` or `builds install --latest`), then launch; or use `device lock --no-hygiene`.
+  `e2e run` launches the app but never installs it.
