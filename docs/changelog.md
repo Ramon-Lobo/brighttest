@@ -115,6 +115,17 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
   paste-ready `"diagnosticFilters": [...]` line, and a note that they are compiler checks, not Roku runtime errors.
   `--fail-on-bsc-errors` restores the old strict behaviour. `diagnosticFilters` is now documented (config reference,
   instrument guide and skill, `instrument build --help`).
+- **Network:** `unmatched: passthrough` with an empty `upstreamHosts` now fails in `e2e lint`, before `e2e run` touches
+  the device, in `--net-unmatched passthrough` runs and in the MCP network tools, with `passthrough needs
+  config.net.upstreamHosts; with an empty list every request is refused (403)`. A failing step prints the requests the
+  allow-list refused (`12 requests refused by the passthrough allow-list: host (n), ...`) and the failure bundle keeps the
+  line as `net-refused.txt`. The flow reference now says `upstreamHosts` is required for any passthrough.
+- **Network:** flows inherit `instrument.net` from `brighttest.json` (`fixtures`, `unmatched`, `upstreamHosts`, `redact`);
+  the flow's `config.net` overrides per key. Studio's Run merges them the same way, so the allow-list is written once.
+- **Studio:** prints `hub: on (port N, passthrough to K hosts)` or `hub: off (why)` at startup and warns on an empty
+  passthrough allow-list. The Network panel shows requests refused by the allow-list as their own `refused` state, with the
+  host to add and a button that copies the `upstreamHosts` entry. `--password` is marked discouraged in favour of
+  `ROKU_PASSWORD`.
 - **MCP network tools:** the session network proxy now reads `instrument.net.upstreamHosts` and `instrument.net.unmatched`
   like Studio does. A request to an allowed host used to show as a 403 refused in `net_requests` while Studio showed it
   as a passthrough.

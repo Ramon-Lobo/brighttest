@@ -195,7 +195,7 @@ failed (also `--fail-on-skip` with a skip, or no flow ran), `2` usage or device-
 ## `brighttest studio`
 
 ```text
-studio --host <ip> [--password <pw>] [--port 8700] [--app dev] [--flows-dir flows] [--open]
+studio --host <ip> [--port 8700] [--app dev] [--flows-dir flows] [--open]
 studio --simulator [--port 8700] [--flows-dir flows] [--open]
 ```
 

@@ -1,7 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import { api } from './api.js';
-  import { noHubMessage, selectedRow, canMock } from './net-state.js';
+  import { noHubMessage, selectedRow, canMock, isRefused, refusedHost, refusedHint } from './net-state.js';
 
   // Network panel (NET-N-T10). Live rows come from the hub event stream (/api/bt/stream, redacted); the list is
   // reconciled from /api/net/requests. Raw values (headers, query secrets, bodies) load only after "show secrets".
@@ -37,6 +37,7 @@
     const d = ev.data || {};
     if (ev.kind === 'net.request') upsert(d.id, { method: d.method, ...split(d.url), rule: d.rule, headers: d.headers });
     else if (ev.kind === 'net.response') upsert(d.id, { status: d.status, source: d.source, bytes: d.bytes, ms: d.timings ? (d.timings.wait || 0) + (d.timings.receive || 0) : null });
+    else if (ev.kind === 'net.error' && d.refused) upsert(d.id, { refused: true, source: 'refused', status: d.status || 403, bytes: d.bytes ?? null, error: 'refused' });
     else if (ev.kind === 'net.error') upsert(d.id, { error: d.kind, status: null });
   }
 
@@ -89,10 +90,14 @@
     const d = await api.netRuleAdd({ method: r.method, url: `**${r.path.split('?')[0]}*`, kind: 'status', status: 503 });
     say(d.error ? d.error : 'block rule added for this session', !!d.error);
   }
+  async function copyHost(r) {
+    const h = refusedHost(r);
+    try { await navigator.clipboard.writeText(JSON.stringify(h)); say(`copied "${h}": add it to upstreamHosts`); } catch { say(`add ${JSON.stringify(h)} to upstreamHosts`); }
+  }
   async function clearRules() { const d = await api.netRulesClear(); say(d.error ? d.error : 'live rules cleared', !!d.error); }
 
   const shown = $derived(rows.filter((r) => !filter || `${r.method} ${r.host}${r.path} ${r.status ?? ''} ${r.source ?? ''}`.toLowerCase().includes(filter.toLowerCase())));
-  const cls = (r) => (r.error || (r.status && r.status >= 400) ? 'bad' : r.status ? 'ok' : 'pend');
+  const cls = (r) => (isRefused(r) ? 'refused' : r.error || (r.status && r.status >= 400) ? 'bad' : r.status ? 'ok' : 'pend');
 
   onMount(() => {
     connect();
@@ -131,7 +136,7 @@
         {#each shown as r (r.id)}
           <tr class:sel={selectedId === r.id} onclick={() => (selectedId = r.id)}>
             <td>{r.method}</td>
-            <td class={cls(r)}>{r.error ? r.error : r.status ?? '...'}</td>
+            <td class={cls(r)} title={isRefused(r) ? refusedHint(r) : ''}>{isRefused(r) ? 'refused' : r.error ? r.error : r.status ?? '...'}</td>
             <td class="path" title={r.host + r.path}>{r.host}{r.path}</td>
             <td>{r.bytes ?? ''}</td>
             <td>{r.ms ?? ''}</td>
@@ -150,6 +155,9 @@
         <button onclick={() => blockRule(selected)}>Block (503)</button>
         <button onclick={clearRules}>Clear live rules</button>
       </div>
+      {#if isRefused(selected)}
+        <p class="msg refused-hint">{refusedHint(selected)} <button onclick={() => copyHost(selected)}>Allow this host (copy entry)</button></p>
+      {/if}
       {#if selected.headers}
         <dl class="rows">
           {#each Object.entries(selected.headers) as [k, v]}
@@ -180,6 +188,8 @@
   td.path { max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
   tbody tr { cursor: pointer; }
   tr.sel { background: #161a28; }
+  .refused { color: #f7768e; font-weight: 600; }
+  .refused-hint { color: var(--color-amber); }
   .ok { color: #9ece6a; } .bad { color: var(--color-amber); } .pend { color: var(--color-haze); }
   .detail { margin-top: 8px; border-top: 1px solid var(--color-line); padding-top: 6px; }
   .acts { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }

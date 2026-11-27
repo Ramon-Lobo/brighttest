@@ -107,7 +107,10 @@ build without the handshake fails with `no agent.hello/BT_url handshake seen`.
 | `clearHttp` | Drop this flow's rules and hide the request log so far (rules are dropped when the flow ends anyway) |
 
 `config: { net: { fixtures: [paths], unmatched: fail \| passthrough, record, upstreamHosts, redact } }` loads
-fixture files up front. Use the `mocking-network-and-store` skill for the larger workflow.
+fixture files up front. `upstreamHosts` is required for any `unmatched: passthrough` (an empty list refuses every request with 403
+and fails lint/run). A flow inherits `instrument.net` from brighttest.json (`fixtures`, `unmatched`, `upstreamHosts`, `redact`);
+`config.net` overrides per key, in `e2e run` and in Studio's Run. A failing step prints the requests the allow-list refused.
+Use the `mocking-network-and-store` skill for the larger workflow.
 
 ## Selectors
 

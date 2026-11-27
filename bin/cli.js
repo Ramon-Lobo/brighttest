@@ -529,12 +529,12 @@ brighttest studio — visual studio for authoring & debugging e2e flows on a dev
   Requires a Roku in developer mode with ECP Network access = Permissive.
 
 Usage:
-  brighttest studio --host <ip> [--password <pw>] [--port 8700] [--app dev] [--flows-dir flows] [--open]
+  brighttest studio --host <ip> [--port 8700] [--app dev] [--flows-dir flows] [--open]
   brighttest studio --simulator [--port 8700] [--flows-dir flows] [--open]
 
 Options:
   --host <ip>        Roku device IP (or ROKU_HOST)
-  --password <pw>    Roku dev password (or ROKU_PASSWORD) — enables screenshots
+  --password <pw>    Roku dev password — discouraged (it shows in the process list); set ROKU_PASSWORD instead. Enables screenshots
   --port <n>         Local port for the studio (default 8700; if busy, the first free of 8701-8709)
   --app <id>         Channel to launch / drive (default: dev)
   --flows-dir <dir>  Where flows are read and written (default: ./flows)
@@ -769,7 +769,7 @@ async function main() {
     }
     if (eOpts.e2eAction === 'lint') {
       if (!eOpts.flows.length) { console.error('[brighttest e2e] lint needs <flow…>'); process.exit(2); }
-      process.exit(require('../lib/e2e/lint').lint(eOpts.flows));
+      process.exit(require('../lib/e2e/lint').lint(eOpts.flows, console.log, loadConfig(process.cwd(), null)));
     }
     const cfg = loadConfig(process.cwd(), null);
     console.log('brighttest: e2e lane\n');
@@ -799,6 +799,10 @@ async function main() {
     // Display only: the server already chose the target with its own rules.
     const dev = studioTargetLabel(o, server.sim, require('../lib/devices').resolveDevice);
     console.log(`brighttest studio → ${url}  ·  ${dev}`);
+    if (server.hubNotice) { // what the hub will do once Studio holds the lease, and why not
+      console.log(server.hubNotice.line);
+      if (server.hubNotice.warn) console.error(`[brighttest studio] ${server.hubNotice.warn}`);
+    }
     if (o.open) {
       try {
         const { spawn } = require('child_process');
