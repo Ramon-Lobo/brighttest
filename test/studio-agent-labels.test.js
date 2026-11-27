@@ -31,6 +31,7 @@ const STATIC = {
     'remote-key-back', 'remote-key-home',
   ],
   'lib/pages/Devices.svelte': ['page-devices', 'devices-discover', 'device-current', 'devices-message', 'device-list', 'device-row', 'device-connect'],
+  'lib/pages/Settings.svelte': ['settings-page', 'settings-device-source', 'settings-test-connection', 'settings-password-status', 'settings-hub-status', 'settings-token-status', 'settings-about-copy'],
   'lib/LeaseBoard.svelte': ['lease-board', 'lease-device'],
   'lib/pages/Record.svelte': ['page-record', 'record-start', 'record-stop', 'record-clear', 'record-save', 'record-message', 'record-doc'],
   'lib/pages/Runs.svelte': [
