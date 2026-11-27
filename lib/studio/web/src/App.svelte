@@ -19,6 +19,7 @@
   import ContextMenu from './lib/ContextMenu.svelte';
   import Runs from './lib/pages/Runs.svelte';
   import Devices from './lib/pages/Devices.svelte';
+  import Builds from './lib/pages/Builds.svelte';
   import Record from './lib/pages/Record.svelte';
   import Settings from './lib/pages/Settings.svelte';
   import Profile from './lib/pages/Profile.svelte';
@@ -28,6 +29,7 @@
   const ic = {
     inspect: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="6"/><circle cx="10" cy="10" r="1.5" fill="currentColor" stroke="none"/><path d="M10 1v3M10 16v3M1 10h3M16 10h3"/></svg>',
     flows: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 6h14M3 10h14M3 14h9"/></svg>',
+    builds: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M10 2.5l7 3.5v8l-7 3.5-7-3.5V6z"/><path d="M3 6l7 3.5L17 6M10 9.5v8"/></svg>',
     runs: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="7.5"/><path d="M8 7l5 3-5 3z" fill="currentColor" stroke="none"/></svg>',
     record: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="7.5"/><circle cx="10" cy="10" r="3.5" fill="currentColor" stroke="none"/></svg>',
     devices: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2.5" y="4" width="15" height="10" rx="1.5"/><path d="M7 17h6"/></svg>',
@@ -37,6 +39,7 @@
   const PAGES = [
     { id: 'inspect', label: 'Inspect' },
     { id: 'runs', label: 'Runs' },
+    { id: 'builds', label: 'Builds' },
     { id: 'record', label: 'Record' },
     { id: 'devices', label: 'Devices' },
     { id: 'profile', label: 'Profile' },
@@ -466,6 +469,8 @@
 
       {#if studio.page === 'runs'}
         <Runs {runSteps} {running} {currentFlow} {runId} />
+      {:else if studio.page === 'builds'}
+        <Builds />
       {:else if studio.page === 'devices'}
         <Devices onconnected={refreshDevice} askPassword={(d) => askText(`Dev password for ${d.name} (${d.host})`, '', true)} />
       {:else if studio.page === 'record'}
