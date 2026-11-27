@@ -1,0 +1,10 @@
+<device-info>
+  <udn>SEEDED-UDN-0001</udn>
+  <serial-number>SEEDEDSERIAL0001</serial-number>
+  <device-id>SEEDEDDEVICEID0001</device-id>
+  <advertising-id>seeded-adv-id-0001</advertising-id>
+  <wifi-mac>b8:3e:59:00:00:01</wifi-mac>
+  <ethernet-mac>b8:3e:59:00:00:02</ethernet-mac>
+  <model-name>Sample Box</model-name>
+  <software-version>12.5.0</software-version>
+</device-info>

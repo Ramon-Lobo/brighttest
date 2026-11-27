@@ -1,0 +1,8 @@
+brighttest doctor
+  node            22.11.0
+  brighttest      0.8.0-rc.0
+  device          192.0.2.45
+  serial-number: SEEDEDSERIAL0001
+  firmware        16.0.4.4116
+  mdns            roku-lab-box.local
+  hub             http://192.0.2.44:4891/ ok

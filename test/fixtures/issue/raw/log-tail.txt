@@ -1,0 +1,7 @@
+12:01:07 step 3 press Select on 192.0.2.45
+12:01:08 GET http://192.0.2.45:8060/query/device-info 200
+Authorization: Bearer SEEDED-BEARER-TOKEN-0003
+x-roku-reserved-dev-id: SEEDEDDEVID0002
+contact seeded.user@examplecorp.example.com about the failure
+wifi mac b8:3e:59:00:00:01 seen from 10.20.30.40
+brightscript BrightScript &hFF stays, version 0.8.0-rc.0, loopback 127.0.0.1
