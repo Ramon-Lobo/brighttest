@@ -3,3 +3,6 @@ contact_links:
   - name: Questions & ideas
     url: https://github.com/Ramon-Lobo/brighttest/discussions
     about: Ask questions, share ideas, or get help using brighttest.
+  - name: How to file a useful issue
+    url: https://ramon-lobo.github.io/brighttest/guide/reporting-issues
+    about: What to include, what to remove first, and which form to use.

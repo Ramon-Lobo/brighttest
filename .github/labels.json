@@ -1,0 +1,137 @@
+[
+  {
+    "name": "bug",
+    "color": "d73a4a",
+    "description": "Something is not working"
+  },
+  {
+    "name": "enhancement",
+    "color": "a2eeef",
+    "description": "New feature or request"
+  },
+  {
+    "name": "documentation",
+    "color": "0075ca",
+    "description": "Improvements or additions to documentation"
+  },
+  {
+    "name": "needs-triage",
+    "color": "fbca04",
+    "description": "Not yet reviewed by a maintainer"
+  },
+  {
+    "name": "silent-failure",
+    "color": "b60205",
+    "description": "Reported success while the result was wrong or incomplete"
+  },
+  {
+    "name": "needs-repro",
+    "color": "d4c5f9",
+    "description": "Needs a minimal reproduction"
+  },
+  {
+    "name": "needs-device",
+    "color": "c5def5",
+    "description": "Needs a real Roku device to verify"
+  },
+  {
+    "name": "field-report",
+    "color": "5319e7",
+    "description": "Structured finding from real use"
+  },
+  {
+    "name": "area:headless",
+    "color": "1d76db",
+    "description": "Area: headless"
+  },
+  {
+    "name": "area:device",
+    "color": "1d76db",
+    "description": "Area: device"
+  },
+  {
+    "name": "area:cross-check",
+    "color": "1d76db",
+    "description": "Area: cross-check"
+  },
+  {
+    "name": "area:e2e",
+    "color": "1d76db",
+    "description": "Area: e2e"
+  },
+  {
+    "name": "area:studio",
+    "color": "1d76db",
+    "description": "Area: studio"
+  },
+  {
+    "name": "area:instrument",
+    "color": "1d76db",
+    "description": "Area: instrument"
+  },
+  {
+    "name": "area:net",
+    "color": "1d76db",
+    "description": "Area: net"
+  },
+  {
+    "name": "area:assess",
+    "color": "1d76db",
+    "description": "Area: assess"
+  },
+  {
+    "name": "area:features",
+    "color": "1d76db",
+    "description": "Area: features"
+  },
+  {
+    "name": "area:mcp",
+    "color": "1d76db",
+    "description": "Area: mcp"
+  },
+  {
+    "name": "area:skills",
+    "color": "1d76db",
+    "description": "Area: skills"
+  },
+  {
+    "name": "area:lease",
+    "color": "1d76db",
+    "description": "Area: lease"
+  },
+  {
+    "name": "area:cli",
+    "color": "1d76db",
+    "description": "Area: cli"
+  },
+  {
+    "name": "area:docs",
+    "color": "1d76db",
+    "description": "Area: docs"
+  },
+  {
+    "name": "area:engine",
+    "color": "1d76db",
+    "description": "Area: engine"
+  },
+  {
+    "name": "severity:blocker",
+    "color": "b60205",
+    "description": "Severity: blocker"
+  },
+  {
+    "name": "severity:high",
+    "color": "d93f0b",
+    "description": "Severity: high"
+  },
+  {
+    "name": "severity:medium",
+    "color": "fbca04",
+    "description": "Severity: medium"
+  },
+  {
+    "name": "severity:low",
+    "color": "0e8a16",
+    "description": "Severity: low"
+  }
+]

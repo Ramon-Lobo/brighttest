@@ -16,6 +16,8 @@ The canonical, always-current version of this guide lives in
 - **Report a bug** — open an [issue](https://github.com/Ramon-Lobo/brighttest/issues/new/choose) with a
   minimal repro (the smallest `.spec.bs` and `brighttest.json` that shows the problem), the command you
   ran, the full output, your OS, and `node --version`.
+  For a structured finding from real use, use the field report form; see
+  [Reporting issues](https://ramon-lobo.github.io/brighttest/guide/reporting-issues).
 - **Suggest a feature** — start a [discussion](https://github.com/Ramon-Lobo/brighttest/discussions) or
   open an issue describing the use case before writing code.
 - **Improve the docs** — everything under `docs/` is fair game. Every page also has an

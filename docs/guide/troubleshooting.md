@@ -277,3 +277,7 @@ they work.
   setting, so the device owner should decide it. Do not change it silently on a shared device.
 
 Relaunching the app between flows is not a documented fix; it is not built.
+
+## Still stuck
+
+If none of this fits, see [Reporting issues](/guide/reporting-issues) for what to include and what to remove before you file.

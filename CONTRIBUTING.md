@@ -16,6 +16,8 @@ By participating, you agree to abide by our [Code of Conduct](CODE_OF_CONDUCT.md
 - **Report a bug** — open an [issue](https://github.com/Ramon-Lobo/brighttest/issues/new/choose) with a
   minimal repro (the smallest `.spec.bs` and `brighttest.json` that shows the problem), the command you
   ran, the full output, your OS, and `node --version`.
+  For a structured finding from real use, use the field report form; see
+  [Reporting issues](https://ramon-lobo.github.io/brighttest/guide/reporting-issues).
 - **Suggest a feature** — start a [discussion](https://github.com/Ramon-Lobo/brighttest/discussions) or
   open an issue describing the use case before writing code, so we can agree on the approach.
 - **Improve the docs** — everything under `docs/` is fair game; small fixes can go straight to a PR.

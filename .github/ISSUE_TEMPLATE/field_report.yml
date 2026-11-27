@@ -1,0 +1,100 @@
+name: Field report
+description: Report a structured finding from real use (one problem per report)
+title: "[Field report]: "
+labels: ["field-report", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form for one finding from real use of brighttest. Keep it to one problem. Use generic names; do not include company, client or app names, hosts, IPs, tokens, passwords or serial numbers. See [Reporting issues](https://ramon-lobo.github.io/brighttest/guide/reporting-issues).
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: One or two sentences. What broke, in which command, and what is the impact.
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: "blocker: stops the lane, no workaround. high: wrong or silent result, or a costly workaround. medium: a workaround exists. low: cosmetic, docs, rough edge."
+      options:
+        - blocker
+        - high
+        - medium
+        - low
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Headless
+        - Headless + coverage
+        - Device
+        - Cross-check
+        - End-to-end (e2e)
+        - Studio
+        - Instrument
+        - Net (hub, mocks)
+        - Assess / features
+        - MCP
+        - Skills
+        - Device lease
+        - CLI / config
+        - Docs
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: brighttest version (`npx brighttest --version`), Node version, OS, lane, and device model and firmware if a device was involved.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Numbered steps with the exact commands, and the config keys that matter.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: The first error line, its cause, and the exit code, then a short excerpt. Prefer counts or a summary over long logs.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Redacted excerpts or attachments, and what you checked on a real device, headless, or not at all.
+    validations:
+      required: false
+  - type: textarea
+    id: minimal-repro
+    attributes:
+      label: Minimal reproduction
+      description: The smallest generic project that shows it (for example one of the `examples/` apps or a fresh `brighttest init` project), or why one is not possible yet.
+    validations:
+      required: false
+  - type: checkboxes
+    id: redaction
+    attributes:
+      label: Before filing
+      options:
+        - label: I removed names of companies, clients and apps, hosts, IPs, tokens, passwords, serials and personal paths.
+          required: true
+        - label: This report is about one problem.
+          required: true
