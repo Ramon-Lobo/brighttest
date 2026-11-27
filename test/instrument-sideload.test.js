@@ -18,7 +18,9 @@ const challenge = 'Digest realm="rokudev", nonce="abc", qop="auth"'
 function stub(replies, { auth = true, wrongPw = false, active = '<active-app><app id="dev" type="appl" version="1.0.0">Sample</app></active-app>' } = {}) {
   const calls = []
   const ecp = { n: 0 }
+  const launches = []
   const f = async (url, init) => {
+    if (/:8060\/launch\/dev$/.test(url)) { launches.push(init && init.method); return { status: 200, headers: { get: () => null }, text: async () => '' } }
     if (/:8060\/query\/active-app$/.test(url)) {
       ecp.n++
       const body = typeof active === 'function' ? active(ecp.n) : active
@@ -32,7 +34,7 @@ function stub(replies, { auth = true, wrongPw = false, active = '<active-app><ap
     const r = replies.shift()
     return { status: r.status || 200, headers: { get: () => null }, text: async () => r.html }
   }
-  return { f, calls, ecp }
+  return { f, calls, ecp, launches }
 }
 const mkLease = () => { const l = { released: 0, release() { l.released++ } }; return l }
 function run(replies, o = {}, stubOpts) {
@@ -45,13 +47,14 @@ function run(replies, o = {}, stubOpts) {
     acquireForLane: async (a) => { lines.acquire = a; return o.leaseCode ? { code: o.leaseCode } : { lease } },
   }
   const p = sideload({ rootDir: tmp }, { zip, host: '192.0.2.5', password: PW, ...o.opts }, deps)
-  return p.then((code) => ({ code, lines, calls: s.calls, ecp: s.ecp.n, lease }))
+  return p.then((code) => ({ code, lines, calls: s.calls, launches: s.launches, ecp: s.ecp.n, lease }))
 }
 
 describe('parseInstallerReply', () => {
   it('classifies replies', () => {
     expect(parseInstallerReply(200, '<font>Install Success.</font>').ok).toBe(true)
-    expect(parseInstallerReply(200, 'Identical to previous version -- not replacing.').ok).toBe(true)
+    expect(parseInstallerReply(200, 'Identical to previous version -- not replacing.')).toEqual({ ok: true, identical: true })
+    expect(parseInstallerReply(200, 'Install Success')).toEqual({ ok: true })
     expect(parseInstallerReply(401, '')).toMatchObject({ ok: false, kind: 'auth' })
     expect(parseInstallerReply(200, '<font color="red">Install Failure: Compilation Failed.</font>')).toMatchObject({ kind: 'install', message: 'Compilation Failed.' })
     expect(parseInstallerReply(500, 'x')).toMatchObject({ kind: 'http' })
@@ -88,6 +91,32 @@ describe('instrument sideload (stub installer)', () => {
     const r = await run([{ html: 'Install Success' }], {}, { active: (n) => (n < 2 ? '<active-app><app>Roku</app></active-app>' : dev) })
     expect(r.code).toBe(0)
     expect(r.ecp).toBe(2)
+  })
+  it('identical package: relaunches dev once, then verifies active', async () => {
+    const r = await run([{ html: 'Identical to previous version -- not replacing.' }])
+    expect(r.code).toBe(0)
+    expect(r.calls).toEqual(['Replace'])
+    expect(r.launches).toEqual(['POST'])
+    expect(r.lines.join('\n')).toMatch(/identical package already installed; relaunched the dev channel/)
+  })
+  it('identical package but never active: exit 1 with the relaunch message, one launch, no secrets', async () => {
+    const r = await run([{ html: 'Identical to previous version' }], {}, { active: '<active-app><app>Roku</app></active-app>' })
+    expect(r.code).toBe(1)
+    expect(r.launches).toHaveLength(1)
+    expect(r.ecp).toBe(3)
+    const out = r.lines.join('\n')
+    expect(out).toMatch(/identical package is installed but the dev channel did not start after a relaunch/)
+    expect(out).not.toMatch(/likely exited at launch/)
+    expect(out).not.toContain(PW)
+  })
+  it('normal success and failure send no launch request', async () => {
+    const ok = await run([{ html: 'Install Success' }])
+    expect(ok.code).toBe(0)
+    expect(ok.launches).toEqual([])
+    expect(ok.lines.join('\n')).toMatch(/installed .* dev channel active/)
+    const bad = await run([{ html: 'Install Failure: Compilation Failed.' }, {}, { html: 'Install Failure: Compilation Failed.' }])
+    expect(bad.code).toBe(1)
+    expect(bad.launches).toEqual([])
   })
   it('auth failure: exit 1, no retry, password not printed', async () => {
     const r = await run([{ html: 'x' }], {}, { wrongPw: true })
