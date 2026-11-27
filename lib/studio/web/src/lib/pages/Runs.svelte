@@ -33,7 +33,8 @@
 
   const passed = $derived(steps.filter((s) => s.status === 'pass').length);
   const failed = $derived(steps.filter((s) => s.status === 'fail').length);
-  const lastDone = $derived.by(() => { let i = -1; steps.forEach((s, k) => { if (s.status === 'pass' || s.status === 'fail') i = k; }); return i; });
+  const stoppedN = $derived(steps.filter((s) => s.status === 'stopped').length);
+  const lastDone = $derived.by(() => { let i = -1; steps.forEach((s, k) => { if (s.status === 'pass' || s.status === 'fail' || s.status === 'stopped') i = k; }); return i; });
   const cur = $derived(picked ?? (lastDone >= 0 ? lastDone : 0));
   const step = $derived(steps[cur] ?? null);
 
@@ -60,7 +61,7 @@
 <div class="page" data-testid="page-runs">
   <div class="phead">
     <h1>Runs</h1>
-    {#if steps.length}<span class="tally"><b class="ok">{passed}</b> passed{#if failed} · <b class="bad">{failed}</b> failed{/if}{#if isLive && running} · running…{/if}</span>{/if}
+    {#if steps.length}<span class="tally"><b class="ok">{passed}</b> passed{#if failed} · <b class="bad">{failed}</b> failed{/if}{#if stoppedN} · <b class="stp">stopped</b>{/if}{#if isLive && running} · running…{/if}</span>{/if}
     {#if flowName}<code class="file">{flowName}</code>{/if}
   </div>
 
@@ -71,8 +72,8 @@
     <div class="runs" data-testid="run-history" role="group" aria-label="Run history">
       {#each history as r}
         <button class="run" data-testid="run-history-item" class:sel={r.id === selId} class:live={r.id === runId && running} onclick={() => select(r.id)}>
-          <span class="rdot" class:ok={r.ok === true} class:bad={r.ok === false}></span>
-          <span class="rflow">{r.flow}</span>
+          <span class="rdot" class:ok={r.ok === true} class:bad={r.ok === false && !r.stopped} class:stop={r.stopped}></span>
+          <span class="rflow">{r.flow}</span>{#if r.stopped}<span class="rbadge" data-testid="run-stopped-badge">stopped</span>{/if}
           <span class="rmeta">{r.passed}/{r.total} · {ago(r.startedAt)}</span>
         </button>
       {/each}
@@ -153,6 +154,7 @@
   .phead { display: flex; align-items: baseline; gap: 14px; flex: none; }
   h1 { font-family: var(--font-display); font-size: 22px; font-weight: 700; margin: 0; letter-spacing: -.01em; }
   .tally { font-family: var(--font-mono); font-size: 12px; color: var(--color-haze); }
+  .tally .stp { color: var(--color-amber); }
   .tally .ok { color: var(--color-pass); } .tally .bad { color: var(--color-fail); }
   .file { font-family: var(--font-mono); font-size: 12px; color: var(--color-haze); margin-left: auto; }
   .empty { padding: 22px; border: 1px dashed var(--color-line2); border-radius: 12px; color: var(--color-haze); margin-top: 18px; }
@@ -163,6 +165,8 @@
   .run.sel { border-color: var(--color-violet); background: rgba(124,108,255,.1); }
   .run.live { box-shadow: 0 0 0 1px rgba(255,93,108,.4); }
   .rdot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-line2); flex: none; }
+  .rbadge { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--color-amber); border: 1px solid var(--color-amber); border-radius: 4px; padding: 0 5px; }
+  .rdot.stop { background: var(--color-amber); }
   .rdot.ok { background: var(--color-pass); } .rdot.bad { background: var(--color-fail); }
   .rflow { font-size: 13px; color: var(--color-text); }
   .rmeta { font-family: var(--font-mono); font-size: 11px; color: var(--color-haze); }
@@ -188,6 +192,7 @@
   .stepinfo .op { font-weight: 600; }
   .stepinfo.pass .op { color: var(--color-pass); }
   .stepinfo.fail { color: var(--color-fail); }
+  .stepinfo.stopped { color: var(--color-amber); }
   .stepinfo .sel { color: #9aa2ff; }
   .stepinfo .det { color: var(--color-haze); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -214,4 +219,6 @@
   .steps li.pass .cue { background: var(--color-pass); border-color: var(--color-pass); }
   .steps li.fail .cue { background: var(--color-fail); border-color: var(--color-fail); }
   .steps li.fail { color: var(--color-fail); }
+  .steps li.stopped .cue { background: var(--color-amber); border-color: var(--color-amber); }
+  .steps li.stopped { color: var(--color-amber); }
 </style>

@@ -105,22 +105,67 @@
   }
   function setMsg(m, err = false) { flowMsg = m; flowErr = err; }
 
-  function run(rel = currentFlow) {
+  // The run stream is read with fetch (not EventSource) so a 409 RUN_IN_PROGRESS body can be shown.
+  let runCtl = null, stopTimer = null;
+  let stopping = $state(false);
+  function endRun() { clearTimeout(stopTimer); stopTimer = null; runCtl = null; running = false; stopping = false; studio.runHighlight = null; }
+  function onRunEvent(d) {
+    if (d.type === 'start') { runId = d.runId; runSteps = d.steps.map((s) => ({ ...s, status: 'idle', detail: '', selector: null })); }
+    else if (d.type === 'step') {
+      runSteps = runSteps.map((s, i) => i === d.index
+        ? { ...s, status: d.status, detail: d.detail || d.error || s.detail, selector: d.selector ?? s.selector, ...(d.scene !== undefined ? { scene: d.scene, nodes: d.nodes, appState: d.appState, frame: d.frame } : {}) }
+        : s);
+      if (d.status === 'running') studio.runHighlight = d.selector;
+      else if (d.status === 'stopped') studio.runHighlight = null;
+    } else if (d.type === 'stopped') {
+      const st = runSteps[d.index];
+      const hint = st && /may still/.test(st.detail || '') ? ' (the command may still have applied)' : '';
+      setMsg(`run stopped at step ${d.index + 1}${st ? ' (' + st.op + ')' : ''}${hint}`, false);
+    } else if (d.type === 'error') { setMsg('run error: ' + d.error, true); studio.runHighlight = null; }
+    else if (d.type === 'aborted') { setMsg('run aborted: ' + (d.reason || 'the device lease was lost'), true); }
+    else if (d.type === 'done') {
+      if (!d.stopped && !d.aborted) setMsg(d.ok ? 'run passed ✓' : 'run failed ✗', !d.ok);
+      endRun();
+    }
+  }
+  async function run(rel = currentFlow) {
     if (!rel) { setMsg('save the flow first', true); return; }
-    running = true; runSteps = [];
-    const es = new EventSource(api.runUrl(rel));
-    es.onmessage = (ev) => {
-      const d = JSON.parse(ev.data);
-      if (d.type === 'start') { runId = d.runId; runSteps = d.steps.map((s) => ({ ...s, status: 'idle', detail: '', selector: null })); }
-      else if (d.type === 'step') {
-        runSteps = runSteps.map((s, i) => i === d.index
-          ? { ...s, status: d.status, detail: d.detail || d.error || s.detail, selector: d.selector ?? s.selector, ...(d.scene !== undefined ? { scene: d.scene, nodes: d.nodes, appState: d.appState, frame: d.frame } : {}) }
-          : s);
-        if (d.status === 'running') studio.runHighlight = d.selector;
-      } else if (d.type === 'error') { setMsg('run error: ' + d.error, true); studio.runHighlight = null; es.close(); running = false; }
-      else if (d.type === 'done') { setMsg(d.ok ? 'run passed ✓' : 'run failed ✗', !d.ok); studio.runHighlight = null; es.close(); running = false; }
-    };
-    es.onerror = () => { es.close(); running = false; studio.runHighlight = null; };
+    if (running) return;
+    running = true; stopping = false; runSteps = [];
+    const ctl = new AbortController(); runCtl = ctl;
+    try {
+      const r = await fetch(api.runUrl(rel), { signal: ctl.signal });
+      if (r.status === 409) {
+        const j = await r.json().catch(() => ({}));
+        setMsg(j.code === 'RUN_IN_PROGRESS' ? 'a run is already in progress (another Studio tab?); stop it there first' : (j.error || 'run refused'), true);
+        endRun(); return;
+      }
+      if (!r.ok || !r.body) { const j = await r.json().catch(() => ({})); setMsg('run error: ' + (j.error || 'HTTP ' + r.status), true); endRun(); return; }
+      const reader = r.body.getReader(); const dec = new TextDecoder(); let buf = '';
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        let i;
+        while ((i = buf.indexOf('\n\n')) >= 0) {
+          const frame = buf.slice(0, i); buf = buf.slice(i + 2);
+          const line = frame.split('\n').find((l) => l.startsWith('data:'));
+          if (line) { try { onRunEvent(JSON.parse(line.slice(5).trim())); } catch {} }
+        }
+      }
+    } catch {}
+    if (runCtl === ctl) endRun();
+  }
+  // Stop: ask the server; if no `done` arrives within 5 s, close the stream (which stops the run server-side too).
+  async function stopRun() {
+    if (!running || stopping || !runId) return;
+    stopping = true;
+    stopTimer = setTimeout(() => { runCtl?.abort(); }, 5000);
+    try { await api.stopRun(runId); } catch {}
+  }
+  function onWinKey(e) {
+    if (e.defaultPrevented) return;
+    if ((e.metaKey || e.ctrlKey) && e.key === '.' && running) { e.preventDefault(); stopRun(); }
   }
 
   function onRemote() { setTimeout(grabTree, 90); setTimeout(grabShot, 280); }
@@ -230,6 +275,8 @@
   });
 </script>
 
+<svelte:window onkeydown={onWinKey} />
+
 <div class="app" data-testid="studio-app">
   <header data-testid="studio-header" aria-label="Studio status">
     <div class="brand"><span class="dot"></span><b>brighttest</b><span class="sub">studio</span></div>
@@ -304,10 +351,14 @@
                 <div class="eyebrow">flow</div>
                 <span class="fname" data-testid="flow-name">{currentFlow ?? 'no file open'}</span>
               </div>
-              <div class="editorwrap" data-testid="flow-editor-text"><Editor bind:value={flowText} bind:this={editor} getSelected={selectedNode} /></div>
+              <div class="editorwrap" data-testid="flow-editor-text"><Editor bind:value={flowText} bind:this={editor} getSelected={selectedNode} onStop={stopRun} /></div>
               <div class="flowbar">
                 <button class="ghost" data-testid="flow-save" aria-label="Save flow" onclick={saveFlow}>Save</button>
-                <button class="run" data-testid="flow-run" aria-label="Run flow" onclick={() => run()} disabled={running || sim} title={sim ? 'needs a device; start Studio with --host' : ''}>{running ? 'Running…' : 'Run ▶'}</button>
+                {#if running}
+                  <button class="run stop" data-testid="flow-stop" aria-label="Stop run" onclick={stopRun} disabled={stopping || !runId} title="Stop the run (Cmd/Ctrl+.)">{stopping ? 'Stopping…' : 'Stop ■'}</button>
+                {:else}
+                  <button class="run" data-testid="flow-run" aria-label="Run flow" onclick={() => run()} disabled={sim} title={sim ? 'needs a device; start Studio with --host' : ''}>Run ▶</button>
+                {/if}
                 <span class="msg" data-testid="flow-message" role="status" class:err={flowErr}>{flowMsg}</span>
               </div>
               {#if runSteps.length}
@@ -474,8 +525,10 @@
   .ghost:hover { border-color: var(--color-violet); }
   .editorwrap { min-height: 0; border: 1px solid var(--color-line); border-radius: 10px; overflow: hidden; background: #0d1016; }
   .flowbar { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
-  .run { background: var(--color-violet); color: #0c0e14; font-weight: 700; border: none; border-radius: 8px; padding: 7px 18px; cursor: pointer; }
+  .run { white-space: nowrap; background: var(--color-violet); color: #0c0e14; font-weight: 700; border: none; border-radius: 8px; padding: 7px 18px; cursor: pointer; }
   .run:hover:not(:disabled) { background: #8f80ff; }
+  .run.stop { background: var(--color-fail); color: #fff; }
+  .run.stop:hover:not(:disabled) { filter: brightness(1.12); }
   .run:disabled { opacity: .55; cursor: default; }
   .msg { font-family: var(--font-mono); font-size: 12px; color: var(--color-haze); }
   .msg.err { color: var(--color-fail); }
@@ -488,6 +541,8 @@
   .transport li.fail .cue { border-color: var(--color-fail); background: var(--color-fail); }
   .transport li.running .op { color: var(--color-amber); }
   .transport li.pass .op { color: var(--color-text); }
+  .transport li.stopped .cue { border-color: var(--color-haze); background: var(--color-haze); border-radius: 2px; }
+  .transport li.stopped .op, .transport li.stopped { color: var(--color-amber); }
   .transport li.fail { color: var(--color-fail); }
   .transport .det { color: var(--color-haze); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>
