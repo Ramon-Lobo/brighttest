@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import http from 'node:http'
 import { createRequire } from 'node:module'
 
 const require = createRequire(import.meta.url)
@@ -24,9 +25,9 @@ function stub(replies, { auth = true, wrongPw = false, active = '<active-app><ap
       return { status: 200, headers: { get: () => null }, text: async () => body }
     }
     const hasAuth = !!(init.headers && init.headers.Authorization)
-    const mysubmit = /name="mysubmit"\r\n\r\n(\w+)/.exec(Buffer.from(init.body).toString('utf8'))[1]
     if (auth && !hasAuth) return { status: 401, headers: { get: () => challenge }, text: async () => '' }
     if (hasAuth && wrongPw) return { status: 401, headers: { get: () => challenge }, text: async () => '' }
+    const mysubmit = /name="mysubmit"\r\n\r\n(\w+)/.exec(Buffer.from(init.body).toString('utf8'))[1]
     calls.push(mysubmit)
     const r = replies.shift()
     return { status: r.status || 200, headers: { get: () => null }, text: async () => r.html }
@@ -127,5 +128,79 @@ describe('instrument sideload (stub installer)', () => {
   it('usage: needs host and password', async () => {
     expect((await run([], { opts: { host: null } })).code).toBe(2)
     expect((await run([], { opts: { password: null } })).code).toBe(2)
+  })
+})
+
+// A real local http server that behaves like the Roku installer: it closes the socket right after the 401 without
+// announcing it, and the archive is only accepted on an authenticated request.
+function fakeInstaller({ failAuthPostsBy = [] } = {}) {
+  const log = { reqs: [], sockets: [], bytesBeforeAuth: 0 }
+  let authN = 0
+  const srv = http.createServer((req, res) => {
+    const chunks = []
+    req.on('data', (c) => chunks.push(c))
+    req.on('end', () => {
+      const body = Buffer.concat(chunks).toString('latin1')
+      const authed = !!req.headers.authorization
+      const submit = (/name="mysubmit"\r\n\r\n(\w+)/.exec(body) || [])[1] || null
+      log.reqs.push({ authed, submit, bytes: chunks.reduce((n, c) => n + c.length, 0) })
+      log.sockets.push(req.socket.remotePort)
+      if (!authed) {
+        log.bytesBeforeAuth += Buffer.concat(chunks).length
+        res.writeHead(401, { 'WWW-Authenticate': challenge })
+        res.end('')
+        setTimeout(() => req.socket.destroy(), 5)
+        return
+      }
+      authN++
+      if (failAuthPostsBy.includes(authN)) { req.socket.destroy(); return }
+      res.writeHead(200)
+      res.end(submit === 'Delete' ? 'Delete done' : 'Install Success')
+    })
+  })
+  return new Promise((resolve) => srv.listen(0, '127.0.0.1', () => resolve({ srv, log, port: srv.address().port })))
+}
+
+// Route the installer URL (port 80) to the local server; ECP polls answer "dev".
+const toLocal = (port) => (url, init) => {
+  if (/:8060\/query\/active-app$/.test(url)) return Promise.resolve({ status: 200, headers: { get: () => null }, text: async () => '<active-app><app id="dev">S</app></active-app>' })
+  return fetch(url.replace(/^http:\/\/[^/]+/, `http://127.0.0.1:${port}`), init)
+}
+async function runReal(srvOpts) {
+  const f = await fakeInstaller(srvOpts)
+  const lines = []
+  const big = path.join(tmp, 'big.zip'); fs.writeFileSync(big, Buffer.alloc(2 * 1024 * 1024, 1))
+  const code = await sideload({ rootDir: tmp }, { zip: big, host: '192.0.2.5', password: PW }, {
+    fetch: toLocal(f.port), log: (l) => lines.push(l), tcpProbe: async () => true, sleep: async () => {}, activeTries: 2,
+    acquireForLane: async () => ({ lease: mkLease() }),
+  })
+  await new Promise((r) => f.srv.close(r))
+  return { code, lines, log: f.log }
+}
+
+describe('instrument sideload (local installer that closes the socket after the 401)', () => {
+  it('installs without EPIPE and uploads the archive once, only when authenticated', async () => {
+    const r = await runReal()
+    expect(r.code).toBe(0)
+    expect(r.log.reqs.map((x) => x.authed)).toEqual([false, true])
+    expect(r.log.bytesBeforeAuth).toBe(0)
+    expect(r.log.reqs[1].bytes).toBeGreaterThan(2 * 1024 * 1024)
+    expect(r.log.sockets[0]).not.toBe(r.log.sockets[1])
+  })
+  it('first authenticated POST fails, then Delete and a second install succeed', async () => {
+    const r = await runReal({ failAuthPostsBy: [1] })
+    expect(r.code).toBe(0)
+    expect(r.log.reqs.filter((x) => x.authed).map((x) => x.submit).filter(Boolean)).toContain('Delete')
+    const out = r.lines.join('\n')
+    expect(out).toMatch(/install failed \(POST \/plugin_install \(authenticated\) failed: /)
+    expect(out).not.toContain(PW)
+  })
+  it('persistent failure: exit 1 names the failing step and code, no password or URL', async () => {
+    const r = await runReal({ failAuthPostsBy: [1, 2, 3] })
+    expect(r.code).toBe(1)
+    const out = r.lines.join('\n')
+    expect(out).toMatch(/installer request failed: POST \/plugin_install \(authenticated\) failed: \w+/)
+    expect(out).not.toContain(PW)
+    expect(out).not.toMatch(/http:\/\//)
   })
 })
