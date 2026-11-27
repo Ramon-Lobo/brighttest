@@ -20,7 +20,7 @@ const STATIC = {
     'header-run-stop',
   ],
   'lib/LeaseTake.svelte': ['lease-queued'],
-  'lib/TileGrid.svelte': ['layout-grid', 'layout-placeholder', 'layout-live', 'layout-empty', 'layout-empty-show'],
+  'lib/TileGrid.svelte': ['layout-placeholder', 'layout-empty', 'layout-empty-show'],
   'lib/Inspector.svelte': ['node-view-fields', 'node-view-state'],
   'lib/NodeState.svelte': [
     'node-state', 'node-state-id', 'node-state-noid', 'node-state-layer-node', 'node-state-layer-m', 'node-state-refresh', 'node-state-raw',
@@ -68,6 +68,8 @@ const DYNAMIC = [
   ['lib/Tile.svelte', 'data-testid="tile-{tile.id}-menu"', per('tile-', '-menu')],
   ['lib/Tile.svelte', 'data-testid="tile-{tile.id}-hide"', per('tile-', '-hide')],
   ['lib/Tile.svelte', 'data-testid="tile-{tile.id}-resize"', per('tile-', '-resize')],
+  ['lib/TileGrid.svelte', 'data-testid={gridTestid}', ['layout-grid', 'record-layout-grid']],
+  ['lib/TileGrid.svelte', 'data-testid={liveTestid}', ['layout-live', 'record-layout-live']],
 ];
 const ALL = [...Object.values(STATIC).flat(), ...DYNAMIC.flatMap((d) => d[2])];
 

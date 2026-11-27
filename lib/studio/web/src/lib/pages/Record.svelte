@@ -28,7 +28,7 @@
     {/each}
     <button class="ghost" data-testid="record-layout-reset" onclick={() => commit(defaultLayout(recordRegistry))}>Reset layout</button>
   </div>
-  <TileGrid {layout} registry={recordRegistry} oncommit={commit}>
+  <TileGrid {layout} registry={recordRegistry} oncommit={commit} label="Record layout" gridTestid="record-layout-grid" liveTestid="record-layout-live">
     {#snippet content(id)}
       {#if id === 'rec-monitor'}
         <div class="feed">
