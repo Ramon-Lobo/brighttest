@@ -23,6 +23,7 @@ sub BT_agentTaskRun()
     nextTick = 0
     clamped = false
     retryAt = 0
+    helloFails = 0
     session = ""
     after = 0
     poll = invalid
@@ -48,7 +49,8 @@ sub BT_agentTaskRun()
                 session = info.session
                 after = info.seq
             end if
-            if session = "" then retryAt = now + 30000 else m.top.session = session
+            if session = "" then retryAt = now + BT_wHelloBackoff(helloFails) else m.top.session = session
+            if session = "" then helloFails = helloFails + 1 else helloFails = 0
         end if
         if session <> "" and poll = invalid then
             poll = BT_wPollStart(cfg, session, after, port)

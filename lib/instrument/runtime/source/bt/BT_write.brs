@@ -574,6 +574,13 @@ function BT_dwRedactPaths(cfg as dynamic) as dynamic
     return out
 end function
 
+' MCP-HELLO-RETRY: wait in ms before the next hello after `failures` failed hellos in a row (0 = the first failure).
+function BT_wHelloBackoff(failures as integer) as integer
+    if failures < 2 then return 2000
+    if failures < 4 then return 5000
+    return 30000
+end function
+
 sub BT_dwEmit(g as object, fn as string, a as dynamic, hb as string)
     d = { source: "wrap:" + fn, hashBefore: hb, hashAfter: BT_dwHash(g) }
     if BT_wKind(a) = "object" then
