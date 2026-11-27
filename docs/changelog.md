@@ -43,6 +43,8 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
 
 ### Features
 - **Instrument:** `instrument build --from <dir|zip>` instruments an already-built package for apps with their own build step, and `assess` recommends it when it finds a packaging script or placeholder tokens. [Guide](/guide/instrument#apps-with-their-own-build-step-from)
+- **E2E and Studio:** `assertState` takes `layer: node` or `layer: m` with `node: { id }` and reads that node through
+  the hub; the Node tab's State view has a **+ assert** button that adds the step. [App state](./e2e/app-state.md)
 - **Setup:** `brighttest setup` finds a Roku (or takes `--host`), checks it like `doctor`, and saves `ROKU_HOST` to the project `.env` after a prompt (`--write` for agents, `--print` never writes). It adds `.env` to `.gitignore`, prints the export line for bash, zsh, fish, PowerShell and cmd, and never asks for, stores or prints the dev password.
 - **Doctor:** `brighttest doctor` now prints an `environment:` section (and `environment` in `--json`) for `ROKU_HOST`, `ROKU_PASSWORD`, `BRIGHTTEST_HUB_TOKEN` and the `BRIGHTTEST_*` settings in use: set or not, where from, a clear problem for a malformed value, never a secret value. A missing host points to `brighttest setup`.
 - **Studio:** Run becomes a Stop button while a flow runs (`Cmd+.` or `Ctrl+.` also stops it). The stopped step and the Runs page show a **stopped** state, and a second run while one is active says so instead of failing silently.

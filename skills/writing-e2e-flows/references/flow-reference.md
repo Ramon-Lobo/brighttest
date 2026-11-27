@@ -34,7 +34,7 @@ This is a deliberately small YAML subset — anything outside it raises a clear,
 | `assertText: { …selector, equals \| contains }` | Assert a node's text |
 | `assertField: { …selector, field, equals \| contains }` | Assert **any** field the node exposes (any value `inspect` shows) |
 | `assertFocused: <selector>` | Assert the node currently has focus |
-| `assertState: { path, equals \| contains }` | Assert a value in the app's published state (dotted `path`; also `deepEquals`, `exists: true\|false`, `layer`, `timeout`). Needs an instrumented build |
+| `assertState: { path, equals \| contains }` | Assert a value in the app's published state (dotted `path`; also `deepEquals`, `exists: true\|false`, `layer`, `timeout`; `layer: node\|m` with `node: { id }` reads that node's fields or component `m` through the hub). Needs an instrumented build |
 | `assertPlaying` / `assertMedia: { state }` | Assert ECP media-player state (`play`, `pause`, `buffer`, `finished`, ...); `assertPlaying` is `state: play`. Works during fullscreen video, where `sgnodes` does not; both take `timeout` (seconds) |
 | `wait: <ms>` / `wait: { ms }` | Pause a fixed number of **milliseconds** (not seconds — cf. `timeout`) |
 | `waitFor: { …selector, timeout }` | Explicit wait for a selector |

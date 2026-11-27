@@ -292,3 +292,56 @@ describe('loggable redaction', () => {
     expect(JSON.stringify(c)).toContain('"n"')
   })
 })
+
+// STUDIO-NS-T4: assertState with layer node|m reads one node through the hub `get` op.
+describe('assertState: layer node|m (NS-T4)', () => {
+  const NODE = '  - assertState: { layer: node, node: { id: hero }, path: opacity, equals: 1 }\n'
+  it('parses node with layer node and m, and rejects bad shapes', () => {
+    const f = parseFlow(BASE + NODE + '  - assertState: { layer: m, node: { id: panel }, path: rowIndex, exists: true }\n')
+    expect(f.steps[0]).toMatchObject({ op: 'assertState', layer: 'node', node: { id: 'hero' }, path: 'opacity', equals: 1 })
+    expect(f.steps[1]).toMatchObject({ layer: 'm', node: { id: 'panel' } })
+    expect(() => parseFlow(BASE + '  - assertState: { layer: node, path: a, equals: 1 }\n')).toThrow(/needs node: \{ id/)
+    expect(() => parseFlow(BASE + '  - assertState: { layer: global, node: { id: x }, path: a, equals: 1 }\n')).toThrow(/node only applies/)
+    expect(() => parseFlow(BASE + '  - assertState: { layer: node, node: { id: x, y: 1 }, path: a, equals: 1 }\n')).toThrow(/needs node/)
+  })
+  it('usesState includes node and m asserts only', () => {
+    expect(ss.usesState(flowOf(BASE + NODE))).toBe(true)
+    expect(ss.usesState(flowOf(BASE + '  - assertState: { layer: global, path: a, equals: 1 }\n'))).toBe(false)
+  })
+  it('passes when the hub get returns the value, sending layer, node and path', async () => {
+    const f = flowOf(BASE + NODE)
+    const c = await setup(f)
+    agent(() => ({ result: { found: true, value: 1 } }))
+    const r = await e2e.execStep(f.steps[0], c)
+    expect(r.detail).toMatch(/node:hero\.opacity = "1"/)
+    expect(sent[0]).toMatchObject({ op: 'get', args: { layer: 'node', node: { id: 'hero' }, path: 'opacity' } })
+  })
+  it('fails with the last value when it never matches', async () => {
+    const f = flowOf(BASE + NODE)
+    const c = await setup(f)
+    agent(() => ({ result: { found: true, value: 0.5 } }))
+    await expect(e2e.execStep({ ...f.steps[0], timeout: 0.3 }, c)).rejects.toThrow(/node:hero\.opacity equals "1" — got 0\.5/)
+  })
+  it('fails on a masked value without printing it, but exists passes', async () => {
+    const f = flowOf(BASE + NODE)
+    const c = await setup(f)
+    agent(() => ({ result: { found: true, value: '<redacted:token>' } }))
+    const err = await e2e.execStep({ ...f.steps[0], timeout: 0.2 }, c).catch((e) => e)
+    expect(err.message).toMatch(/masked/)
+    await expect(e2e.execStep({ op: 'assertState', layer: 'm', node: { id: 'hero' }, path: 'token', exists: true }, c)).resolves.toBeTruthy()
+  })
+  it('exists: false passes on found:false, and a refusal fails fast', async () => {
+    const f = flowOf(BASE + NODE)
+    const c = await setup(f)
+    agent((cmd) => (cmd.args.path === 'gone' ? { result: { found: false } } : { error: 'M_NOT_AVAILABLE: built-in node' }))
+    await expect(e2e.execStep({ op: 'assertState', layer: 'node', node: { id: 'hero' }, path: 'gone', exists: false }, c)).resolves.toBeTruthy()
+    await expect(e2e.execStep({ ...f.steps[0] }, c)).rejects.toThrow(/M_NOT_AVAILABLE/)
+  })
+  it('no hub: typed error', async () => {
+    const f = flowOf(BASE + NODE)
+    await expect(e2e.execStep(f.steps[0], { state: null, stepTimeoutMs: 100 })).rejects.toMatchObject({ code: 'STATE_NO_HUB' })
+  })
+  it('e2e plan starts the hub for a node assert', () => {
+    expect(ss.planSession([{ file: 'x' }], () => flowOf(BASE + NODE))).toBe(true)
+  })
+})
