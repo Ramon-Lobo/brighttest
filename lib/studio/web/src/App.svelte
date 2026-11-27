@@ -17,7 +17,7 @@
   import Runs from './lib/pages/Runs.svelte';
   import Devices from './lib/pages/Devices.svelte';
   import Record from './lib/pages/Record.svelte';
-  import Placeholder from './lib/pages/Placeholder.svelte';
+  import Settings from './lib/pages/Settings.svelte';
   import Profile from './lib/pages/Profile.svelte';
   import PromptModal from './lib/PromptModal.svelte';
   import { isSim, simText, simCls, simTail, simPollMs, mergeDevice, shouldPoll } from './lib/simbadge.js';
@@ -429,7 +429,7 @@
       {:else if studio.page === 'profile'}
         <Profile />
       {:else if studio.page === 'settings'}
-        <Placeholder title="Settings" blurb="Studio and project configuration." planned={['Edit brighttest.json (flows dir, source globs)', 'Default device host / password', 'Screenshot cadence and overlay preferences']} />
+        <Settings />
       {/if}
     </main>
   </div>
