@@ -558,6 +558,14 @@ Options:
                      Takes no value; cannot be combined with --host or a device pool.
   -o, --open         Open the studio in your browser
   -h, --help         Show this help
+
+Device lease:
+  Studio holds the device lease only while you use it. It yields to a waiting session after 60 seconds
+  idle and releases after 5 minutes idle. A 423 response means another agent holds the device; use
+  "Take over" in the Studio to override it explicitly.
+
+Source checkouts:
+  npm run studio:build   builds the Studio web bundle (not needed for the published package)
 `;
 
 // `brighttest init [--force]`

@@ -56,6 +56,10 @@ an open tab or on a user action, releases it after `studioIdle` without user act
 queued), and never preempts. While another session holds the device, device routes answer `423` with the lease status.
 The header badge shows who holds the device.
 
+In short: the lease is held only while Studio is used. With a waiter queued it yields after 60 seconds idle; otherwise it
+releases after 5 minutes idle. A `423` means another agent holds the device, and **Take over** is the explicit override.
+From a source checkout, build the web bundle with `npm run studio:build`.
+
 ![Header badge and banner saying the device is in use by another session, with Take over when free](/images/studio/device-held.png)
 *Another session holds the device (monitor picture is a placeholder frame). The banner offers **Take over when free**, and the
 State tab switches to its read-only held view with the notice "Device is held by another session". An edit sent after the

@@ -44,6 +44,11 @@ relative `require` under `bin/` and `lib/` is in the pack), so `docs/`, `experim
 are kept outside the repository; the reasoning that matters to contributors is summarised in
 [Design decisions](/decisions-summary).
 
+## Worktrees
+
+Each git worktree needs its own `npm ci` before it can run tests or the Studio; `node_modules` is not shared
+between worktrees. Run `npm run studio:build` too if the task touches or runs the Studio.
+
 ## Delivery model
 
 brighttest depends on two **published, scoped fork packages** that carry the engine and framework changes
