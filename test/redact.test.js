@@ -184,3 +184,26 @@ describe('sources', () => {
     } finally { fs.rmSync(dir, { recursive: true, force: true }); fs.rmSync(home, { recursive: true, force: true }) }
   })
 })
+
+describe('serial forms', () => {
+  const cases = [
+    'serial: ZZ00AB123456', 'Serial Number: ZZ00AB123456', 'SERIAL NO: ZZ00AB123456', 'serial_number=ZZ00AB123456',
+    'serialnumber ZZ00AB123456', 'serial "ZZ00AB123456"', 'Serial Number: "ZZ00AB-123456"', 'serial=ZZ00AB123456',
+  ]
+  test.each(cases)('masks and flags %s', (line) => {
+    const out = red(line)
+    expect(out).not.toContain('ZZ00AB')
+    expect(out).toContain('<serial>')
+    expect(R.verify(line, ctx()).length).toBeGreaterThan(0)
+    expect(R.verify(out, ctx())).toEqual([])
+    expect(red(out)).toBe(out)
+  })
+  test('repro from stdin text keeps the line count', () => {
+    expect(red('a\nserial: ZZ00AB123456\nb\n')).toBe('a\nserial: <serial>\nb\n')
+  })
+  test('prose with the word serial stays', () => {
+    const prose = 'The serial number is printed on the box. Serial: unknown. serial port 80 opened; serial numbers differ.'
+    expect(red(prose)).toBe(prose)
+    expect(R.verify(prose, ctx())).toEqual([])
+  })
+})
