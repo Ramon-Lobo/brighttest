@@ -144,6 +144,31 @@ describe('MCP net tools', () => {
     expect(d.requests[0].source).not.toBe('refused')
   })
 
+  it('a malformed brighttest.json gives a NET_CONFIG error naming the file, without quoting its content', async () => {
+    const cwd = tmpdir('bt-mcp-badcfg-')
+    fs.writeFileSync(path.join(cwd, 'brighttest.json'), '{ "secret": "TOP-SECRET-VALUE", oops')
+    const { stub, a } = await bootStub('healthy')
+    const c = startMcp({ a, cwd })
+    await c.initialize()
+    for (const [n, args] of [['net_requests', {}], ['net_mock', { match: { url: '**/x' }, respond: { status: 200 } }]]) {
+      const r = await c.tool(n, args)
+      expect(isErr(r), n).toBe(true)
+      expect(payload(r).code, n).toBe('NET_CONFIG')
+      expect(payload(r).message).toContain(path.join(cwd, 'brighttest.json'))
+      expect(payload(r).message).toContain('not valid JSON')
+      expect(JSON.stringify(r)).not.toContain('TOP-SECRET-VALUE')
+    }
+  })
+
+  it('a missing brighttest.json is not an error: the defaults apply', async () => {
+    const cwd = tmpdir('bt-mcp-nocfg-')
+    const { stub, a } = await bootStub('healthy')
+    const c = startMcp({ a, cwd })
+    await c.initialize()
+    expect(c.server.session.netPassthroughConfig()).toEqual({})
+    expect(isErr(await c.tool('net_requests'))).toBe(false)
+  })
+
   it('uses the project instrument.net.redact config and strips userinfo from listed URLs', async () => {
     const cwd = tmpdir('bt-mcp-proj-')
     fs.writeFileSync(path.join(cwd, 'brighttest.json'), JSON.stringify({ instrument: { net: { redact: { query: ['sid'], headers: ['x-device-code'] } } } }))

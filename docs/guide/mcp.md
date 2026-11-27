@@ -73,6 +73,12 @@ The session network proxy reads `instrument.net.upstreamHosts` and `instrument.n
 the same as Studio and the headless lanes. A request to a host on the allow-list passes through to the real server
 (`unmatched: "passthrough"`); a host that is not listed is still refused with a 403.
 
+The config is read **once per session**, when the first net tool call creates the proxy; edit `brighttest.json` and
+start a new session to change it. The file is looked up in the MCP server's working directory, so start the server at the
+project root: from another directory the defaults apply (every unlisted host is refused). If `brighttest.json` exists but
+cannot be read or parsed, the net tools fail with `NET_CONFIG`, naming the file and the cause (a syntax error is reported
+without quoting the file), instead of silently refusing every request.
+
 Inside the window the other device tools reuse the window's lease instead of taking their own, and every device call
 renews its idle timer. The window is released after 10 minutes without a device call (the `deviceLease.sessionIdle`
 setting, never longer than that), at the lease's hard cap (`deviceLease.sessionMax`), when the lease is lost, or when
@@ -88,7 +94,7 @@ new window. If the hub cannot start (for example its port is in use), the window
 fail with `STATE_NO_HUB_TOKEN` before any lease is taken). The first write checks that the running app publishes the
 `__bt_agent` node (`STATE_NOT_INSTRUMENTED` otherwise, no hub started, no session lease held), opens the window, and
 **waits up to 35 s for the app's agent to connect**: the agent dials the hub on its own 30 s retry, so the first write
-can take that long. The call budget is 45 s (30 s for the other tools). Later writes in the same window find the agent
+can take that long. The call budget is 45 s (30 s for the other tools). The wait is expected, not a hang: the app agent only retries its hello every 30 s, so it may have just missed the hub when the window opened. Later writes in the same window find the agent
 connected and return in about the time of the ack. If the agent never dials, the call fails with
 `STATE_AGENT_UNREACHABLE` (check the baked token, port and LAN address; `brighttest doctor` with
 `BRIGHTTEST_DOCTOR_HUB_PROBE=1` probes hub reach) and the window stays open until its idle timeout, so a fixed build can
