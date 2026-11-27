@@ -206,6 +206,14 @@ Selector, State, Actions, Network). There are no tabs; every panel is on screen 
 - While a run is active and the Flow tile is not open, a **Running · Stop** chip (`header-run-stop`) shows in the header.
   `Cmd+.` or `Ctrl+.` still stops a run from anywhere.
 
+### Record page layout
+
+The Record page uses the same tile grid with three tiles: Program monitor, Remote and Recording. Moving, resizing, the
+keyboard rules, the live-region announcements and the single column on a narrow window work as on Inspect. The arrangement
+is saved apart from Inspect, in `localStorage` key `bt.studio.layout.record` (same document format, registry version 1), so
+changing one page never moves tiles on the other. The strip above the grid has a checkbox per tile (to bring a hidden tile
+back) and **Reset layout**. The Record tile test ids are `tile-rec-monitor`, `tile-rec-remote` and `tile-rec-steps`.
+
 ## Overlay switch
 
 The **overlay** checkbox in the header (Inspect and Record pages) turns the node outlines on the picture on or off. It

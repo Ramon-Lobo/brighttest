@@ -269,3 +269,35 @@ describe('studio layout engine', () => {
     expect(L.describeTile(moved, 'zzz', 'Z')).toBe('')
   })
 })
+
+describe('studio Record page layout', () => {
+  it('has its own storage key and a registry that is valid on its own', async () => {
+    const L = await load(); const { recordRegistry: R, RECORD_KEY, INSPECT_KEY } = await reg()
+    expect(RECORD_KEY).toBe('bt.studio.layout.record')
+    expect(RECORD_KEY).not.toBe(INSPECT_KEY)
+    expect(Object.keys(R.tiles).sort()).toEqual(['rec-monitor', 'rec-remote', 'rec-steps'])
+    const d = L.defaultLayout(R)
+    expect(overlap(d)).toBe(false)
+    expect(d.every((t) => t.state === 'open' && t.x + t.w <= L.COLS && t.w >= R.tiles[t.id].minW && t.h >= R.tiles[t.id].minH)).toBe(true)
+    expect(L.normalize(d, R)).toEqual(d)
+  })
+
+  it('saves and loads independently of the Inspect layout', async () => {
+    const L = await load(); const { recordRegistry: R, inspectRegistry: I, RECORD_KEY, INSPECT_KEY } = await reg()
+    const st = fake()
+    const moved = L.move(L.defaultLayout(R), 'rec-steps', 6, 0, R)
+    expect(L.save(st, RECORD_KEY, moved, R)).toBe(true)
+    expect(st.m.has(INSPECT_KEY)).toBe(false)
+    expect(L.load(st, RECORD_KEY, R)).toEqual(moved)
+    expect(L.load(st, INSPECT_KEY, I)).toEqual(L.defaultLayout(I))
+    const ids = L.load(st, RECORD_KEY, R).map((t) => t.id)
+    expect(ids.some((id) => !id.startsWith('rec-'))).toBe(false)
+  })
+
+  it('falls back to the default on an unreadable value and migrates away unknown ids', async () => {
+    const L = await load(); const { recordRegistry: R, RECORD_KEY } = await reg()
+    expect(L.load(fake({ [RECORD_KEY]: '{nope' }), RECORD_KEY, R)).toEqual(L.defaultLayout(R))
+    const doc = { v: 2, reg: 0, tiles: [...L.defaultLayout(R), { id: 'monitor', x: 0, y: 0, w: 3, h: 3, state: 'open' }] }
+    expect(L.load(fake({ [RECORD_KEY]: JSON.stringify(doc) }), RECORD_KEY, R).some((t) => t.id === 'monitor')).toBe(false)
+  })
+})
