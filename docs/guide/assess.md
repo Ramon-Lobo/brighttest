@@ -34,6 +34,9 @@ project's own `node_modules`.
 
 It skips `node_modules/`, `.git/`, `out/`, `dist/`, `build/`, `.brighttest/`, `coverage/` and `reports/`. It stops at 20,000
 files and ignores any file over 2 MB; both are counted and reported as `truncated`.
+Every skipped file is named by path in the text summary (first 10) and in `scan.skipped` (first 50, with
+`scan.skippedMore` for the rest), each with its reason (`sensitive` or `over-size-cap`, plus the size) next to
+`scan.maxBytes` and `scan.maxFiles`. Only the path of a sensitive file is shown, never its contents.
 
 It never opens `.env*`, `*.pem`, `*.p12`, `*.pkg`, `certs/` or `~/.brighttest/devices.json` (the `devices` section only
 checks that the cache file exists and whether `ROKU_HOST` is set, never their values). It makes no network call, touches
@@ -77,7 +80,7 @@ Host, project, bsconfig, manifest, engines, census, CI, `.gitignore`, devices, r
   blocker. A `rootDir` inherited through bsconfig `extends` raises the same blocker, and manifest discovery, the recommended path and the `dirs` follow the census's effective root. `extends` is followed only to a plain `*.json` file that is not secret-named and is under 2 MB. The sensitive-file and size guard runs on the census's effective root, and census itself never opens secret-named files, `certs/` folders or files over 2 MB.
 - `scan.treeHash` is a stable hash of the scanned file list (path, size and content hash), so you can check that a run
   changed nothing.
-- `scan` holds the file counts (`files`, `skippedSensitive`, `overCap`, `truncated`) and the `treeHash`. `scans` says
+- `scan` holds the file counts (`files`, `skippedSensitive`, `overCap`, `truncated`), the caps (`maxBytes`, `maxFiles`), the skipped paths (`skipped`, `skippedMore`) and the `treeHash`. `scans` says
   whether each scan ran and how many files it looked at: `{ secrets: { ran, files, skippedLongLines }, risky: { ran, files, skippedLongLines } }`.
 - `secrets` lists `{ file, line, key, kind }` and nothing else. Kinds: `assignment` (a sensitive key name such as
   token, secret, password or api key set to a literal string; placeholders like `${VAR}` and empty values are ignored),
@@ -103,3 +106,10 @@ Host, project, bsconfig, manifest, engines, census, CI, `.gitignore`, devices, r
 To see how the app's files, components and calls connect, run `brighttest features graph`;
 see [Map the app](/guide/feature-tree). An agent can turn that graph into a feature tree and test plan with the
 `mapping-a-roku-app` skill (see [Agent skills](/guide/agent-skills)).
+
+## Task counts
+
+`census.tasks` counts every Task component, including ones that inherit from another Task component
+(`extends="MyBaseTask"`). `census.directTasks` counts only components with `extends="Task"`. This is the number
+`census.json` reports as `counts.tasks`; the Tasks table in `census.md` lists the larger set. The summary prints both,
+for example `96 tasks (19 extend Task directly)`.
