@@ -216,6 +216,24 @@ server or in config.
   Otherwise it reads nothing, which frees the device for screenshots and key presses.
 - Turning the overlay on reads the tree at once.
 
+## Builds API
+
+Studio serves the build history store (`brighttest builds`) over `/api/builds`; the Builds page uses it. Every route goes through the same loopback and origin guard as the rest of Studio; `POST /api/builds` is the only route that takes a raw body (`application/zip` or `application/octet-stream`).
+
+| Route | Answers |
+| --- | --- |
+| `GET /api/builds`, `GET /api/builds/:id` | the store summary and records; 404 `BUILD_NOT_FOUND` |
+| `POST /api/builds` (raw zip, `X-Build-Filename`, optional `?label=`) | 201 created, 200 deduplicated; 413 `BUILD_TOO_LARGE`, 422 `BUILD_INVALID_ZIP` / `BUILD_UNSAFE_ZIP` / `BUILD_NO_MANIFEST`, 503 `STORE_LOCKED`, 507 `STORE_WRITE_FAILED` |
+| `PATCH /api/builds/:id` (`label`, `notes`, `tags`, `pinned`) | the record; 400 `BAD_FIELD` |
+| `DELETE /api/builds/:id` (`{ "force": true }` for a pinned build) | 200; 409 `BUILD_PINNED` / `BUILD_BUSY` |
+| `GET /api/builds/:id/download` | the zip; an instrumented zip holds its hub token; 410 `BUILD_BLOB_MISSING`, 409 `BUILD_BLOB_CORRUPT` |
+| `POST /api/builds/:id/install` (`{ "allowTokenMismatch": false }`) | 202 `{ jobId, tokenCheck }`; 409 `RUN_IN_PROGRESS` / `INSTALL_IN_PROGRESS` / `TOKEN_MISMATCH` / `SIMULATOR_TARGET`; 400 `NO_DEVICE`; 423 `LOCKED` |
+| `GET /api/builds/jobs/:jobId` | SSE: `step`, `log`, `done`; past events are replayed on re-attach; jobs are kept 10 minutes; at most 8 open streams (429 `BUSY`) |
+| `POST /api/builds/jobs/:jobId/cancel` | 200; 409 `NOT_RUNNING`. After the upload started the device may still finish installing |
+| `GET /api/builds/current` | the dev channel on the device (`devApp`), the matching build and `match`: `confirmed`, `probable`, `unknown` or `none` |
+
+An install runs under the device lease (the same 423 and Take over flow as the other device routes), one at a time, and refuses while a run is active (a run refuses while an install is active). `tokenCheck` is an enum only (`match`, `mismatch`, `no-studio-token`, `not-instrumented`, `unreadable`); the dev password and the hub tokens never appear in a response, event or log line.
+
 ## Other pages
 
 **Runs** (run flows and step through a time-travel trace; each run frame carries the app state snapshot), **Record**
