@@ -25,6 +25,13 @@ describe('brighttest studio --as', () => {
 })
 
 describe('brighttest studio --simulator', () => {
+  it('--help describes the auto engine, not the stock one', () => {
+    const r = require('node:child_process').spawnSync('node', [require('node:path').resolve(__dirname, '..', 'bin', 'cli.js'), 'studio', '--help'], { encoding: 'utf8', timeout: 20000 })
+    expect(r.status).toBe(0)
+    expect(r.stdout).toContain('Uses the auto')
+    expect(r.stdout).toContain('else the stock brs-node that ships with brighttest')
+    expect(r.stdout).not.toContain('npm i brs-node')
+  })
   const { studioExitCode, studioTargetLabel } = require('../bin/cli')
   const engines = require('../lib/engines')
   const os = require('node:os')

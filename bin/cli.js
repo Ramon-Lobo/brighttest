@@ -143,12 +143,12 @@ Usage: brighttest mcp
 
   Speaks newline-delimited JSON-RPC 2.0 on stdin/stdout (logs go to stderr). Tools (contract brighttest-mcp/v1):
   ${mcpToolNames()}
-  (net_requests and net_mock open a net window, see https://ramon-lobo.github.io/brighttest/guide/mcp).
+  (net_requests, net_mock, app_state_set and app_state_snapshot open a net window; app_state_get never does, see https://ramon-lobo.github.io/brighttest/guide/mcp).
 
   The device comes only from the usual resolution chain (ROKU_HOST, ROKU_PASSWORD, project .env, device cache);
   no tool takes a host, a password or an absolute path. Outside a net window each device tool call takes the device
-  lease for that call only and releases it when the call ends (busy: DEVICE_BUSY at once). The first net_requests or
-  net_mock call opens a net window: one lease held for the session, which the other device tools reuse, released after
+  lease for that call only and releases it when the call ends (busy: DEVICE_BUSY at once). The first net_requests, net_mock,
+  app_state_set or app_state_snapshot call opens a net window: one lease held for the session, which the other device tools reuse, released after
   up to 10 minutes without a device call, at the session lease cap (deviceLease.sessionMax, default 45 minutes), on lease loss or at session end. Per-session caps apply to
   presses and flow runs.
   Exit codes: 0 on a clean end of input, 1 on an internal error, 2 on a usage error.
@@ -578,8 +578,9 @@ Options:
   --app <id>         Channel to launch / drive (default: dev)
   --as <agent>       Device lease: holder label for this Studio (or BRIGHTTEST_AGENT), e.g. dev#2, qa:run-123
   --flows-dir <dir>  Where flows are read and written (default: ./flows)
-  --simulator        Run against the local brs-node simulator instead of a device (state-only). Uses the stock
-                     engine (npm i brs-node) unless engines.brsNode or BRIGHTTEST_ENGINES picks another one.
+  --simulator        Run against the local brs-node simulator instead of a device (state-only). Uses the auto
+                     engine (the patched engine when installed, else the stock brs-node that ships with brighttest)
+                     unless engines.brsNode or BRIGHTTEST_ENGINES picks another one.
                      Takes no value; cannot be combined with --host or a device pool.
   -o, --open         Open the studio in your browser
   -h, --help         Show this help

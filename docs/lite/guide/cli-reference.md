@@ -207,7 +207,7 @@ studio --simulator [--port 8700] [--flows-dir flows] [--open]
 | `--app <id>` / `--flows-dir <dir>` | Default `dev` / `./flows` |
 | `--as <agent>` | Lease holder label (tip below) |
 | `-o`, `--open` | Open the browser |
-| `--simulator` | Local brs-node simulator, state-only ([Simulator target](/guide/studio#simulator-target-no-device)). Stock engine (`brs-node`, a brighttest dependency) unless `engines.brsNode` or `BRIGHTTEST_ENGINES`. No value; exit 2 with `--host` or a pool; ignores `--password` |
+| `--simulator` | Local brs-node simulator, state-only ([Simulator target](/guide/studio#simulator-target-no-device)). Auto engine (the patched engine when installed, else the stock `brs-node`, a brighttest dependency) unless `engines.brsNode` or `BRIGHTTEST_ENGINES`. No value; exit 2 with `--host` or a pool; ignores `--password` |
 
 Exit codes: 2 usage or UI not built, 1 other failures.
 
