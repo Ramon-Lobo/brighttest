@@ -1,13 +1,15 @@
 <script>
   import { onMount } from 'svelte';
   import { api } from '../api.js';
-  import { sourceLabel, passwordText, tokenText, leaseText, prefKeys, engineText, aboutText } from '../settings.js';
+  import { sourceLabel, passwordText, tokenText, leaseText, prefKeys, resetPrefs, engineText, aboutText } from '../settings.js';
 
   let s = $state(null);
   let err = $state('');
   let check = $state(null); // { busy, ok, text, checks }
   let copied = $state(false);
   let prefs = $state([]);
+  let save = $state(null); // { busy, ok, text }
+  let resetMsg = $state('');
 
   async function load() {
     try { s = await api.settings(); err = s && s.error ? s.error : ''; }
@@ -25,13 +27,26 @@
       else check = { busy: false, ok: (r.checks || []).every((c) => c.ok), text: `${r.model || '?'} · firmware ${r.softwareVersion || '?'} · developer mode ${r.developerEnabled === null ? '?' : r.developerEnabled ? 'enabled' : 'disabled'} · ECP ${r.ecpSettingMode || '?'}`, checks: r.checks || [] };
     } catch (e) { check = { busy: false, ok: false, text: e.message, checks: [] }; }
   }
+  async function saveHost() {
+    save = { busy: true };
+    try {
+      const r = await api.saveProjectHost(s.device.host);
+      save = r.ok ? { busy: false, ok: true, text: `Saved ROKU_HOST=${s.device.host} to ${r.wrote}` } : { busy: false, ok: false, text: r.error || 'save failed' };
+      if (r.ok) await load();
+    } catch (e) { save = { busy: false, ok: false, text: e.message }; }
+  }
+  function resetBrowserPrefs() {
+    const removed = resetPrefs(localStorage, (m) => window.confirm(m));
+    resetMsg = removed.length ? `Removed ${removed.length} preference${removed.length === 1 ? '' : 's'}.` : '';
+    prefs = prefKeys(localStorage);
+  }
   async function copyAbout() {
     try { await navigator.clipboard.writeText(aboutText(s)); copied = true; setTimeout(() => (copied = false), 1500); } catch { /* clipboard blocked */ }
   }
 </script>
 
 <div class="page" data-testid="settings-page">
-  <div class="phead"><h1>Settings</h1><span class="ro">read-only view of the effective settings</span></div>
+  <div class="phead"><h1>Settings</h1><span class="ro">the effective settings, and where each came from</span></div>
   {#if err}<p class="msg" role="status">{err}</p>{/if}
   {#if s}
     <section>
@@ -48,12 +63,14 @@
       </dl>
       <div class="row">
         <button data-testid="settings-test-connection" aria-label="Test connection" onclick={testConnection} disabled={check?.busy || s.device.target !== 'device'} title={s.device.target === 'device' ? '' : 'needs a device target'}>{check?.busy ? 'Testing…' : 'Test connection'}</button>
-        <!-- STUDIO-SET-T2: "Save as project default" goes here (data-testid settings-save-host). -->
+        <button data-testid="settings-save-host" aria-label="Save as project default" onclick={saveHost} disabled={save?.busy || s.device.target !== 'device' || s.device.projectDefault === s.device.host} title={s.device.target !== 'device' ? 'needs a device target' : s.device.projectDefault === s.device.host ? 'already the project default' : 'writes ROKU_HOST to .env'}>{save?.busy ? 'Saving…' : 'Save as project default'}</button>
         {#if check && !check.busy}<span class="res" class:bad={!check.ok} role="status">{check.ok ? 'OK' : 'Problem'}: {check.text}</span>{/if}
       </div>
       {#if check && !check.busy}
         <ul class="fix">{#each check.checks.filter((c) => !c.ok) as c}<li><b>{c.id}</b>: {c.fix}</li>{/each}</ul>
       {/if}
+      {#if save && !save.busy}<p class="res" class:bad={!save.ok} role="status" data-testid="settings-save-result">{save.ok ? 'OK' : 'Problem'}: {save.text}</p>{/if}
+      <p class="hint">Save as project default writes only <code>ROKU_HOST</code> to <code>.env</code> and does not change the running target. It never asks for or stores the dev password.</p>
       <p class="hint">Test connection reads the device's info only. It does not take the device lease.</p>
     </section>
 
@@ -112,7 +129,8 @@
     <section>
       <h2>This browser</h2>
       <p>{prefs.length ? `Saved Studio preferences: ${prefs.join(', ')}` : 'No saved Studio preferences.'}</p>
-      <!-- STUDIO-SET-T2: "Reset Studio preferences in this browser" goes here (data-testid settings-reset-prefs). -->
+      <button class="ghost" data-testid="settings-reset-prefs" aria-label="Reset Studio preferences in this browser" onclick={resetBrowserPrefs} disabled={!prefs.length}>Reset Studio preferences in this browser</button>
+      {#if resetMsg}<span class="res" role="status">{resetMsg}</span>{/if}
     </section>
 
     <section>
