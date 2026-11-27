@@ -49,6 +49,66 @@ are kept outside the repository; the reasoning that matters to contributors is s
 Each git worktree needs its own `npm ci` before it can run tests or the Studio; `node_modules` is not shared
 between worktrees. Run `npm run studio:build` too if the task touches or runs the Studio.
 
+## Issue triage {#issue-triage}
+
+Labels come from `.github/labels.json`. The issue forms in `.github/ISSUE_TEMPLATE/` apply the first labels
+(`bug`, `enhancement`, `field-report`, and `needs-triage` on the feature and field forms).
+
+### On intake
+
+1. Read the issue for leaked values first (see [Leaks](#issue-triage-leaks)). Handle a leak before anything else.
+2. Search for duplicates with the fingerprint (see [Fingerprint search](#issue-triage-fingerprint)).
+3. Check the report has what the form asks for: a reproduction, the full output, the brighttest version, the
+   Node.js version and OS, and the lane. The field report form also asks for severity, area, expected and
+   actual behavior, and evidence. An automated intake check command is not documented here yet; do the check by
+   hand against the form fields.
+4. Label the issue, then remove `needs-triage`.
+
+### Labels
+
+| Kind | Labels | Use |
+| --- | --- | --- |
+| Type | `bug`, `enhancement`, `documentation`, `field-report` | What the issue is. A field report is a structured finding from real use. |
+| Area | `area:*` (for example `area:headless`, `area:device`, `area:cli`) | Exactly one area, the lane or part that owns the fix. Take it from the form's Area field when it is filled in. |
+| Severity | `severity:blocker`, `severity:high`, `severity:medium`, `severity:low` | One severity. Take the reporter's value from a field report, then adjust it to the real impact. |
+| Silent failure | `silent-failure` | Add it whenever brighttest reported success while the result was wrong or incomplete, whatever the severity. |
+| Triage state | `needs-triage`, `needs-repro`, `needs-device` | Workflow state, see below. |
+
+### Fingerprint search {#issue-triage-fingerprint}
+
+Reports carry a fingerprint of the form `bt-xxxxxxxx` (`bt-` plus eight hex characters). Before labelling,
+search issues, open and closed, for the exact fingerprint string. A match is a duplicate or a regression: link the
+earlier issue, say which it is, and close the new one as a duplicate unless it adds a new reproduction. If the
+report has no fingerprint, search for a distinctive phrase from the error message instead.
+
+### needs-repro
+
+Add `needs-repro` when the issue has no minimal reproduction you can run. Ask for steps against one of the
+generic example apps (`examples/greenfield-app/` or `examples/legacy-app/`), the exact command, and the full
+output. Keep `needs-repro` until a reproduction arrives. If the reporter does not answer, say so in a comment
+before closing.
+
+### needs-device
+
+Add `needs-device` when the behavior can only be verified on a real Roku device, or when the headless lane
+and the device lane disagree and the device result is the open question. Say which command to run, then hand it
+to whoever holds a device. Run device checks through a brighttest lane or `brighttest device with`, which takes
+the device lease. Remove the label once a device result is posted.
+
+### Leaks {#issue-triage-leaks}
+
+Reports must not contain company, client or app names, hosts, IPs, tokens, passwords, serials, or personal
+paths. If one does:
+
+1. Edit the issue body (and any comment) to remove the value. Delete the edit history entry if the platform
+   allows it.
+2. Never quote the value back, not in a reply, a commit message, a label, or the close note. Refer to it as
+   "a token" or "a hostname" only.
+3. If the value is a live secret, tell the owner so it gets rotated. Removing it from the issue does not
+   revoke it.
+4. If the report cannot be fixed by editing, close it with a short redaction note (what kind of value, that
+   it was removed, and a request to refile with placeholders) and ask the reporter to open a redacted one.
+
 ## Delivery model
 
 brighttest depends on two **published, scoped fork packages** that carry the engine and framework changes
