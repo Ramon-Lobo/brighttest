@@ -7,7 +7,7 @@ copies named runtime files only.
 ## Write path (BT_write.brs)
 
     Two halves share this file. The apply half (BT_wApply, BT_wHandle) runs on the render thread; the transport half
-    (BT_wHello, BT_wPollStart, BT_wPostEvents, BT_wParsePoll) runs in BT_AgentTask. Neither half touches `m`: callers pass
+    (BT_wHelloInfo, BT_wPollStart, BT_wPostEvents, BT_wParsePoll) runs in BT_AgentTask. Neither half touches `m`: callers pass
     a context { global, scene, cfg, state } so the same code runs headless (brs-cli) and on a device.
     
     Allow-list (design D8): ping, get, set, merge, snapshot, restore, registry.read, registry.write, callFunc, subscribe.

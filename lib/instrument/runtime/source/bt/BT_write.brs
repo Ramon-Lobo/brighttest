@@ -14,7 +14,7 @@ function BT_wKind(v as dynamic) as string
     if v = invalid then return "invalid"
     if t = "String" or t = "roString" then return "string"
     if t = "Boolean" or t = "roBoolean" then return "boolean"
-    if t = "Integer" or t = "roInt" or t = "roInteger" or t = "LongInteger" or t = "roLongInteger" or t = "Float" or t = "roFloat" or t = "Double" or t = "roDouble" then return "number"
+    if BT_wIsWhole(v) or t = "Float" or t = "roFloat" or t = "Double" or t = "roDouble" then return "number"
     if t = "roAssociativeArray" then return "object"
     if t = "roArray" or t = "roList" then return "array"
     if t = "roSGNode" then return "node"
@@ -47,18 +47,14 @@ function BT_wCompat(old as dynamic, nv as dynamic) as boolean
     ok = BT_wKind(old)
     nk = BT_wKind(nv)
     if ok = "invalid" then return nk <> "node" and nk <> "other"
-    if nk = "node" or nk = "other" or nk = "invalid" then return false
-    if ok <> nk then return false
-    if ok = "number" and BT_wIsWhole(old) and not BT_wIsWhole(nv) then
-        if nv <> Int(nv) then return false
-    end if
+    if nk = "node" or nk = "other" or ok <> nk then return false
+    if ok = "number" and BT_wIsWhole(old) and not BT_wIsWhole(nv) and nv <> Int(nv) then return false
     return true
 end function
 
 function BT_wSplit(path as dynamic) as object
     out = []
-    if not BT_wIsStr(path) then return out
-    if path = "" then return out
+    if not BT_wIsStr(path) or path = "" then return out
     for each s in path.split(".")
         out.push(s)
     end for
@@ -542,7 +538,6 @@ function BT_wCallFunc(args as object, ctx as object) as object
     list = args.args
     a = invalid
     if BT_wKind(list) = "array" and list.count() > 0 then a = list[0]
-    out = invalid
     if a = invalid then
         out = n.callFunc(fn)
     else
@@ -569,7 +564,7 @@ function BT_dwRedactPaths(cfg as dynamic) as dynamic
     if type(cfg) <> "roAssociativeArray" or type(cfg.redact) <> "roAssociativeArray" or type(cfg.redact.paths) <> "roArray" then return invalid
     out = []
     for each pat in cfg.redact.paths
-        if type(pat) = "String" or type(pat) = "roString" then out.push(pat) : out.push("payload." + pat)
+        if BT_wIsStr(pat) then out.push(pat) : out.push("payload." + pat)
     end for
     return out
 end function
@@ -641,7 +636,6 @@ function BT_wApply(cmd as dynamic, ctx as object) as object
     if Len(FormatJson(args)) > BT_wMaxBytes() then return BT_wErr("STATE_TOO_LARGE", "command args are over the 64 KB limit; nothing was applied")
     ctx.rd = invalid
     if type(ctx.cfg) = "roAssociativeArray" and type(ctx.cfg.redact) = "roAssociativeArray" then ctx.rd = ctx.cfg.redact.paths
-    res = invalid
     try
         if op = "ping" then
             res = { ok: true, result: { pong: true } }
@@ -895,14 +889,7 @@ function BT_wUrl(cfg as object, route as string, query as string) as string
     return u
 end function
 
-' One bounded hello (at most 1.5 s). Returns the session id or "".
-function BT_wHello(cfg as object) as string
-    info = BT_wHelloInfo(cfg)
-    if info = invalid then return ""
-    return info.session
-end function
-
-' Same hello, returning { session, seq } or invalid. `seq` is the newest command the hub had queued when the agent
+' One bounded hello (at most 1.5 s), returning { session, seq } or invalid. `seq` is the newest command the hub had queued when the agent
 ' connected; the agent polls from it so it never replays earlier commands. A hub that sends no seq gives 0 (old behavior).
 function BT_wHelloInfo(cfg as object) as dynamic
     if BT_wOrigin(cfg) = "" then return invalid

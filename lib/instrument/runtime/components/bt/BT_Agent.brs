@@ -20,12 +20,8 @@ sub init()
     m.task.observeField("cmds", "BT_agentOnCmds")
     m.task.observeField("icmd", "BT_agentOnInput")
     m.global.addField("__btEv", "string", true)
-    m.global.observeField("__btEv", "BT_agentOnEv")
+    m.global.observeField("__btEv", "BT_agentFlushEv")
     m.task.control = "RUN"
-end sub
-
-sub BT_agentOnEv(ev as object)
-    BT_agentFlushEv()
 end sub
 
 sub BT_agentFlushEv()
