@@ -267,6 +267,7 @@ export default withMermaid({
           { text: 'CI integration', link: '/guide/ci' },
           { text: 'Device shelf (CI)', link: '/guide/ci-device-shelf' },
           { text: 'Sharing a device (lease)', link: '/guide/device-lease' },
+          { text: 'Several agents on one device', link: '/guide/multi-agent-device' },
           { text: 'Engines and patches', link: '/guide/engines' },
         ],
       },
