@@ -359,6 +359,10 @@ function parseE2eArgs(rest) {
     // device lease
     else if (a === '--wait') opts.wait = rest[++i];
     else if (a.startsWith('--wait=')) opts.wait = a.slice(7);
+    else if (a === '--max') opts.max = rest[++i];
+    else if (a.startsWith('--max=')) opts.max = a.slice(6);
+    else if (a === '--expect') opts.expect = rest[++i];
+    else if (a.startsWith('--expect=')) opts.expect = a.slice(9);
     else if (a === '--as') opts.as = rest[++i];
     else if (a.startsWith('--as=')) opts.as = a.slice(5);
     else if (a === '--purpose') opts.purpose = rest[++i];
@@ -369,7 +373,7 @@ function parseE2eArgs(rest) {
     else if (a === '--junit') opts.junit = rest[++i];
     else if (a.startsWith('--junit=')) opts.junit = a.slice(8);
     else if (a === '--help' || a === '-h') opts.help = true;
-    else if (a.startsWith('-')) { /* ignore unknown flags */ }
+    else if (a.startsWith('-')) console.error(`[brighttest e2e] unknown option ${a.split('=')[0]} for e2e ${opts.e2eAction}; ignored`);
     else opts.flows.push(a);
   }
   return opts;
