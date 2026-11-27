@@ -836,6 +836,7 @@ async function main() {
     // devices fail instead of guessing, none starts device-less). The CLI never resolves the host for studio.
     // Without --port, fall back to 8701-8709 when 8700 is taken (parallel worktrees each running a Studio).
     const fallback = o.port ? null : [8701, 8702, 8703, 8704, 8705, 8706, 8707, 8708, 8709];
+    const ppid0 = process.ppid; // taken before start(): a parent that dies during startup must still be noticed
     let server;
     try {
       server = await require('../lib/studio/server').start(studioStartOptions(o, { requireUi: true, port: o.port || 8700, portFallback: fallback, rootDir: process.cwd(), cfg: loadConfig(process.cwd(), null), simLog: (m) => console.error(m) }));
@@ -861,6 +862,18 @@ async function main() {
         spawn(cmd, args, { stdio: 'ignore', detached: true }).unref();
       } catch { /* ignore */ }
     }
+    // Graceful stop (server 'close' releases the lease, stops the hub and the simulator). SIGHUP = terminal closed.
+    let stopping = false;
+    const shutdown = (why, code) => {
+      if (stopping) return;
+      stopping = true;
+      if (why) console.error(`[brighttest studio] ${why}; stopping`);
+      const force = setTimeout(() => process.exit(code), 3000);
+      if (force.unref) force.unref();
+      try { server.close(() => process.exit(code)); if (server.closeAllConnections) server.closeAllConnections(); } catch { process.exit(code); }
+    };
+    for (const [sig, code] of [['SIGINT', 130], ['SIGTERM', 143], ['SIGHUP', 129]]) process.on(sig, () => shutdown(null, code));
+    require('../lib/studio/parent-watch').watchParent({ ppid0, onGone: () => shutdown('parent process exited', 0) });
     return; // keep the process alive — the server is listening
   }
   if (argv[0] === 'mcp') {
