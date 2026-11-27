@@ -332,3 +332,45 @@ describe('doctor hub reach probe (ADR 0024)', () => {
     expect(r.j.serial).toBeUndefined()
   })
 })
+
+describe('doctor environment section (QS-T4)', () => {
+  const env0 = { ROKU_HOST: '10.0.0.5', ROKU_PASSWORD: 'super-secret', BRIGHTTEST_HUB_TOKEN: 'a'.repeat(32), BRIGHTTEST_AGENT: 'tester' }
+  it('lists each variable with set/unset and source, never a value', () => {
+    const items = doctor.environmentReport({ host: '10.0.0.5', source: 'env' }, { env: env0, dot: {} })
+    const by = Object.fromEntries(items.map((i) => [i.name, i]))
+    expect(by.ROKU_HOST).toMatchObject({ set: true, source: 'shell', status: 'ok' })
+    expect(by.ROKU_PASSWORD).toMatchObject({ set: true, source: 'shell' })
+    expect(by.BRIGHTTEST_HUB_TOKEN.status).toBe('ok')
+    expect(by.BRIGHTTEST_AGENT.set).toBe(true)
+    const text = JSON.stringify(items)
+    for (const secret of ['super-secret', 'a'.repeat(32), 'tester']) expect(text).not.toContain(secret)
+  })
+  it('reports .env sources, missing host, malformed host and token', () => {
+    const a = doctor.environmentReport({ host: '10.0.0.5', source: 'dotenv' }, { env: {}, dot: { ROKU_HOST: '10.0.0.5', ROKU_PASSWORD: 'x' } })
+    expect(a.find((i) => i.name === 'ROKU_HOST').source).toBe('.env')
+    expect(a.find((i) => i.name === 'ROKU_PASSWORD').source).toBe('.env')
+    const b = doctor.environmentReport({ host: null, source: 'none' }, { env: { BRIGHTTEST_HUB_TOKEN: 'XYZ' }, dot: {} })
+    expect(b.find((i) => i.name === 'ROKU_HOST')).toMatchObject({ status: 'missing' })
+    expect(b.find((i) => i.name === 'ROKU_HOST').note).toContain('brighttest setup')
+    expect(b.find((i) => i.name === 'ROKU_PASSWORD').note).toContain('sideload')
+    expect(b.find((i) => i.name === 'BRIGHTTEST_HUB_TOKEN')).toMatchObject({ status: 'malformed' })
+    const c = doctor.environmentReport({ host: '10.0.0.5:pw', source: 'env' }, { env: { ROKU_HOST: '10.0.0.5:pw' }, dot: {} })
+    expect(c.find((i) => i.name === 'ROKU_HOST').status).toBe('malformed')
+  })
+  it('run prints the section in text and --json without secrets', async () => {
+    const { a } = await boot('healthy')
+    process.env.ROKU_PASSWORD = 'super-secret-pw'
+    try {
+      const get = capture()
+      await doctor.run({ host: '127.0.0.1', ecpPort: a.ecpPort, json: true })
+      const j = JSON.parse(get())
+      expect(j.environment.find((i) => i.name === 'ROKU_PASSWORD').set).toBe(true)
+      expect(get()).not.toContain('super-secret-pw')
+      vi.restoreAllMocks()
+      const get2 = capture()
+      await doctor.run({ host: '127.0.0.1', ecpPort: a.ecpPort })
+      expect(get2()).toContain('environment:')
+      expect(get2()).not.toContain('super-secret-pw')
+    } finally { delete process.env.ROKU_PASSWORD }
+  })
+})

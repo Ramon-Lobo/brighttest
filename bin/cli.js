@@ -90,6 +90,38 @@ function parseDoctorArgs(rest) {
   return o;
 }
 
+// `brighttest setup`: find or take a Roku host, check it, and save it as ROKU_HOST in the project .env.
+const SETUP_HELP = `
+brighttest setup — make a Roku the project's default device (ROKU_HOST in .env)
+
+Usage: brighttest setup [--host <ip>] [--write | --print] [--shell bash|zsh|fish|sh|powershell|cmd|all]
+                        [--env-file <path>] [--ecp-port <n>] [--force] [--json]
+
+  Without --host it discovers Rokus on the network. It checks the device like doctor (device-info only: no lease,
+  no password, no keypress), then asks before writing ROKU_HOST=<ip> to ./.env and adds .env to .gitignore.
+  --write saves without asking (for agents); --print never writes; with no terminal it writes only with --write.
+  It prints the export line for your shell and never edits a shell profile. The dev password is never asked for,
+  stored or printed: set ROKU_PASSWORD, or run brighttest devices to cache it. --force writes even when a check fails.
+  Exit 0 done, 1 the device check failed (nothing written), 2 usage or no host chosen.
+`;
+function parseSetupArgs(rest) {
+  const o = { host: null, write: false, print: false, shell: null, envFile: null, ecpPort: null, force: false, json: false, help: false };
+  for (let i = 0; i < rest.length; i++) {
+    const a = rest[i];
+    const val = (n) => (a === n ? rest[++i] : a.slice(n.length + 1));
+    if (a === '--host' || a.startsWith('--host=')) o.host = val('--host');
+    else if (a === '--shell' || a.startsWith('--shell=')) o.shell = val('--shell');
+    else if (a === '--env-file' || a.startsWith('--env-file=')) o.envFile = val('--env-file');
+    else if (a === '--ecp-port' || a.startsWith('--ecp-port=')) o.ecpPort = val('--ecp-port');
+    else if (a === '--write') o.write = true;
+    else if (a === '--print') o.print = true;
+    else if (a === '--force') o.force = true;
+    else if (a === '--json') o.json = true;
+    else if (a === '--help' || a === '-h') o.help = true;
+  }
+  return o;
+}
+
 // `brighttest mcp`: stdio MCP server (brighttest-mcp/v1) exposing the e2e primitives to agents.
 const MCP_HELP = `
 brighttest mcp — serve brighttest's deterministic e2e primitives to an AI agent over MCP (stdio)
@@ -598,6 +630,7 @@ Usage:
   brighttest features check [<tree.json>]            Validate a feature tree against its graph; exit 3 when invalid (see: features --help)
   brighttest features render [<tree.json>] [--auto]  Write a self-contained HTML report of a feature tree (see: features --help)
   brighttest doctor --host <ip> [--json]             Check a device's capabilities and print exact fixes
+  brighttest setup [--host <ip>] [--write]           Save a Roku as the project's default device (ROKU_HOST in .env)
   brighttest mcp                                     Serve e2e primitives to an AI agent over MCP stdio (see: mcp --help)
   brighttest devices                                 Discover Rokus on the network and cache one's credentials
   brighttest device status|with|unlock|log           Share a device safely: the device lease (see: device --help)
@@ -809,6 +842,13 @@ async function main() {
     const code = await require('../lib/doctor').run(o);
     process.exit(code);
   }
+  if (argv[0] === 'setup') {
+    const o = parseSetupArgs(argv.slice(1));
+    if (o.help) { console.log(SETUP_HELP); process.exit(0); }
+    const code = await require('../lib/setup').run(o, { ask: askLine });
+    process.stdout.write('', () => process.exit(code));
+    return;
+  }
   if (argv[0] === 'devices') {
     const d = require('../lib/devices');
     process.stderr.write('(to see who is using a device, run: brighttest device status)\n');
@@ -874,4 +914,4 @@ async function main() {
 // Only run the CLI when executed directly (not when required by tests).
 if (require.main === module) main();
 
-module.exports = { parseNetArgs, studioStartOptions, parseArgs, parseInstrumentArgs, INSTRUMENT_ACTIONS, parseSkillsArgs, parseInitArgs, parseE2eArgs, parseStudioArgs, studioExitCode, studioTargetLabel, parseDeviceArgs, parseDoctorArgs, SKILLS_ACTIONS, E2E_ACTIONS, DEVICE_ACTIONS, SCREENSHOT_MODES };
+module.exports = { parseNetArgs, studioStartOptions, parseArgs, parseInstrumentArgs, INSTRUMENT_ACTIONS, parseSkillsArgs, parseInitArgs, parseE2eArgs, parseStudioArgs, studioExitCode, studioTargetLabel, parseDeviceArgs, parseDoctorArgs, parseSetupArgs, SKILLS_ACTIONS, E2E_ACTIONS, DEVICE_ACTIONS, SCREENSHOT_MODES };
