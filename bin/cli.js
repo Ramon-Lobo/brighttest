@@ -772,7 +772,7 @@ async function main() {
     const cfg = loadConfig(process.cwd(), o.config);
     const r = await require('../lib/instrument/build').build(cfg, { out: o.out, strict: o.strict, verbose: o.verbose, net: o.net, from: o.from, failOnBscErrors: o.failOnBsc });
     if (r.exitCode !== 0 || !target) process.exit(r.exitCode);
-    const code = await require('../lib/instrument/sideload').sideload(cfg, { zip: r.out, ...target, wait: o.wait, max: o.max, expect: o.expect, as: o.as, purpose: o.purpose });
+    const code = await require('../lib/instrument/sideload').sideload(cfg, { zip: r.out, ...target, record: r.record ? { store: r.record.store, id: r.record.id, via: 'build' } : null, wait: o.wait, max: o.max, expect: o.expect, as: o.as, purpose: o.purpose });
     process.exit(code);
   }
   if (argv[0] === 'e2e') {

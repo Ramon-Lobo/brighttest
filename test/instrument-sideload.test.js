@@ -2,11 +2,11 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import http from 'node:http'
 import { createRequire } from 'node:module'
 
 const require = createRequire(import.meta.url)
-const { sideload, parseInstallerReply } = require('../lib/instrument/sideload')
+const { sideload, installPackage, parseInstallerReply } = require('../lib/instrument/sideload')
+const { fakeInstaller, toLocal } = require('./fixtures/fake-installer')
 
 const PW = 'sekrit-pw'
 let tmp, zip
@@ -160,41 +160,6 @@ describe('instrument sideload (stub installer)', () => {
   })
 })
 
-// A real local http server that behaves like the Roku installer: it closes the socket right after the 401 without
-// announcing it, and the archive is only accepted on an authenticated request.
-function fakeInstaller({ failAuthPostsBy = [] } = {}) {
-  const log = { reqs: [], sockets: [], bytesBeforeAuth: 0 }
-  let authN = 0
-  const srv = http.createServer((req, res) => {
-    const chunks = []
-    req.on('data', (c) => chunks.push(c))
-    req.on('end', () => {
-      const body = Buffer.concat(chunks).toString('latin1')
-      const authed = !!req.headers.authorization
-      const submit = (/name="mysubmit"\r\n\r\n(\w+)/.exec(body) || [])[1] || null
-      log.reqs.push({ authed, submit, bytes: chunks.reduce((n, c) => n + c.length, 0) })
-      log.sockets.push(req.socket.remotePort)
-      if (!authed) {
-        log.bytesBeforeAuth += Buffer.concat(chunks).length
-        res.writeHead(401, { 'WWW-Authenticate': challenge })
-        res.end('')
-        setTimeout(() => req.socket.destroy(), 5)
-        return
-      }
-      authN++
-      if (failAuthPostsBy.includes(authN)) { req.socket.destroy(); return }
-      res.writeHead(200)
-      res.end(submit === 'Delete' ? 'Delete done' : 'Install Success')
-    })
-  })
-  return new Promise((resolve) => srv.listen(0, '127.0.0.1', () => resolve({ srv, log, port: srv.address().port })))
-}
-
-// Route the installer URL (port 80) to the local server; ECP polls answer "dev".
-const toLocal = (port) => (url, init) => {
-  if (/:8060\/query\/active-app$/.test(url)) return Promise.resolve({ status: 200, headers: { get: () => null }, text: async () => '<active-app><app id="dev">S</app></active-app>' })
-  return fetch(url.replace(/^http:\/\/[^/]+/, `http://127.0.0.1:${port}`), init)
-}
 async function runReal(srvOpts) {
   const f = await fakeInstaller(srvOpts)
   const lines = []
@@ -231,5 +196,95 @@ describe('instrument sideload (local installer that closes the socket after the 
     expect(out).toMatch(/installer request failed: POST \/plugin_install \(authenticated\) failed: \w+/)
     expect(out).not.toContain(PW)
     expect(out).not.toMatch(/http:\/\//)
+  })
+})
+
+describe('installPackage (lease-free core, never throws)', () => {
+  const zipData = Buffer.from('PK')
+  const core = (replies, o = {}, stubOpts) => {
+    const s = stub(replies, stubOpts)
+    const steps = []
+    const p = installPackage({
+      host: '192.0.2.5', password: PW, zipData, fetchFn: s.f, tcpProbe: async () => o.tcpOpen !== false,
+      sleep: async () => {}, activeTries: 2, onStep: (e) => steps.push(e.step), ...o.args,
+    })
+    return p.then((r) => ({ r, steps, calls: s.calls, launches: s.launches }))
+  }
+  it('OK: result shape, steps in order, no password', async () => {
+    const { r, steps } = await core([{ html: 'Install Success' }])
+    expect(r).toMatchObject({ ok: true, code: 'OK', active: true, identical: false, retried: false })
+    expect(r.app).toMatchObject({ id: 'dev' })
+    expect(Number.isFinite(r.durationMs)).toBe(true)
+    expect(steps).toEqual(['probe', 'upload', 'verify-active'])
+    expect(JSON.stringify(r)).not.toContain(PW)
+  })
+  it('OK identical: relaunches dev, identical flag set', async () => {
+    const { r, launches } = await core([{ html: 'Identical to previous version' }])
+    expect(r).toMatchObject({ ok: true, code: 'OK', identical: true })
+    expect(launches).toEqual(['POST'])
+  })
+  it('UNREACHABLE: nothing is sent', async () => {
+    const { r, calls } = await core([], { tcpOpen: false })
+    expect(r).toMatchObject({ ok: false, code: 'UNREACHABLE', step: 'probe' })
+    expect(calls).toEqual([])
+  })
+  it('AUTH: no retry', async () => {
+    const { r, calls } = await core([{ html: 'x' }], {}, { wrongPw: true })
+    expect(r).toMatchObject({ ok: false, code: 'AUTH', retried: false })
+    expect(calls).toEqual([])
+    expect(JSON.stringify(r)).not.toContain(PW)
+  })
+  it('INSTALL_FAILED after one Delete and retry', async () => {
+    const f = { html: 'Install Failure: Compilation Failed.' }
+    const { r, calls, steps } = await core([f, { html: '' }, f])
+    expect(r).toMatchObject({ ok: false, code: 'INSTALL_FAILED', retried: true, message: 'Compilation Failed.' })
+    expect(calls).toEqual(['Replace', 'Delete', 'Replace'])
+    expect(steps).toContain('delete-retry')
+  })
+  it('NETWORK carries the errno as cause and never the password', async () => {
+    const f = async () => { throw Object.assign(new Error(`boom ${PW}`), { cause: { code: 'EPIPE' } }) }
+    const { r } = await core([], { args: { fetchFn: f } })
+    expect(r).toMatchObject({ ok: false, code: 'NETWORK', cause: 'EPIPE', retried: true })
+    expect(JSON.stringify(r)).not.toContain(PW)
+  })
+  it('NOT_ACTIVE when the dev channel never comes up', async () => {
+    const { r } = await core([{ html: 'Install Success' }], {}, { active: '<active-app><app>Roku</app></active-app>' })
+    expect(r).toMatchObject({ ok: false, code: 'NOT_ACTIVE', step: 'verify-active', active: false })
+    expect(r.message).toMatch(/dev channel is not active/)
+  })
+  it('CANCELLED when the signal is already aborted: nothing is sent', async () => {
+    const ac = new AbortController(); ac.abort()
+    const { r, calls } = await core([{ html: 'Install Success' }], { args: { signal: ac.signal } })
+    expect(r).toMatchObject({ ok: false, code: 'CANCELLED' })
+    expect(calls).toEqual([])
+  })
+  it('CANCELLED when aborted during the upload', async () => {
+    const ac = new AbortController()
+    const f = (url, init) => new Promise((_res, rej) => {
+      ac.abort()
+      init.signal.addEventListener('abort', () => rej(Object.assign(new Error('aborted'), { name: 'AbortError' })))
+      if (init.signal.aborted) rej(Object.assign(new Error('aborted'), { name: 'AbortError' }))
+    })
+    const { r } = await core([], { args: { fetchFn: f, signal: ac.signal } })
+    expect(r).toMatchObject({ ok: false, code: 'CANCELLED' })
+  })
+  it('LEASE_LOST when the lease check fails mid-install', async () => {
+    let n = 0
+    const { r, calls } = await core([{ html: 'Install Success' }], { args: { leaseCheck: () => ++n < 3 } })
+    expect(r).toMatchObject({ ok: false, code: 'LEASE_LOST', step: 'verify-active' })
+    expect(calls).toEqual(['Replace'])
+  })
+  it('bad input and a throwing onStep do not throw', async () => {
+    expect((await installPackage({})).code).toBe('INSTALL_FAILED')
+    const { r } = await core([{ html: 'Install Success' }], { args: { onStep: () => { throw new Error('x') } } })
+    expect(r.code).toBe('OK')
+  })
+  it('sideload maps a lost lease to exit 77', async () => {
+    const s = stub([{ html: 'Install Success' }])
+    const lease = { lost: true, release() {} }
+    const code = await sideload({ rootDir: tmp }, { zip, host: '192.0.2.5', password: PW }, {
+      fetch: s.f, log: () => {}, tcpProbe: async () => true, sleep: async () => {}, activeTries: 1, acquireForLane: async () => ({ lease }),
+    })
+    expect(code).toBe(77)
   })
 })

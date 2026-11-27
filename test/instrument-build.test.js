@@ -36,7 +36,7 @@ function mkapp(name, files, config) {
 const cfgFor = (dir, name, extra = {}) => ({ ...loadConfig(dir), stagingDir: path.join(tmp, 'stage-' + name), ...extra })
 const run = (dir, name, opts = {}, cfgExtra = {}) => {
   const lines = []
-  return build(cfgFor(dir, name, cfgExtra), { log: (l) => lines.push(l), out: path.join(tmp, 'out-' + name + '.zip'), ...opts })
+  return build(cfgFor(dir, name, { builds: { record: false }, ...cfgExtra }), { log: (l) => lines.push(l), out: path.join(tmp, 'out-' + name + '.zip'), ...opts })
     .then((r) => ({ ...r, log: lines, out: opts.out || path.join(tmp, 'out-' + name + '.zip') }))
 }
 const hashTree = (dir) => {

@@ -74,6 +74,8 @@ inside the device lease so it never collides with another brighttest lane on the
   `--host ip:password`, or the credential cache entry for that host). It is never printed.
 - Port 80 is checked first; if it is closed, the command exits 1 and tells you to enable Developer Mode.
 - If the installer reports a failure, the installed app is deleted and the install is retried once.
+- The build is added to the builds store (unless `builds.record` is `false`) and the install result is appended to its
+  record. On success the command prints the build now on the device (`on the device now: ...`).
 - Lease options: `--wait`, `--max`, `--expect`, `--as`, `--purpose` (same meaning as `brighttest device with`).
   The lease cannot be bypassed for this command.
 
