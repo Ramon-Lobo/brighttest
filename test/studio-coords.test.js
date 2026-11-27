@@ -51,6 +51,36 @@ describe('sceneSize', () => {
   });
 });
 
+describe('sceneSize: app UI resolution vs display mode', () => {
+  const fhd = [node('Scene', [0, 0, 1920, 1080], { children: [node('Poster', [100, 100, 300, 200], { t: [100, 100] })] })];
+  const hd = [node('Scene', [0, 0, 1280, 720], { children: [node('Poster', [100, 100, 300, 200], { t: [100, 100] })] })];
+  const out1080 = { w: 1920, h: 1080 };
+  const out720 = { w: 1280, h: 720 };
+
+  it('keeps 1920x1080 for an fhd app on a 1080p output (unchanged)', () => {
+    expect(coords.sceneSize(fhd, { screen: out1080 })).toEqual(out1080);
+    const p = coords.project(fhd, { screen: out1080 });
+    expect(p.scene).toEqual(out1080);
+    expect(p.nodes.find((n) => n.subtype === 'Poster').abs).toEqual({ x: 100, y: 100, w: 300, h: 200 });
+  });
+
+  it('uses 1280x720 for an hd app on a 1080p output', () => {
+    expect(coords.sceneSize(hd, { screen: out1080 })).toEqual(out720);
+    const p = coords.project(hd, { screen: out1080 });
+    expect(p.scene).toEqual(out720); // the client scales this viewBox to the picture, so boxes line up
+    expect(p.nodes.find((n) => n.subtype === 'Poster').abs).toEqual({ x: 100, y: 100, w: 300, h: 200 });
+  });
+
+  it('uses 1920x1080 for an fhd app on a 720p output', () => {
+    expect(coords.sceneSize(fhd, { screen: out720 })).toEqual(out1080);
+  });
+
+  it('keeps the device resolution when the tree shows both or neither', () => {
+    expect(coords.sceneSize([...fhd, ...hd], { screen: out1080 })).toEqual(out1080);
+    expect(coords.sceneSize([node('Group', [0, 0, 640, 480])], { screen: out720 })).toEqual(out720);
+  });
+});
+
 describe('screenFromUiResolution', () => {
   it('maps the ECP ui-resolution string', () => {
     expect(coords.screenFromUiResolution('1080p')).toEqual({ w: 1920, h: 1080 });
