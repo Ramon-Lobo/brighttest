@@ -612,6 +612,17 @@ describe('watch(): subscribe for the fast state cadence', () => {
     expect(out.map((c) => [c.op, c.args.on])).toEqual([['subscribe', undefined], ['subscribe', false]]);
     expect(hub.watching).toBe(false);
   });
+  it('hold() subscribes with no TTL and sends subscribe off on release, once', async () => {
+    const hub = await start({ tickMs: 20, longPollMs: 40 });
+    await req(hub, 'GET', `/bt/${TOKEN}/hello`);
+    const rel = hub.hold();
+    await new Promise((r) => setTimeout(r, 120));
+    expect(hub.watching).toBe(true);
+    rel(); rel();
+    expect(hub.watching).toBe(false);
+    const out = await cmds(hub);
+    expect(out.map((c) => [c.op, c.args.on])).toEqual([['subscribe', undefined], ['subscribe', false]]);
+  });
   it('sends nothing without a watcher', async () => {
     const hub = await start({ tickMs: 20, longPollMs: 40 });
     await req(hub, 'GET', `/bt/${TOKEN}/hello`);
