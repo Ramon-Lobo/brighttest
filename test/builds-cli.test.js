@@ -144,6 +144,46 @@ describe('builds install (in process, fake installer and lease)', () => {
     } finally { f.srv.close() }
   })
 
+  it('token check: enum-only refusal, --allow-token-mismatch, env then .env, never echoes the token', async () => {
+    const { instrumentedEntries } = require('./support/zipgen')
+    const TOK = '0123456789abcdef0123456789abcdef' // the token baked into the fixture package
+    const OTHER = 'fedcba9876543210fedcba9876543210'
+    fs.writeFileSync(path.join(work, 'inst.zip'), makeZip(instrumentedEntries()))
+    const f = await fakeInstaller()
+    const all = []
+    try {
+      const go = async (args, env) => { const m = mkDeps(f, { env }); const code = await run(args, m.deps); all.push(...m.lines); return { code, lines: m.lines } }
+      // mismatch: refused, enum only, nothing installed
+      let r = await go(['install', 'inst.zip'], { BRIGHTTEST_HUB_TOKEN: OTHER })
+      expect(r.code).toBe(2)
+      expect(r.lines.join('\n')).toMatch(/TOKEN_MISMATCH \(mismatch\)/)
+      // no token configured at all
+      r = await go(['install', 'inst.zip', '--json'], {})
+      expect(r.code).toBe(2)
+      expect(JSON.parse(r.lines.filter((l) => l.startsWith('{'))[0])).toMatchObject({ error: 'TOKEN_MISMATCH', tokenCheck: 'no-studio-token' })
+      // allowed: proceeds with a warning that names only the enum
+      r = await go(['install', 'inst.zip', '--allow-token-mismatch'], { BRIGHTTEST_HUB_TOKEN: OTHER })
+      expect(r.code).toBe(0)
+      expect(r.lines.join('\n')).toMatch(/warning: TOKEN_MISMATCH \(mismatch\) allowed/)
+      // match from the environment: no warning
+      r = await go(['install', 'inst.zip'], { BRIGHTTEST_HUB_TOKEN: TOK })
+      expect(r.code).toBe(0)
+      expect(r.lines.join('\n')).not.toMatch(/TOKEN_MISMATCH/)
+      // match from the project .env when the environment has none
+      fs.writeFileSync(path.join(work, '.env'), `BRIGHTTEST_HUB_TOKEN=${TOK}\n`)
+      try {
+        r = await go(['install', 'inst.zip'], {})
+        expect(r.code).toBe(0)
+        // environment wins over .env
+        r = await go(['install', 'inst.zip'], { BRIGHTTEST_HUB_TOKEN: OTHER })
+        expect(r.code).toBe(2)
+      } finally { fs.rmSync(path.join(work, '.env'), { force: true }) }
+      // a non-instrumented build is not checked
+      expect((await go(['install', 'b.zip'], { BRIGHTTEST_HUB_TOKEN: OTHER })).code).toBe(0)
+      for (const t of [TOK, OTHER]) expect(all.join('\n')).not.toContain(t)
+    } finally { f.srv.close() }
+  })
+
   it('rejects a corrupt blob with 5 before taking the lease', async () => {
     const f = await fakeInstaller()
     try {
