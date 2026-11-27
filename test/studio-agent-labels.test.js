@@ -15,9 +15,11 @@ const STATIC = {
     'lease-queue', 'toggle-overlay', 'toggle-all-nodes', 'toggle-offscreen', 'toggle-live', 'live-status', 'lease-bar', 'lease-queued',
     'lease-take-over', 'page-nav', 'page-inspect', 'flow-tree', 'flow-tree-show', 'flow-editor', 'flow-name',
     'flow-editor-text', 'flow-save', 'flow-run', 'flow-stop', 'flow-message', 'flow-run-steps', 'live-monitor',
-    'monitor-needs-device', 'inspector-panel', 'remote-panel', 'remote-needs-device',
-    'tab-node', 'tab-tree', 'tab-selector', 'tab-state', 'tab-actions', 'tab-net',
+    'monitor-needs-device', 'remote-panel', 'remote-needs-device',
+    'tiles-menu', 'tiles-menu-list', 'tiles-preset-default', 'tiles-preset-monitor-info', 'tiles-reset', 'tiles-confirm', 'tiles-cancel',
+    'header-run-stop',
   ],
+  'lib/TileGrid.svelte': ['layout-grid', 'layout-placeholder', 'layout-live', 'layout-empty', 'layout-empty-show'],
   'lib/Inspector.svelte': ['node-view-fields', 'node-view-state'],
   'lib/NodeState.svelte': [
     'node-state', 'node-state-id', 'node-state-noid', 'node-state-layer-node', 'node-state-layer-m', 'node-state-refresh', 'node-state-raw',
@@ -44,11 +46,22 @@ const STATIC = {
     'profile-perfetto-start', 'profile-perfetto-stop', 'profile-perfetto-heap', 'profile-bsprof-import', 'profile-bsprof-pull',
   ],
 };
+// Every Inspect panel is its own tile (STUDIO-LAYOUT-T2): ids built from the tile id.
+const TILES = ['monitor', 'flow', 'remote', 'node', 'tree', 'selector', 'state', 'actions', 'network'];
+const per = (prefix, suffix = '') => TILES.map((t) => `${prefix}${t}${suffix}`);
 // Ids built from a template: [file, template in source, expanded ids].
 const DYNAMIC = [
   ['App.svelte', 'data-testid="nav-{p.id}"', ['nav-inspect', 'nav-runs', 'nav-record', 'nav-devices', 'nav-profile', 'nav-settings']],
   ['lib/pages/Profile.svelte', 'data-testid="profile-console-{c.replace(', ['profile-console-free', 'profile-console-sgperf-start', 'profile-console-sgperf-report', 'profile-console-sgperf-stop', 'profile-console-loaded-textures', 'profile-console-fps-display-on', 'profile-console-fps-display-off', 'profile-console-logrendezvous-on', 'profile-console-logrendezvous-off']],
   ['lib/ContextMenu.svelte', "testid: 'menu-inspect-state'", ['menu-inspect-state']],
+  ['App.svelte', 'data-testid="tiles-menu-item-{id}"', per('tiles-menu-item-')],
+  ['App.svelte', 'data-testid="tiles-restore-{id}"', per('tiles-restore-')],
+  ['lib/Tile.svelte', 'data-testid="tile-{tile.id}"', per('tile-')],
+  ['lib/Tile.svelte', 'data-testid="tile-{tile.id}-handle"', per('tile-', '-handle')],
+  ['lib/Tile.svelte', 'data-testid="tile-{tile.id}-minimize"', per('tile-', '-minimize')],
+  ['lib/Tile.svelte', 'data-testid="tile-{tile.id}-menu"', per('tile-', '-menu')],
+  ['lib/Tile.svelte', 'data-testid="tile-{tile.id}-hide"', per('tile-', '-hide')],
+  ['lib/Tile.svelte', 'data-testid="tile-{tile.id}-resize"', per('tile-', '-resize')],
 ];
 const ALL = [...Object.values(STATIC).flat(), ...DYNAMIC.flatMap((d) => d[2])];
 
@@ -63,6 +76,11 @@ describe('Studio agent labels', () => {
   for (const [file, tpl] of DYNAMIC) {
     it(`${file} keeps the templated ${tpl}`, () => expect(read(file)).toContain(tpl));
   }
+  it('the tile ids match the registry', () => {
+    const reg = read('lib/tiles.js');
+    const ids = [...reg.matchAll(/^\s{4}(\w+): \{ title:/gm)].map((m) => m[1]);
+    expect(ids).toEqual(TILES);
+  });
   it('the nav ids match the page list', () => {
     const pages = [...read('App.svelte').matchAll(/\{ id: '(\w+)', label:/g)].map((m) => `nav-${m[1]}`);
     expect(pages).toEqual(DYNAMIC[0][2]);

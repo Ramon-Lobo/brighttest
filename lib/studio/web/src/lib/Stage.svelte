@@ -1,7 +1,9 @@
 <script>
   import { studio } from './store.svelte.js';
   import { matchesSel as matches } from './match.js';
-  let { shotSrc, oncontext } = $props();
+  // fit 'width' (Record): the box takes the width and grows in height. 'contain' (tiles): the largest 16:9 box that
+  // fits the container, letterboxed; the picture and the overlay fill that one box, so they stay aligned at any size.
+  let { shotSrc, oncontext, fit = 'width' } = $props();
 
   // sgnodes/all dumps the whole tree, so most nodes with bounds are NOT on screen — hidden drawers,
   // preloaded sibling screens, ArrayGrid items scrolled out of view. The server derives `onScreen`
@@ -29,7 +31,7 @@
   };
 </script>
 
-<div class="monitor" data-testid="monitor-stage" role="presentation" onclick={() => { if (studio.overlay) studio.selectedPath = null; }}>
+<div class="monitor" class:contain={fit === 'contain'} data-testid="monitor-stage" role="presentation" onclick={() => { if (studio.overlay) studio.selectedPath = null; }}>
   <div class="bezel">
     <img src={shotSrc} data-testid="monitor-screenshot" alt="live device screen" draggable="false" />
     {#if studio.overlay}
@@ -64,6 +66,8 @@
 
 <style>
   .monitor { width: 100%; }
+  .monitor.contain { height: 100%; container-type: size; display: flex; }
+  .monitor.contain .bezel { width: min(100cqw, calc(100cqh * 16 / 9)); margin: auto; flex: none; }
   .bezel {
     position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000;
     border-radius: 14px; padding: 10px; border: 1px solid var(--color-line2);

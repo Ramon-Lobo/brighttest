@@ -13,7 +13,7 @@ header comes from the fake. They show the layout and the messages, not device be
 :::
 
 ![Studio Inspect page connected to a device, with a flow open in the editor and the node and remote panels](/images/studio/overview.png)
-*Inspect page (monitor picture is a placeholder frame): flow editor, live monitor, inspector tabs (Node, Tree, Selector, State, Actions, Network) and the remote. The header
+*Inspect page (monitor picture is a placeholder frame): flow editor, live monitor, the remote and the inspector panels (Node, Tree, Selector, State, Actions, Network), each in its own tile. The header
 shows the model and the lease badge.*
 
 ## Start and stop
@@ -166,6 +166,36 @@ Agents can read the same data without Studio's UI through the [`perf_summary` an
 ![Profile page with the live profiling, console, Perfetto and bsprof panels](/images/studio/profile.png)
 *Profile page against the fake Roku: the panels are shown empty because the fake serves no profiling data.*
 
+## Inspect layout (tiles)
+
+The Inspect page is a grid of **tiles**: Program monitor, Flow, Remote and one tile for each inspector panel (Node, Tree,
+Selector, State, Actions, Network). There are no tabs; every panel is on screen at once if you want it.
+
+- **Move:** drag a tile by its title. A ghost follows the pointer and a dashed placeholder shows the target cell; the tiles
+  below make room. Tiles snap to a 12-column grid with 32 px rows.
+- **Resize:** drag the grip at the bottom right. A tile never goes below its minimum size (the monitor is 3 columns by 5
+  rows, the remote 2 by 7, the others 3 by 6).
+- **Minimize** (the `–` button) keeps the tile's place and shows only its header. The panel inside is unmounted, so its polling
+  or stream stops. The Flow tile is the exception: the editor stays mounted while minimized or hidden, so undo history and
+  the cursor survive.
+- **Hide** (tile menu `⋯`, or uncheck it in **Tiles** in the header) removes the tile from the grid. The **Tiles** menu lists
+  every tile with a checkbox, a **Restore** link for minimized ones, the presets **Default** and **Monitor and info**
+  (monitor large, Node and State beside it, everything else hidden), and **Reset layout**. Presets and Reset ask for a
+  confirmation because there is no undo. The tile menu also moves a tile one cell and makes it wider, narrower, taller or
+  shorter, for use without dragging.
+- **Remembered per browser** in `localStorage` key `bt.studio.layout.inspect` (`{"v":1,"reg":1,"tiles":[...]}`), saved after
+  each completed change, never during a drag. Nothing is stored on the server or in config. Clearing the key, or an
+  unreadable value, gives the default layout.
+- **Feed:** the monitor keeps 16:9 at any tile size (the largest 16:9 box that fits, letterboxed), and the node outlines
+  are drawn on that same box, so they stay aligned after a resize.
+- **Polling follows what is open:** while the monitor tile is minimized or hidden, Studio stops requesting screenshots
+  (`/api/screenshot`) and stops the overlay's tree reads; Node, Tree and Selector tiles still read the tree once a second
+  while they are open. Restoring the monitor starts the screenshots again.
+- **Narrow windows:** under 960 px of grid width the tiles stack in one column in reading order; drag and resize are off,
+  minimize, hide and the Tiles menu still work, and the saved layout is not changed.
+- While a run is active and the Flow tile is not open, a **Running · Stop** chip (`header-run-stop`) shows in the header.
+  `Cmd+.` or `Ctrl+.` still stops a run from anywhere.
+
 ## Overlay switch
 
 The **overlay** checkbox in the header (Inspect and Record pages) turns the node outlines on the picture on or off. It
@@ -175,8 +205,8 @@ server or in config.
 - **Off:** nothing is drawn over the picture (no outlines, hover or run highlight), clicking the picture selects
   nothing, and **all nodes** and **offscreen** are disabled. The selected node stays selected, so the Node tab and the
   context-menu steps still work from the Tree tab. The monitor header shows "overlay off".
-- **Tree reads:** with the overlay off, Studio reads the SceneGraph tree only while the Node, Tree or Selector tab is open
-  on the Inspect page, or the State tab shows the read-only app state; then once a second instead of every 300 ms.
+- **Tree reads:** with the overlay off, Studio reads the SceneGraph tree only while the Node, Tree or Selector tile is open
+  on the Inspect page, or the State tile shows the read-only app state; then once a second instead of every 300 ms.
   Otherwise it reads nothing, which frees the device for screenshots and key presses.
 - Turning the overlay on reads the tree at once.
 
@@ -213,7 +243,9 @@ Studio contract: they do not change between releases without a changelog note, a
 | Settings page | `settings-page`, `settings-device-source`, `settings-test-connection`, `settings-password-status`, `settings-hub-status`, `settings-token-status`, `settings-save-host`, `settings-save-result`, `settings-reset-prefs`, `settings-about-copy` |
 | Lease and device status | `lease-badge`, `lease-badge-summary`, `lease-queue`, `lease-bar` (banner while another holder has the device), `lease-queued`, `lease-take-over`, `sim-badge`, `sim-tail` |
 | Live monitor | `live-monitor`, `monitor-stage`, `monitor-screenshot` (the live screenshot), `monitor-overlay` (the node outlines), `monitor-needs-device`, `toggle-live`, `toggle-overlay`, `toggle-all-nodes`, `toggle-offscreen`, `live-status` |
-| Inspect page | `page-inspect`, `inspector-panel`, `tab-node`, `tab-tree`, `tab-selector`, `tab-state`, `tab-actions`, `tab-net` |
+| Inspect page | `page-inspect` |
+| Inspect tiles | `layout-grid`, `layout-placeholder` (target cell while dragging), `layout-live` (announcements), `layout-empty`, `layout-empty-show`; one tile per panel: `tile-monitor`, `tile-flow`, `tile-remote`, `tile-node`, `tile-tree`, `tile-selector`, `tile-state`, `tile-actions`, `tile-network`; on each tile a drag handle (`tile-<id>-handle`), a minimize toggle (`tile-<id>-minimize`), a tile menu (`tile-<id>-menu`, with `tile-<id>-hide`) and a resize grip (`tile-<id>-resize`): `tile-monitor-handle`, `tile-flow-handle`, `tile-remote-handle`, `tile-node-handle`, `tile-tree-handle`, `tile-selector-handle`, `tile-state-handle`, `tile-actions-handle`, `tile-network-handle`, `tile-monitor-minimize`, `tile-flow-minimize`, `tile-remote-minimize`, `tile-node-minimize`, `tile-tree-minimize`, `tile-selector-minimize`, `tile-state-minimize`, `tile-actions-minimize`, `tile-network-minimize`, `tile-monitor-menu`, `tile-flow-menu`, `tile-remote-menu`, `tile-node-menu`, `tile-tree-menu`, `tile-selector-menu`, `tile-state-menu`, `tile-actions-menu`, `tile-network-menu`, `tile-monitor-hide`, `tile-flow-hide`, `tile-remote-hide`, `tile-node-hide`, `tile-tree-hide`, `tile-selector-hide`, `tile-state-hide`, `tile-actions-hide`, `tile-network-hide`, `tile-monitor-resize`, `tile-flow-resize`, `tile-remote-resize`, `tile-node-resize`, `tile-tree-resize`, `tile-selector-resize`, `tile-state-resize`, `tile-actions-resize`, `tile-network-resize` |
+| Tiles menu | `tiles-menu`, `tiles-menu-list`, `tiles-preset-default`, `tiles-preset-monitor-info`, `tiles-reset`, `tiles-confirm`, `tiles-cancel`, `header-run-stop` (Stop chip in the header while a run is active and the Flow tile is not open); per tile `tiles-menu-item-monitor`, `tiles-menu-item-flow`, `tiles-menu-item-remote`, `tiles-menu-item-node`, `tiles-menu-item-tree`, `tiles-menu-item-selector`, `tiles-menu-item-state`, `tiles-menu-item-actions`, `tiles-menu-item-network` (checkbox) and `tiles-restore-monitor`, `tiles-restore-flow`, `tiles-restore-remote`, `tiles-restore-node`, `tiles-restore-tree`, `tiles-restore-selector`, `tiles-restore-state`, `tiles-restore-actions`, `tiles-restore-network` (minimized tiles) |
 | Node State view | `node-view-fields`, `node-view-state`, `tree-node-state` (Tree row), `menu-inspect-state` (right-click menu), `node-state`, `node-state-id`, `node-state-layer-node`, `node-state-layer-m`, `node-state-refresh`, `node-state-raw`, `node-state-age`, `node-state-dup`, `node-state-noid`, `node-state-reason`, `node-state-large`, `node-state-field`, `node-state-path`, `node-state-notfound`, `node-state-rows`, `node-state-edit`, `node-state-input`, `node-state-chip`, `node-state-step`, `node-state-goto`, `node-state-goto-under`, `node-state-load` |
 | Remote | `remote-panel`, `remote`, `remote-key-up`, `remote-key-down`, `remote-key-left`, `remote-key-right`, `remote-key-select`, `remote-key-back`, `remote-key-home`, `remote-needs-device` |
 | Flow editor | `flow-tree`, `flow-tree-show`, `flow-editor`, `flow-name`, `flow-editor-text`, `flow-save`, `flow-run`, `flow-stop`, `flow-message`, `flow-run-steps` |
