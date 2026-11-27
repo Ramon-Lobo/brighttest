@@ -1,0 +1,11 @@
+Error: build failed
+    at run (/home/devuser-seeded/work/examplecorp-app/source/main.brs:12)
+    at C:\Users\devuser-seeded\work\examplecorp-app\components\Home.brs:30
+    at /opt/tools/lib/engine.js:99
+token eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJzZWVkZWQifQ.c2VlZGVkc2lnbmF0dXJl
+blob aB3dE5gH7jK9mN1pQ3sT5vW7yZ9bD1fG3hJ5kL7nP9rS
+-----BEGIN RSA PRIVATE KEY-----
+SEEDEDPRIVATEKEYBODYLINE0001
+SEEDEDPRIVATEKEYBODYLINE0002
+-----END RSA PRIVATE KEY-----
+done

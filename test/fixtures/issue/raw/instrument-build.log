@@ -1,0 +1,7 @@
+[brighttest] instrument: building Examplecorp Sample Channel (brighttest 0.8.0-rc.0, node 22.11.0, commit a1b2c3d4e5f60718293a4b5c6d7e8f9012345678)
+[brighttest] project /home/devuser-seeded/work/examplecorp-app
+[brighttest] cache /home/devuser-seeded/.cache/tool/build.json
+[brighttest] injected hub at http://192.0.2.44:4891/ (loopback http://127.0.0.1:4891/) token=SEEDED-TOKEN-0002
+[brighttest] manifest bundle id com.examplecorp.samplechannel.tv
+[brighttest] sideload target roku-lab-box.example.net:8060 engine 2.7.1-bt.1
+[brighttest] done in 4.2s

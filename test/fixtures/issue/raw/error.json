@@ -1,0 +1,1 @@
+{"name":"AssertionError","message":"expected the Examplecorp Sample Channel home row to render","device":"192.0.2.45","serial-number":"SEEDEDSERIAL0001","password":"SEEDED-PASSWORD-0001","stack":"at /home/devuser-seeded/work/examplecorp-app/flows/home.yml:12","firmware":"16.0.4.4116"}

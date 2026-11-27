@@ -1,0 +1,5 @@
+{"log":{"entries":[
+{"request":{"method":"GET","url":"https://api.examplecorp.example.com/v1/items?token=SEEDED-QUERY-0005&page=2","headers":[{"name":"Authorization","value":"Bearer SEEDED-BEARER-TOKEN-0003"},{"name":"Cookie","value":"session=SEEDED-COOKIE-0004; theme=dark"}]},
+ "response":{"status":200,"headers":[{"name":"Set-Cookie","value":"sid=SEEDED-SETCOOKIE-0007; Path=/"}]}},
+{"request":{"method":"GET","url":"https://seeduser:SEEDED-URLPASS-0006@192.0.2.50/feed","headers":[]},"response":{"status":403,"headers":[]}}
+]}}
