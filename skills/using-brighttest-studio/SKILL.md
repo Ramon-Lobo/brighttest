@@ -55,6 +55,7 @@ Node/Tree/Selector inspector include State, Actions (action log with Travel; rou
 - Inspect the live SceneGraph and build selectors; use "+" on a node or state leaf to add a step. The header **overlay** checkbox hides the node outlines (remembered per browser; the tree is then read only when an Inspect tab needs it).
 - Drive the remote from the browser (`POST /api/keypress`); run a flow (Run turns into Stop, `flow-stop`, or Cmd/Ctrl+.) and scrub the step trace (each frame keeps the screen and app state).
 - Record: each remote press becomes a flow step, live.
+- Screen source (Inspect and Record header): device screenshots, or a USB capture card shown live in the browser (`getUserMedia`, localhost or https only). A live feed turns screenshots off; the overlay still reads the tree and shows "boxes N s old" and a settling state after a press. Calibrate (nudge, zoom, reset to auto) is saved per device in the browser. Browser only: an agent cannot see the feed.
 
 ## Profile page
 

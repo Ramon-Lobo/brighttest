@@ -5,7 +5,7 @@
   import { onDestroy } from 'svelte';
   import { load, save, setState, defaultLayout } from '../layout.js';
   import { recordRegistry, RECORD_KEY } from '../tiles.js';
-  let { shotSrc, active, recText, stepCount, msg, onstart, onstop, onclear, onsave, onpress, oncontext } = $props();
+  let { shotSrc, source = null, treeAt = 0, settling = false, aid = false, active, recText, stepCount, msg, onstart, onstop, onclear, onsave, onpress, oncontext } = $props();
   let pre;
   // Own layout, own storage key (bt.studio.layout.record); saved 300 ms after the last committed change.
   const store = typeof localStorage === 'undefined' ? null : localStorage;
@@ -33,7 +33,7 @@
       {#if id === 'rec-monitor'}
         <div class="feed">
           <div class="eyebrow"><span class="tip">right-click a node to record an assertion</span></div>
-          <div class="stagebox"><Stage {shotSrc} fit="contain" {oncontext} /></div>
+          <div class="stagebox"><Stage {shotSrc} {source} {treeAt} {settling} {aid} fit="contain" {oncontext} /></div>
         </div>
       {:else if id === 'rec-remote'}
         <div class="remotecard">

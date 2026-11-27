@@ -6,6 +6,8 @@
   import { inspectRegistry } from './lib/tiles.js';
   import { setState, defaultLayout, preset } from './lib/layout.js';
   import Stage from './lib/Stage.svelte';
+  import FeedPanel from './lib/FeedPanel.svelte';
+  import { focusSig, settleStep } from './lib/feed.js';
   import { treeNeeded, treeIntervalMs, saveOverlay, shotNeeded, shotDecision, treeSignature, visiblePanels, monitorVisible } from './lib/treepolicy.js';
   import Inspector from './lib/Inspector.svelte';
   import Remote from './lib/Remote.svelte';
@@ -58,6 +60,15 @@
   const onHashChange = () => { const p = pageFromHash(location.hash, PAGES.map((x) => x.id)); if (p && p !== studio.page) studio.page = p; };
 
   let shotSrc = $state('');
+  // A browser capture-card feed (FeedPanel). While one is live the screenshot loop is off; the tree loop keeps the overlay.
+  let feed = $state(null);
+  let calibrating = $state(false);
+  let treeAt = $state(0);
+  let settling = $state(false);
+  let settleState = { settling: false, prev: null, pressAt: 0 };
+  const feedSource = $derived(feed ? { kind: 'feed', stream: feed.stream, rect: feed.rect } : null);
+  // After a press the boxes draw dimmed until two tree reads agree on the focused set.
+  const markPress = () => { settleState = { settling: true, prev: null, pressAt: Date.now() }; settling = true; };
   let shotAt = $state(0);
   let flows = $state([]);
   let currentFlow = $state(null);
@@ -94,11 +105,14 @@
       if (d.code === 'LOCKED') { studio.lease = d; studio.status = 'paused'; return; }
       if (d.error) { studio.status = d.error; return; }
       studio.scene = d.scene; studio.nodes = d.nodes; studio.appState = d.appState; studio.agent = d.agent || null; studio.status = `${d.nodes.length} nodes`;
+      treeAt = Date.now();
+      settleState = { ...settleState, ...settleStep(settleState, focusSig(d.nodes), treeAt) };
+      if (settling !== settleState.settling) settling = settleState.settling;
       const sig = treeSignature(d.nodes); if (lastTreeSig && sig !== lastTreeSig) markDirty(); lastTreeSig = sig;
     } catch { studio.status = 'tree error'; } finally { treeBusy = false; }
   }
   async function grabShot() {
-    if (shotBusy || !shotNeeded({ page: studio.page, live: studio.live, sim, lease: studio.lease, monitor: monitorOpen })) return;
+    if (shotBusy || feed || !shotNeeded({ page: studio.page, live: studio.live, sim, lease: studio.lease, monitor: monitorOpen })) return;
     shotBusy = true;
     const startedAt = Date.now();
     try {
@@ -116,7 +130,7 @@
   let lastShotTry = 0, wasShown = false;
   async function shotTick(forced = false) {
     // A monitor that just appeared (restored tile, Record page, Live turned on) gets a picture at once.
-    const shown = shotNeeded({ page: studio.page, live: studio.live, sim, lease: studio.lease, monitor: monitorOpen });
+    const shown = !feed && shotNeeded({ page: studio.page, live: studio.live, sim, lease: studio.lease, monitor: monitorOpen });
     if (shown && !wasShown && !forced) markDirty();
     wasShown = shown;
     const d = shotDecision({ now: Date.now(), lastShotAt: Math.max(shotAt, lastShotTry), dirtyAt, dirtySince, forced });
@@ -214,7 +228,7 @@
     if (e.key === 'Escape' && tilesOpen) closeTiles();
   }
 
-  function onRemote() { markDirty(); setTimeout(grabTree, 90); }
+  function onRemote() { markDirty(); markPress(); setTimeout(grabTree, 90); }
   function addStep(line) { editor?.insert(line); setMsg('added — unsaved'); }
 
   function onInspectState(n) { studio.selectedPath = n.path; studio.nodeView = 'state'; studio.page = 'inspect'; showTile('node'); }
@@ -269,7 +283,7 @@
         else rec.steps.push({ op: 'press', key, count: 1 });
       }
     }
-    markDirty(); setTimeout(grabTree, 90);
+    markDirty(); markPress(); setTimeout(grabTree, 90);
   }
   function recLine(text) { if (!rec.active) recStart(); rec.steps.push({ op: 'line', text: text.replace(/^- /, '') }); }
   async function recSave() {
@@ -365,6 +379,9 @@
           </ol>
         {/if}
       </details>
+    {/if}
+    {#if !sim && (studio.page === 'inspect' || studio.page === 'record')}
+      <FeedPanel bind:feed bind:calibrating />
     {/if}
     {#if studio.page === 'inspect' || studio.page === 'record'}
       <label class="tog" title="draw node outlines on the picture and click them to select; off shows only the device picture"><input type="checkbox" data-testid="toggle-overlay" aria-label="show node overlay" checked={studio.overlay} onchange={(e) => { studio.overlay = e.currentTarget.checked; saveOverlay(localStorage, studio.overlay); }} /> overlay</label>
@@ -490,7 +507,7 @@
                   {#if sim}
                     <div class="needsdev" data-testid="monitor-needs-device" role="note">Screen mirror needs a device. Start Studio with --host to use it.</div>
                   {:else}
-                    <div class="stagebox"><Stage {shotSrc} {shotAt} onrefresh={refreshShot} fit="contain" oncontext={onNodeContext} /></div>
+                    <div class="stagebox"><Stage {shotSrc} {shotAt} onrefresh={refreshShot} source={feedSource} {treeAt} {settling} aid={calibrating} fit="contain" oncontext={onNodeContext} /></div>
                   {/if}
                 </div>
               {:else if id === 'remote'}
@@ -522,7 +539,7 @@
       {:else if studio.page === 'devices'}
         <Devices onconnected={refreshDevice} askPassword={(d) => askText(`Dev password for ${d.name} (${d.host})`, '', true)} />
       {:else if studio.page === 'record'}
-        <Record {shotSrc} active={rec.active} {recText} stepCount={rec.steps.length} msg={recMsg}
+        <Record {shotSrc} source={feedSource} {treeAt} {settling} aid={calibrating} active={rec.active} {recText} stepCount={rec.steps.length} msg={recMsg}
           onstart={recStart} onstop={recStop} onclear={recClear} onsave={recSave} onpress={recPress} oncontext={onNodeContext} />
       {:else if studio.page === 'profile'}
         <Profile />

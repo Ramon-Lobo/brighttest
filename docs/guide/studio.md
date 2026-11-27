@@ -243,6 +243,32 @@ server or in config.
   Otherwise it reads nothing, which frees the device for screenshots and key presses.
 - Turning the overlay on reads the tree at once.
 
+## Capture-card feed (live video)
+
+A screenshot refreshes about twice a second at best. If the Roku's HDMI output goes into a USB capture card on the
+machine running the browser, Studio can show that video instead: pick the card in **Screen source** (Inspect and
+Record pages, header, device targets only). Everything happens in the browser (`getUserMedia`); Studio's server, config
+and CLI are unchanged, and nothing is stored in the project.
+
+- **First use:** click **Allow camera access** so the browser shows the device names, then pick the card. Browsers only
+  allow this on `http://localhost` or `https`. A denied permission, a missing card or a card another app holds shows a
+  message and Studio stays on device screenshots.
+- **Screenshots are off while a feed is live.** The tree is still read (every 300 ms) so the overlay and the remote
+  work, and the device is not held up by screenshots. Switching back to **Device screenshots**, or unplugging the card,
+  restores the on-demand screenshots (refresh button and shot age) at once.
+- **Overlay age and settling:** the picture is live but the boxes come from the tree reads, so the monitor shows
+  "boxes 0.3 s old". After a remote press the boxes are dimmed and a "settling" label shows until two tree reads agree
+  on the focused node (at most 3 s).
+- **Calibration:** the first 2 s show "waiting for signal" (cards often show a splash first). Then Studio fits a 16:9
+  picture area into the frame (the whole frame for 16:9, a centered 16:9 area for 4:3 or ultrawide). **Calibrate**
+  opens nudge arrows (10 scene pixels), zoom (1 %), **Reset to auto**, and an alignment aid: a dashed frame of the whole
+  scene and the focused node's outline. The result is saved per capture device in the browser (`localStorage`, key
+  `bt.studio.feed.<deviceId>`, per origin) and used again next time.
+- **Reopening:** on load Studio reopens the last feed only when the camera permission is already granted and the
+  device is present; it never prompts by itself.
+- **Limits:** protected (HDCP) video playback may show black or an error screen on a capture card; Studio does not work
+  around it. The picture is not recorded or sent anywhere. Agents (MCP) do not see the feed.
+
 ## Builds page
 
 The Builds page lists the [build store](/guide/builds): drop zips to add them, edit label, tags and notes, pin, download, delete, or install a build on the connected device (after a confirmation, under the device lease; Studio compares the build's hub token with its own and warns on a mismatch). It is not available for installs in simulator mode. A direct link opens it: `http://localhost:<port>/#/builds`. Every page id works the same way (`#/inspect`, `#/runs`, `#/record`, `#/devices`, `#/profile`, `#/settings`), and the address bar follows the nav.
