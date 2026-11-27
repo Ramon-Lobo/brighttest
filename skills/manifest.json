@@ -75,6 +75,16 @@
       ]
     },
     {
+      "name": "reporting-a-brighttest-issue",
+      "files": [
+        "SKILL.md",
+        "references/anonymizing.md",
+        "references/issue-format.md",
+        "references/severity-and-labels.md",
+        "references/what-matters.md"
+      ]
+    },
+    {
       "name": "setting-up-brighttest",
       "files": [
         "SKILL.md",
