@@ -127,6 +127,24 @@ describe('allocator, idempotence, lines', () => {
   })
 })
 
+describe('npm package scope', () => {
+  const c = () => ctx({ denyTerms: ['scope', 'Examplecorp'], knownSecrets: [{ name: 'T', value: 'sekrit-value-1' }] })
+  test('@scope/name survives, with and without a version', () => {
+    expect(R.redact('npm i @scope/name and @scope/name@1.2.3', c())).toBe('npm i @scope/name and @scope/name@1.2.3')
+    expect(R.verify('npm i @scope/name', c())).toEqual([])
+  })
+  test('the same word outside a package spec is still a deny term', () => {
+    expect(R.redact('scope and @scope/name', c())).toBe('<name-1> and @scope/name')
+  })
+  test('a host, token or secret next to or inside a package spec is still redacted', () => {
+    expect(R.redact('@scope/name sekrit-value-1', c())).toBe('@scope/name <secret:T>')
+    expect(R.redact('@scope/name?token=abc123', c())).toBe('@scope/name?token=<redacted:token>')
+    expect(R.redact('@scope.example.test/x', c())).toBe('@<name-1>.example.test/x')
+    expect(R.redact('https://scope.example.test/x @scope/name', c())).toBe('https://<host-1>/x @scope/name')
+    expect(R.redact('user@scope.example.test', c())).toBe('<email>')
+  })
+})
+
 describe('long lines', () => {
   test('a 1 MB single line redacts in bounded time', () => {
     const shapes = ['a', 'abcdefghij0123456789', 'ab.cd.ef.', 'hello world foo=bar x.y ', 'http://a.b.c/x?y=1 ']
