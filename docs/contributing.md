@@ -79,6 +79,12 @@ real Roku project. Run `npm unlink -g brighttest` when you're done.
    The latest release is at the site root, older minors are under `/vX.Y/`, and the unreleased docs from `main` are
    under [`/next/`](https://ramon-lobo.github.io/brighttest/next/). A merged docs change appears there first and
    reaches the root with the next release.
+   The docs have two tiers: the short version in `docs/lite/<path>.md` (what readers see by default) and the full
+   page in `docs/<path>.md` (served at `/full/<path>`). **Edit the full page first, then its lite page, in the same
+   change.** Every flag, command, config key, env var, error code, exit code and section heading of a full page must
+   also appear in its lite page, and `npm run test:unit` fails when one is missing. Check it on its own with
+   `node scripts/docs-lite-check.js` (add `--strict` to also list long paragraphs). A deliberate omission goes in
+   `docs/.vitepress/lite-coverage-ignore.json` with a reason.
 
 ## Commit & PR conventions
 

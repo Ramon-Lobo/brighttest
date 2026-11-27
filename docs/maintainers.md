@@ -686,6 +686,14 @@ VitePress rewrites built by `scripts/docs-tiers.js`. A page with only one tier k
   absolute `/images/...` paths for images.
 - **Agent files:** `llms.txt` and the `.md` twins are generated from the full pages only, at the usual URL plus
   `.md`. Lite pages point at the full twin in their `alternate` link.
+- **Coverage gate:** `scripts/docs-lite-check.js` (run by `test/docs-lite-check.test.js` in `npm run test:unit`)
+  fails on a fact token of a full page missing from its lite page, a lite page with no full twin that is not in its
+  lite-only list, a full page with no lite page that is not in its full-only list, and a lite page without the
+  At a glance box, a Related section or a Full guide line. `--strict` adds prose warnings (paragraphs over 4 lines,
+  runs of more than 120 words); they never fail the build. A renamed heading is covered by
+  `<!-- covers: <original heading> -->` in the lite page.
+- **Ignore file:** `docs/.vitepress/lite-coverage-ignore.json` is `{ "<page>": { "<token>": "<reason>" } }` (page
+  `"*"` means all pages). Every entry needs a reason, and a reviewer checks each one.
 - **Version switcher:** from a `full/` page it falls back to the same path without `full/` on a version that has one
   tier (v0.7 and older).
 
