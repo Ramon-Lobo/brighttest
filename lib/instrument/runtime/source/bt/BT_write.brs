@@ -208,8 +208,20 @@ end function
 
 ' ---- get
 
+' Optional args.depth (whole number 1..6, STUDIO-NS-T3) cuts the read shallower than the configured depth cap: deeper
+' structures come back as "$truncated:depth". Never deeper than the cap. Anything else is ignored (full read); the answer
+' carries `depth` only when a valid one was applied, so a client can tell a build that ignores it.
 function BT_wGet(args as object, ctx as object) as object
     caps = BT_capsFrom(ctx.cfg)
+    d = args.depth
+    ok = (type(d) = "Integer" or type(d) = "roInt" or type(d) = "roInteger") and d >= 1 and d <= 6
+    if ok and d < caps.depth then caps.depth = d
+    res = BT_wGetRead(args, ctx, caps)
+    if ok and res.ok = true and res.result.found = true then res.result.depth = caps.depth
+    return res
+end function
+
+function BT_wGetRead(args as object, ctx as object, caps as object) as object
     redact = ctx.rd
     segs = BT_wSplit(args.path)
     trunc = []
