@@ -102,6 +102,7 @@
     "--engines",
     "--env-file",
     "--expect",
+    "--fail-on-bsc-errors",
     "--fail-on-skip",
     "--field",
     "--flows-dir",

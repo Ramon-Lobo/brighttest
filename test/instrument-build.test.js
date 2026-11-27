@@ -67,7 +67,7 @@ describe('instrument build: app functions named like runtime locals', () => {
   })
   it('still reports BS1104 for the app\'s own local named like an app function', async () => {
     const dir = mkapp('shadow2', { 'source/main.brs': 'sub main()\n    clamp = 1\nend sub\nfunction clamp(a)\n    return a\nend function\n' })
-    const r = await run(dir, 'shadow2')
+    const r = await run(dir, 'shadow2', { failOnBscErrors: true })
     expect(r.log.some((l) => /^1104 source[\\/]main\.brs/.test(l))).toBe(true)
     expect(r.exitCode).not.toBe(0)
   })

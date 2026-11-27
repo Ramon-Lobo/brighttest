@@ -184,6 +184,7 @@ Current limitations (the full design is not implemented yet):
 | Key | Meaning | Default |
 |---|---|---|
 | `strict` | A "could not instrument" entry fails the build (exit 4). `--strict` / `--no-strict` override it per run. | `false` |
+| `files` | Globs (or `{ src, dest }` entries) of what goes into the package. Unset means everything under `rootDir` the Roku packager would ship (images, fonts, root JSON, callee files outside `source/` and `components/`) minus dotfiles and dot folders, `node_modules`, test specs (`source/tests/**`, `*.spec.*`), tool config (`brighttest.json`, `bsconfig.json`, `package*.json`), zips and the staging dir. It does not use `sourceGlobs`, so widening it never changes the headless lanes. | everything under `rootDir`, minus the list above |
 | `exclude` | Globs of files the plugin leaves alone (relative to `rootDir`). The default exclusions (Rooibos, `roku_modules`, vendor, specs) apply on top. | `[]` |
 | `net` | `true` or `false` turns the `setUrl` / `getUrl` rewrite on or off. An object configures it: `unknown`, `receivers` (see below), plus the headless net keys `fixtures`, `unmatched`, `upstreamHosts`, `redact`, `observe`. Any other type is `BT9005`. | `true` |
 | `scene` | Bootstrap every non-excluded Scene `init` and ship the state agent. `false` also drops the agent components. | `true` |
@@ -191,6 +192,33 @@ Current limitations (the full design is not implemented yet):
 | `hub` | `host` and `port` the device dials. Unset `host` uses this machine's LAN address (the literal `"auto"` is rejected). `port` is an integer 1 to 65535. | LAN address, `8790` |
 | `lineMap` | `true` writes `bt-linemap.json` into the output directory (the directory of the output package); a string is the path to write, with relative paths resolved against the build's working directory, which brighttest sets to the project root (so use `../maps/bt-linemap.json` or an absolute path; a relative path that stays inside the root is refused). Off by default. See "Line map" below. Any other value, an empty string, a path inside the staging dir (symlinks and letter case are resolved), or a path inside the project root outside the output directory is `BT9006`. | `false` |
 | `state` | State agent settings: `registrySections`, `redact.paths`, `caps`, `publish.maxBytes`, `publish.intervalMs`, `callable`, `dispatch`, `tasks`. See [App state](../e2e/app-state.md) and "How the agent applies a write" below. A bad `redact`, `callable`, `dispatch`, `tasks` or `publish` value fails the build (exit 1) with a message naming the key; invalid `caps` values and `registrySections` entries fall back to defaults or are dropped. | `{}` |
+
+### Package contents and warnings
+
+After every build, brighttest compares `rootDir` with the package and warns when files did not make it in, for example
+`images/: 443 not packaged` (one line per top folder; dotfiles, tests and tool config are left out on purpose and not
+counted). It also scans the packaged `.brs` and `.xml` for `pkg:/` string literals and lists the first few that point at a
+file that is not in the package. Neither warning fails the build. `instrument.exclude` only stops the plugin rewriting a
+file: excluded files are still compiled by bsc and shipped as they are (they are not copied around the compiler).
+
+### bsc diagnostics and `diagnosticFilters`
+
+brighterscript validates the whole program, and an app that was never written for it can report hundreds of errors
+(`1104` local named like a function, `1140` unknown function, `1067`, `1068`, `1054`, ...) although it runs fine on a
+Roku. These are compiler checks, not Roku runtime errors. `instrument build` therefore fails only on plugin errors
+(`BT9001` to `BT9006`, including `BT9003`) and on parse errors in files the plugin may rewrite. Every other bsc error is a
+warning: the first ten are listed (all with `--verbose`; the same file, line and code across scopes is shown once),
+followed by a count per code and a ready-to-paste line:
+
+```text
+instrument build: 694 bsc diagnostic(s) reported as warnings: compiler checks, not Roku runtime errors (the package is not affected)
+  by code: 1104=339, 1140=299, 1067=18
+  to silence them add to brighttest.json (also applies to the headless lanes): "diagnosticFilters": [1067, 1104, 1140]
+```
+
+`--fail-on-bsc-errors` restores the strict behaviour (any bsc error fails the build, no package, same histogram).
+`diagnosticFilters` is a top-level array of bsc codes in `brighttest.json` (`1107` is always filtered); it hides those
+codes in the instrument build and in the headless and device test lanes.
 
 ### Line map
 

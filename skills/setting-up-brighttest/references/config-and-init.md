@@ -14,7 +14,7 @@ All optional. Full reference: `docs/guide/cli-reference.md`, `docs/guide/engines
 | `deviceLease` | Device lease settings: `enabled`, `pool` (hosts for `--device any`), `maxHold`, `wait`, `sessionIdle`, `sessionMax`, `studioIdle`, `studioYield`, `hygiene` | lease on, `wait` 30m, `maxHold` 60m |
 | `deviceIdleTimeout` | Seconds without device output before the idle watchdog aborts (`0` disables); `--idle-timeout` wins | 120 |
 | `instrument` | Instrumented-build block: `enabled`, `strict`, `exclude`, `state`, `net` (written by `init --brownfield`; see `instrumenting-a-roku-app`) | off |
-| `diagnosticFilters` | Extra BrighterScript diagnostic codes to silence in the test build (1107 is always filtered) | `[1107]` |
+| `diagnosticFilters` | Extra BrighterScript diagnostic codes to silence in the test, headless and instrument builds (1107 is always filtered); `instrument build` prints a ready-to-paste line | `[1107]` |
 
 Full key reference: `docs/guide/cli-reference.md`, `docs/guide/engines.md`.
 

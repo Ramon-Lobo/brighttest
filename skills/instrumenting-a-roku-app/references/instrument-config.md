@@ -22,6 +22,18 @@ writes the block for you (`strict: false`, proposed `state.registrySections`) an
 Other keys in the block exist (`net`, `scene`, `op`, `hub`, `state`); their meaning is in
 `docs/guide/instrument.md` and the `testing-app-state` skill. Do not set them from guesses.
 
+## `instrument.files`
+
+Globs (or `{ src, dest }` entries) of what goes into the package. Unset: everything under `rootDir` minus dotfiles,
+`node_modules`, tests, tool config, zips and the staging dir, so images, fonts and root files ship. It is independent of
+`sourceGlobs`. Widen or narrow it only when the build warns about files that are not packaged.
+
+## `diagnosticFilters`
+
+A top-level array of bsc codes to hide (not inside `instrument`), for example `"diagnosticFilters": [1104, 1140]`.
+`instrument build` prints the exact line after a build with bsc validation errors. It also applies to the headless and
+device lanes. These are compiler checks, not Roku runtime errors.
+
 ## `instrument.exclude`
 
 A list of globs for files the plugin must not rewrite. Excluded files are still scanned by the census and still

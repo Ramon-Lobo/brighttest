@@ -102,6 +102,17 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
   that gets no answer in 4 s is `504 ACK_TIMEOUT`. The node inspector UI follows.
 
 ### Improvements
+- **Instrument build:** the package now includes everything under `rootDir` that the Roku packager would ship (images,
+  fonts, root files, callee files outside `source/` and `components/`), minus dotfiles, tests and tool config. Before, the
+  compile-only default left them out and the build still reported success with an unusable package. Set
+  `instrument.files` to choose another set; it does not change the headless lanes' `sourceGlobs`. After each build a
+  warning gives counts of files under `rootDir` that are not in the package (for example `images/: 443 not packaged`)
+  and lists `pkg:/` paths in the code that point at missing files.
+- **Instrument build:** bsc whole-program validation errors (`1104`, `1140`, `1067`, ...) no longer fail the build.
+  Only plugin errors (`BT9xxx`) and parse errors fail; the rest are warnings, deduplicated, with a per-code count and a
+  paste-ready `"diagnosticFilters": [...]` line, and a note that they are compiler checks, not Roku runtime errors.
+  `--fail-on-bsc-errors` restores the old strict behaviour. `diagnosticFilters` is now documented (config reference,
+  instrument guide and skill, `instrument build --help`).
 - **MCP network tools:** the session network proxy now reads `instrument.net.upstreamHosts` and `instrument.net.unmatched`
   like Studio does. A request to an allowed host used to show as a 403 refused in `net_requests` while Studio showed it
   as a passthrough.

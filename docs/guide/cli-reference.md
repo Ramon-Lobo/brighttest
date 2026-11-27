@@ -132,7 +132,7 @@ See [Agent skills](/guide/agent-skills).
 ## `brighttest instrument`
 
 ```text
-instrument build [--out <zip>] [--strict | --no-strict] [--net] [--verbose] [--sideload --host <ip>] [--config <path>]
+instrument build [--out <zip>] [--strict | --no-strict] [--fail-on-bsc-errors] [--net] [--verbose] [--sideload --host <ip>] [--config <path>]
 instrument verify <zip|dir>
 instrument census [--json] [--out <dir>] [--config <path>]
 ```
@@ -142,7 +142,8 @@ instrument census [--json] [--out <dir>] [--config <path>]
 | `-o`, `--out <zip>` | Package path (default `<stagingDir>/instrument/app.bt-instrumented.zip`); written only after every check passed |
 | `--net` | Bake the hub token from `BRIGHTTEST_HUB_TOKEN` (32 hex); exit 1 when unset or malformed |
 | `--strict` / `--no-strict` | Fail (exit 4) when something could not be instrumented / override the config |
-| `--verbose` | List every informational entry |
+| `--fail-on-bsc-errors` | Fail on every bsc error. By default only plugin errors (`BT9xxx`) and parse errors fail; other bsc validation errors are warnings with a per-code histogram and a `diagnosticFilters` line (see [bsc diagnostics](/guide/instrument#bsc-diagnostics-and-diagnosticfilters)) |
+| `--verbose` | List every informational entry and every bsc warning |
 | `--sideload` | After a successful build, install under the device lease (needs `--host`; password from `ROKU_PASSWORD`). Retries once after Delete |
 | `--host <ip>` | Device for `--sideload` (never guessed from the cache) |
 | `--wait`, `--max`, `--expect <dur>`, `--as <name>`, `--purpose <text>` | Device lease options |
