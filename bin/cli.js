@@ -146,12 +146,18 @@ Usage: brighttest mcp
 // `brighttest net convert <file.har> [-o <rules.json>]` — HAR to hand-editable rules (NET-N-T7).
 const NET_HELP = `brighttest net convert <file.har> [-o <rules.json>]
   Turn a recorded HAR into a rules file (one rule per entry, ids har-1..n). Prints to stdout without -o.
-  Redacted values stay redacted. Exits 1 for an unreadable or non-HAR input.`;
+  Redacted values stay redacted. Exits 1 for an unreadable or non-HAR input.
+
+brighttest net token --ensure
+  Keep the hub token per package: reuse the token stored (0600, under .brighttest/hub-tokens/) for the latest
+  \`instrument build --net\`, or generate and store one. Prints the file path, the package hash prefix and
+  created or reused; never the token. Export it with: export BRIGHTTEST_HUB_TOKEN="$(node -p "require('<file>').token")"`;
 function parseNetArgs(argv) {
-  const o = { action: null, file: null, out: null, help: false };
+  const o = { action: null, file: null, out: null, help: false, ensure: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--help' || a === '-h') o.help = true;
+    else if (a === '--ensure') o.ensure = true;
     else if (a === '-o' || a === '--out') o.out = argv[++i];
     else if (a.startsWith('--out=')) o.out = a.slice(6);
     else if (!o.action) o.action = a;
@@ -825,6 +831,21 @@ async function main() {
   }
   if (argv[0] === 'net') {
     const n = parseNetArgs(argv.slice(1));
+    if (n.action === 'token' && !n.help) {
+      if (!n.ensure) { console.error('[brighttest net] token needs --ensure (see: brighttest net --help)'); process.exit(2); }
+      let root = process.cwd();
+      try { root = loadConfig(process.cwd(), null).rootDir || root; } catch { /* no config: the current directory */ }
+      const { hubTokenFromEnv } = require('../lib/instrument/hub');
+      const store = require('../lib/instrument/hub-token-store');
+      try {
+        if (hubTokenFromEnv(process.env)) { console.log('BRIGHTTEST_HUB_TOKEN is already set in this shell; nothing stored or changed'); process.exit(0); }
+        const r = store.ensureToken(root);
+        const rel = require('path').relative(root, r.file) || r.file;
+        console.log(`${r.created ? 'created' : 'reused'} hub token: ${rel} (package ${store.shaPrefix(r.sha256)})`);
+        console.log(`BRIGHTTEST_HUB_TOKEN is not set in this shell. Export it without printing it: export BRIGHTTEST_HUB_TOKEN="$(node -p "require('${r.file}').token")"`);
+        process.exit(0);
+      } catch (e) { console.error(`[brighttest net] ${e.message}`); process.exit(1); }
+    }
     if (n.help || n.action !== 'convert') { console.log(NET_HELP); process.exit(n.help ? 0 : 2); }
     process.exit(require('../lib/instrument/net-convert').run(n));
   }

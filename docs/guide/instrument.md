@@ -514,6 +514,9 @@ brighttest e2e run ...   # same shell, same value
   (exit 1): `instrument build --net needs a hub token: set BRIGHTTEST_HUB_TOKEN to 32 lowercase hex characters (the e2e run's hub accepts the same value)`.
 - Export the same value for the `e2e run` that uses network steps. A build and a run with different values do not match.
 - The build bakes the value in. After you change it, rebuild and sideload again; an installed build keeps its old token.
+- A `--net` build also keeps its token in `.brighttest/hub-tokens/<package-sha256>.json` (mode 0600, git-ignored), so a lost shell
+  does not force a rebuild: `brighttest net token --ensure` prints the file and package hash prefix (never the token) and the
+  `export` line to restore it. If the build and the run tokens differ, rebuild with `--net` after `net token --ensure`.
 - The token is a secret. Keep it out of the repository, `brighttest.json`, flow files and logs; set it in your shell or CI
   secret store.
 

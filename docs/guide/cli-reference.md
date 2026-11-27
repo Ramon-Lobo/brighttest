@@ -11,6 +11,7 @@ brighttest instrument <action>   build / verify / census an instrumented debug p
 brighttest e2e <action>          on-device UI flows
 brighttest studio                local web app mirroring a device
 brighttest net convert           HAR to net rules
+brighttest net token --ensure    keep the hub token per package
 brighttest assess [<dir>]        read-only project assessment
 brighttest features graph        dependency graph of an app's files and components
 brighttest features check        validate a feature tree against its graph
@@ -214,6 +215,18 @@ net convert <file.har> [-o <rules.json>]
 
 Turns a recorded HAR into a rules file (rule ids `har-1..n`); prints to stdout without `-o`. Redacted values stay
 redacted. Exit 1 for an unreadable or non-HAR input. See [network faults](/guide/net-faults).
+
+## `brighttest net token`
+
+```text
+net token --ensure
+```
+
+Keeps the hub token per package. `instrument build --net` stores the token it baked in
+`.brighttest/hub-tokens/<package-sha256>.json` (mode 0600; only the token, the hash and a timestamp). `net token --ensure`
+reuses the token of the latest build, or generates and stores one when there is none, and prints only the file path, the
+package hash prefix (12 hex) and `created` or `reused`. It never prints the token; read it into your shell with the
+`export` line it prints. Does nothing when `BRIGHTTEST_HUB_TOKEN` is already set. Exit 2 without `--ensure`.
 
 ## `brighttest assess`
 
