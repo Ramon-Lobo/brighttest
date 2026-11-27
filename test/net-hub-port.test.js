@@ -113,3 +113,36 @@ describe('handshake timeout message', () => {
     expect(msg).not.toMatch(/[0-9a-f]{32}/)
   })
 })
+
+describe('handshake message with a stored package token', () => {
+  const fs = require('fs'), os = require('os'), path = require('path')
+  const store = require('../lib/instrument/hub-token-store')
+  const SHA = 'ab12cd34ef56' + '0'.repeat(52)
+  const STORED = 'f'.repeat(16) + 'e'.repeat(16)
+  const mk = () => fs.mkdtempSync(path.join(os.tmpdir(), 'bt-hs-'))
+
+  it('names the 12-hex package sha and the fix, and prints no token', () => {
+    const rootDir = mk()
+    try {
+      store.storeToken(rootDir, SHA, STORED)
+      const cfg = { rootDir, instrument: { hub: { host: 'hub.example.test', port: 9123 } } }
+      const msg = e2e.handshakeMessage({ cfg, net: { hub: { port: 9123 } } })
+      expect(msg).toContain('ab12cd34ef56')
+      expect(msg).not.toContain(SHA)
+      expect(msg).toContain('net token --ensure')
+      expect(msg).toContain('instrument build --net')
+      expect(msg).toContain('hub.example.test:9123')
+      expect(msg).not.toContain(STORED)
+      expect(msg).not.toMatch(/[0-9a-f]{32}/)
+    } finally { fs.rmSync(rootDir, { recursive: true, force: true }) }
+  })
+
+  it('keeps the generic text when no token is stored', () => {
+    const rootDir = mk()
+    try {
+      const msg = e2e.handshakeMessage({ cfg: { rootDir, instrument: { hub: { host: 'hub.example.test', port: 9123 } } }, net: { hub: { port: 9123 } } })
+      expect(msg).toContain('(3) the token baked in the build differs from the hub token (BRIGHTTEST_HUB_TOKEN at build time vs at run time).')
+      expect(msg).not.toContain('net token --ensure')
+    } finally { fs.rmSync(rootDir, { recursive: true, force: true }) }
+  })
+})
