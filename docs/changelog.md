@@ -165,6 +165,8 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
   a device prints them, so output that compared against the old float text may differ.
 
 ### Fixes
+- **Studio:** node boxes now line up with the picture for apps whose manifest sets `ui_resolutions=hd`. They were drawn at
+  two thirds scale because Studio used the TV output mode (1080p) instead of the 1280x720 space the app lays out in.
 - **Studio:** started through `npx brighttest studio`, Studio now stops within a few seconds when the npm process that
   started it dies from a signal npm cannot forward (SIGKILL, a timeout wrapper), instead of keeping the port and the
   lease. Studio also shuts down cleanly on SIGHUP.
