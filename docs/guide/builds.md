@@ -64,6 +64,10 @@ one its own hub uses (in memory, the token is never shown, stored or sent to the
 because the State and Network panels will not connect to that build. Rebuild with the matching
 `BRIGHTTEST_HUB_TOKEN`, or install anyway. Treat a stored instrumented zip like a credential: do not share or attach it.
 
+`brighttest builds install` runs the same check (the token comes from `BRIGHTTEST_HUB_TOKEN`, then the project `.env`). On a
+mismatch it stops with exit 2 and `TOKEN_MISMATCH (<kind>)` before it takes the lease; pass `--allow-token-mismatch` to
+install anyway, which prints a warning naming only the kind. `--json` adds a `tokenCheck` field.
+
 ## For agents
 
 The `builds_list` MCP tool returns the records (id, title, version, kind, size, date, pinned, tags, last install result)
