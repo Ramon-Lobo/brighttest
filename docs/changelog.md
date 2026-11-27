@@ -42,6 +42,7 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
   ([sharing a device](./guide/device-lease.md)).
 
 ### Features
+- **Instrument:** `instrument build --sideload --reuse` skips the rebuild and installs the newest stored build when the source fingerprint, flags and hub token are unchanged; rebuild only after your own code changes.
 - **Device lane:** `--device --lcov` now writes function (`FN`/`FNDA`) and branch (`BRDA`) records as well as lines when the engine supports `--coverage-dir` (rooibos 5.17.0 or newer), so CI tools can show function and branch coverage. Older engines keep line records only.
 - **Studio:** the Inspect page is now a grid of tiles (monitor, flow, remote, node, tree, selector, state, actions, network) that you can drag, resize, minimize, hide and restore from a Tiles menu, with presets and Reset; the layout is saved per browser. The tab test ids (`inspector-panel`, `tab-node`, `tab-tree`, `tab-selector`, `tab-state`, `tab-actions`, `tab-net`) are gone; use the `tile-*` and `tiles-*` ids listed in the [Studio guide](./guide/studio.md).
 - **Instrument:** `instrument build --from <dir|zip>` instruments an already-built package for apps with their own build step, and `assess` recommends it when it finds a packaging script or placeholder tokens. [Guide](/guide/instrument#apps-with-their-own-build-step-from)

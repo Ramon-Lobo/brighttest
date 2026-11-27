@@ -150,6 +150,7 @@
     "--reason",
     "--ref",
     "--reset-device",
+    "--reuse",
     "--screenshots",
     "--screenshots-mode",
     "--shell",

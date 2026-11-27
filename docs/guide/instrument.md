@@ -70,6 +70,8 @@ ROKU_PASSWORD=... npx brighttest instrument build --sideload --host 192.0.2.5
 After a successful build, `--sideload` installs the package through the device's dev installer (port 80, Digest auth),
 inside the device lease so it never collides with another brighttest lane on the same device.
 
+`--sideload --reuse` skips the rebuild and installs the newest stored build when the source fingerprint (every file under the project, the build-shaping config, the hub address, the flags and the tool versions), the flags and, with `--net`, the hub token are unchanged; any change rebuilds (not with `--from`).
+
 - `--host` is required; the device is never guessed from the cache. The dev password comes from `ROKU_PASSWORD` (or
   `--host ip:password`, or the credential cache entry for that host). It is never printed.
 - Port 80 is checked first; if it is closed, the command exits 1 and tells you to enable Developer Mode.
