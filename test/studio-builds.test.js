@@ -143,6 +143,14 @@ describe('list, get, upload, edit, delete, download', () => {
     expect(miss.status).toBe(404); expect(miss.json.code).toBe('BUILD_NOT_FOUND')
     expect((await api('GET', '/api/builds/zz')).status).toBe(404)
   })
+  it('upload stores the ?filename= query name; the query wins over the header', async () => {
+    await start()
+    const a = await raw('POST', '/api/builds?filename=some-app.zip', { ct: 'application/zip', body: plain() })
+    expect(a.status).toBe(201)
+    expect(a.json.build.filename).toBe('some-app.zip')
+    const b = await raw('POST', '/api/builds?filename=other%20app.zip', { ct: 'application/zip', body: plain([{ name: 'source/x.brs', data: 'x' }]), headers: { 'X-Build-Filename': 'hdr.zip' } })
+    expect(b.json.build.filename).toBe('other app.zip')
+  })
   it('upload accepts application/octet-stream too', async () => {
     await start()
     expect((await raw('POST', '/api/builds', { ct: 'application/octet-stream', body: plain() })).status).toBe(201)
