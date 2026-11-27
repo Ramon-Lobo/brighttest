@@ -1,9 +1,12 @@
 <script>
   import { onMount } from 'svelte';
   import { api } from './lib/api.js';
-  import { studio, selectedNode } from './lib/store.svelte.js';
+  import { studio, selectedNode, commitLayout } from './lib/store.svelte.js';
+  import TileGrid from './lib/TileGrid.svelte';
+  import { inspectRegistry } from './lib/tiles.js';
+  import { setState, defaultLayout, preset } from './lib/layout.js';
   import Stage from './lib/Stage.svelte';
-  import { treeNeeded, treeIntervalMs, saveOverlay } from './lib/treepolicy.js';
+  import { treeNeeded, treeIntervalMs, saveOverlay, shotNeeded, visiblePanels, monitorVisible } from './lib/treepolicy.js';
   import Inspector from './lib/Inspector.svelte';
   import Remote from './lib/Remote.svelte';
   import Editor from './lib/Editor.svelte';
@@ -50,7 +53,6 @@
   let running = $state(false);
   let runId = $state(0);
   let treeOpen = $state(true);
-  let tab = $state('node');
   let editor;
 
   let treeBusy = false, shotBusy = false;
@@ -58,8 +60,15 @@
   // Simulator target: Studio runs the app in the local engine, no device. Device-only panels say so.
   const sim = $derived(isSim(studio.device));
 
+  // What is on screen decides what is polled: only open tiles count (a minimized or hidden tile is unmounted),
+  // and the monitor tile gates screenshots and overlay tree reads on Inspect.
+  const panels = $derived(visiblePanels(studio.layout));
+  const monitorOpen = $derived(monitorVisible(studio.layout));
+  const flowOpen = $derived(studio.layout.some((t) => t.id === 'flow' && t.state === 'open'));
+  const monitorOn = $derived(studio.page === 'record' || monitorOpen);
+
   async function grabTree() {
-    if (treeBusy || !treeNeeded({ overlay: studio.overlay, page: studio.page, tab, stateFallback: studio.stateFallback, live: studio.live, sim, lease: studio.lease })) return;
+    if (treeBusy || !treeNeeded({ overlay: studio.overlay, page: studio.page, visiblePanels: panels, monitor: monitorOpen, stateFallback: studio.stateFallback, live: studio.live, sim, lease: studio.lease })) return;
     treeBusy = true;
     try {
       const d = await api.tree();
@@ -69,7 +78,7 @@
     } catch { studio.status = 'tree error'; } finally { treeBusy = false; }
   }
   async function grabShot() {
-    if (shotBusy || sim || studio.lease || !studio.live || (studio.page !== 'inspect' && studio.page !== 'record')) return;
+    if (shotBusy || !shotNeeded({ page: studio.page, live: studio.live, sim, lease: studio.lease, monitor: monitorOpen })) return;
     shotBusy = true;
     try {
       const r = await fetch(api.screenshotUrl());
@@ -166,14 +175,32 @@
   function onWinKey(e) {
     if (e.defaultPrevented) return;
     if ((e.metaKey || e.ctrlKey) && e.key === '.' && running) { e.preventDefault(); stopRun(); }
+    if (e.key === 'Escape' && tilesOpen) closeTiles();
   }
 
   function onRemote() { setTimeout(grabTree, 90); setTimeout(grabShot, 280); }
   function addStep(line) { editor?.insert(line); setMsg('added — unsaved'); }
 
-  function onInspectState(n) { studio.selectedPath = n.path; studio.nodeView = 'state'; studio.page = 'inspect'; tab = 'node'; }
+  function onInspectState(n) { studio.selectedPath = n.path; studio.nodeView = 'state'; studio.page = 'inspect'; showTile('node'); }
   // Tree rows ask for the Node tab through the store.
-  $effect(() => { if (studio.openTab) { tab = studio.openTab; studio.openTab = null; } });
+  const TAB_TILE = { net: 'network' };
+  function showTile(id) {
+    const t = studio.layout.find((o) => o.id === id);
+    if (t && t.state !== 'open') commitLayout(setState(studio.layout, id, 'open', inspectRegistry));
+  }
+  $effect(() => { if (studio.openTab) { const id = TAB_TILE[studio.openTab] || studio.openTab; studio.openTab = null; showTile(id); } });
+
+  // Tiles menu (header, Inspect only): show or hide each tile, restore minimized ones, presets and Reset.
+  let tilesOpen = $state(false);
+  let pending = $state(null); // 'default' | 'monitor-info' | 'reset': waiting for the inline confirmation
+  const PRESET_LABEL = { default: 'Default', 'monitor-info': 'Monitor and info', reset: 'Reset layout' };
+  function toggleTile(t, on) { commitLayout(setState(studio.layout, t.id, on ? 'open' : 'hidden', inspectRegistry)); }
+  function applyPending() {
+    const p = pending; closeTiles();
+    commitLayout(p === 'monitor-info' ? preset('monitor-info', inspectRegistry) : defaultLayout(inspectRegistry));
+  }
+  function closeTiles() { tilesOpen = false; pending = null; }
+  function onWinDown(e) { if (tilesOpen && !e.target.closest?.('.tilesmenu')) closeTiles(); }
   let menu = $state(null); // node context menu { node, x, y }
   function onNodeContext(node, x, y) { menu = { node, x, y }; }
 
@@ -262,7 +289,7 @@
   onMount(() => {
     loadFlows();
     let t1, t2;
-    const treeLoop = async () => { await grabTree(); t1 = setTimeout(treeLoop, treeIntervalMs({ overlay: studio.overlay })); };
+    const treeLoop = async () => { await grabTree(); t1 = setTimeout(treeLoop, treeIntervalMs({ overlay: studio.overlay, monitor: monitorOn })); };
     const shotLoop = async () => { await grabShot(); t2 = setTimeout(shotLoop, 900); };
     const simLoop = async () => { if (shouldPoll(studio.device)) await refreshDevice(); t4 = setTimeout(simLoop, simPollMs(studio.device)); };
     const leaseLoop = async () => { await leaseCheck(); t3 = setTimeout(leaseLoop, 3000); };
@@ -275,7 +302,7 @@
   });
 </script>
 
-<svelte:window onkeydown={onWinKey} />
+<svelte:window onkeydown={onWinKey} onpointerdown={onWinDown} />
 
 <div class="app" data-testid="studio-app">
   <header data-testid="studio-header" aria-label="Studio status">
@@ -310,6 +337,40 @@
       <label class="tog" title="also outline nodes the device isn't drawing — hidden, transparent, or scrolled out of view"><input type="checkbox" data-testid="toggle-offscreen" bind:checked={studio.showOffscreen} disabled={!studio.overlay} /> offscreen</label>
       <label class="tog"><input type="checkbox" data-testid="toggle-live" bind:checked={studio.live} /> live</label>
       {#if !sim}<span class="status" data-testid="live-status" role="status">{studio.status}</span>{/if}
+      {#if running && !flowOpen}
+        <button class="run stop chip" data-testid="header-run-stop" aria-label="Stop run" onclick={stopRun} disabled={stopping || !runId} title="Stop the run (Cmd/Ctrl+.)">{stopping ? 'Stopping…' : 'Running · Stop ■'}</button>
+      {/if}
+      <div class="tilesmenu">
+        <button class="ghost" data-testid="tiles-menu" aria-haspopup="true" aria-expanded={tilesOpen} onclick={() => { tilesOpen = !tilesOpen; pending = null; }}>Tiles ▾</button>
+        {#if tilesOpen}
+          <div class="tileslist" data-testid="tiles-menu-list" role="group" aria-label="Tiles">
+            {#each Object.keys(inspectRegistry.tiles) as id}
+              {@const t = studio.layout.find((o) => o.id === id)}
+              {#if t}
+                <div class="titem">
+                  <label><input type="checkbox" data-testid="tiles-menu-item-{id}" checked={t.state !== 'hidden'} onchange={(e) => toggleTile(t, e.currentTarget.checked)} /> {inspectRegistry.tiles[id].title}</label>
+                  {#if t.state === 'min'}
+                    <span class="minmark">minimized</span>
+                    <button class="linkish" data-testid="tiles-restore-{id}" aria-label="Restore {inspectRegistry.tiles[id].title}" onclick={() => toggleTile(t, true)}>Restore</button>
+                  {/if}
+                </div>
+              {/if}
+            {/each}
+            <hr />
+            {#if pending}
+              <div class="confirm" role="alertdialog" aria-label="Confirm layout change">
+                <span>Replace your layout with {PRESET_LABEL[pending]}? There is no undo.</span>
+                <button class="linkish" data-testid="tiles-confirm" onclick={applyPending}>Replace</button>
+                <button class="linkish" data-testid="tiles-cancel" onclick={() => (pending = null)}>Cancel</button>
+              </div>
+            {:else}
+              <button class="linkish" data-testid="tiles-preset-default" onclick={() => (pending = 'default')}>Default</button>
+              <button class="linkish" data-testid="tiles-preset-monitor-info" onclick={() => (pending = 'monitor-info')}>Monitor and info</button>
+              <button class="linkish" data-testid="tiles-reset" onclick={() => (pending = 'reset')}>Reset layout</button>
+            {/if}
+          </div>
+        {/if}
+      </div>
     {/if}
   </header>
   {#if studio.lease}
@@ -337,85 +398,69 @@
       <!-- Inspect stays mounted (hidden when inactive) so the editor keeps its state -->
       <div class="inspect" data-testid="page-inspect" class:hidden={studio.page !== 'inspect'}>
         <div class="work">
-          <section class="editorcol" style="grid-template-columns: {treeOpen ? '196px 1fr' : '1fr'}">
-            {#if treeOpen}
-              <div class="card treecard" data-testid="flow-tree">
-                <FileTree {flows} current={currentFlow} onopen={openFlow} onnew={newFlow} ontoggle={() => (treeOpen = false)} />
-              </div>
-            {/if}
-            <div class="card flow" data-testid="flow-editor" role="region" aria-label="Flow editor">
-              <div class="flowhead">
-                {#if !treeOpen}
-                  <button class="ghost sm" onclick={() => (treeOpen = true)} title="show file tree" aria-label="show file tree" data-testid="flow-tree-show">›</button>
-                {/if}
-                <div class="eyebrow">flow</div>
-                <span class="fname" data-testid="flow-name">{currentFlow ?? 'no file open'}</span>
-              </div>
-              <div class="editorwrap" data-testid="flow-editor-text"><Editor bind:value={flowText} bind:this={editor} getSelected={selectedNode} onStop={stopRun} /></div>
-              <div class="flowbar">
-                <button class="ghost" data-testid="flow-save" aria-label="Save flow" onclick={saveFlow}>Save</button>
-                {#if running}
-                  <button class="run stop" data-testid="flow-stop" aria-label="Stop run" onclick={stopRun} disabled={stopping || !runId} title="Stop the run (Cmd/Ctrl+.)">{stopping ? 'Stopping…' : 'Stop ■'}</button>
-                {:else}
-                  <button class="run" data-testid="flow-run" aria-label="Run flow" onclick={() => run()} disabled={sim} title={sim ? 'needs a device; start Studio with --host' : ''}>Run ▶</button>
-                {/if}
-                <span class="msg" data-testid="flow-message" role="status" class:err={flowErr}>{flowMsg}</span>
-              </div>
-              {#if runSteps.length}
-                <ol class="transport" data-testid="flow-run-steps" aria-label="Run steps">
-                  {#each runSteps as s}
-                    <li class={s.status}><span class="cue"></span><span class="op">{s.op}</span><span class="det">{s.detail}</span></li>
-                  {/each}
-                </ol>
-              {/if}
-            </div>
-          </section>
-
-          <section class="sim">
-            <div class="card feed" data-testid="live-monitor" role="region" aria-label="Program monitor">
-              <div class="eyebrow">program monitor {#if studio.overlay}<span class="tip">right-click a node for actions</span>{:else}<span class="tip" data-testid="monitor-overlay-off">overlay off</span>{/if}</div>
-              {#if sim}
-                <div class="needsdev" data-testid="monitor-needs-device" role="note">Screen mirror needs a device. Start Studio with --host to use it.</div>
-              {:else}
-                <Stage {shotSrc} oncontext={onNodeContext} />
-              {/if}
-            </div>
-            <!-- Inspector tabs and the remote sit side by side: driving the device and reading the
-                 resulting node state are the same loop, so they should not compete for vertical space. -->
-            <div class="simrow">
-              <div class="card panel" data-testid="inspector-panel">
-                <div class="tabs" role="tablist" aria-label="Inspector tabs">
-                  <button class:on={tab === 'node'} data-testid="tab-node" role="tab" aria-selected={tab === 'node'} onclick={() => (tab = 'node')}>Node</button>
-                  <button class:on={tab === 'tree'} data-testid="tab-tree" role="tab" aria-selected={tab === 'tree'} onclick={() => (tab = 'tree')}>Tree</button>
-                  <button class:on={tab === 'selector'} data-testid="tab-selector" role="tab" aria-selected={tab === 'selector'} onclick={() => (tab = 'selector')}>Selector</button>
-                  <button class:on={tab === 'state'} data-testid="tab-state" role="tab" aria-selected={tab === 'state'} onclick={() => (tab = 'state')}>State</button>
-                  <button class:on={tab === 'actions'} data-testid="tab-actions" role="tab" aria-selected={tab === 'actions'} onclick={() => (tab = 'actions')}>Actions</button>
-                  <button class:on={tab === 'net'} data-testid="tab-net" role="tab" aria-selected={tab === 'net'} onclick={() => (tab = 'net')}>Network</button>
-                </div>
-                <div class="panelbody">
-                  {#if tab === 'node'}
-                    <Inspector onadd={addStep} />
-                  {:else if tab === 'tree'}
-                    <HierarchyTree />
-                  {:else if tab === 'selector'}
-                    <SelectorPlayground onadd={addStep} />
-                  {:else if tab === 'actions'}
-                    <ActionLog />
-                  {:else if tab === 'net'}
-                    <Network onadd={addStep} />
+          <TileGrid layout={studio.layout} registry={inspectRegistry} oncommit={commitLayout}>
+            {#snippet content(id)}
+              {#if id === 'flow'}
+                <section class="editorcol" style="grid-template-columns: {treeOpen ? '196px 1fr' : '1fr'}">
+                  {#if treeOpen}
+                    <div class="card treecard" data-testid="flow-tree">
+                      <FileTree {flows} current={currentFlow} onopen={openFlow} onnew={newFlow} ontoggle={() => (treeOpen = false)} />
+                    </div>
+                  {/if}
+                  <div class="flow" data-testid="flow-editor" role="region" aria-label="Flow editor">
+                    <div class="flowhead">
+                      {#if !treeOpen}
+                        <button class="ghost sm" onclick={() => (treeOpen = true)} title="show file tree" aria-label="show file tree" data-testid="flow-tree-show">›</button>
+                      {/if}
+                      <span class="fname" data-testid="flow-name">{currentFlow ?? 'no file open'}</span>
+                    </div>
+                    <div class="editorwrap" data-testid="flow-editor-text"><Editor bind:value={flowText} bind:this={editor} getSelected={selectedNode} onStop={stopRun} /></div>
+                    <div class="flowbar">
+                      <button class="ghost" data-testid="flow-save" aria-label="Save flow" onclick={saveFlow}>Save</button>
+                      {#if running}
+                        <button class="run stop" data-testid="flow-stop" aria-label="Stop run" onclick={stopRun} disabled={stopping || !runId} title="Stop the run (Cmd/Ctrl+.)">{stopping ? 'Stopping…' : 'Stop ■'}</button>
+                      {:else}
+                        <button class="run" data-testid="flow-run" aria-label="Run flow" onclick={() => run()} disabled={sim} title={sim ? 'needs a device; start Studio with --host' : ''}>Run ▶</button>
+                      {/if}
+                      <span class="msg" data-testid="flow-message" role="status" class:err={flowErr}>{flowMsg}</span>
+                    </div>
+                    {#if runSteps.length}
+                      <ol class="transport" data-testid="flow-run-steps" aria-label="Run steps">
+                        {#each runSteps as s}
+                          <li class={s.status}><span class="cue"></span><span class="op">{s.op}</span><span class="det">{s.detail}</span></li>
+                        {/each}
+                      </ol>
+                    {/if}
+                  </div>
+                </section>
+              {:else if id === 'monitor'}
+                <div class="feed" data-testid="live-monitor">
+                  <div class="eyebrow">{#if studio.overlay}<span class="tip">right-click a node for actions</span>{:else}<span class="tip" data-testid="monitor-overlay-off">overlay off</span>{/if}</div>
+                  {#if sim}
+                    <div class="needsdev" data-testid="monitor-needs-device" role="note">Screen mirror needs a device. Start Studio with --host to use it.</div>
                   {:else}
-                    <StateInspector onadd={addStep} />
+                    <div class="stagebox"><Stage {shotSrc} fit="contain" oncontext={onNodeContext} /></div>
                   {/if}
                 </div>
-              </div>
-              <div class="card remotecard" data-testid="remote-panel" role="region" aria-label="Remote">
-                <div class="eyebrow">remote</div>
-                <div class="remotewrap">
+              {:else if id === 'remote'}
+                <div class="remotewrap" data-testid="remote-panel">
                   {#if sim}<div class="needsdev" data-testid="remote-needs-device" role="note">The remote needs a device.</div>{:else}<Remote onact={onRemote} />{/if}
                 </div>
-              </div>
-            </div>
-          </section>
+              {:else if id === 'node'}
+                <Inspector onadd={addStep} />
+              {:else if id === 'tree'}
+                <HierarchyTree />
+              {:else if id === 'selector'}
+                <SelectorPlayground onadd={addStep} />
+              {:else if id === 'actions'}
+                <ActionLog />
+              {:else if id === 'network'}
+                <Network onadd={addStep} />
+              {:else if id === 'state'}
+                <StateInspector onadd={addStep} />
+              {/if}
+            {/snippet}
+          </TileGrid>
         </div>
       </div>
 
@@ -491,33 +536,29 @@
   .hidden { display: none; }
   .inspect { height: 100%; }
 
-  .work { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; padding: 18px; height: 100%; box-sizing: border-box; }
-  .sim { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 18px; min-height: 0; }
-  /* Inspector tabs take the free width; the remote column hugs its natural size. */
-  .simrow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; min-height: 0; }
-  .card.feed { display: flex; flex-direction: column; gap: 12px; }
-  .card.panel { display: grid; grid-template-rows: auto 1fr; min-height: 0; }
-  .tabs { display: flex; gap: 4px; margin-bottom: 12px; }
-  .tabs button { background: transparent; border: 1px solid transparent; color: var(--color-haze); border-radius: 8px; padding: 5px 13px; cursor: pointer; font-size: 12px; }
-  .tabs button:hover { color: var(--color-text); }
-  .tabs button.on { color: var(--color-violet); background: rgba(124,108,255,.12); border-color: rgba(124,108,255,.3); }
-  .panelbody { min-height: 0; overflow: auto; }
-  /* Hug the content at the top of its column rather than stretching into a mostly-empty tall card. */
-  .card.remotecard { display: flex; flex-direction: column; gap: 10px; align-self: start; }
+  .work { padding: 18px; box-sizing: border-box; }
+  .feed { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+  .stagebox { flex: 1; min-height: 0; }
   .remotewrap { display: flex; justify-content: center; }
-  /* Below this the two columns get too cramped to use, so fall back to stacking them. */
-  @media (max-width: 1500px) {
-    /* Stacked, the panel row must keep a usable height (the Network table clipped to nothing here); the view scrolls instead. */
-    .simrow { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(260px, 1fr) auto; }
-    .card.remotecard { align-self: stretch; }
-  }
-  .editorcol { display: grid; gap: 14px; min-height: 0; }
+  .remotewrap :global(.remote) { flex-wrap: wrap; justify-content: center; gap: 12px; }
+  .editorcol { display: grid; gap: 14px; min-height: 0; height: 100%; }
   .card.treecard { min-height: 0; overflow: hidden; display: flex; }
+  .tilesmenu { position: relative; }
+  .tileslist { position: absolute; right: 0; top: 34px; z-index: 40; min-width: 220px; padding: 8px 10px; background: var(--color-panel2); border: 1px solid var(--color-line2);
+    border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.5); display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+  .tileslist hr { border: none; border-top: 1px solid var(--color-line); margin: 4px 0; width: 100%; }
+  .titem { display: flex; align-items: center; gap: 8px; }
+  .titem label { flex: 1; cursor: pointer; }
+  .minmark { color: var(--color-amber); font-size: 11px; }
+  .linkish { background: transparent; border: none; color: var(--color-violet); cursor: pointer; font-size: 12px; text-align: left; padding: 2px 0; }
+  .linkish:hover { text-decoration: underline; }
+  .confirm { display: flex; flex-direction: column; gap: 4px; }
+  .run.chip { padding: 4px 12px; font-size: 12px; }
   .sm { padding: 3px 9px; line-height: 1; }
   .fname { font-family: var(--font-mono); font-size: 12px; color: var(--color-haze); margin-left: auto; }
   .tip { text-transform: none; letter-spacing: 0; color: #4c5266; margin-left: 8px; font-size: 10.5px; }
   .card { background: var(--color-panel); border: 1px solid var(--color-line); border-radius: 14px; padding: 14px; }
-  .card.flow { display: grid; grid-template-rows: auto 1fr auto auto; min-height: 0; height: 100%; }
+  .flow { display: grid; grid-template-rows: auto 1fr auto auto; min-height: 0; height: 100%; }
 
   .eyebrow { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--color-haze); margin-bottom: 8px; }
   .flowhead { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
