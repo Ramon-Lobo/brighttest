@@ -148,7 +148,7 @@ describe('doctor hub bind check', () => {
     const stub = createFakeRoku({ scenario: 'healthy' }); const a = await stub.start()
     let out = ''
     vi.spyOn(process.stdout, 'write').mockImplementation((s) => { out += s; return true })
-    const code = await doctor.run({ host: '127.0.0.1', ecpPort: a.ecpPort })
+    const code = await doctor.run({ host: '127.0.0.1', ecpPort: a.ecpPort }, { probeBind: async () => ({ ok: true }) })
     await stub.stop()
     expect(code).toBe(0)
     expect(out).toContain('hub-bind')
@@ -161,7 +161,7 @@ describe('doctor hub bind check', () => {
     const code = await doctor.run({ host: '127.0.0.1', ecpPort: a.ecpPort }, { probeBind: async () => ({ ok: false, error: 'EADDRINUSE' }) })
     await stub.stop()
     expect(code).toBe(1)
-    expect(out).toContain(doctor.FIX_HUB_BIND('EADDRINUSE'))
+    expect(out).toContain(doctor.FIX_HUB_BIND('EADDRINUSE', 8790))
     expect(doctor.evaluate({ ecpSettingMode: 'limited' }).find((k) => k.id === 'ecp-mode').fix).toBe(doctor.FIX_LIMITED)
   })
   it('probeBind opens and closes a real loopback-capable listener', async () => {
@@ -180,7 +180,7 @@ describe('doctor hub bind check', () => {
     await doctor.run({ host: '127.0.0.1', ecpPort: a.ecpPort, json: true }, deps)
     await stub.stop()
     const j = JSON.parse(out)
-    expect(j.hub).toEqual({ bindAddress: '0.0.0.0', port: 8790, advertisedHost: '192.0.2.7', reach: 'not-tested', reachReason: 'not-requested', reachProven: false })
+    expect(j.hub).toEqual({ bindAddress: '0.0.0.0', port: 8790, portSource: 'default', hostSource: 'default', advertisedHost: '192.0.2.7', reach: 'not-tested', reachReason: 'not-requested', reachProven: false })
   })
   it('an unreachable device skips the bind check', async () => {
     let out = ''
