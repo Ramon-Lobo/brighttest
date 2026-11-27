@@ -24,7 +24,7 @@ export ROKU_PASSWORD=<dev-password>
 brighttest studio --host <roku-ip> --open
 ```
 
-Stop it with Ctrl-C. The server listens on `127.0.0.1` only. Studio prints one line about its instrument hub at startup:
+Stop it with Ctrl-C. Started through `npx brighttest studio`, Studio also stops within a few seconds if the npm process that started it is killed (for example by a timeout wrapper), so it does not keep the port or the lease. The server listens on `127.0.0.1` only. Studio prints one line about its instrument hub at startup:
 `hub: on (port 8790, passthrough to 2 hosts)`, or `hub: off (<why>)` where the reason is `BRIGHTTEST_HUB_TOKEN not set`, a
 malformed token (it must be 32 lowercase hex characters), no device, or a device pool. It warns when the passthrough
 allow-list (`instrument.net.upstreamHosts`) is empty and `unmatched` is not `fail`. When a flow runs from Studio's Run, the hub's
