@@ -7,6 +7,7 @@
   import { createStateSearch } from './statesearch.svelte.js';
   import AppState from './AppState.svelte';
   import { studio } from './store.svelte.js';
+  import { parseValue, stringHint } from './state-edit-value.js';
 
   // State inspector (STA-S-T8). The live tree is the app's __bt_agent node as /api/state serves it (read over ECP,
   // redacted); the hub adds edits, snapshots and the ack of each command. An edit goes through /api/state/cmd (the
@@ -86,12 +87,6 @@
   }
 
   // The edit keeps the field's current type: a string field stays a string ("123" is not turned into 123).
-  function parseValue(text, type) {
-    if (type === 'string') return { ok: true, value: text };
-    if (type === 'number') { const n = Number(text); return text.trim() !== '' && Number.isFinite(n) ? { ok: true, value: n } : { ok: false, why: 'enter a number' }; }
-    if (type === 'boolean') return text === 'true' || text === 'false' ? { ok: true, value: text === 'true' } : { ok: false, why: 'enter true or false' };
-    try { return { ok: true, value: JSON.parse(text) }; } catch { return { ok: true, value: text }; }
-  }
   function startEdit(layer, r) {
     if (!editable(layer, r)) return;
     editing = { layer, path: r.path, type: r.type, text: r.type === 'string' ? r.value : JSON.stringify(r.value) };
@@ -208,7 +203,7 @@
         {#if r.kind === 'node'}
           <span class="val node" title="a node reference">→ #{r.id}</span>
         {:else if editing && editing.layer === name && editing.path === r.path}
-          <input class="f ed" bind:value={editing.text}
+          <input class="f ed" bind:value={editing.text} title={editing.type === 'string' ? stringHint : null} placeholder={editing.type === 'string' ? stringHint : null}
             onkeydown={(e) => { if (e.key === 'Enter') commit(); else if (e.key === 'Escape') editing = null; }} />
           <button onclick={commit}>set</button>
         {:else if hubUp && editable(name, r)}
