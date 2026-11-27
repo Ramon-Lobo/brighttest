@@ -15,6 +15,7 @@ brighttest assess [<dir>]        read-only project assessment
 brighttest features graph        dependency graph of an app's files and components
 brighttest features check        validate a feature tree against its graph
 brighttest doctor                device capability check
+brighttest setup                 save a Roku as the project default (ROKU_HOST in .env)
 brighttest mcp                   MCP stdio server for AI agents
 brighttest devices               discover Rokus, cache credentials
 brighttest device <action>       the device lease
@@ -265,6 +266,19 @@ directory. Exit codes: `0` written, `1` internal error, `2` usage error, unreada
 comes from a JUnit marked `brighttest.lane=device` (per suite) or the e2e suite name, and `--device --junit` writes
 that marker (e2e flows are not graph spec nodes). LCOV shows `executed (lcov N% of M lines)` and gives no level,
 because it carries no lane. See [Map the app](/guide/feature-tree#run-evidence-from-junit-and-lcov).
+
+## `brighttest setup`
+
+```
+setup [--host <ip>] [--write | --print] [--shell bash|zsh|fish|sh|powershell|cmd|all]
+      [--env-file <path>] [--ecp-port <n>] [--force] [--json]
+```
+
+Makes a Roku the project's default device. Without `--host` it discovers Rokus on the network (several without a terminal: exit 2 and the list). It checks the device like `doctor` (device info only: no lease, no password, no keypress), asks before writing `ROKU_HOST=<ip>` to the project `.env` (`--write` saves without asking, `--print` never writes, no terminal without `--write` never writes), and adds `.env` to `.gitignore` in a git work tree. Only the `ROKU_HOST` line changes; other lines, such as `ROKU_PASSWORD`, are kept. It then prints the export line for bash/zsh/sh, fish, PowerShell and cmd (`--shell` picks one); it never edits a shell profile or runs `setx`.
+
+The dev password is never asked for, stored or printed (`--host ip:pw` and lists are refused with exit 2). Setup only reports whether one is known and from where; set `ROKU_PASSWORD` or run `brighttest devices` for it. If `ROKU_HOST` is set in your shell and differs, setup warns that the environment overrides `.env`. `--force` writes even when a check fails.
+
+Exit `0` done, `1` the device check failed (nothing written), `2` usage or no host chosen. `--json` prints `host`, `name`, `model`, `firmware`, `checks[]`, `passwordKnown`, `passwordSource`, `wrote`, `gitignore` and `lines`; no serial, password or token. For agents: `brighttest setup --host <ip> --write --json`.
 
 ## `brighttest doctor`
 
