@@ -46,8 +46,10 @@ Before you file, read your text once and remove or replace:
 - screenshots and `tree.xml` dumps of a real app, which show its text and images.
 
 Replace values with a placeholder like `<ip-1>` or `<token>` so the structure stays readable. The form has a
-checkbox where you confirm you did this. Removal is your job: no tool here checks your text for you yet, so read it
-line by line.
+checkbox where you confirm you did this. Removal is your job: `brighttest issue redact <file>` masks the usual
+shapes and `brighttest issue check <file>` lists what is left (see the
+[CLI reference](/guide/cli-reference#brighttest-issue)), but neither knows every private name, so read the text line
+by line either way.
 
 ## Filing
 
