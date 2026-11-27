@@ -5,7 +5,7 @@
     "device-debugger",
     "test-author"
   ],
-  "cliVersion": "0.8.0-rc.0",
+  "cliVersion": "0.8.0",
   "deviceIdleTimeoutDefault": 120,
   "engines": {
     "brsNode": "2.7.1-bt.1",

@@ -3,8 +3,9 @@
 All notable changes for users of brighttest. Internal refactors, tests and CI changes are left out.
 Versions follow semver; while on 0.x, a minor release may contain breaking changes, always listed first.
 
-
 ## Unreleased {#unreleased}
+
+## v0.8.0 - 2026-11-27 {#v0-8-0}
 
 ### Breaking changes
 - **Device lane:** a device run now passes only when Rooibos prints its final `[Rooibos Result]` line; a run that
@@ -219,6 +220,8 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
   available (`--password`, `ROKU_PASSWORD`, a project `.env` or the device cache). `brighttest devices` finds Rokus on your network (SSDP) and saves the dev
   password; Studio can then connect without `--host` only when that is the only cached device.
 - E2E flows: give launch params as flat keys with string, number or boolean values ([flow reference](./e2e/flows.md)).
+
+[Full diff](https://github.com/Ramon-Lobo/brighttest/compare/v0.7.0...v0.8.0)
 
 ## v0.7.0 - 2026-07-23 {#v0-7-0}
 
