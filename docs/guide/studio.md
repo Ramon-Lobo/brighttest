@@ -59,6 +59,19 @@ The header badge shows who holds the device.
 In short: the lease is held only while Studio is used. With a waiter queued it yields after 60 seconds idle; otherwise it
 releases after 5 minutes idle. A `423` means another agent holds the device, and **Take over** is the explicit override.
 
+**Scripted clients.** A device route that answers `423` does not queue anything. To wait for the device in one call
+instead of a poll loop, send `POST /api/lease` with `{ "action": "acquire", "wait": "2m" }`. The request is held until
+Studio holds the device (`200` with the lease status) or the wait ends (`423` with the holder in `lease`, and Studio
+leaves the queue). `wait` takes `90s`, `10m`, `1h` or milliseconds, and may not exceed `deviceLease.wait` (default
+`30m`); an invalid or longer value answers `400` with `code: "BAD_WAIT"`. If the client disconnects, the queued
+take-over is dropped. Without `wait` the call behaves as before: it queues Studio and answers at once. Studio never
+preempts the holder.
+
+```sh
+curl -s -X POST http://127.0.0.1:8700/api/lease -H 'Content-Type: application/json' \
+  -d '{"action":"acquire","wait":"2m"}'   # 200: Studio holds it, 423: still held, retry the route after 200
+```
+
 Studio marks its lease record as interactive (with its yield and idle timings, the time of your last action and whether a run is in flight). A waiting command sees `interactive: yields to waiters 60s after its last action; last action 12s ago` in its wait line and in `device status`, so it can tell a Studio session from a stuck process. `brighttest studio --as <agent>` sets the holder label (`BRIGHTTEST_AGENT` also works).
 From a source checkout, build the web bundle with `npm run studio:build`.
 
