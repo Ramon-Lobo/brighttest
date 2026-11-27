@@ -193,4 +193,27 @@ describe('studio layout engine', () => {
     expect(by(mi, 'remote').state).toBe('hidden')
     expect(L.preset('default', IR)).toEqual(L.defaultLayout(IR))
   })
+  it('keyboard steps stay in the grid and respect minimum sizes, and are described in words', async () => {
+    const L = await load(); const { keyStep, stepTile } = await import('../lib/studio/web/src/lib/drag.js')
+    const M = mini()
+    let l = L.defaultLayout(M)
+    // Left at column 0 does not move; the helper reports no change.
+    const left = stepTile(l, 'a', keyStep('ArrowLeft'), M)
+    expect(L.sameBox(l, left, 'a')).toBe(true)
+    // Right at the edge of the grid is clamped by width.
+    const right = stepTile(l, 'b', keyStep('ArrowRight'), M)
+    expect(by(right, 'b').x + by(right, 'b').w).toBeLessThanOrEqual(L.COLS)
+    expect(L.sameBox(l, right, 'b')).toBe(true)
+    // Shift+arrow resizes down to the minimum and stops there.
+    for (let i = 0; i < 20; i++) l = stepTile(l, 'a', keyStep('ArrowLeft', true), M)
+    expect(by(l, 'a').w).toBe(2)
+    for (let i = 0; i < 20; i++) l = stepTile(l, 'a', keyStep('ArrowUp', true), M)
+    expect(by(l, 'a').h).toBe(2)
+    expect(overlap(l)).toBe(false)
+    // A real step changes the box and the words follow it.
+    const moved = stepTile(l, 'a', keyStep('ArrowRight'), M)
+    expect(L.sameBox(l, moved, 'a')).toBe(false)
+    expect(L.describeTile(moved, 'a', 'A')).toBe(`A tile, column ${by(moved, 'a').x + 1}, row ${by(moved, 'a').y + 1}, 2 by 2`)
+    expect(L.describeTile(moved, 'zzz', 'Z')).toBe('')
+  })
 })

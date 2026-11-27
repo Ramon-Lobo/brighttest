@@ -1,7 +1,7 @@
 <script>
   // One tile of the Inspect grid: header (drag handle, minimize, menu), body (the panel), resize grip.
   // The body is unmounted while the tile is minimized, except for `keepMounted` tiles (the flow editor).
-  let { tile, title, keepMounted = false, narrow = false, dragging = false, content, onhandledown, ongripdown, onaction } = $props();
+  let { tile, title, keepMounted = false, narrow = false, dragging = false, content, onhandledown, ongripdown, onaction, onkey } = $props();
 
   let menuOpen = $state(false);
   const open = $derived(tile.state === 'open');
@@ -21,7 +21,8 @@
   style={pos} data-testid="tile-{tile.id}" role="region" aria-label={title}>
   <header>
     <button class="handle" data-testid="tile-{tile.id}-handle" disabled={narrow} title={narrow ? title : `${title}: drag to move`}
-      onpointerdown={(e) => onhandledown?.(e, tile.id)}>{title}</button>
+      aria-roledescription="movable tile" aria-describedby={narrow ? undefined : 'layout-keys-help'}
+      onpointerdown={(e) => onhandledown?.(e, tile.id)} onkeydown={(e) => onkey?.(e, tile.id)}>{title}</button>
     <button class="icon" data-testid="tile-{tile.id}-minimize" aria-expanded={open}
       aria-label="{open ? 'Minimize' : 'Restore'} {title}" title={open ? 'Minimize' : 'Restore'}
       onclick={() => act(open ? 'min' : 'open')}>{open ? '–' : '+'}</button>
@@ -70,6 +71,7 @@
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .handle:disabled { cursor: default; }
   .handle:hover:not(:disabled) { color: var(--color-text); }
+  @media (prefers-reduced-motion: reduce) { .tile, .tile * { transition: none !important; animation: none !important; } }
   .icon { width: 22px; height: 22px; line-height: 1; padding: 0; border: 1px solid transparent; background: transparent;
     color: var(--color-haze); border-radius: 6px; cursor: pointer; font-size: 14px; }
   .icon:hover { color: var(--color-text); border-color: var(--color-line2); }
