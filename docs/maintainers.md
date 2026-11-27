@@ -672,6 +672,23 @@ npm run docs:a11y      # axe accessibility check of every built page, light and 
 Mermaid diagrams render via `vitepress-plugin-mermaid`. Content is plain Markdown; the sidebar/nav lives
 in `docs/.vitepress/config.mts`.
 
+### Two tiers
+
+The docs have two tiers (ADR 0061). `docs/lite/<path>.md` is the short version, served at the usual URL
+(`/guide/studio`). The full page `docs/<path>.md` is served at `/full/<path>` (`/full/guide/studio`) through
+VitePress rewrites built by `scripts/docs-tiers.js`. A page with only one tier keeps its usual URL:
+`cheat-sheet` and `maintainer-pages` are lite-only; `changelog`, `maintainers`, `contributing` and
+`decisions-summary` are full-only.
+
+- **Edit order:** change the full page first, then its lite page, in the same change. Every flag, command, config
+  key, env var, error code, exit code and section heading of a full page must also appear in the lite page.
+- **Links:** write `[text](full:/guide/studio)` in a lite page to link to the full page (same tab). Lite pages use
+  absolute `/images/...` paths for images.
+- **Agent files:** `llms.txt` and the `.md` twins are generated from the full pages only, at the usual URL plus
+  `.md`. Lite pages point at the full twin in their `alternate` link.
+- **Version switcher:** from a `full/` page it falls back to the same path without `full/` on a version that has one
+  tier (v0.7 and older).
+
 ### Version switcher theme
 
 `docs/.vitepress/theme/` extends the default theme with a version switcher (the `nav-bar-content-before` slot), a banner

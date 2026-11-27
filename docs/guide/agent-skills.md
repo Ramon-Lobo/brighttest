@@ -138,8 +138,10 @@ An agent that browses this site can read it as plain Markdown instead of HTML:
 - **Every page has a `.md` twin** at the same address plus `.md`: `/guide/studio` has `/guide/studio.md`, and a section
   index such as `/writing-tests/` has `/writing-tests/index.md`. Each HTML page also names its twin in a
   `<link rel="alternate" type="text/markdown">` tag in the page head.
+- **The twins are the full guide.** The site shows a shorter version of each page at its usual address, with a Full
+  guide link to `/full/<path>`. Add `.md` to the page path (`/guide/studio.md`, not `/full/guide/studio.md`) to get the full Markdown copy. There are no twins under `/full/`.
 
-The copies are generated from the same source files when the docs are built, so they match the page they belong to.
+The copies are generated from the full source files when the docs are built, so they match the full page.
 Links inside them point at other `.md` copies. Only the released docs have these files; the unreleased `/next/` docs do not.
 The docs do not replace the skills above: the skills carry the safety rules for using a real device, so install them
 rather than relying on the docs alone.
