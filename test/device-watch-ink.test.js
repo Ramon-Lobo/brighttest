@@ -151,6 +151,14 @@ describe('mountWatchApp on fake streams', () => {
       expect(t.proc.listenerCount('SIGTERM')).toBe(0);
     });
   }
+  it('--for ends the live screen with 0 and restores the terminal, without a key', async (ctx) => {
+    if (!have()) return ctx.skip();
+    const t = fakeTerm(); const v = mkView();
+    const { p } = await mount(t, v, { forMs: 400 });
+    expect(await Promise.race([p, sleep(5000).then(() => 'timeout')])).toBe(0);
+    assertRestored(t);
+    expect(v.closed).toBe(1);
+  });
   it('Esc quits from the device list', async (ctx) => {
     if (!have()) return ctx.skip();
     const t = fakeTerm(); const { p } = await mount(t, mkView());
