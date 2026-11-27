@@ -17,8 +17,9 @@ of the server process.
 
 **Check which device you will get.** If `ROKU_HOST` is unset *or empty*, the server falls back to the device cache
 (`~/.brighttest/devices.json`, the last device you connected to) and targets that device, which may be a real one.
-Set `ROKU_HOST` explicitly in the MCP server configuration, and use `list_devices` to see the target and its
-`source` (`env` or `cache`) before pressing anything. Screenshots need the dev password; everything else does not.
+Pin the host: run `brighttest setup` in the project to save `ROKU_HOST` in its `.env` (the server reads it from its
+working directory), or set `ROKU_HOST` in the MCP server configuration. Use `list_devices` to see the target and its
+`source` (`env`, `dotenv` or `cache`) before pressing anything. The MCP server has no several-cached-devices refusal, so a pinned host is the fix. Screenshots need the dev password; everything else does not.
 
 ## Tools
 

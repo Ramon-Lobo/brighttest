@@ -21,7 +21,7 @@ the working directory. The device comes only from brighttest's normal resolution
 project `.env`, the device cache). **No tool takes a host, password or absolute path.** Set `ROKU_HOST` (and
 `ROKU_PASSWORD` for screenshots) out of band. Protocol output goes to stdout; logs go to stderr.
 **An unset or empty `ROKU_HOST` falls back to the cached device (the last one connected), which may be a real
-one.** Set it explicitly and call `list_devices` first: it shows the target and its `source` (`env` or `cache`).
+one.** Pin it: ask the human to run `brighttest setup` (saves `ROKU_HOST` to the project `.env`) or set `ROKU_HOST` in the server config, then call `list_devices` first: it shows the target and its `source` (`env`, `dotenv` or `cache`). There is no several-cached-devices refusal in MCP, so a pinned host is the fix.
 
 ## Tools
 

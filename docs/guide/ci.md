@@ -59,6 +59,8 @@ the `--coverage` job on a separate trigger if you want to keep the per-push gate
 
 ## Device lane — fidelity check (optional)
 
+`brighttest setup` is for workstations: it writes a project `.env` and a local default. CI uses secrets instead: set `ROKU_HOST` and `ROKU_PASSWORD` in the job environment (the shell variable wins over any `.env`).
+
 The device lane is the only thing that needs hardware, so it runs on a **self-hosted runner** on the same
 network as a dev device. You don't need it for coverage — use it to confirm the headless lane still
 matches real firmware via `--cross-check` (fails on any divergence). Gate it to a nightly schedule.
