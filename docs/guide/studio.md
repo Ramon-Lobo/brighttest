@@ -196,7 +196,7 @@ Selector, State, Actions, Network). There are no tabs; every panel is on screen 
   are drawn on that same box, so they stay aligned after a resize.
 - **Polling follows what is open:** while the monitor tile is minimized or hidden, Studio stops requesting screenshots
   (`/api/screenshot`) and stops the overlay's tree reads; Node, Tree and Selector tiles still read the tree once a second
-  while they are open. Restoring the monitor starts the screenshots again.
+  while they are open. Restoring the monitor takes a screenshot at once.
 - **Narrow windows:** under 960 px of grid width the tiles stack in one column in reading order; drag and resize are off,
   minimize, hide and the Tiles menu still work, and the saved layout is not changed.
 - **Keyboard:** Tab to a tile's title (its drag handle). The arrow keys move the tile one cell, Shift with an arrow key makes
@@ -290,7 +290,7 @@ Studio contract: they do not change between releases without a changelog note, a
 | Shell and device | `studio-app`, `studio-header`, `device-summary` (model and firmware, or "no device"), `page-nav`, `nav-inspect`, `nav-runs`, `nav-record`, `nav-devices`, `nav-builds`, `nav-profile`, `nav-settings` |
 | Settings page | `settings-page`, `settings-device-source`, `settings-test-connection`, `settings-password-status`, `settings-hub-status`, `settings-token-status`, `settings-save-host`, `settings-save-result`, `settings-reset-prefs`, `settings-about-copy` |
 | Lease and device status | `lease-badge`, `lease-badge-summary`, `lease-queue`, `lease-bar` (banner while another holder has the device), `lease-queued`, `lease-take-over`, `sim-badge`, `sim-tail` |
-| Live monitor | `live-monitor`, `monitor-stage`, `monitor-screenshot` (the live screenshot), `monitor-overlay` (the node outlines), `monitor-needs-device`, `toggle-live`, `toggle-overlay`, `toggle-all-nodes`, `toggle-offscreen`, `live-status` |
+| Live monitor | `live-monitor`, `monitor-stage`, `monitor-screenshot` (the live screenshot), `monitor-refresh` (take a screenshot now), `monitor-shot-age` (how old the picture is), `monitor-overlay` (the node outlines), `monitor-needs-device`, `toggle-live`, `toggle-overlay`, `toggle-all-nodes`, `toggle-offscreen`, `live-status` |
 | Inspect page | `page-inspect` |
 | Inspect tiles | `layout-grid`, `layout-placeholder` (target cell while dragging), `layout-live` (announcements), `layout-empty`, `layout-empty-show`; one tile per panel: `tile-monitor`, `tile-flow`, `tile-remote`, `tile-node`, `tile-tree`, `tile-selector`, `tile-state`, `tile-actions`, `tile-network`; on each tile a drag handle (`tile-<id>-handle`), a minimize toggle (`tile-<id>-minimize`), a tile menu (`tile-<id>-menu`, with `tile-<id>-hide`) and a resize grip (`tile-<id>-resize`): `tile-monitor-handle`, `tile-flow-handle`, `tile-remote-handle`, `tile-node-handle`, `tile-tree-handle`, `tile-selector-handle`, `tile-state-handle`, `tile-actions-handle`, `tile-network-handle`, `tile-monitor-minimize`, `tile-flow-minimize`, `tile-remote-minimize`, `tile-node-minimize`, `tile-tree-minimize`, `tile-selector-minimize`, `tile-state-minimize`, `tile-actions-minimize`, `tile-network-minimize`, `tile-monitor-menu`, `tile-flow-menu`, `tile-remote-menu`, `tile-node-menu`, `tile-tree-menu`, `tile-selector-menu`, `tile-state-menu`, `tile-actions-menu`, `tile-network-menu`, `tile-monitor-hide`, `tile-flow-hide`, `tile-remote-hide`, `tile-node-hide`, `tile-tree-hide`, `tile-selector-hide`, `tile-state-hide`, `tile-actions-hide`, `tile-network-hide`, `tile-monitor-resize`, `tile-flow-resize`, `tile-remote-resize`, `tile-node-resize`, `tile-tree-resize`, `tile-selector-resize`, `tile-state-resize`, `tile-actions-resize`, `tile-network-resize` |
 | Tiles menu | `tiles-menu`, `tiles-menu-list`, `tiles-preset-default`, `tiles-preset-monitor-info`, `tiles-reset`, `tiles-confirm`, `tiles-cancel`, `header-run-stop` (Stop chip in the header while a run is active and the Flow tile is not open); per tile `tiles-menu-item-monitor`, `tiles-menu-item-flow`, `tiles-menu-item-remote`, `tiles-menu-item-node`, `tiles-menu-item-tree`, `tiles-menu-item-selector`, `tiles-menu-item-state`, `tiles-menu-item-actions`, `tiles-menu-item-network` (checkbox) and `tiles-restore-monitor`, `tiles-restore-flow`, `tiles-restore-remote`, `tiles-restore-node`, `tiles-restore-tree`, `tiles-restore-selector`, `tiles-restore-state`, `tiles-restore-actions`, `tiles-restore-network` (minimized tiles) |
@@ -304,8 +304,12 @@ Studio contract: they do not change between releases without a changelog note, a
 | Profile page | `page-profile`, `profile-controls`, `profile-start`, `profile-stop`, `profile-interval`, `profile-marker`, `profile-export-json`, `profile-export-csv`, `profile-tiles`, `profile-snapshot-textures`, `profile-perfetto-enable`, `profile-perfetto-start`, `profile-perfetto-stop`, `profile-perfetto-heap`, `profile-bsprof-import`, `profile-bsprof-pull` |
 | Profile console buttons | `profile-console-free`, `profile-console-sgperf-start`, `profile-console-sgperf-report`, `profile-console-sgperf-stop`, `profile-console-loaded-textures`, `profile-console-fps-display-on`, `profile-console-fps-display-off`, `profile-console-logrendezvous-on`, `profile-console-logrendezvous-off` |
 
-Studio has no refresh or screenshot button: the monitor refreshes on its own (about once a second) while `toggle-live`
-is on, and `monitor-screenshot` always holds the latest frame. Controls that need a device are disabled or replaced by a
+The monitor takes a screenshot only when something may have changed, while `toggle-live` is on: about 0.4 s after a
+key press (a burst of presses is one wait, and a change is never held back longer than 1.5 s), after the node tree
+changed, and every 5 s when nothing happens. A screenshot costs the device about a second and holds its one call queue, so
+this keeps the tree and key presses fast. `monitor-shot-age` shows how old the picture is ("just now", "3 s ago") and
+`monitor-refresh` takes a new screenshot at once. The picture can be up to 5 s old when the screen changes on its own
+(video, a rotating banner) and the tree does not; press refresh. `monitor-screenshot` holds the latest frame. Controls that need a device are disabled or replaced by a
 `*-needs-device` note when Studio runs on the simulator target. The screenshot and node outlines show the device screen,
 so treat an agent's captures of them like any other device output.
 
