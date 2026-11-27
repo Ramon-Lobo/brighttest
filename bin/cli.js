@@ -659,6 +659,7 @@ Usage:
   brighttest init                                    Scaffold a project for testing (see: init --help)
   brighttest skills install                          Install AI-agent test-writing skills (see: skills --help)
   brighttest instrument build                        Build an instrumented debug package, never for release (see: instrument --help)
+  brighttest builds list|show|add|install|…          The build history store; install --latest re-sideloads (see: builds --help)
   brighttest e2e run <flow…> --host <ip>             On-device UI e2e tests from YAML flows (see: e2e --help)
   brighttest studio --host <ip>                      Visual studio to author/debug flows on a device (see: studio --help)
   brighttest net convert <file.har> [-o <rules.json>]  Turn a recorded HAR into hand-editable net rules
@@ -774,6 +775,11 @@ async function main() {
     if (r.exitCode !== 0 || !target) process.exit(r.exitCode);
     const code = await require('../lib/instrument/sideload').sideload(cfg, { zip: r.out, ...target, record: r.record ? { store: r.record.store, id: r.record.id, via: 'build' } : null, wait: o.wait, max: o.max, expect: o.expect, as: o.as, purpose: o.purpose });
     process.exit(code);
+  }
+  if (argv[0] === 'builds') {
+    const code = await require('../lib/builds/cli').run(argv.slice(1));
+    process.stdout.write('', () => process.exit(code));
+    return;
   }
   if (argv[0] === 'e2e') {
     const eOpts = parseE2eArgs(argv.slice(1));

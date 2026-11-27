@@ -207,6 +207,19 @@ studio --simulator [--port 8700] [--flows-dir flows] [--open]
 
 `--simulator` runs Studio against the local brs-node simulator instead of a device (state-only; see [Simulator target](/guide/studio#simulator-target-no-device)). It uses the stock engine (`brs-node`, shipped as a brighttest dependency) unless `engines.brsNode` or `BRIGHTTEST_ENGINES` says otherwise, takes no value, and exits 2 when combined with `--host` or a device pool. `--password` is ignored with it. Exit codes: 2 usage error or UI not built, 1 other failures.
 
+## `brighttest builds`
+
+```text
+builds list [--json] [--all] [--kind store|instrumented] [--tag <t>] [--pinned]
+builds show <id|prefix> [--json]
+builds add <zip> [--label <text>] [--note <text>] [--tag <t>]... [--json]
+builds install <id|prefix|zip> | --latest [--host <ip>] [--wait <dur>] [--as <agent>] [--purpose <text>] [--json]
+builds pin|unpin <id>     builds edit <id> [--label ..] [--note ..] [--tag ..] [--untag ..]
+builds rm <id> [--force]  builds prune [--dry-run] [--json]
+```
+
+The build history store (project `.brighttest/builds`, or `BRIGHTTEST_BUILDS_DIR` / `--builds-dir`). An id is `b` plus 12 hex; any unique prefix of 4+ characters works. `install --latest` re-installs the newest build made by `instrument build`; a zip path is added to the store first. The host comes only from `--host` or `ROKU_HOST` (shell or project `.env`), never the device cache; the install takes the [device lease](/guide/device-lease). Exit codes: 0 ok, 1 failed (install, pinned `rm`), 2 usage, no host, unknown or ambiguous id, 5 package rejected (invalid, unsafe, no manifest, blob missing or corrupt), 75 lease busy, 77 store unusable or lease lost, 78 configuration error.
+
 ## `brighttest net convert`
 
 ```text
