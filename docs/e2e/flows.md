@@ -36,7 +36,7 @@ error rather than being silently misparsed.
 | `assertText: { …selector, equals \| contains }` | Assert a node's text |
 | `assertField: { …selector, field, equals \| contains }` | Assert **any** field the node exposes (any value `inspect` shows) |
 | `assertFocused: <selector>` | Assert the node currently has focus |
-| `assertState: { path, equals \| contains }` | Assert a value in the app's published state ([App state](/e2e/app-state)) |
+| `assertState: { path, equals \| contains }` | Assert a value in the app's published state ([App state](/e2e/app-state)); with `layer: node\|m` and `node: { id }` it reads that node through the hub |
 | `assertPlaying` / `assertMedia: { state }` | Assert ECP media-player state (reliable during video) |
 | `wait: <ms>` / `wait: { ms }` | Pause a fixed number of **milliseconds** (contrast the second-based `timeout`) |
 | `waitFor: { …selector, timeout }` | Explicit wait for a selector |

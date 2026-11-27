@@ -4,7 +4,7 @@
   import { studio } from './store.svelte.js';
   import {
     rowsOfNode, readOnlyReason, parseEdit, refusalText, splitError, readFailure, dupCount, dupText, nodeByIdPath,
-    setAt, nodeRefOnPath, assertLine, effectiveId, NO_ID_TEXT, TOO_LARGE_TEXT,
+    setAt, nodeRefOnPath, assertLine, assertStateLine, effectiveId, NO_ID_TEXT, TOO_LARGE_TEXT,
   } from './nodestate.js';
 
   // Node State view (STUDIO-NS-T2): one node's fields (layer node) or its component's `m`, read through the agent's
@@ -210,8 +210,13 @@
                 <button data-testid="node-state-goto-under" onclick={() => goto(nodeRefOnPath(value, r.path))}>go to node</button>
               {/if}
               {#if onadd && c.step && c.status !== 'failed'}<button class="add on" data-testid="node-state-step" title="add this edit to the flow" onclick={() => onadd(c.step)}>+ setState step</button>{/if}
-            {:else if onadd && assertLine(node, layer, r)}
-              <button class="add" title="add assertField to the flow" onclick={() => onadd(assertLine(node, layer, r))}>+</button>
+            {:else if onadd}
+              {#if assertLine(node, layer, r)}
+                <button class="add" title="add assertField to the flow (ECP value)" onclick={() => onadd(assertLine(node, layer, r))}>+</button>
+              {/if}
+              {#if assertStateLine(id, layer, r)}
+                <button class="add" data-testid="node-state-assert" title="add assertState to the flow (read through the hub)" onclick={() => onadd(assertStateLine(id, layer, r))}>+ assert</button>
+              {/if}
             {/if}
           {/if}
         </div>

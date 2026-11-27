@@ -86,4 +86,15 @@ describe('Node State helpers', () => {
     expect(assertLine(node, 'node', row('visible', { kind: 'marker' }))).toBe(null)
     expect(assertLine(node, 'node', row('a.visible'))).toBe(null)
   })
+
+  it('offers + assert (assertState) for plain leaves of both layers', async () => {
+    const { assertStateLine } = await load()
+    const row = (path, value, type, extra = {}) => ({ path, value, type, branch: false, kind: 'value', ...extra })
+    expect(assertStateLine('hero', 'node', row('opacity', 1, 'number'))).toBe('- assertState: { layer: node, node: { id: "hero" }, path: opacity, equals: 1 }')
+    expect(assertStateLine('panel', 'm', row('a.name', 'x y', 'string'))).toBe('- assertState: { layer: m, node: { id: "panel" }, path: a.name, equals: "x y" }')
+    expect(assertStateLine('hero', 'node', row('t', '<redacted:t>', 'string', { kind: 'redacted' }))).toBe(null)
+    expect(assertStateLine('hero', 'node', row('t', 1, 'number', { kind: 'marker' }))).toBe(null)
+    expect(assertStateLine('', 'node', row('t', 1, 'number'))).toBe(null)
+    expect(assertStateLine('hero', 'global', row('t', 1, 'number'))).toBe(null)
+  })
 })

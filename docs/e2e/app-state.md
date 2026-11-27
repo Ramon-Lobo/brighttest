@@ -185,6 +185,24 @@ Rules, all enforced on the device:
 - `m` is read on demand only. It is never in the published `__bt_agent` document or in a `snapshot`, and `restore`
   does not touch it.
 
+#### Asserting a node's fields or `m`
+
+`assertState` accepts `layer: node` or `layer: m` with `node: { id }` (the key is refused for any other layer). The step
+asks the agent through the hub (`get`), so it needs `e2e run` to have the hub up (a flow with such a step starts it) and
+an instrumented build. It keeps polling until the value matches or the step times out, like the other `assertState` forms.
+
+```yaml
+- assertState: { layer: node, node: { id: hero }, path: opacity, equals: 1 }
+- assertState: { layer: m, node: { id: homePanel }, path: rowIndex, equals: 3 }
+- assertState: { layer: node, node: { id: hero }, path: text, exists: true }
+```
+
+`equals`, `contains`, `deepEquals` and `exists` work as above. A value the agent masks (`<redacted:key>`) cannot be
+compared: `equals`, `contains` and `deepEquals` fail with a message that says it is masked and does not print it;
+`exists` still works. A missing field or node counts as absent (`exists: false` passes). Agent refusals such as
+`M_NOT_AVAILABLE` fail the step at once. With no hub the step fails with `STATE_NO_HUB`. In Studio, the Node tab's State
+view has a **+ assert** button on each plain value that adds this step.
+
 Publish rate cap: when the last published document is larger than 16384 bytes, the publish interval is at least
 1000 ms (`max(publish.intervalMs, 1000)`), and the agent logs one `agent.rate` event when it starts clamping (it reports the real period; `docChars` is the character count of the published label, not bytes).
 
