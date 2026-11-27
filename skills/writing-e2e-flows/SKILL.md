@@ -33,6 +33,8 @@ covering the handful of critical journeys only a real device can prove.
    apps → Network access → Permissive`. Without it, `sgnodes`/`keypress` are refused (`Limited mode` / HTTP 403).
 3. The **normal app build sideloaded**, *not* the Rooibos test build (that build pegs the render thread).
 
+> `e2e run` launches the app but never installs it: install first (`instrument build --sideload` or `builds install --latest`). After `device lock`, install and launch after the lock (it presses Home), or use `--no-hygiene`.
+
 ## The author-first workflow
 
 Always author against what's really on screen — never guess ids.
