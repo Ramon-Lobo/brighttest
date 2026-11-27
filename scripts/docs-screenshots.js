@@ -135,11 +135,16 @@ async function main() {
   await sleep(500);
   await shot('overview.png');
 
-  // State inspector with an edit.
-  await clickText('.tabs button', 'State');
+  // State inspector with an edit. The overview uses the default tile layout; the State shots use a saved tile layout
+  // that gives the State tile most of the page (the same localStorage key the Tiles menu writes), so the rows show.
+  const T = (id, x, y, w, h, state = 'open') => ({ id, x, y, w, h, state });
+  const stateLayout = { v: 1, reg: 1, tiles: [T('state', 0, 0, 8, 34), T('monitor', 8, 0, 4, 8), T('flow', 0, 0, 6, 20, 'hidden'), T('remote', 6, 11, 2, 9, 'hidden'), T('node', 8, 11, 4, 9, 'hidden'), T('tree', 0, 20, 4, 9, 'hidden'), T('selector', 4, 20, 4, 9, 'hidden'), T('actions', 0, 29, 6, 8, 'hidden'), T('network', 6, 29, 6, 8, 'hidden')] };
+  await js(`localStorage.setItem('bt.studio.layout.inspect', ${JSON.stringify(JSON.stringify(stateLayout))})`);
+  await js(`location.reload()`);
+  await until(`document.querySelector('[data-testid="tile-state"]')`, 'the state tile');
   await until(`document.querySelector('button.val.edit')`, 'the state rows');
   await shot('state-inspector.png');
-  await js(`[...document.querySelectorAll('.row')].find((r) => r.querySelector('dt') && r.querySelector('dt').textContent.trim() === 'theme').querySelector('button.val').click()`);
+  await js(`[...document.querySelectorAll('[data-testid="state-row"]')].find((r) => r.querySelector('.key') && r.querySelector('.key').textContent.trim() === 'theme').querySelector('button.val').click()`);
   await js(`(() => { const i = document.querySelector('input.ed'); i.value = 'light'; i.dispatchEvent(new Event('input', { bubbles: true })); })()`);
   await clickText('button', 'set');
   await until(`[...document.querySelectorAll('.chip')].some((c) => c.textContent.trim() === 'reflected')`, 'the reflected ack chip');
@@ -149,7 +154,7 @@ async function main() {
 
   // The device is held elsewhere: Studio lets go of the lease, another session takes it, and an edit is then refused (423).
   const post = (action) => fetch(`${base}/api/lease`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }) });
-  await js(`[...document.querySelectorAll('.row')].find((r) => r.querySelector('dt') && r.querySelector('dt').textContent.trim() === 'retries').querySelector('button.val').click()`);
+  await js(`[...document.querySelectorAll('[data-testid="state-row"]')].find((r) => r.querySelector('.key') && r.querySelector('.key').textContent.trim() === 'retries').querySelector('button.val').click()`);
   await post('release');
   const key = `127.0.0.1_p${ports.ecpPort}`;
   const other = await lease.acquire({ dir: process.env.BRIGHTTEST_LEASE_DIR, key, agent: 'e2e-run#1', purpose: 'e2e run', pid: process.pid, waitMs: 0, exitOnLost: false, timers: false, identity: {} });

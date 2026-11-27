@@ -52,7 +52,7 @@ send those headers. (`lib/studio/server.js`, the request guard near `LOOPBACK_HO
 ## The device lease
 
 Studio is a normal client of the [device lease](/guide/device-lease#studio): it takes the lease on the first request from
-an open tab or on a user action, releases it after `studioIdle` without user actions (or `studioYield` when someone is
+an open tile or on a user action, releases it after `studioIdle` without user actions (or `studioYield` when someone is
 queued), and never preempts. While another session holds the device, device routes answer `423` with the lease status.
 The header badge shows who holds the device.
 
@@ -62,7 +62,7 @@ From a source checkout, build the web bundle with `npm run studio:build`.
 
 ![Header badge and banner saying the device is in use by another session, with Take over when free](/images/studio/device-held.png)
 *Another session holds the device (monitor picture is a placeholder frame). The banner offers **Take over when free**, and the
-State tab switches to its read-only held view with the notice "Device is held by another session". An edit sent after the
+State tile switches to its read-only held view with the notice "Device is held by another session". An edit sent after the
 hand-over is refused with HTTP 423 and nothing is written (the inspector sets "Device is held elsewhere; edit not sent."
 but the held view then replaces the panel, so that line may not stay on screen). The header badge can lag: it updates on
 the next poll, so it may still read "Studio holding" or already read "Studio released" while the banner shows the other holder. The read-only held view masks `name` and `token` like the live view.*
@@ -78,16 +78,16 @@ is open. Studio's own hold shows like any other holder, with the purpose `studio
 
 ## State inspector
 
-The **State** tab on the Inspect page reads the instrumented app's `__bt_agent` node over ECP (one small request, not a
+The **State** tile on the Inspect page reads the instrumented app's `__bt_agent` node over ECP (one small request, not a
 tree walk) and shows its layers: `global`, `scene` and `registry`, each marked **truncated** if the agent had to cut
 it. The values shown are redacted by default: the agent masks secret-looking keys as `<redacted:key>`, and Studio adds
 the built-in key names plus `instrument.state.redact.paths` from `brighttest.json`. **show raw** reveals only what
 Studio masks on top of the agent's own masking, behind a banner, and makes exports unredacted.
 Studio masks published app state everywhere it shows it read-only, including the State view when the hub is held or absent, the node list and run traces, using the built-in sensitive key names plus `instrument.state.redact.paths`. Only the State panel's **show raw** toggle (`?raw=1`) reveals raw values. Unmaskable text is shown as `<redacted:text>` (a run step that cannot be masked is shown without its nodes or app state). The failure message of an `assertState` step can still contain the asserted value. Without an
-instrumented build the tab says no layers were published; see [Instrumented builds](/guide/instrument).
+instrumented build the tile says no layers were published; see [Instrumented builds](/guide/instrument).
 
-![State tab showing the global and scene layers, with a masked name and token](/images/studio/state-inspector.png)
-*State tab, read from the scripted stand-in app (monitor picture is a placeholder frame). `name` and `token` are masked.*
+![State tile showing the global and scene layers, with a masked name and token](/images/studio/state-inspector.png)
+*State tile, read from the scripted stand-in app (monitor picture is a placeholder frame). `name` and `token` are masked.*
 
 ### Editing
 
@@ -99,7 +99,7 @@ adds the edit to the open flow, and **+** on a leaf adds an `assertState`. Regis
 `<section>.<key>` value; a `<redacted:...>` marker is never written (HTTP 400 `REDACTED_VALUE`). The hub logs each
 command as `cmd.sent` and the app's replies as `cmd.ack`.
 
-![State tab after editing theme to light, with a reflected chip and a setState step button](/images/studio/state-edit.png)
+![State tile after editing theme to light, with a reflected chip and a setState step button](/images/studio/state-edit.png)
 *An edit of `theme` acked through to **reflected** (monitor picture is a placeholder frame); a snapshot was saved with **save**.*
 
 Snapshots (save, restore, delete, diff, export, import) are capped at 64 KB each, 20 kept. The history list shows each
@@ -108,14 +108,14 @@ edit and restore with its ack phase. The action log, time travel and "save as sp
 
 ### Node State view
 
-The **Node** tab has a **Fields** / **State** switch (Fields, the ECP strings, is the default; the choice is kept for the
+The **Node** tile has a **Fields** / **State** switch (Fields, the ECP strings, is the default; the choice is kept for the
 session). **State** reads the selected node through the app's agent over the hub (`GET /api/state/node`, no ECP request):
-the node's own fields (**fields**) or its component's `m` (**m**), as the same value tree the State tab shows, with a
+the node's own fields (**fields**) or its component's `m` (**m**), as the same value tree the State tile shows, with a
 **refresh** button and the age of the last read. It refreshes every 2 s while it is visible, Live is on and nothing is
 being edited. Open it by clicking a node on the monitor and choosing **State**, by the **state** button on a Tree row,
-or by **Inspect state** in the right-click menu (the last two switch to the Node tab in State view).
+or by **Inspect state** in the right-click menu (the last two switch to the Node tile in State view).
 
-- **Edit** a leaf like in the State tab: the value keeps its type, the edit is sent with `layer: node` or `m` and the
+- **Edit** a leaf like in the State tile: the value keeps its type, the edit is sent with `layer: node` or `m` and the
   node id, and an ack chip walks received, applied or shows the refusal (`FIELD_NOT_FOUND`, `TYPE_MISMATCH`,
   `PATH_UNDER_NODE`, `M_NOT_AVAILABLE`, `M_PATH_FORBIDDEN`, `NODE_NOT_FOUND`, `REDACTED_VALUE`, `STATE_TOO_LARGE`) with a
   short hint. The edited path is read again afterwards. **+ setState step** adds the edit to the open flow. `PATH_UNDER_NODE`
@@ -134,12 +134,12 @@ or by **Inspect state** in the right-click menu (the last two switch to the Node
 - **+** next to a node field adds `assertField` using the tree's string value, only for fields in the node's ECP
   attributes. `m` has no assertion button yet.
 
-### Actions tab
+### Actions tile
 
-The **Actions** tab lists the app's `state.action` log (seq, type, hash before and after) and refreshes every 2 s. **Travel** on a
+The **Actions** tile lists the app's `state.action` log (seq, type, hash before and after) and refreshes every 2 s. **Travel** on a
 row restores the state recorded at that entry. The 202 reply carries a note that is shown as-is: it restores the recorded state
 only, and the effects of later actions (network, registry, tasks) are not undone. An entry with no recorded snapshot answers
-409 `NO_SNAPSHOT`. Recording a snapshot is route-only: Studio has no record control. The tab shows a message, and no rows, when
+409 `NO_SNAPSHOT`. Recording a snapshot is route-only: Studio has no record control. The tile shows a message, and no rows, when
 there is no hub, the device is held elsewhere, or the routes are unreachable.
 
 ### Refusals you may see
@@ -203,8 +203,8 @@ is on by default and Studio remembers the choice in the browser (`localStorage`,
 server or in config.
 
 - **Off:** nothing is drawn over the picture (no outlines, hover or run highlight), clicking the picture selects
-  nothing, and **all nodes** and **offscreen** are disabled. The selected node stays selected, so the Node tab and the
-  context-menu steps still work from the Tree tab. The monitor header shows "overlay off".
+  nothing, and **all nodes** and **offscreen** are disabled. The selected node stays selected, so the Node tile and the
+  context-menu steps still work from the Tree tile. The monitor header shows "overlay off".
 - **Tree reads:** with the overlay off, Studio reads the SceneGraph tree only while the Node, Tree or Selector tile is open
   on the Inspect page, or the State tile shows the read-only app state; then once a second instead of every 300 ms.
   Otherwise it reads nothing, which frees the device for screenshots and key presses.
@@ -213,8 +213,8 @@ server or in config.
 ## Other pages
 
 **Runs** (run flows and step through a time-travel trace; each run frame carries the app state snapshot), **Record**
-(capture remote presses into a flow), **Devices** (discover and switch Rokus) and **Settings** (a read-mostly page of the effective settings, below). **Run** executes state and network steps too (`setState`, `snapshot`, `restore`, `callFunc`, `waitForAgent`, `mockHttp`, `assertRequest` and the rest) through Studio's own hub, the same way `brighttest e2e run` does; with no hub (no `BRIGHTTEST_HUB_TOKEN`, pool mode) such a flow fails before step 1 with the hub's message. `assertLog` and `expectNoLog` still need `e2e run`. **Stop** (`POST /api/run/stop` with the `runId` from the stream's `start` event; 200, or 409 `NOT_RUNNING`) ends a run between steps or mid-step: a polling step stops within about 250 ms, at most one device request is still in flight, and the stream sends `stopped` then `done` with `stopped: true`. The run is saved as **stopped**, the end-of-run cleanup (network rules, flow snapshots, unmatched mode) runs as for any end, and Studio keeps the device lease. A `setState`, `snapshot`, `restore` or `callFunc` already queued on the hub is not recalled and may still apply. Closing the page also stops the run, and only one run is active at a time (a second `/api/run` answers 409 `RUN_IN_PROGRESS`). The **Network** tab shows the hub's HTTP traffic; see [E2E: Network panel](/e2e/#network-panel).
-working controls). **Run** executes state and network steps too (`setState`, `snapshot`, `restore`, `callFunc`, `waitForAgent`, `mockHttp`, `assertRequest` and the rest) through Studio's own hub, the same way `brighttest e2e run` does; with no hub (no `BRIGHTTEST_HUB_TOKEN`, pool mode) such a flow fails before step 1 with the hub's message. `assertLog` and `expectNoLog` still need `e2e run`. **Stop** (`POST /api/run/stop` with the `runId` from the stream's `start` event; 200, or 409 `NOT_RUNNING`) ends a run between steps or mid-step: a polling step stops within about 250 ms, at most one device request is still in flight, and the stream sends `stopped` then `done` with `stopped: true`. The run is saved as **stopped**, the end-of-run cleanup (network rules, flow snapshots, unmatched mode) runs as for any end, and Studio keeps the device lease. A `setState`, `snapshot`, `restore` or `callFunc` already queued on the hub is not recalled and may still apply. In the page, **Run** becomes a red **Stop** button (`flow-stop`) while a run is active, and `Cmd+.` (macOS) or `Ctrl+.` stops it too, in the editor or anywhere on the page; Escape is left to the editor. The button then reads **Stopping...** until the run ends (after 5 s with no answer the page closes the stream, which stops the run anyway). The stopped step shows an amber square, the message reads "run stopped at step N (op)", a step stopped while a state command was queued adds that the command may still have applied, and the Runs page marks the run with a **stopped** badge (`run-stopped-badge`). Closing the page also stops the run, and only one run is active at a time (a second `/api/run` answers 409 `RUN_IN_PROGRESS`, which the page shows as "a run is already in progress"). The **Network** tab shows the hub's HTTP traffic; see [E2E: Network panel](/e2e/#network-panel).
+(capture remote presses into a flow), **Devices** (discover and switch Rokus) and **Settings** (a read-mostly page of the effective settings, below). **Run** executes state and network steps too (`setState`, `snapshot`, `restore`, `callFunc`, `waitForAgent`, `mockHttp`, `assertRequest` and the rest) through Studio's own hub, the same way `brighttest e2e run` does; with no hub (no `BRIGHTTEST_HUB_TOKEN`, pool mode) such a flow fails before step 1 with the hub's message. `assertLog` and `expectNoLog` still need `e2e run`. **Stop** (`POST /api/run/stop` with the `runId` from the stream's `start` event; 200, or 409 `NOT_RUNNING`) ends a run between steps or mid-step: a polling step stops within about 250 ms, at most one device request is still in flight, and the stream sends `stopped` then `done` with `stopped: true`. The run is saved as **stopped**, the end-of-run cleanup (network rules, flow snapshots, unmatched mode) runs as for any end, and Studio keeps the device lease. A `setState`, `snapshot`, `restore` or `callFunc` already queued on the hub is not recalled and may still apply. Closing the page also stops the run, and only one run is active at a time (a second `/api/run` answers 409 `RUN_IN_PROGRESS`). The **Network** tile shows the hub's HTTP traffic; see [E2E: Network panel](/e2e/#network-panel).
+working controls). **Run** executes state and network steps too (`setState`, `snapshot`, `restore`, `callFunc`, `waitForAgent`, `mockHttp`, `assertRequest` and the rest) through Studio's own hub, the same way `brighttest e2e run` does; with no hub (no `BRIGHTTEST_HUB_TOKEN`, pool mode) such a flow fails before step 1 with the hub's message. `assertLog` and `expectNoLog` still need `e2e run`. **Stop** (`POST /api/run/stop` with the `runId` from the stream's `start` event; 200, or 409 `NOT_RUNNING`) ends a run between steps or mid-step: a polling step stops within about 250 ms, at most one device request is still in flight, and the stream sends `stopped` then `done` with `stopped: true`. The run is saved as **stopped**, the end-of-run cleanup (network rules, flow snapshots, unmatched mode) runs as for any end, and Studio keeps the device lease. A `setState`, `snapshot`, `restore` or `callFunc` already queued on the hub is not recalled and may still apply. In the page, **Run** becomes a red **Stop** button (`flow-stop`) while a run is active, and `Cmd+.` (macOS) or `Ctrl+.` stops it too, in the editor or anywhere on the page; Escape is left to the editor. The button then reads **Stopping...** until the run ends (after 5 s with no answer the page closes the stream, which stops the run anyway). The stopped step shows an amber square, the message reads "run stopped at step N (op)", a step stopped while a state command was queued adds that the command may still have applied, and the Runs page marks the run with a **stopped** badge (`run-stopped-badge`). Closing the page also stops the run, and only one run is active at a time (a second `/api/run` answers 409 `RUN_IN_PROGRESS`, which the page shows as "a run is already in progress"). The **Network** tile shows the hub's HTTP traffic; see [E2E: Network panel](/e2e/#network-panel).
 ### Settings page
 
 Settings shows what Studio is using and where each value came from; it changes only two things, both on request: **Save as project default** and **Reset Studio preferences in this
@@ -278,7 +278,7 @@ performance) answer 409 `SIMULATOR_TARGET`, and the Network panel needs a device
   path from its package, so it is not affected.
 - **Install step**: nothing extra to install; `npm i brs-node` only if it is missing from `node_modules`.
 - **Header badge**: instead of the device lease badge the header shows the engine and its
-  state, like `simulator · brs-node@2.7.1 (stock) · running`. The Screen mirror, Remote and Run controls say they need a device. The State tab shows live layers in
+  state, like `simulator · brs-node@2.7.1 (stock) · running`. The Screen mirror, Remote and Run controls say they need a device. The State tile shows live layers in
   this mode: each refresh asks the app for a `snapshot` through the instrument hub (quiet: it is not logged, streamed
   or listed, so refreshing never evicts the action log). Simulator layers cover global, scene, node and registry and
   exclude `focus` (a device-only read). Before the app has said hello, or when the engine is `no-hello` or has exited,
@@ -306,7 +306,7 @@ performance) answer 409 `SIMULATOR_TARGET`, and the Network panel needs a device
 - **403 forbidden host/origin or 415**: you reached Studio through a non-loopback name, or a script omitted
   `Content-Type: application/json`.
 - **Everything answers 423**: someone else holds the device; see `brighttest device status`.
-- **State tab is read only**: no hub or no hello yet; the message in the tab says which.
+- **State tile is read only**: no hub or no hello yet; the message in the tile says which.
 - **Port 8700 busy**: Studio prints the fallback port it chose.
 
 ## Verification status
