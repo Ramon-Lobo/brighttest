@@ -255,7 +255,7 @@ Rules a change here must keep:
 - **Fail closed with a report.** Anything the plugin cannot rewrite safely is reported (`wrap-target-unknown`,
   `net-render-thread`, inline CDATA Scenes) rather than guessed.
 - **Size budget.** A test builds the real package and holds `source/bt` + `components/bt` to at most 1,500 lines and
-  60,793 bytes. Put explanations in `runtime/README.md`, not in shipped code.
+  61,200 bytes. Put explanations in `runtime/README.md`, not in shipped code.
 - **Redaction on every read layer.** New layers or ops route through the same redaction lookup (`BT_wRedSeg`) so
   secret-looking keys and `redact.paths` are masked on the agent's `get` and snapshot reads before data leaves the app.
   Action-log payloads are masked by key name on the device and by `redact.paths` on the host. Studio's `raw=1` views and

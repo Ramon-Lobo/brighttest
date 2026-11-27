@@ -106,6 +106,7 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
 - **MCP network tools:** the session network proxy now reads `instrument.net.upstreamHosts` and `instrument.net.unmatched`
   like Studio does. A request to an allowed host used to show as a 403 refused in `net_requests` while Studio showed it
   as a passthrough.
+- **Instrument:** the agent `get` op takes an optional `depth` (1 to 6, never deeper than the configured cap) for shallow node and `m` reads; deeper values come back as `$truncated:depth` markers and the answer carries the applied `depth`. Builds that ignore it still answer a full read.
 - **Studio:** the flow editor now completes all 33 flow steps, including `setState`, with each step's keys and allowed
   values (such as `layer:`). The list comes from the same step catalog the flow parser uses, so it cannot drift.
 - **E2E:** every flow step is now listed once in `lib/e2e/step-catalog.js`, which the parser uses as its allow-list

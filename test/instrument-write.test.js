@@ -124,6 +124,14 @@ describe('BT_wApply (headless, fork engine)', () => {
         '    big = {} : for i = 1 to 400 : big["k" + i.toStr()] = string(200, "x") : end for',
         '    print "BIG:" + rn(ctx, "set", { layer: "global", path: "user.blob", value: big })',
         '    ctx.global.addFields({ bigf: big })',
+        '    ctx.global.addFields({ deep: { a: { b: { c: 1 } } } })',
+        '    print "D1:" + rn(ctx, "get", { layer: "global", path: "deep", depth: 1 })',
+        '    print "D2:" + rn(ctx, "get", { layer: "global", path: "deep", depth: 2 })',
+        '    print "D3:" + rn(ctx, "get", { layer: "global", path: "deep", depth: 6 })',
+        '    print "D4:" + rn(ctx, "get", { layer: "global", path: "deep", depth: 9 })',
+        '    print "D5:" + rn(ctx, "get", { layer: "global", path: "deep", depth: "x" })',
+        '    print "D6:" + rn(ctx, "get", { layer: "global", path: "deep" })',
+        '    print "D7:" + rn(ctx, "get", { layer: "global", path: "deep", depth: 0 })',
         '    print "BIGGET:" + rn(ctx, "get", { layer: "global", path: "bigf" })',
       ].join('\n'),
     }).done
@@ -136,6 +144,19 @@ describe('BT_wApply (headless, fork engine)', () => {
     expect(a(2).result).toMatchObject({ found: true, value: 'premium' })
     expect(a(3)).toEqual({ ok: false, error: 'op not allowed: eval' })
     expect(a(12)).toEqual({ ok: false, error: 'op not allowed: registry.delete' })
+  })
+  it('get with depth cuts shallower with $truncated:depth markers; invalid or missing depth is a full read', () => {
+    const d = (n) => tagged(out, `D${n}:`)[0].result
+    expect(d(1)).toEqual({ found: true, value: { a: '$truncated:depth' }, truncated: ['global.deep.a:depth'], depth: 1 })
+    expect(d(2).value).toEqual({ a: { b: '$truncated:depth' } })
+    expect(d(2).depth).toBe(2)
+    expect(d(3).value).toEqual({ a: { b: { c: 1 } } })
+    expect(d(3).depth).toBe(6)
+    for (const n of [4, 5, 6, 7]) {
+      expect(d(n).value).toEqual({ a: { b: { c: 1 } } })
+      expect(d(n).depth).toBeUndefined()
+      expect(d(n).truncated).toEqual([])
+    }
   })
   it('TP-STA-12: callFunc runs only allow-listed names', () => {
     expect(a(4).error).toMatch(/^CALLFUNC_NOT_ALLOWED/)
