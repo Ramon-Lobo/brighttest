@@ -63,6 +63,8 @@
     {/if}
   </div>
 
+  {#if dev?.connected}<p class="hint"><button class="link" data-testid="devices-dev-channel" onclick={() => (studio.page = 'builds')}>Dev channel: see Builds</button></p>{/if}
+
   {#if msg}<p class="msg" data-testid="devices-message" role="status">{msg}</p>{/if}
 
   {#if list.length}
@@ -116,4 +118,5 @@
   .connect:hover:not(:disabled) { background: #8f80ff; }
   .connect:disabled { opacity: .6; cursor: default; }
   .hint { color: var(--color-haze); }
+  .link { background: none; border: none; color: var(--color-violet); cursor: pointer; padding: 0; font: inherit; text-decoration: underline; }
 </style>

@@ -54,7 +54,7 @@ const TILES = ['monitor', 'flow', 'remote', 'node', 'tree', 'selector', 'state',
 const per = (prefix, suffix = '') => TILES.map((t) => `${prefix}${t}${suffix}`);
 // Ids built from a template: [file, template in source, expanded ids].
 const DYNAMIC = [
-  ['App.svelte', 'data-testid="nav-{p.id}"', ['nav-inspect', 'nav-runs', 'nav-record', 'nav-devices', 'nav-profile', 'nav-settings']],
+  ['App.svelte', 'data-testid="nav-{p.id}"', ['nav-inspect', 'nav-runs', 'nav-builds', 'nav-record', 'nav-devices', 'nav-profile', 'nav-settings']],
   ['lib/pages/Profile.svelte', 'data-testid="profile-console-{c.replace(', ['profile-console-free', 'profile-console-sgperf-start', 'profile-console-sgperf-report', 'profile-console-sgperf-stop', 'profile-console-loaded-textures', 'profile-console-fps-display-on', 'profile-console-fps-display-off', 'profile-console-logrendezvous-on', 'profile-console-logrendezvous-off']],
   ['lib/ContextMenu.svelte', "testid: 'menu-inspect-state'", ['menu-inspect-state']],
   ['App.svelte', 'data-testid="tiles-menu-item-{id}"', per('tiles-menu-item-')],
