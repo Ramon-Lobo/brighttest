@@ -1,6 +1,7 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
   import { api } from './api.js';
+  import HeldNotice from './HeldNotice.svelte';
   import { rowOf, travelOutcome, createPoller } from './actionlog.js';
 
   // Action log and time travel (STA23-F2). Lists the app's state.action events (GET /api/state/actions) and, per entry,
@@ -34,7 +35,7 @@
 {#if st === 'none'}
   <p class="empty">No instrument hub is running in Studio, so there is no action log.</p>
 {:else if st === 'locked'}
-  <p class="empty err">Device is held by another session. Take the device in the header to use time travel.</p>
+  <HeldNotice testid="actionlog-held" text="Device is held by another session, so there is no time travel." />
 {:else if st === 'down'}
   <p class="empty err">Action log routes unreachable. Retrying.</p>
 {:else if st === 'live' && !rows.length}

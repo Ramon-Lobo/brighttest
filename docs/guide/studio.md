@@ -57,7 +57,7 @@ queued), and never preempts. While another session holds the device, device rout
 The header badge shows who holds the device.
 
 In short: the lease is held only while Studio is used. With a waiter queued it yields after 60 seconds idle; otherwise it
-releases after 5 minutes idle. A `423` means another agent holds the device, and **Take over** is the explicit override.
+releases after 5 minutes idle. A `423` means another agent holds the device, and **Take the device back** (**Take the device** if Studio never held it) is the explicit override.
 
 **Scripted clients.** A device route that answers `423` does not queue anything. To wait for the device in one call
 instead of a poll loop, send `POST /api/lease` with `{ "action": "acquire", "wait": "2m" }`. The request is held until
@@ -75,9 +75,8 @@ curl -s -X POST http://127.0.0.1:8700/api/lease -H 'Content-Type: application/js
 Studio marks its lease record as interactive (with its yield and idle timings, the time of your last action and whether a run is in flight). A waiting command sees `interactive: yields to waiters 60s after its last action; last action 12s ago` in its wait line and in `device status`, so it can tell a Studio session from a stuck process. `brighttest studio --as <agent>` sets the holder label (`BRIGHTTEST_AGENT` also works).
 From a source checkout, build the web bundle with `npm run studio:build`.
 
-![Header badge and banner saying the device is in use by another session, with Take over when free](/images/studio/device-held.png)
-*Another session holds the device (monitor picture is a placeholder frame). The banner offers **Take over when free**, and the
-State tile switches to its read-only held view with the notice "Device is held by another session". An edit sent after the
+![Header badge and banner saying the device is in use by another session, with Take the device back](/images/studio/device-held.png)
+*Another session holds the device (monitor picture is a placeholder frame). A full-width warning banner names the holder and how long it has had the device, and offers one button, **Take the device back**. The same button sits in the header and inside the State, Action log and Node state notices. Clicking it queues Studio ("Waiting, you are #2", with a spinner) and never interrupts the holder; the banner clears once Studio has the device. The State tile switches to its read-only held view with the notice "Device is held by another session". An edit sent after the
 hand-over is refused with HTTP 423 and nothing is written (the inspector sets "Device is held elsewhere; edit not sent."
 but the held view then replaces the panel, so that line may not stay on screen). The header badge can lag: it updates on
 the next poll, so it may still read "Studio holding" or already read "Studio released" while the banner shows the other holder. The read-only held view masks `name` and `token` like the live view.*
@@ -291,7 +290,7 @@ Studio serves the build history store (`brighttest builds`) over `/api/builds`; 
 | `POST /api/builds/jobs/:jobId/cancel` | 200; 409 `NOT_RUNNING`. After the upload started the device may still finish installing |
 | `GET /api/builds/current` | the dev channel on the device (`devApp`), the matching build and `match`: `confirmed`, `probable`, `unknown` or `none` |
 
-An install runs under the device lease (the same 423 and Take over flow as the other device routes), one at a time, and refuses while a run is active (a run refuses while an install is active). `tokenCheck` is an enum only (`match`, `mismatch`, `no-studio-token`, `not-instrumented`, `unreadable`); the dev password and the hub tokens never appear in a response, event or log line.
+An install runs under the device lease (the same 423 and Take the device back flow as the other device routes), one at a time, and refuses while a run is active (a run refuses while an install is active). `tokenCheck` is an enum only (`match`, `mismatch`, `no-studio-token`, `not-instrumented`, `unreadable`); the dev password and the hub tokens never appear in a response, event or log line.
 
 ## Other pages
 
@@ -330,7 +329,7 @@ Studio contract: they do not change between releases without a changelog note, a
 |---|---|
 | Shell and device | `studio-app`, `studio-header`, `device-summary` (model and firmware, or "no device"), `page-nav`, `nav-inspect`, `nav-runs`, `nav-record`, `nav-devices`, `nav-builds`, `nav-profile`, `nav-settings` |
 | Settings page | `settings-page`, `settings-device-source`, `settings-test-connection`, `settings-password-status`, `settings-hub-status`, `settings-token-status`, `settings-save-host`, `settings-save-result`, `settings-reset-prefs`, `settings-about-copy` |
-| Lease and device status | `lease-badge`, `lease-badge-summary`, `lease-queue`, `lease-bar` (banner while another holder has the device), `lease-queued`, `lease-take-over`, `sim-badge`, `sim-tail` |
+| Lease and device status | `lease-badge`, `lease-badge-summary`, `lease-queue`, `lease-bar` (banner while another holder has the device), `lease-queued`, `lease-text`, `lease-take-over` (banner), `lease-take-header`, `lease-take-inline`, `state-held`, `actionlog-held`, `sim-badge`, `sim-tail` |
 | Live monitor | `live-monitor`, `monitor-stage`, `monitor-screenshot` (the live screenshot), `monitor-refresh` (take a screenshot now), `monitor-shot-age` (how old the picture is), `monitor-overlay` (the node outlines), `monitor-needs-device`, `toggle-live`, `toggle-overlay`, `toggle-all-nodes`, `toggle-offscreen`, `live-status` |
 | Inspect page | `page-inspect` |
 | Inspect tiles | `layout-grid`, `layout-placeholder` (target cell while dragging), `layout-live` (announcements), `layout-empty`, `layout-empty-show`; one tile per panel: `tile-monitor`, `tile-flow`, `tile-remote`, `tile-node`, `tile-tree`, `tile-selector`, `tile-state`, `tile-actions`, `tile-network`; on each tile a drag handle (`tile-<id>-handle`), a minimize toggle (`tile-<id>-minimize`), a tile menu (`tile-<id>-menu`, with `tile-<id>-hide`) and a resize grip (`tile-<id>-resize`): `tile-monitor-handle`, `tile-flow-handle`, `tile-remote-handle`, `tile-node-handle`, `tile-tree-handle`, `tile-selector-handle`, `tile-state-handle`, `tile-actions-handle`, `tile-network-handle`, `tile-monitor-minimize`, `tile-flow-minimize`, `tile-remote-minimize`, `tile-node-minimize`, `tile-tree-minimize`, `tile-selector-minimize`, `tile-state-minimize`, `tile-actions-minimize`, `tile-network-minimize`, `tile-monitor-menu`, `tile-flow-menu`, `tile-remote-menu`, `tile-node-menu`, `tile-tree-menu`, `tile-selector-menu`, `tile-state-menu`, `tile-actions-menu`, `tile-network-menu`, `tile-monitor-hide`, `tile-flow-hide`, `tile-remote-hide`, `tile-node-hide`, `tile-tree-hide`, `tile-selector-hide`, `tile-state-hide`, `tile-actions-hide`, `tile-network-hide`, `tile-monitor-resize`, `tile-flow-resize`, `tile-remote-resize`, `tile-node-resize`, `tile-tree-resize`, `tile-selector-resize`, `tile-state-resize`, `tile-actions-resize`, `tile-network-resize` |

@@ -338,7 +338,7 @@ Studio takes the lease on its first device request from an open tab (or any acti
 run, a launch) without queueing. Background polling does not count as activity, so Studio releases the
 device after `studioIdle` without user actions, or after `studioYield` when someone else is waiting. While
 someone else holds the device, device requests answer `423 Locked` with the lease status, the UI shows who
-has the device and pauses polling, and **Take over when free** queues Studio like anyone else. Studio never
+has the device and pauses polling, and **Take the device back** queues Studio like anyone else. Studio never
 preempts. A lease badge in the header is always visible: who holds the device (or free), how many are queued, and whether Studio is holding, queued or released; click it to see the waiters in queue order. With `deviceLease.pool` set and no `--host`, Studio takes one free pool member when it takes the lease (the same FIFO pick as `--device any`) and talks to that device until it releases; every pool member needs a password (`--password`, `ROKU_PASSWORD`, `.env` or the device cache), and the instrument hub is not started in pool mode (connecting to a device later does not start it either: restart Studio with `--host`). A flow running from Studio counts as activity and is never interrupted by the idle or yield
 release, but if the lease is lost or you release it from the UI, the flow is aborted at once (the run stream
 ends with an `aborted` event). A running profiling session does not count as activity and does not hold the

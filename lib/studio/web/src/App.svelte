@@ -2,6 +2,8 @@
   import { onMount } from 'svelte';
   import { api } from './lib/api.js';
   import { studio, selectedNode, commitLayout } from './lib/store.svelte.js';
+  import LeaseTake from './lib/LeaseTake.svelte';
+  import { heldText } from './lib/leasecta.js';
   import TileGrid from './lib/TileGrid.svelte';
   import { inspectRegistry } from './lib/tiles.js';
   import { setState, defaultLayout, preset } from './lib/layout.js';
@@ -309,6 +311,7 @@
     try {
       const l = await api.lease();
       studio.leaseInfo = l;
+      if (l.holding) studio.everHeld = true;
       if (l.holding && (!studio.device?.connected || studio.device.host !== l.host)) refreshDevice(); // a pool member was just bound
       if (!studio.lease) return;
       if (l.holding) { studio.lease = null; studio.status = ''; return; }
@@ -326,15 +329,10 @@
     const who = allBusy ? `pool: all ${ps.size} busy` : h ? (h.mine ? 'held by Studio' : `held by ${h.agent}`) : l.queued ? 'waiting' : 'free';
     return { cls: l.holding ? 'mine' : h || allBusy ? 'other' : l.queued ? 'wait' : 'free', text: `${who}${n ? ` · ${n} queued` : ''}`, own };
   };
-  async function takeOver() {
-    try { const l = await api.leaseAction('acquire'); studio.lease = l.holding ? null : { ...studio.lease, lease: l }; } catch {}
-  }
-  const leaseText = (l) => {
-    if (l?.lease?.text && l.lease.pool) return l.lease.text;
-    const h = l?.lease?.holder;
-    if (h && !h.mine) return `Device in use by ${h.agent} — "${h.purpose}" (since ${new Date(h.since).toTimeString().slice(0, 5)})`;
-    return l?.error || 'Studio released the device';
-  };
+  // The "held for N" clock ticks once a second, only while the banner or the header control shows.
+  let nowMs = $state(Date.now());
+  const heldByOther = $derived(!!studio.lease || !!(studio.leaseInfo?.holder && !studio.leaseInfo.holder.mine && !studio.leaseInfo.holding));
+  $effect(() => { if (!heldByOther) return; nowMs = Date.now(); const t = setInterval(() => { nowMs = Date.now(); }, 1000); return () => clearInterval(t); });
   async function refreshDevice() { studio.device = mergeDevice(studio.device, await api.device().catch(() => null)); }
 
   onMount(() => {
@@ -371,7 +369,7 @@
       </details>
     {:else if studio.leaseInfo?.host || studio.leaseInfo?.pool}
       {@const b = badge(studio.leaseInfo)}
-      <details class="leasebadge {b.cls}" data-testid="lease-badge">
+      <details class="leasebadge {b.cls}" class:alert={heldByOther} data-testid="lease-badge">
         <summary title="device lease: {b.text}; {b.own}" data-testid="lease-badge-summary" aria-label="device lease: {b.text}; {b.own}"><span class="ldot"></span>{b.text} · {b.own}</summary>
         {#if studio.leaseInfo.queue?.length}
           <ol class="lqueue" data-testid="lease-queue" aria-label="lease queue">
@@ -379,6 +377,7 @@
           </ol>
         {/if}
       </details>
+      {#if heldByOther}<span class="hdrtake"><LeaseTake compact testid="lease-take-header" /></span>{/if}
     {/if}
     {#if !sim && (studio.page === 'inspect' || studio.page === 'record')}
       <FeedPanel bind:feed bind:calibrating />
@@ -442,13 +441,10 @@
     {/if}
   </header>
   {#if studio.lease}
-    <div class="leasebar" role="status" data-testid="lease-bar">
-      <span>{leaseText(studio.lease)}{studio.lease.lease?.queue?.length ? ` · ${studio.lease.lease.queue.length} queued` : ''}</span>
-      {#if studio.lease.lease?.queued}
-        <span class="queued" data-testid="lease-queued">Studio is queued — it takes the device when free</span>
-      {:else}
-        <button data-testid="lease-take-over" onclick={takeOver}>Take over when free</button>
-      {/if}
+    <div class="leasebar" role="alert" data-testid="lease-bar">
+      <span class="licon" aria-hidden="true">&#9888;</span>
+      <span class="ltext" data-testid="lease-text"><span><b>{heldText(studio.lease, nowMs)}</b>{studio.lease.lease?.queue?.length ? ` · ${studio.lease.lease.queue.length} queued` : ''}</span><span class="lsub">The inspector, screenshots and runs are paused until Studio has the device. Taking it queues Studio and never interrupts the holder.</span></span>
+      <LeaseTake autofocus />
     </div>
   {/if}
 
@@ -573,8 +569,13 @@
   .device { font-family: var(--font-mono); font-size: 12px; color: var(--color-haze); }
   .spacer { flex: 1; }
   .tog { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--color-haze); cursor: pointer; }
-  .leasebar { display: flex; gap: 12px; align-items: center; padding: 6px 14px; font-size: 12px; background: var(--color-panel); border-bottom: 1px solid var(--color-haze); }
-  .leasebar button { font-size: 12px; }
+  .leasebar { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; padding: 10px 14px; font-size: 13px; color: var(--color-text);
+    background: color-mix(in srgb, var(--color-amber) 16%, var(--color-panel)); border-bottom: 2px solid var(--color-amber); border-left: 6px solid var(--color-amber); }
+  .leasebar .licon { font-size: 20px; color: var(--color-amber); }
+  .leasebar .ltext { flex: 1 1 260px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .leasebar .lsub { font-size: 11px; color: var(--color-haze); }
+  @media (max-width: 700px) { .hdrtake { display: none; } }
+  .leasebadge.alert > summary { padding: 3px 8px; border: 1px solid var(--color-amber); border-radius: 6px; color: var(--color-amber); }
   .leasebadge { position: relative; font-size: 12px; }
   .leasebadge summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 6px; }
   .leasebadge summary::-webkit-details-marker { display: none; }
@@ -586,7 +587,6 @@
   .leasebadge .lqueue { position: absolute; right: 0; z-index: 5; margin: 4px 0 0; padding: 6px 10px 6px 26px; background: var(--color-panel); border: 1px solid var(--color-haze); white-space: nowrap; }
   .needsdev { padding: 16px; font-size: 12px; color: var(--color-haze); }
   .simtail, .simnote { position: absolute; right: 0; z-index: 5; margin: 4px 0 0; padding: 6px 10px; max-width: 60vw; max-height: 40vh; overflow: auto; background: var(--color-panel); border: 1px solid var(--color-haze); font-size: 11px; white-space: pre-wrap; }
-  .leasebar .queued { color: var(--color-haze); }
   .status { font-family: var(--font-mono); font-size: 11px; color: var(--color-haze); min-width: 68px; text-align: right; }
 
   .body { flex: 1; display: flex; min-height: 0; }
