@@ -46,6 +46,20 @@ Run anything that can take minutes in the background with a deadline, and poll w
   two commands doing this in opposite order wait for each other until `--wait` ends (exit 75).
 - Reads that cannot disturb a run (`doctor`, `devices`, `query/device-info`) need no lease.
 
+## Several agents on one device
+
+- Other agents may be working on the same app from other worktrees; their build replacing yours is normal. Do not
+  try to prevent it.
+- Check what is installed: `npx brighttest device status` prints an `installed:` line (title, version, sha, who,
+  worktree and commit, age; `unknown` when brighttest has no record).
+- Rebuild only after your own code changes. Otherwise put your last package back with
+  `npx brighttest builds install --latest --host <ip> --as "$BRIGHTTEST_AGENT" --purpose "<task>: re-sideload"`
+  (takes the lease and queues). An "identical package already installed; relaunched the dev channel" result is success.
+- When queued, wait within a bounded `--wait`, or use `--wait 0` and retry later on exit 75. Do not force.
+- Always pass `--host` (or `ROKU_HOST`) when more than one device is cached.
+
+Details: `docs/guide/multi-agent-device.md`.
+
 ## Lease exit codes
 
 | Code | Meaning |
