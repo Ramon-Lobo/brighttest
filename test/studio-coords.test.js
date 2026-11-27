@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
@@ -75,9 +76,40 @@ describe('sceneSize: app UI resolution vs display mode', () => {
     expect(coords.sceneSize(fhd, { screen: out720 })).toEqual(out1080);
   });
 
-  it('keeps the device resolution when the tree shows both or neither', () => {
-    expect(coords.sceneSize([...fhd, ...hd], { screen: out1080 })).toEqual(out1080);
+  it('keeps the device resolution when the tree shows neither size', () => {
     expect(coords.sceneSize([node('Group', [0, 0, 640, 480])], { screen: out720 })).toEqual(out720);
+    expect(coords.sceneSize([node('Group', [0, 0, 640, 480])], { screen: out1080 })).toEqual(out1080);
+    expect(coords.sceneSize([node('Group', [0, 0, 640, 480])])).toEqual(out1080);
+    expect(coords.sceneSize([node('Group', [0, 0, 1000, 700])], { screen: out1080 })).toEqual(out1080);
+  });
+
+  it('uses 1280x720 for an hd app whose root and Poster report 1920x1080 (fw 16)', () => {
+    const fw16 = [node('Scene', [0, 0, 1920, 1080], { children: [
+      node('Poster', [0, 0, 1920, 1080]),
+      node('Rectangle', [0, 0, 1280, 720], { id: 'bg' }),
+      node('Rectangle', [100, 80, 200, 120], { id: 'box_red', t: [100, 80] }),
+    ] })];
+    expect(coords.sceneSize(fw16, { screen: out1080 })).toEqual(out720);
+  });
+
+  it('keeps 1920x1080 for an fhd app with a nested 1280x720 node at the origin', () => {
+    const fhdNested = [node('Scene', [0, 0, 1920, 1080], { children: [
+      node('Group', [0, 0, 1280, 720], { children: [node('Rectangle', [0, 0, 1280, 720])] }),
+      node('Poster', [1500, 100, 300, 200], { t: [1500, 100] }),
+    ] })];
+    expect(coords.sceneSize(fhdNested, { screen: out1080 })).toEqual(out1080);
+  });
+
+  it('keeps the device resolution when a 720p output shows both sizes', () => {
+    expect(coords.sceneSize([...fhd, ...hd], { screen: out720 })).toEqual(out720);
+  });
+
+  it('projects the fw 16 hd tree at scale 1 into a 1280x720 viewBox', () => {
+    const fx = JSON.parse(readFileSync(new URL('./fixtures/studio/hd-fw16-reconstructed-tree.json', import.meta.url), 'utf8'));
+    expect(coords.sceneSize(fx.roots, { screen: fx.screen })).toEqual(out720);
+    const p = coords.project(fx.roots, { screen: fx.screen });
+    expect(p.scene).toEqual(out720);
+    expect(p.nodes.find((n) => n.id === 'box_red').abs).toEqual({ x: 100, y: 80, w: 200, h: 120 });
   });
 });
 
