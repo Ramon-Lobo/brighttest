@@ -25,9 +25,8 @@ brighttest studio --host <ip> [--password <pw>] [--port 8700] [--app dev] [--flo
 - The device comes from `--host` or `ROKU_HOST`; `--password` or `ROKU_PASSWORD` enables screenshots.
 - Port 8700 by default; if busy, the first free of 8701-8709 (`bin/cli.js`, `studio --help`). The device needs developer mode and ECP network access Permissive.
 - With `deviceLease.pool` set and no `--host`, Studio binds one free pool member when it takes the lease, but the instrument hub (Network and State panels) is not started in pool mode: pass `--host <ip>` to use them (connecting to a device later does not start the hub; restart with `--host`).
-- Studio takes the device lease like every other device lane (`lib/studio/lease.js`; see
-  `docs/guide/device-lease.md`). When Studio releases the device it stops any running profiling session or Perfetto capture
-  (`lib/studio/server.js`).
+- Studio takes the device lease like every other device lane (`lib/studio/lease.js`; see `docs/guide/device-lease.md`). When Studio releases the device it stops any running profiling session or Perfetto capture (`lib/studio/server.js`).
+- The Builds page lists the build store (`brighttest builds`): add zips, edit, pin, download, delete. **Install** replaces the dev channel, so it asks first, runs under the lease, is refused during a run and in simulator mode, and warns when an instrumented build's hub token differs from Studio's (never print that token). See `docs/guide/builds.md`.
 - The State tab is a state inspector for instrumented builds: click a value in the `global`, `scene` or `registry` layer to
   edit it. The edit goes through the hub (the same validation as a `setState` flow step) and an ack chip walks received,
   applied, reflected, or shows the error. Snapshots can be saved, restored, deleted, diffed, exported and imported. It needs
@@ -93,8 +92,7 @@ relaunch. A dropped stream is reopened a bounded number of times, then Studio gi
 Studio parses Roku's `.bsprof` files into call-path tables; it reports raw ticks and percentages, never
 invented milliseconds (`lib/studio/bsprof.js`).
 
-- Produce one: set `bsprof_enable=1` in the manifest, exercise the channel, then export from the device's
-  Developer Settings Profiling Data screen.
+- Produce one: set `bsprof_enable=1` in the manifest, exercise the channel, then export from the device's Developer Settings Profiling Data screen.
 - Import it in the Profile page (`POST /api/perf/bsprof`, up to 64 MB).
 - Or set `bsprof_data_dest=network` and use "Pull from device :8090". A channel without profiling enabled just
   refuses the connection.

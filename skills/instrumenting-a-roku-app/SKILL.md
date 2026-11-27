@@ -68,6 +68,9 @@ limit is researched from Roku's public docs, not verified here (see `references/
    strict on in their config without their OK.
 5. Prove it cannot ship: `npx brighttest instrument verify .brighttest/debug.bt-instrumented.zip` must exit 3 and list markers.
 6. Sideload only with the human's device (`--sideload --host <device-ip> --as "$BRIGHTTEST_AGENT" --purpose "<task>"`).
+   Builds are recorded in the build store (`.brighttest/builds`; `builds.record: false` turns it off). `npx brighttest builds list`
+   shows them and `builds install <id|--latest> --host <ip> --as "$BRIGHTTEST_AGENT" --purpose "<task>"` puts one back (lease,
+   human's device only). The stored instrumented zip holds the hub token: do not attach or share it.
 7. Release gate, on the package you will publish, never the debug zip:
    `npx brighttest instrument verify build/store.zip` must exit 0 (clean). Then compare the zip size against the
    budget in `references/package-size.md`.
