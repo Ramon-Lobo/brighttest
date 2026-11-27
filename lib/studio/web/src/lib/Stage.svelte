@@ -1,9 +1,15 @@
 <script>
   import { studio } from './store.svelte.js';
   import { matchesSel as matches } from './match.js';
+  import { formatShotAge } from './treepolicy.js';
   // fit 'width' (Record): the box takes the width and grows in height. 'contain' (tiles): the largest 16:9 box that
   // fits the container, letterboxed; the picture and the overlay fill that one box, so they stay aligned at any size.
-  let { shotSrc, oncontext, fit = 'width' } = $props();
+  let { shotSrc, oncontext, fit = 'width', shotAt = 0, onrefresh } = $props();
+
+  // The age of the shown picture, redrawn once a second so a stale monitor is visible.
+  let now = $state(Date.now());
+  $effect(() => { const t = setInterval(() => { now = Date.now(); }, 1000); return () => clearInterval(t); });
+  const age = $derived(shotAt ? formatShotAge(Math.max(0, now - shotAt)) : '');
 
   // sgnodes/all dumps the whole tree, so most nodes with bounds are NOT on screen — hidden drawers,
   // preloaded sibling screens, ArrayGrid items scrolled out of view. The server derives `onScreen`
@@ -61,10 +67,20 @@
       {/each}
     </svg>
     {/if}
+    {#if onrefresh}
+    <div class="shotbar">
+      {#if age}<span class="shotage" data-testid="monitor-shot-age" role="status">{age}</span>{/if}
+      <button type="button" class="shotrefresh" data-testid="monitor-refresh" title="Take a new screenshot now" aria-label="Refresh screenshot" onclick={(e) => { e.stopPropagation(); onrefresh(); }}>refresh</button>
+    </div>
+    {/if}
   </div>
 </div>
 
 <style>
+  .shotbar { position: absolute; right: 18px; bottom: 16px; display: flex; gap: 6px; align-items: center; font-size: 11px; z-index: 2; }
+  .shotage { background: rgba(0,0,0,.6); color: #cfd3e4; padding: 2px 6px; border-radius: 4px; }
+  .shotrefresh { background: rgba(0,0,0,.6); color: #cfd3e4; border: 1px solid var(--color-line2); border-radius: 4px; padding: 2px 8px; font-size: 11px; cursor: pointer; }
+  .shotrefresh:hover { color: #fff; }
   .monitor { width: 100%; }
   .monitor.contain { height: 100%; container-type: size; display: flex; }
   .monitor.contain .bezel { width: min(100cqw, calc(100cqh * 16 / 9)); margin: auto; flex: none; }

@@ -14,7 +14,7 @@ metadata:
 agent that needs live device access should use the MCP server (`using-brighttest-mcp`), not drive Studio. If a person
 asks an agent to operate Studio in a browser, every control has a stable `data-testid` (e.g. `[data-testid="flow-run"]`)
 and icon-only ones an `aria-label`; the id table is in `docs/guide/studio.md` ("Driving Studio from a browser agent").
-There is no refresh or screenshot button and no WebMCP tools; `monitor-screenshot` shows the device screen.
+The monitor takes screenshots on demand (after a key press, after the tree changed, every 5 s idle); `monitor-refresh` takes one now and `monitor-shot-age` shows the picture's age. There are no WebMCP tools; `monitor-screenshot` shows the device screen.
 
 ## Start it
 

@@ -6,7 +6,7 @@
   import { inspectRegistry } from './lib/tiles.js';
   import { setState, defaultLayout, preset } from './lib/layout.js';
   import Stage from './lib/Stage.svelte';
-  import { treeNeeded, treeIntervalMs, saveOverlay, shotNeeded, visiblePanels, monitorVisible } from './lib/treepolicy.js';
+  import { treeNeeded, treeIntervalMs, saveOverlay, shotNeeded, shotDecision, treeSignature, visiblePanels, monitorVisible } from './lib/treepolicy.js';
   import Inspector from './lib/Inspector.svelte';
   import Remote from './lib/Remote.svelte';
   import Editor from './lib/Editor.svelte';
@@ -58,6 +58,7 @@
   const onHashChange = () => { const p = pageFromHash(location.hash, PAGES.map((x) => x.id)); if (p && p !== studio.page) studio.page = p; };
 
   let shotSrc = $state('');
+  let shotAt = $state(0);
   let flows = $state([]);
   let currentFlow = $state(null);
   let flowText = $state('');
@@ -70,6 +71,9 @@
   let editor;
 
   let treeBusy = false, shotBusy = false;
+  // Screenshots on demand: dirtyAt is the newest press or tree change not yet covered by a shot.
+  let dirtyAt = null, dirtySince = null, lastTreeSig = '';
+  const markDirty = () => { dirtyAt = Date.now(); dirtySince ??= dirtyAt; };
 
   // Simulator target: Studio runs the app in the local engine, no device. Device-only panels say so.
   const sim = $derived(isSim(studio.device));
@@ -82,27 +86,45 @@
   const monitorOn = $derived(studio.page === 'record' || monitorOpen);
 
   async function grabTree() {
-    if (treeBusy || !treeNeeded({ overlay: studio.overlay, page: studio.page, visiblePanels: panels, monitor: monitorOpen, stateFallback: studio.stateFallback, live: studio.live, sim, lease: studio.lease })) return;
+    // The device answers one call at a time, so a tree read issued during a screenshot would only wait behind it.
+    if (treeBusy || shotBusy || !treeNeeded({ overlay: studio.overlay, page: studio.page, visiblePanels: panels, monitor: monitorOpen, stateFallback: studio.stateFallback, live: studio.live, sim, lease: studio.lease })) return;
     treeBusy = true;
     try {
       const d = await api.tree();
       if (d.code === 'LOCKED') { studio.lease = d; studio.status = 'paused'; return; }
       if (d.error) { studio.status = d.error; return; }
       studio.scene = d.scene; studio.nodes = d.nodes; studio.appState = d.appState; studio.agent = d.agent || null; studio.status = `${d.nodes.length} nodes`;
+      const sig = treeSignature(d.nodes); if (lastTreeSig && sig !== lastTreeSig) markDirty(); lastTreeSig = sig;
     } catch { studio.status = 'tree error'; } finally { treeBusy = false; }
   }
   async function grabShot() {
     if (shotBusy || !shotNeeded({ page: studio.page, live: studio.live, sim, lease: studio.lease, monitor: monitorOpen })) return;
     shotBusy = true;
+    const startedAt = Date.now();
     try {
       const r = await fetch(api.screenshotUrl());
       if (r.status === 423) { studio.lease = await r.json(); return; }
       const blob = await r.blob();
       const url = URL.createObjectURL(blob);
       const prev = shotSrc; shotSrc = url;
+      shotAt = Date.now();
+      if (dirtyAt != null && dirtyAt <= startedAt) { dirtyAt = null; dirtySince = null; }
       if (prev.startsWith('blob:')) URL.revokeObjectURL(prev);
     } catch {} finally { shotBusy = false; }
   }
+  // The shot scheduler: asks the policy whether a screenshot is due; the refresh button forces one.
+  let lastShotTry = 0, wasShown = false;
+  async function shotTick(forced = false) {
+    // A monitor that just appeared (restored tile, Record page, Live turned on) gets a picture at once.
+    const shown = shotNeeded({ page: studio.page, live: studio.live, sim, lease: studio.lease, monitor: monitorOpen });
+    if (shown && !wasShown && !forced) markDirty();
+    wasShown = shown;
+    const d = shotDecision({ now: Date.now(), lastShotAt: Math.max(shotAt, lastShotTry), dirtyAt, dirtySince, forced });
+    if (!d.take) return;
+    lastShotTry = Date.now();
+    await grabShot();
+  }
+  const refreshShot = () => shotTick(true);
 
   async function loadFlows() { try { flows = (await api.flows()).files; } catch {} }
   async function openFlow(rel) {
@@ -192,7 +214,7 @@
     if (e.key === 'Escape' && tilesOpen) closeTiles();
   }
 
-  function onRemote() { setTimeout(grabTree, 90); setTimeout(grabShot, 280); }
+  function onRemote() { markDirty(); setTimeout(grabTree, 90); }
   function addStep(line) { editor?.insert(line); setMsg('added — unsaved'); }
 
   function onInspectState(n) { studio.selectedPath = n.path; studio.nodeView = 'state'; studio.page = 'inspect'; showTile('node'); }
@@ -247,7 +269,7 @@
         else rec.steps.push({ op: 'press', key, count: 1 });
       }
     }
-    setTimeout(grabTree, 90); setTimeout(grabShot, 280);
+    markDirty(); setTimeout(grabTree, 90);
   }
   function recLine(text) { if (!rec.active) recStart(); rec.steps.push({ op: 'line', text: text.replace(/^- /, '') }); }
   async function recSave() {
@@ -305,7 +327,7 @@
     loadFlows();
     let t1, t2;
     const treeLoop = async () => { await grabTree(); t1 = setTimeout(treeLoop, treeIntervalMs({ overlay: studio.overlay, monitor: monitorOn })); };
-    const shotLoop = async () => { await grabShot(); t2 = setTimeout(shotLoop, 900); };
+    const shotLoop = async () => { await shotTick(); t2 = setTimeout(shotLoop, 200); };
     const simLoop = async () => { if (shouldPoll(studio.device)) await refreshDevice(); t4 = setTimeout(simLoop, simPollMs(studio.device)); };
     const leaseLoop = async () => { await leaseCheck(); t3 = setTimeout(leaseLoop, 3000); };
     let t3, t4;
@@ -468,7 +490,7 @@
                   {#if sim}
                     <div class="needsdev" data-testid="monitor-needs-device" role="note">Screen mirror needs a device. Start Studio with --host to use it.</div>
                   {:else}
-                    <div class="stagebox"><Stage {shotSrc} fit="contain" oncontext={onNodeContext} /></div>
+                    <div class="stagebox"><Stage {shotSrc} {shotAt} onrefresh={refreshShot} fit="contain" oncontext={onNodeContext} /></div>
                   {/if}
                 </div>
               {:else if id === 'remote'}
