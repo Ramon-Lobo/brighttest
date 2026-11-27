@@ -3,7 +3,7 @@
   // `feed` is { stream, deviceId, label, rect, auto, ready, w, h } while a feed is live, else null. App turns screenshots off for it.
   import { onMount, onDestroy } from 'svelte';
   import { studio } from './store.svelte.js';
-  import { autoRect, applyNudge, loadCal, saveCal, loadLastFeed, saveLastFeed, friendlyError } from './feed.js';
+  import { autoRect, applyNudge, loadCal, saveCal, loadLastFeed, saveLastFeed, friendlyError, CARD_HELD_HINT } from './feed.js';
 
   let { feed = $bindable(null), calibrating = $bindable(false) } = $props();
   let devices = $state([]);
@@ -94,6 +94,7 @@
   {/if}
   {#if feed}
     <span class="st" data-testid="feed-status" role="status">{feed.ready ? `live ${feed.w || '?'}x${feed.h || '?'}` : 'waiting for signal'}</span>
+    {#if !msg}<span class="hint" data-testid="feed-card-held">{CARD_HELD_HINT}</span>{/if}
     <button type="button" class="mini" data-testid="feed-calibrate" aria-expanded={calibrating} onclick={() => (calibrating = !calibrating)}>Calibrate</button>
     {#if calibrating}
       <span class="cal" data-testid="feed-calibrate-panel" role="group" aria-label="Feed calibration">
@@ -119,5 +120,6 @@
   .mini { background: var(--color-panel2); color: var(--color-text); border: 1px solid var(--color-line2); border-radius: 6px; padding: 2px 8px; font-size: 12px; cursor: pointer; }
   .mini:hover { border-color: var(--color-violet); }
   .st { font-family: var(--font-mono); font-size: 11px; }
+  .hint { color: var(--color-haze); font-size: 11px; max-width: 360px; }
   .err { color: var(--color-amber); max-width: 360px; }
 </style>
