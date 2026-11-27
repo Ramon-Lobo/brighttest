@@ -29,6 +29,11 @@ It names the package, the first 8 characters of its sha256, who installed it (ag
 `dirty` when the working tree had uncommitted changes) and how long ago. It reads `unknown` when brighttest
 has no record for that device (the record is written only by brighttest installs made after this feature).
 
+The same record is in Studio's `GET /api/device` as `installed` (`null` when there is none). It is stored as
+`installed.json` in the device's lease directory, with an `installed` event in its `events.log`, and carries a
+`via` field: `cli` for command-line installs, `studio` for installs from Studio's Builds page. It never holds
+the device password, the hub token, any hash of either, or the lease id.
+
 Read it before you trust a failing flow. If the build on screen is another worktree's, your flow is testing
 the wrong app.
 
