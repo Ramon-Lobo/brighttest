@@ -1,7 +1,10 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
   import { api } from './api.js';
-  import { rowsOf } from './rows.js';
+  import StateTree from './StateTree.svelte';
+  import StateSearch from './StateSearch.svelte';
+  import Marked from './Marked.svelte';
+  import { createStateSearch } from './statesearch.svelte.js';
   import AppState from './AppState.svelte';
   import { studio } from './store.svelte.js';
 
@@ -27,10 +30,14 @@
   let diff = $state(null);
   let timer = null;
   let alive = true;
+  const search = createStateSearch();
+  let trees = $state({});          // layer name -> StateTree instance (collapse all / expand all)
 
   const say = (m, bad = false) => { msg = m; err = bad; };
   const failMsg = (r) => `${r.code || r.status}: ${r.error || 'request failed'}`;
   const fmt = (v, t) => (t === 'string' ? `"${v}"` : String(v));
+  const layerNames = $derived(layers ? Object.keys(layers) : []);
+  $effect(() => { search.setOrder(layerNames); });
   const yamlVal = (v, t) => (t === 'string' ? JSON.stringify(v) : String(v));
   const stamp = () => new Date().toTimeString().slice(0, 8);
   const layers = $derived(info && info.layers && typeof info.layers === 'object' ? info.layers : null);
@@ -39,7 +46,7 @@
   const cmdById = $derived(Object.fromEntries(((info && info.commands) || []).map((c) => [c.id, c])));
   const pending = $derived(Object.values(chips).some((c) => c.status === 'pending'));
   // Registry values are written one <section>.<key> at a time, so only depth 1 is editable; a structured value is read only.
-  const editable = (layer, r) => EDITABLE.includes(layer) && !(r.type === 'string' && PLACEHOLDER.test(r.value)) && (layer !== 'registry' || r.depth === 1);
+  const editable = (layer, r) => EDITABLE.includes(layer) && !(r.type === 'string' && PLACEHOLDER.test(r.value)) && (layer !== 'registry' || r.depth === 1) && r.kind !== 'node';
 
   function gate(r) {
     if (r.status === 423) { st = 'locked'; return false; }
@@ -194,38 +201,37 @@
   {#if msg}<p class="msg" class:err>{msg}</p>{/if}
 
   {#if layers}
-    {#each Object.keys(layers) as name}
+    <StateSearch s={search} oncollapse={() => layerNames.forEach((n) => trees[n]?.collapseEvery())} onexpand={() => layerNames.forEach((n) => trees[n]?.expandEvery())} />
+    {#each layerNames as name}
       <h4 class="layer">{name}{#if layers[name].truncated && layers[name].truncated.length}<span class="trunc" title={layers[name].truncated.join(', ')}> truncated ({layers[name].truncated.length})</span>{/if}</h4>
-      <dl class="rows">
-        {#each rowsOf(layers[name].state) as r}
-          <div class="row" style="padding-left: {r.depth * 14}px">
-            <dt>{r.key}</dt>
-            {#if r.branch}
-              <dd class="badge">{r.badge}</dd>
-            {:else if editing && editing.layer === name && editing.path === r.path}
-              <input class="f ed" bind:value={editing.text}
-                onkeydown={(e) => { if (e.key === 'Enter') commit(); else if (e.key === 'Escape') editing = null; }} />
-              <button onclick={commit}>set</button>
-            {:else}
-              <dd class="valwrap">
-                {#if hubUp && editable(name, r)}
-                  <button class="val {r.type} edit" title="click to edit" onclick={() => startEdit(name, r)}>{fmt(r.value, r.type)}</button>
-                {:else}
-                  <span class="val {r.type}" title={!EDITABLE.includes(name) ? 'read only layer' : !hubUp ? 'waiting for the hub' : r.type === 'string' && PLACEHOLDER.test(r.value) ? 'masked field: not a real value, cannot be edited' : name === 'registry' && r.depth !== 1 ? 'edit the whole registry value, not a part of it' : 'read only'}>{fmt(r.value, r.type)}</span>
-                {/if}
-              </dd>
-              {#if chips[`${name}.${r.path}`]}
-                {@const c = chips[`${name}.${r.path}`]}
-                <span class="chip {chipClass(c)}" title={c.error || ''}>{chipText(c)}</span>
-                {#if onadd && c.step}<button class="add on" title="add this edit to the flow" onclick={() => onadd(c.step)}>+ setState step</button>{/if}
-              {:else if onadd}
-                <button class="add" title="add assertState to flow"
-                  onclick={() => onadd(`- assertState: { layer: ${name}, path: ${r.path}, equals: ${yamlVal(r.value, r.type)} }`)}>+</button>
-              {/if}
-            {/if}
-          </div>
-        {/each}
-      </dl>
+      {#snippet cell(r, sr)}
+        {#if r.kind === 'node'}
+          <span class="val node" title="a node reference">→ #{r.id}</span>
+        {:else if editing && editing.layer === name && editing.path === r.path}
+          <input class="f ed" bind:value={editing.text}
+            onkeydown={(e) => { if (e.key === 'Enter') commit(); else if (e.key === 'Escape') editing = null; }} />
+          <button onclick={commit}>set</button>
+        {:else if hubUp && editable(name, r)}
+          <button class="val {r.type} edit" title="click to edit" onclick={() => startEdit(name, r)}>{#if r.type === 'string'}"<Marked text={r.value} search={sr} />"{:else}<Marked text={String(r.value)} search={sr} />{/if}</button>
+        {:else}
+          <span class="val {r.type}" title={!EDITABLE.includes(name) ? 'read only layer' : !hubUp ? 'waiting for the hub' : r.type === 'string' && PLACEHOLDER.test(r.value) ? 'masked field: not a real value, cannot be edited' : name === 'registry' && r.depth !== 1 ? 'edit the whole registry value, not a part of it' : 'read only'}>{#if r.type === 'string'}"<Marked text={r.value} search={sr} />"{:else}<Marked text={String(r.value)} search={sr} />{/if}</span>
+        {/if}
+      {/snippet}
+      {#snippet actions(r)}
+        {#if !r.branch && !(editing && editing.layer === name && editing.path === r.path)}
+          {#if chips[`${name}.${r.path}`]}
+            {@const c = chips[`${name}.${r.path}`]}
+            <span class="chip {chipClass(c)}" title={c.error || ''}>{chipText(c)}</span>
+            {#if onadd && c.step}<button class="add on" title="add this edit to the flow" onclick={() => onadd(c.step)}>+ setState step</button>{/if}
+          {:else if onadd}
+            <button class="add" title="add assertState to flow"
+              onclick={() => onadd(`- assertState: { layer: ${name}, path: ${r.path}, equals: ${yamlVal(r.value, r.type)} }`)}>+</button>
+          {/if}
+        {/if}
+      {/snippet}
+      <StateTree bind:this={trees[name]} value={layers[name].state} storageKey={`state:${name}`} surface="state"
+        search={search.searchFor(name)} onmatches={(m) => search.report(name, m)}
+        editing={editing && editing.layer === name ? editing.path : null} {cell} {actions} />
     {/each}
   {:else}
     <p class="empty err">{info.agentReadFailed ? (info.agentCode === 'SIM_NOT_CONNECTED' ? `${info.agentError}.` : studio.device?.target === 'simulator' ? `Simulator read failed, retrying (${info.agentError}).` : `Device read failed, retrying (${info.agentError}).`) : info.agentError ? `Agent state is unreadable: ${info.agentError}` : 'No agent layers published by the app.'}</p>
@@ -277,23 +283,18 @@
   button, .btn { background: #10131c; border: 1px solid var(--color-line); border-radius: 6px; cursor: pointer; color: #b7c0ff; font-family: var(--font-mono); font-size: 12px; padding: 3px 8px; }
   button:hover, .btn:hover { border-color: var(--color-violet); }
   button.on { border-color: var(--color-amber); color: var(--color-amber); }
-  .rows { margin: 0; display: grid; gap: 1px; }
-  .row { display: grid; grid-template-columns: 1fr auto auto auto; align-items: baseline; gap: 10px; padding: 3px 0; border-top: 1px solid var(--color-line); }
-  dt { color: var(--color-haze); font-size: 12px; font-family: var(--font-mono); }
-  dd { margin: 0; font-size: 12px; font-family: var(--font-mono); word-break: break-word; text-align: right; }
-  .valwrap { display: inline-flex; justify-content: flex-end; }
   button.val { background: none; border: none; padding: 0; font: inherit; }
   .val.edit { cursor: text; }
   .val.edit:hover { text-decoration: underline dotted; }
   .trunc { color: var(--color-amber); font-weight: normal; }
-  .ed { grid-column: 2 / 4; }
+  .ed { width: 160px; flex: none; }
+  .val.node { color: var(--color-violet); }
   .layer { margin: 10px 0 4px; font-size: 12px; font-family: var(--font-mono); color: var(--color-violet); }
-  .badge { color: var(--color-haze); opacity: .7; }
   .val.string { color: #9ece6a; } .val.number { color: #ff9e64; } .val.boolean { color: var(--color-violet); } .val.null { color: var(--color-haze); }
   .chip { font-size: 11px; font-family: var(--font-mono); border: 1px solid var(--color-line); border-radius: 10px; padding: 0 7px; }
   .ok { color: #9ece6a; } .bad { color: var(--color-amber); } .pend { color: var(--color-haze); }
   .add { opacity: 0; transition: opacity .12s; padding: 2px 7px; }
-  .add.on, .row:hover .add { opacity: 1; }
+  .add.on { opacity: 1; }
   .snap { display: flex; gap: 6px; align-items: center; padding: 2px 0; border-top: 1px solid var(--color-line); }
   .snap .nm { flex: 1; font-family: var(--font-mono); font-size: 12px; }
   .drow { font-size: 12px; font-family: var(--font-mono); padding: 2px 0; border-top: 1px solid var(--color-line); word-break: break-word; }

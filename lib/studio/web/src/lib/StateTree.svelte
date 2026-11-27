@@ -1,7 +1,17 @@
+<script module>
+  const persisters = new WeakMap();
+  const noStorage = { getItem: () => null, setItem() {} };
+  function sharedPersister(storage) {
+    const st = storage || noStorage;
+    if (!persisters.has(st)) persisters.set(st, createPersister(st));
+    return persisters.get(st);
+  }
+</script>
+
 <script>
   // Shared state tree: key column, indentation, disclosure toggle, count badge, match marks and chunk rows.
   // Callers render the value cell and trailing actions through snippets, so editing and chips stay theirs.
-  import { tick, onDestroy } from 'svelte';
+  import { tick, onDestroy, untrack } from 'svelte';
   import {
     treeRows, restoreModel, createPersister, visible, toggle, setCollapsed, isCollapsed, collapseAll, expandAll,
     showMore, reveal, match, highlight,
@@ -15,9 +25,11 @@
         cell, actions, search = null, onmatches = undefined, editing = null, storage = globalThis.localStorage } = $props();
 
   const rows = $derived(rowsProp || treeRows(value, classify ? { classify } : {}));
+  const byPath = $derived(new Map(rows.map((r) => [r.path, r])));
 
+  // One persister per storage, shared by every tree: separate copies would each write back only their own keys.
   // svelte-ignore state_referenced_locally
-  const persister = createPersister(storage || { getItem: () => null, setItem() {} });
+  const persister = sharedPersister(storage);
   let version = $state(0); // bumped when the (non-reactive) model or chunk map changes
   let model = $state.raw(restoreModel({ keys: {} }, ''));
   let more = $state.raw({});
@@ -37,12 +49,12 @@
     if (!found || !found.keep) return null;
     const k = new Set(found.keep);
     if (editing != null) {
-      const byPath = new Map(rows.map((r) => [r.path, r]));
       for (let r = byPath.get(editing); r; r = byPath.get(r.parent)) k.add(r.path);
     }
     return k;
   });
 
+  const matchSet = $derived(new Set(found ? found.matches : []));
   const shown = $derived.by(() => { version; return visible(rows, model, { more, keep }); });
   const items = $derived(shown.filter((r) => !r.more));
 
@@ -61,12 +73,20 @@
   export function collapseEvery() { collapseAll(rows, model); persist(); }
   export function expandEvery() { expandAll(rows, model); persist(); }
 
-  // Keep the current match by path across refreshes: jump when the caller names one.
-  $effect(() => { if (search && search.current && rows.some((r) => r.path === search.current)) goto(search.current); });
+  // Jump to the match the caller names (next/prev, or the first match of a new query).
+  // untracked: goto reads and writes the model, which must not re-trigger this effect. It jumps once per target and
+  // query: a 2 s refresh keeps the current match by path but must not undo a collapse the user made since.
+  let jumped = '';
+  $effect(() => {
+    const at = search && search.current;
+    const tag = at ? `${search.query}\u0000${search.caseSensitive}\u0000${at}` : '';
+    if (!at) jumped = '';
+    else if (byPath.has(at) && tag !== jumped) { jumped = tag; untrack(() => goto(at)); }
+  });
 
   const tabPath = $derived(items.some((r) => r.path === focusPath) ? focusPath : items[0]?.path);
   const posOf = (row) => Math.min(row.idx + 1, 1e9);
-  const sizeOf = (row) => (row.parent === '' ? rows.rootCount : rows.find((r) => r.path === row.parent)?.count);
+  const sizeOf = (row) => (row.parent === '' ? rows.rootCount : byPath.get(row.parent)?.count);
 
   function focusRow(path) {
     focusPath = path;
@@ -106,7 +126,7 @@
         </button>
       </div>
     {:else}
-      <div class="row" class:match={found && found.matches.includes(row.path)} role="treeitem"
+      <div class="row" class:match={matchSet.has(row.path)} class:current={!!search && search.current === row.path} role="treeitem"
         data-testid="state-row" data-path={row.path} aria-level={row.depth + 1}
         aria-expanded={row.branch ? !isCollapsed(row, model) : undefined}
         aria-setsize={sizeOf(row)} aria-posinset={posOf(row)} aria-selected={focusPath === row.path}
@@ -133,9 +153,12 @@
   .row { display: flex; align-items: center; gap: 6px; padding-top: 2px; padding-bottom: 2px; font-size: 12px; }
   .row:focus-visible { outline: 1px solid var(--accent, #4a9eff); outline-offset: -1px; }
   .row.match { background: rgba(255, 210, 0, 0.12); }
+  .row.current { background: rgba(255, 210, 0, 0.28); outline: 1px solid rgba(255, 210, 0, 0.6); outline-offset: -1px; }
+  .row:hover :global(.add), .row:focus-within :global(.add) { opacity: 1; }
+  .act { display: inline-flex; gap: 6px; align-items: center; }
   .tog { width: 14px; flex: none; background: none; border: 0; padding: 0; color: inherit; cursor: pointer; }
   .key { font-family: ui-monospace, monospace; }
   .badge { opacity: 0.6; font-size: 11px; }
-  .val { flex: 1; min-width: 0; }
+  .val { flex: 1; min-width: 0; text-align: right; word-break: break-word; font-family: ui-monospace, monospace; }
   mark { background: rgba(255, 210, 0, 0.45); color: inherit; border-radius: 2px; }
 </style>
