@@ -37,15 +37,17 @@ function safeJson(obj) {
     .replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029')
 }
 
+// filePath is the source file when it differs from the routed relativePath (two-tier docs rewrites); the
+// canonical URL always uses the routed relativePath.
 // Returns VitePress head entries for one page, or [] when the page has nothing to describe.
-function seoHead({ repoRoot, srcDir, relativePath, base, origin, title, description, lastUpdated, siteTitle, siteDescription }) {
+function seoHead({ repoRoot, srcDir, relativePath, filePath, base, origin, title, description, lastUpdated, siteTitle, siteDescription }) {
   const info = projectInfo(repoRoot)
   const url = pageUrl(origin, base, relativePath)
   const isHome = relativePath === 'index.md'
   let desc = plain(description)
   if (!desc) {
     try {
-      const src = fs.readFileSync(path.join(srcDir, relativePath), 'utf8')
+      const src = fs.readFileSync(path.join(srcDir, filePath || relativePath), 'utf8')
       desc = clip(firstParagraph(splitFrontmatter(src).body))
     } catch { /* fall through to the site description */ }
   }

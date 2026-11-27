@@ -44,7 +44,7 @@ describe('built agent-readable docs', () => {
   let out
   let sources
   const walk = (d, rel = '') => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => {
-    if (['node_modules', '.vitepress', 'public'].includes(e.name)) return []
+    if (['node_modules', '.vitepress', 'public'].includes(e.name) || (!rel && e.name === 'lite')) return []
     const r = rel ? `${rel}/${e.name}` : e.name
     return e.isDirectory() ? walk(path.join(d, e.name), r) : e.name.endsWith('.md') ? [r] : []
   })
@@ -149,4 +149,94 @@ describe('next channel', () => {
       expect(fs.readFileSync(path.join(out, 'guide', 'studio.html'), 'utf8')).not.toContain('text/markdown')
     } finally { fs.rmSync(out, { recursive: true, force: true }) }
   }, 180000)
+})
+
+// Two-tier docs (ADR 0061): a fixture copy of the docs with two throwaway lite pages. Lite pages are served at the
+// usual URLs, the full page at /full/, twins carry the full text, and every HTML page points at the full twin.
+describe('built two-tier docs (fixture)', () => {
+  let root
+  let out
+  const read = (...p) => fs.readFileSync(path.join(out, ...p), 'utf8')
+  const exists = (...p) => fs.existsSync(path.join(out, ...p))
+
+  beforeAll(() => {
+    root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'docs-tier-fixture-'))) // real path: VitePress resolves links by path, a symlinked tmp dir breaks them
+    out = path.join(root, 'dist')
+    fs.symlinkSync(path.join(ROOT, 'scripts'), path.join(root, 'scripts'))
+    fs.symlinkSync(path.join(ROOT, 'node_modules'), path.join(root, 'node_modules'))
+    fs.copyFileSync(path.join(ROOT, 'package.json'), path.join(root, 'package.json'))
+    fs.cpSync(DOCS, path.join(root, 'docs'), { recursive: true, filter: (s) => !/\.vitepress[\\/](\.temp|cache|dist)/.test(s) })
+    const lite = (rel, body) => {
+      const f = path.join(root, 'docs', 'lite', ...rel.split('/'))
+      fs.mkdirSync(path.dirname(f), { recursive: true })
+      fs.writeFileSync(f, body)
+    }
+    lite('guide/instrument.md', '# Instrumented builds (short)\n\nLITE-ONLY-MARKER paragraph for the fixture tier page.\n\n[Lease](./device-lease) and [adopting](/guide/adopting).\n\n**Full guide:** [Instrumented builds](full:/guide/instrument)\n')
+    lite('guide/device-lease.md', '# Device lease (short)\n\nLite page.\n\n**Full guide:** [Device lease](full:/guide/device-lease)\n')
+    lite('guide/assess.md', '# Assess (short)\n\nLite.\n\n**Full guide:** [Assess](full:/guide/assess)\n')
+    lite('cheat-sheet.md', '# Cheat sheet\n\nA lite-only page.\n')
+    const bin = path.join(ROOT, 'node_modules', 'vitepress', 'bin', 'vitepress.js')
+    const r = spawnDocsBuild(process.execPath, [bin, 'build', path.join(root, 'docs'), '--base', BASE, '--outDir', out], {
+      cwd: root, encoding: 'utf8', env: { ...process.env, BRIGHTTEST_DOCS_CHANNEL: 'release', BRIGHTTEST_DOCS_ORIGIN: ORIGIN }, maxBuffer: 64 * 1024 * 1024,
+    })
+    if (r.status !== 0) throw new Error('fixture docs build failed: ' + (r.stderr || r.stdout).split('\n').slice(-12).join('\n'))
+  }, 600000)
+  afterAll(() => { if (root) fs.rmSync(root, { recursive: true, force: true }) })
+
+  test('lite pages at the usual URL, full pages under full/, untiered pages unchanged', () => {
+    expect(read('guide', 'instrument.html')).toContain('LITE-ONLY-MARKER')
+    expect(read('full', 'guide', 'instrument.html')).not.toContain('LITE-ONLY-MARKER')
+    expect(exists('cheat-sheet.html')).toBe(true)
+    expect(exists('full', 'cheat-sheet.html')).toBe(false)
+    expect(exists('changelog.html')).toBe(true)
+    expect(exists('full', 'changelog.html')).toBe(false)
+    expect(exists('lite')).toBe(false)
+  })
+
+  test('twins are the full text at the usual path; none under full/, none for lite-only pages', () => {
+    const twin = read('guide', 'instrument.md')
+    expect(twin).not.toContain('LITE-ONLY-MARKER')
+    expect(twin).toContain(af.splitFrontmatter(fs.readFileSync(path.join(DOCS, 'guide', 'instrument.md'), 'utf8')).body.split(/\r?\n/).find((l) => /^[A-Za-z`*].{40,}/.test(l.trim()) && !/[[\](){}<>:]/.test(l)).trim())
+    expect(exists('full', 'guide', 'instrument.md')).toBe(false)
+    expect(exists('cheat-sheet.md')).toBe(false)
+    expect(exists('lite')).toBe(false)
+  })
+
+  test('llms.txt lists full pages and says so', () => {
+    const txt = read('llms.txt')
+    expect(txt).toContain('These pages are the full documentation')
+    expect(txt).toContain(`${ORIGIN}${BASE}guide/instrument.md)`)
+    expect(txt).not.toMatch(/\]\([^)]*(\/full\/|cheat-sheet|lite\/)/)
+  })
+
+  test('lite and full HTML both point their alternate link at the full twin; lite-only has none', () => {
+    const alt = `<link rel="alternate" type="text/markdown" href="${BASE}guide/instrument.md"`
+    expect(read('guide', 'instrument.html')).toContain(alt)
+    expect(read('full', 'guide', 'instrument.html')).toContain(alt)
+    expect(read('cheat-sheet.html')).not.toContain('rel="alternate" type="text/markdown"')
+  })
+
+  test('canonical is the routed URL of each tier', () => {
+    expect(read('guide', 'instrument.html')).toContain(`<link rel="canonical" href="${ORIGIN}${BASE}guide/instrument"`)
+    expect(read('full', 'guide', 'instrument.html')).toContain(`<link rel="canonical" href="${ORIGIN}${BASE}full/guide/instrument"`)
+  })
+
+  test('the full: scheme resolves to /full/, same tab', () => {
+    const html = read('guide', 'instrument.html')
+    expect(html).toContain(`href="${BASE}full/guide/instrument"`)
+    expect(html).not.toContain('href="full:')
+  })
+
+  test('absolute links inside a full page to a tiered page stay in full/', () => {
+    // docs/guide/assess.md links /guide/instrument#apps-with-... (tiered in this fixture). The nav stays lite.
+    const html = read('full', 'guide', 'assess.html')
+    expect(html).toContain(`href="${BASE}full/guide/instrument#apps-with-their-own-build-step-from"`)
+    expect(html).not.toContain(`href="${BASE}guide/instrument#`)
+  })
+  test('relative links in a full page to a full-only page resolve to the usual URL (no dead /full/ link)', () => {
+    // docs/guide/instrument.md has [..](./examples); examples is not tiered, so it lives at /guide/examples only.
+    const html = read('full', 'guide', 'instrument.html')
+    expect(html).toContain(`href="${BASE}guide/examples"`)
+    expect(html).not.toContain(`href="./examples"`)
+  })
 })

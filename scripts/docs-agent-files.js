@@ -263,7 +263,8 @@ function linkToRel(link) {
 
 /**
  * generate({ srcDir, outDir, base, origin, pages, sidebar, title, description })
- *  pages: source-relative md paths (e.g. "guide/studio.md"). Returns { files, warnings }.
+ *  pages: source-relative md paths (e.g. "guide/studio.md"). tiered: optional list of pages that have a lite
+ *  twin (only changes the llms.txt preamble wording). Returns { files, warnings }.
  */
 function generate(opts) {
   const { srcDir, outDir, pages, sidebar, title, description } = opts
@@ -326,7 +327,11 @@ function generate(opts) {
   if (rest.length) sections.push({ name: 'Optional', rels: rest })
 
   let txt = `# ${title}\n\n> ${description} `
-  txt += 'These pages are the same documentation as the website, one Markdown file per page: add ".md" to a page URL to get its plain-Markdown copy. '
+  if (opts.tiered && opts.tiered.length) {
+    txt += 'These pages are the full documentation. The website shows a shorter version of each page at the same address, with a Full guide link to /full/<path>; add ".md" to either address\'s page path to get this full Markdown copy. '
+  } else {
+    txt += 'These pages are the same documentation as the website, one Markdown file per page: add ".md" to a page URL to get its plain-Markdown copy. '
+  }
   txt += `The Agents section lists the agent skills and the MCP server, and the skills carry the safety rules for using a real device.\n`
   for (const s of sections) {
     txt += `\n## ${s.name}\n\n`

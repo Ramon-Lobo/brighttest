@@ -84,6 +84,8 @@ function normalizeTarget(target, fromDir, pages) {
   if (!t) return null
   t = t.startsWith('/') ? t.slice(1) : path.posix.normalize(path.posix.join(fromDir, t))
   t = t.replace(/\.(md|html)$/, '')
+  // Two-tier docs: /full/<page> is the same page as /<page> (the lite tier lives in docs/lite and is not listed).
+  t = t.replace(/^full(\/|$)/, '')
   if (t === '' || t === '.') t = 'index'
   else if (t.endsWith('/')) t += 'index'
   return pages.has(t) ? t : null

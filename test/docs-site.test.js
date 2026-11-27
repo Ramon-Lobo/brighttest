@@ -388,3 +388,36 @@ setTimeout(() => {}, 60000)
     expect(fs.readFileSync(sum, 'utf8')).toContain('Docs site build plan')
   })
 })
+
+// Two-tier docs (ADR 0061): the pure helpers behind the version switcher, 404 body, badge lookup and tier link.
+describe('two-tier version mapping', async () => {
+  const vc = await import('../docs/.vitepress/theme/versionContext.ts')
+
+  test('a full/ page tries itself, then the plain page (versions without a full tier)', () => {
+    expect(vc.switchCandidates('full/guide/studio')).toEqual(['full/guide/studio', 'guide/studio'])
+    expect(vc.switchCandidates('full/')).toEqual(['full/', ''])
+    expect(vc.switchCandidates('/full/guide/studio')).toEqual(['full/guide/studio', 'guide/studio'])
+  })
+
+  test('a plain or look-alike page has one candidate', () => {
+    expect(vc.switchCandidates('guide/studio')).toEqual(['guide/studio'])
+    expect(vc.switchCandidates('fullness/guide')).toEqual(['fullness/guide'])
+    expect(vc.switchCandidates('')).toEqual([''])
+  })
+
+  test('stripFull', () => {
+    expect(vc.stripFull('full/guide/mcp.md')).toBe('guide/mcp.md')
+    expect(vc.stripFull('guide/mcp.md')).toBe('guide/mcp.md')
+  })
+
+  test('tierLink: lite page -> full, full page -> lite, nothing when untiered or no tiers', () => {
+    const tiered = ['guide/studio.md', 'index.md', 'e2e/index.md']
+    expect(vc.tierLink('guide/studio.md', tiered)).toEqual({ kind: 'to-full', path: 'full/guide/studio' })
+    expect(vc.tierLink('full/guide/studio.md', tiered)).toEqual({ kind: 'to-lite', path: 'guide/studio' })
+    expect(vc.tierLink('index.md', tiered)).toEqual({ kind: 'to-full', path: 'full/' })
+    expect(vc.tierLink('full/e2e/index.md', tiered)).toEqual({ kind: 'to-lite', path: 'e2e/' })
+    expect(vc.tierLink('changelog.md', tiered)).toBeNull()
+    expect(vc.tierLink('guide/studio.md', undefined)).toBeNull()
+    expect(vc.tierLink('guide/studio.md', [])).toBeNull()
+  })
+})
