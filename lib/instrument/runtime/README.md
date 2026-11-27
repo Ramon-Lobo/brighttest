@@ -100,7 +100,7 @@ copies named runtime files only.
     appends { source:"wrap:<fn>", type, payload, hashBefore, hashAfter } to a queue kept as JSON in the global string field
     `__btEv` ({ q: [events], d: dropped }, at most 64 events; the oldest is dropped and counted in `d`). type and payload
     come from the first argument when it is an associative array; the payload is serialized with the configured caps
-    (secret-looking keys are masked). The render-thread agent drains the queue on a `__btEv` change and on every tick,
+    (secret-looking keys and the configured `instrument.state.redact.paths` are masked on the device before the event is emitted: a pattern is matched relative to the payload (`user.token`) or with a `payload.` prefix, like the host). The render-thread agent drains the queue on a `__btEv` change and on every tick,
     and forwards each event to the hub as a `state.action` event; the first drained event carries `dropped` when `d` > 0.
     A missing or malformed `__btEv` (not a string, not an object, no `q` array) is treated as an empty queue, so an emit
     never crashes. Any thread may emit, but the append is a read-modify-write of one field and is not atomic: when a Task

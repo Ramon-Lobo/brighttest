@@ -120,7 +120,9 @@ hub (it starts while Studio holds the device lease), you can also:
 
 Every state route needs the device lease: while another session holds the device they answer `423` and nothing is
 written. Values are **redacted by default**: the agent already masks secret-looking keys with `<redacted:key>`, and Studio
-adds the built-in key names plus `instrument.state.redact.paths` from `brighttest.json`. The **show raw** toggle reveals
+adds the built-in key names plus `instrument.state.redact.paths` from `brighttest.json`. Dispatch payloads of a wrapped
+dispatch are masked with those paths on the device before they are sent, so `?raw=1` no longer shows them (an instrumented
+app must be rebuilt for this). The **show raw** toggle reveals
 only what Studio masks on top of the agent's own masking, behind a banner, and makes exports unredacted. A
 `<redacted:...>` marker is never a real value, so Studio always refuses to write one; restoring a snapshot skips masked
 values and tells you how many. Registry values are edited as a whole `<section>.<key>` value, never a part of one.

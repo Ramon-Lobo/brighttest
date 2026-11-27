@@ -167,6 +167,8 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
 - **Studio:** started through `npx brighttest studio`, Studio now stops within a few seconds when the npm process that
   started it dies from a signal npm cannot forward (SIGKILL, a timeout wrapper), instead of keeping the port and the
   lease. Studio also shuts down cleanly on SIGHUP.
+- **Instrument:** `instrument.state.redact.paths` is now applied on the device to dispatch-payload values of a wrapped
+  dispatch, so those values no longer cross the LAN and `?raw=1` shows the placeholder. Rebuild the instrumented app.
 - **Docs:** the device lease guide, the multi-agent guide and the device-safety skill now give the order of operations: `device lock` presses Home twice, so lock, install, then launch (or `device lock --no-hygiene`), and `e2e run` launches but never installs.
 - **MCP:** the session hub window now works when the MCP server runs inside `brighttest device with`; it no longer fails with `LEASE_LOST` on every call.
 - **Doctor:** `brighttest doctor` now checks the hub port and host from `instrument.hub` in `brighttest.json` (default port 8790), binds that exact port, and reports an invalid `instrument.hub` as a failing `hub-config` check. `--json` adds `hub.portSource` and `hub.hostSource`.

@@ -562,11 +562,23 @@ function BT_dwHash(g as object) as string
     return StrI(ba.GetCRC32(), 16)
 end function
 
+' STA-DEV-REDACT: instrument.state.redact.paths applied to a dispatch payload before it is emitted. The host masks the
+' payload relative to its own root ("user.token") and the event data as a whole ("payload.card.*"), so each pattern is
+' offered both ways: the payload is serialized under the path "payload", so a bare pattern gets that prefix.
+function BT_dwRedactPaths(cfg as dynamic) as dynamic
+    if type(cfg) <> "roAssociativeArray" or type(cfg.redact) <> "roAssociativeArray" or type(cfg.redact.paths) <> "roArray" then return invalid
+    out = []
+    for each pat in cfg.redact.paths
+        if type(pat) = "String" or type(pat) = "roString" then out.push(pat) : out.push("payload." + pat)
+    end for
+    return out
+end function
+
 sub BT_dwEmit(g as object, fn as string, a as dynamic, hb as string)
     d = { source: "wrap:" + fn, hashBefore: hb, hashAfter: BT_dwHash(g) }
     if BT_wKind(a) = "object" then
         d.type = a.type
-        d.payload = BT_serialize(a.payload, BT_capsFrom(BT_config()), "payload", 0, [], invalid)
+        d.payload = BT_serialize(a.payload, BT_capsFrom(BT_config()), "payload", 0, [], BT_dwRedactPaths(BT_config()))
     end if
     q = BT_dwQ(g)
     q.q.push(d)
