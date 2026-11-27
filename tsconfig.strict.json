@@ -1,7 +1,23 @@
 {
-  "//": "Adds strictNullChecks for the files listed below (empty until TS-A1). Run via `npm run typecheck`.",
+  "//": "Adds strictNullChecks for the files listed below (TS-A1 contract modules). Run via `npm run typecheck`.",
   "extends": "./tsconfig.json",
   "compilerOptions": { "strictNullChecks": true },
   "include": [],
-  "files": []
+  "files": [
+    "lib/config.js",
+    "lib/mcp/tools.js",
+    "lib/mcp/net-window.js",
+    "lib/mcp/perf-tools.js",
+    "lib/mcp/server.js",
+    "lib/mcp/state-tools.js",
+    "lib/device-hook.js",
+    "lib/instrument/events.js",
+    "lib/device-lease.js",
+    "types/config.d.ts",
+    "types/mcp.d.ts",
+    "types/hook.d.ts",
+    "types/lease.d.ts",
+    "types/hub-events.d.ts",
+    "test/types/contracts.check.ts"
+  ]
 }
