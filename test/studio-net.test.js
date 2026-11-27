@@ -140,6 +140,16 @@ describe('/api/net/requests', () => {
     expect(r.json.lastHelloAt).toBeNull()
   })
 
+  it('splits hellos into agentHellos + netHellos so the total is not mistaken for /api/state hellos', async () => {
+    server.close()
+    const hello = () => ({ hellos: 4, agentHellos: 2, netHellos: 2, lastHelloAt: 5 })
+    server = await studio.start({ host: '127.0.0.1', password: 'rokudev-test', port: 0, rootDir: dir, net: { proxy: harness.proxy, events: bus, log, hello },
+      leaseOpts: { acquireOpts: { dir, timers: false, identity: {} }, tickMs: 20 } })
+    port = server.address().port
+    const r = await req('GET', '/api/net/requests')
+    expect(r.json).toMatchObject({ hellos: 4, agentHellos: 2, netHellos: 2, lastHelloAt: 5 })
+  })
+
   it('bounds the list with limit', async () => {
     for (let i = 0; i < 3; i++) await request(harness.base + `https://api.example.test/v1/n${i}`)
     const r = await req('GET', '/api/net/requests?limit=2')
