@@ -7,7 +7,7 @@
   import { stackOrder, setState, describeTile, sameBox } from './layout.js';
   import { metrics, isNarrow, pastThreshold, dragPreview, stepTile, keyStep } from './drag.js';
 
-  let { layout, registry, oncommit, content } = $props();
+  let { layout, registry, oncommit, content, label = 'Inspect layout', gridTestid = 'layout-grid', liveTestid = 'layout-live', gridId = undefined } = $props();
 
   let gridEl;
   let narrow = $state(false);
@@ -127,7 +127,7 @@
   }
 </script>
 
-<div class="grid" class:narrow class:dragging={drag?.active} role="group" aria-label="Inspect layout" data-testid="layout-grid" tabindex="-1" bind:this={gridEl}>
+<div class="grid" class:narrow class:dragging={drag?.active} role="group" id={gridId} aria-label={label} data-testid={gridTestid} tabindex="-1" bind:this={gridEl}>
   {#if narrow}
     <p class="note" data-testid="layout-narrow-note" role="note">Single-column view: moving and resizing are off because the window is narrow. Widen it to arrange tiles.</p>
   {:else}
@@ -158,7 +158,7 @@
     {specOf(drag.id).title}
   </div>
 {/if}
-<div class="sr" data-testid="layout-live" role="status" aria-live="polite">{live}</div>
+<div class="sr" data-testid={liveTestid} role="status" aria-live="polite">{live}</div>
 
 <style>
   .grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-auto-rows: 32px; gap: 12px; align-items: stretch; }

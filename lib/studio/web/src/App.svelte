@@ -394,9 +394,9 @@
         <button class="run stop chip" data-testid="header-run-stop" aria-label="Stop run" onclick={stopRun} disabled={stopping || !runId} title="Stop the run (Cmd/Ctrl+.)">{stopping ? 'Stopping…' : 'Running · Stop ■'}</button>
       {/if}
       <div class="tilesmenu">
-        <button class="ghost" data-testid="tiles-menu" aria-haspopup="true" aria-expanded={tilesOpen} onclick={() => { tilesOpen = !tilesOpen; pending = null; }}>Tiles ▾</button>
+        <button class="ghost" data-testid="tiles-menu" id="tiles-menu-button" aria-haspopup="true" aria-controls="inspect-tile-grid" aria-expanded={tilesOpen} onclick={() => { tilesOpen = !tilesOpen; pending = null; }}>Tiles ▾</button>
         {#if tilesOpen}
-          <div class="tileslist" data-testid="tiles-menu-list" role="group" aria-label="Tiles">
+          <div class="tileslist" data-testid="tiles-menu-list" role="group" aria-labelledby="tiles-menu-button">
             {#each Object.keys(inspectRegistry.tiles) as id}
               {@const t = studio.layout.find((o) => o.id === id)}
               {#if t}
@@ -462,7 +462,7 @@
       <!-- Inspect stays mounted (hidden when inactive) so the editor keeps its state -->
       <div class="inspect" data-testid="page-inspect" class:hidden={studio.page !== 'inspect'}>
         <div class="work">
-          <TileGrid layout={studio.layout} registry={inspectRegistry} oncommit={commitLayout}>
+          <TileGrid layout={studio.layout} registry={inspectRegistry} oncommit={commitLayout} gridId="inspect-tile-grid">
             {#snippet content(id)}
               {#if id === 'flow'}
                 <section class="editorcol" style="grid-template-columns: {treeOpen ? '196px 1fr' : '1fr'}">

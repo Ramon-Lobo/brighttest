@@ -96,7 +96,7 @@ describe.skipIf(!chrome || !built)('Studio Record tile grid (headless Chrome)', 
       await cdp('Page.navigate', { url: base })
       await until(q('nav-record'), 'the nav')
       await click('nav-record')
-      await until(`${q('page-record')} && ${q('page-record')}.querySelector('[data-testid="layout-grid"]')`, 'the Record grid')
+      await until(`${q('page-record')} && ${q('page-record')}.querySelector('[data-testid="record-layout-grid"]')`, 'the Record grid')
       await sleep(800)
       for (const t of ['rec-monitor', 'rec-remote', 'rec-steps']) expect(await js(`!!${q('tile-' + t)}`), t).toBe(true)
       expect(await js(`!!${q('record-start')} && !!${q('record-doc')}`)).toBe(true)
@@ -109,7 +109,7 @@ describe.skipIf(!chrome || !built)('Studio Record tile grid (headless Chrome)', 
       await key('ArrowLeft', 'ArrowLeft', 37, 8) // shift: narrower
       let now = await saved()
       expect(now['rec-steps']).toMatchObject({ x: 7, w: 4 })
-      expect(await js(`${rq('layout-live')}.textContent`)).toContain('Recording tile, column')
+      expect(await js(`${rq('record-layout-live')}.textContent`)).toContain('Recording tile, column')
       await key('ArrowRight', 'ArrowRight', 39) // move right one cell
       now = await saved()
       expect(now['rec-steps']).toMatchObject({ x: 8, w: 4 })
@@ -134,9 +134,9 @@ describe.skipIf(!chrome || !built)('Studio Record tile grid (headless Chrome)', 
 
       // Narrow: one column, no resize grips, saved layout unchanged.
       await cdp('Emulation.setDeviceMetricsOverride', { width: 900, height: 1400, deviceScaleFactor: 1, mobile: false })
-      await until(`${q('page-record')}.querySelector('[data-testid="layout-grid"]').classList.contains('narrow')`, 'narrow mode')
+      await until(`${q('page-record')}.querySelector('[data-testid="record-layout-grid"]').classList.contains('narrow')`, 'narrow mode')
       expect(await js(`${q('tile-rec-monitor-handle')}.disabled`)).toBe(true)
-      expect(await js(`getComputedStyle(${q('page-record')}.querySelector('[data-testid="layout-grid"]')).gridTemplateColumns.split(' ').length`)).toBe(1)
+      expect(await js(`getComputedStyle(${q('page-record')}.querySelector('[data-testid="record-layout-grid"]')).gridTemplateColumns.split(' ').length`)).toBe(1)
       await shot('03-record-narrow-900.png')
       expect((await saved())['rec-steps']).toMatchObject({ x: 7, w: 5 })
     } finally {

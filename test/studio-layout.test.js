@@ -178,6 +178,13 @@ describe('studio layout engine', () => {
     expect(L.save({ setItem() { throw new Error('quota') } }, 'k', l, R)).toBe(false)
   })
 
+  it('load drops unknown tile ids even when the registry version matches', async () => {
+    const L = await load(); const R = mini()
+    const tiles = [...L.defaultLayout(R), { id: 'gone', x: 0, y: 20, w: 4, h: 3, state: 'open' }]
+    const st = fake({ k: JSON.stringify({ v: 2, reg: 1, tiles }) })
+    expect(L.load(st, 'k', R).map((t) => t.id).sort()).toEqual(['a', 'b', 'c'])
+  })
+
   it('v1 documents migrate to v2 on load without moving a tile, and are re-saved as v2', async () => {
     const L = await load(); const R = mini()
     const moved = L.move(L.defaultLayout(R), 'a', 6, 0, R)
