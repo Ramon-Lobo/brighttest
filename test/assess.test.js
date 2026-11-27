@@ -173,7 +173,7 @@ describe('assess: --json shape (brighttest-assess/v1)', () => {
     expect(r.schema).toBe('brighttest-assess/v1')
     for (const k of ['cliVersion', 'root', 'host', 'project', 'brighttest', 'census', 'secrets', 'risky', 'ci', 'gitignore', 'devices', 'recommendation']) expect(r).toHaveProperty(k)
     expect(keys(r.host)).toEqual(['node', 'nodeOk', 'nodeRequired', 'platform'])
-    expect(keys(r.project)).toEqual(['bsconfig', 'dirs', 'files', 'isRokuApp', 'language', 'manifest', 'manifestKeys', 'packageManagerDeps', 'rooibos', 'ropm'])
+    expect(keys(r.project)).toEqual(['bsconfig', 'buildStep', 'dirs', 'files', 'isRokuApp', 'language', 'manifest', 'manifestKeys', 'packageManagerDeps', 'rooibos', 'ropm'])
     expect(keys(r.project.bsconfig)).toEqual(['bsConstOverride', 'file', 'files', 'mapping', 'plugins', 'present', 'rootDir', 'unsupported'])
     expect(keys(r.project.rooibos)).toEqual(['brsAnnotated', 'present', 'specFiles', 'specsOutsideSource'])
     expect(keys(r.project.files)).toEqual(['brs', 'bs', 'bytes', 'truncated', 'xml'])
@@ -800,5 +800,33 @@ describe('ADOPT-27 follow-ups: safe reads in assess', () => {
       expect(String(j.census.error || '')).toContain('.env')
       expect(j.scans.risky.files).toBeGreaterThanOrEqual(2)
     } finally { fs.rmSync(d, { recursive: true, force: true }) }
+  })
+})
+
+describe('FR-BUILD-FROM: build-step advisory', () => {
+  const mk = (files) => {
+    for (const [rel, t] of Object.entries(files)) { fs.mkdirSync(path.dirname(path.join(tmp, rel)), { recursive: true }); fs.writeFileSync(path.join(tmp, rel), t) }
+    return tmp
+  }
+  const BASE = { manifest: 'title=t\nmajor_version=1\n', 'source/main.brs': 'sub main()\nend sub\n' }
+  test('packaging scripts in package.json print a --from line and leave the exit code alone', async () => {
+    const dir = mk({ ...BASE, 'package.json': JSON.stringify({ scripts: { build: 'x', test: 'y', 'package:zip': 'z' } }) })
+    const r = await run([dir])
+    expect(r.code).toBe(0)
+    expect(r.out).toMatch(/build:\s+this app may have its own build step.*instrument build --from.*scripts: build, package:zip/)
+    const j = await json(dir)
+    expect(j.project.buildStep).toEqual({ scripts: ['build', 'package:zip'], placeholders: [], advise: true })
+  })
+  test('placeholder tokens in the manifest or config are detected', async () => {
+    const dir = mk({ ...BASE, manifest: 'title={{APP_TITLE}}\nmajor_version=1\n', 'brighttest.json': '{"x":"__API_HOST__"}' })
+    const j = await json(dir)
+    expect(j.project.buildStep.placeholders).toEqual(['brighttest.json', 'manifest'])
+    expect((await run([dir])).out).toMatch(/placeholder tokens in: brighttest.json, manifest/)
+    expect(assess.renderMarkdown(j)).toMatch(/## Build step/)
+  })
+  test('no advisory for a plain app', async () => {
+    const dir = mk({ ...BASE, 'package.json': JSON.stringify({ scripts: { test: 'x', rebuild: 'y' } }) })
+    expect((await json(dir)).project.buildStep.advise).toBe(false)
+    expect((await run([dir])).out).not.toMatch(/own build step/)
   })
 })

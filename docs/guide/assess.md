@@ -65,6 +65,10 @@ Host, project, bsconfig, manifest, engines, census, CI, `.gitignore`, devices, r
 `bsconfig` and `manifestKeys`), `brighttest` (config and `engines`), `census`, `secrets`, `risky`, `scans`, `ci`,
 `gitignore`, `devices`, `recommendation` (`path`, `editPermission`, `blockers`, `nextSteps`, `unknowns`) and `scan`.
 
+- `project.buildStep` (`scripts`, `placeholders`, `advise`): `package.json` scripts named `build`, `package` or `bundle`
+  (with `pre`/`post` or a `:suffix`) and `{{NAME}}` / `__NAME__` tokens in the manifest or tool config. When `advise` is true the
+  human report prints a `build:` line recommending `instrument build --from <dir|zip>`
+  (see [Apps with their own build step](/guide/instrument#apps-with-their-own-build-step-from)). Advisory only; the exit code is unchanged.
 - `recommendation.path`: `not-a-roku-app` without a manifest (when folders below the root hold a `manifest` plus a `source/` or
   `src/` tree, a blocker and the first next step name up to 5 of them: run assess from one, or set `rootDir`); `greenfield` with a manifest, fewer than 5 components and
   no spec files; otherwise `brownfield`.
