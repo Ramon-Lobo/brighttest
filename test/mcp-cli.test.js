@@ -13,6 +13,20 @@ describe('brighttest mcp (CLI)', () => {
     for (const t of ['list_devices', 'device_doctor', 'inspect_tree', 'press', 'navigate_to', 'screenshot', 'app_state', 'run_flow', 'net_requests', 'net_mock']) expect(r.stdout).toContain(t)
     expect(r.stdout).toContain('net window')
   })
+  it('--help lists exactly the tools tools/list returns', () => {
+    const r = spawnSync('node', [cli, 'mcp', '--help'], { encoding: 'utf8', timeout: 20000 })
+    const { TOOLS } = require('../lib/mcp/tools')
+    const line = r.stdout.split('\n').find((l) => l.includes('list_devices'))
+    expect(line.split(',').map((x) => x.trim())).toEqual(TOOLS.map((t) => t.name))
+    for (const t of ['app_state_get', 'app_state_set', 'app_state_snapshot']) expect(r.stdout).toContain(t)
+  })
+  it('a closed stdout reader (EPIPE) exits 0 without a stack trace', () => {
+    // `true` exits at once, so the CLI's first write hits a closed pipe; capture the CLI's stderr and its status.
+    const r = spawnSync('sh', ['-c', `node ${JSON.stringify(cli)} skills list 2>&1 >/dev/null | cat >/dev/null; exit 0`], { encoding: 'utf8', timeout: 20000 })
+    expect(r.status).toBe(0)
+    const err = spawnSync('sh', ['-c', `(node ${JSON.stringify(cli)} skills list 2>&3 | true; exit 0) 3>&1 1>/dev/null`], { encoding: 'utf8', timeout: 20000 })
+    expect(err.stderr + err.stdout).not.toMatch(/EPIPE|Unhandled 'error'/)
+  })
   it('rejects arguments with exit 2', () => {
     expect(spawnSync('node', [cli, 'mcp', '--host', 'x'], { encoding: 'utf8', timeout: 20000 }).status).toBe(2)
   })
