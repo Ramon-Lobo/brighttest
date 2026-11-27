@@ -13,13 +13,13 @@ const ALLOWED = [
   {
     id: 'GHSA-vcc3-ghjq-m6fr',
     pkg: 'decode-uri-component',
-    reason: 'DoS on malformed percent-encoded input, reached only through source-map resolution in brs-node > nanomatch > snapdragon > source-map-resolve. The only patched release (0.5.1) is ESM-only, so forcing it breaks the CommonJS caller (source-map-resolve calls require() as a function).',
+    reason: 'DoS on malformed percent-encoded input (decode-uri-component < 0.5.0). The package is installed (declared transitively by both brs-node packages via nanomatch > snapdragon > source-map-resolve) but never loaded: both engines bundle nanomatch/snapdragon/source-map-resolve inline and use Node\'s built-in decoder, so the vulnerable code is not executed. Not overridden because the patched 0.5.x is ESM-only and forcing it makes the only CommonJS caller (source-map-resolve) throw a TypeError. Dependabot alerts are dismissed as not used.',
     review: '2026-12-31',
   },
   {
     id: 'GHSA-qr28-fpjm-wq7f',
     pkg: 'decode-uri-component',
-    reason: 'Same package and path as GHSA-vcc3-ghjq-m6fr (quadratic replacement of percent-encoded runs).',
+    reason: 'Same package and status as GHSA-vcc3-ghjq-m6fr (GHSA-qr28-fpjm-wq7f, quadratic replacement of percent-encoded runs; patched 0.5.1): installed but never loaded, and the patched ESM-only release would break source-map-resolve.',
     review: '2026-12-31',
   },
 ]
