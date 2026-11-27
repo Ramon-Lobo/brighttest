@@ -15,15 +15,16 @@ const { createFakeRoku } = require('./fixtures/fake-roku/server.js')
 // Studio and the device lease, with a fake clock and a temp lease dir. Other holders are simulated with
 // leases taken in-process under a different (live) PID.
 let dir, clock, logs
+let realWait = false // true: a queued acquire waits in real time (its sleep does not advance the fake clock)
 const cfg = { deviceLease: { studioIdle: '10s', studioYield: '5s', wait: '30s' } }
-const seams = () => ({ dir, now: () => clock.t, sleep: async (ms) => { clock.t += ms; await new Promise((r) => setImmediate(r)) }, timers: false, identity: {} })
+const seams = () => ({ dir, now: () => clock.t, sleep: async (ms) => { if (realWait) { await new Promise((r) => setTimeout(r, Math.min(ms, 20))); return } clock.t += ms; await new Promise((r) => setImmediate(r)) }, timers: false, identity: {} })
 const other = (extra = {}) => lease.acquire({ ...seams(), key: '127.0.0.1', agent: 'device-qa#1', purpose: 'e2e run', pid: process.ppid, waitMs: 0, exitOnLost: false, ...extra })
 const env = () => ({ BRIGHTTEST_LEASE_DIR: dir })
 const made = [] // every StudioLease a test creates, stopped before the temp dir is removed
 const track = (s) => { made.push(s); return s }
 const mk = () => track(new StudioLease({ host: '127.0.0.1', cfg, env: env(), now: () => clock.t, log: (s) => logs.push(s), acquireOpts: seams() }))
 
-beforeEach(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-studio-lease-')); clock = { t: Date.now() }; logs = []; made.length = 0 })
+beforeEach(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-studio-lease-')); clock = { t: Date.now() }; logs = []; realWait = false; made.length = 0 })
 afterEach(async () => {
   for (const s of made.splice(0)) { try { s.cancel() } catch {} try { s.release('test cleanup') } catch {} }
   await new Promise((r) => setTimeout(r, 50)) // let in-flight lease writes land before the dir goes
@@ -233,6 +234,51 @@ describe('Studio server and the lease', () => {
     expect(lease.status({ dir, key: key() })[0].holder).toBeNull()
     expect((await req('GET', '/api/tree')).status).toBe(423) // released from the UI: polls pause
     expect((await req('POST', '/api/lease', { action: 'nope' })).status).toBe(400)
+  })
+
+  it('POST /api/lease acquire with wait answers 200 once the holder releases', async () => {
+    realWait = true
+    const o = await other({ key: key() })
+    const t0 = Date.now()
+    const pending = req('POST', '/api/lease', { action: 'acquire', wait: '20s' })
+    await new Promise((r) => setTimeout(r, 100)) // stays: the request must be parked behind the holder before it is released
+    o.release()
+    const r = await pending
+    expect(r.status).toBe(200)
+    expect(r.json).toMatchObject({ holding: true, holder: { mine: true } })
+    expect(Date.now() - t0).toBeLessThan(10000)
+  })
+
+  it('POST /api/lease acquire with wait answers 423 with the holder when the wait ends first', async () => {
+    realWait = true
+    const o = await other({ key: key() })
+    const r = await req('POST', '/api/lease', { action: 'acquire', wait: '300ms' })
+    expect(r.status).toBe(423)
+    expect(r.json).toMatchObject({ code: 'LOCKED', lease: { holding: false, holder: { agent: 'device-qa#1' } } })
+    await until(() => lease.status({ dir, key: key() })[0].queue.length === 0, 'the give-up to leave the queue') // gave up: not left queued
+    o.release()
+  })
+
+  it('POST /api/lease acquire rejects a bad or over-cap wait with 400', async () => {
+    const bad = await req('POST', '/api/lease', { action: 'acquire', wait: 'soon' })
+    expect(bad.status).toBe(400)
+    expect(bad.json.code).toBe('BAD_WAIT')
+    const over = await req('POST', '/api/lease', { action: 'acquire', wait: '31s' }) // cap is deviceLease.wait (30s)
+    expect(over.status).toBe(400)
+    expect(over.json.error).toMatch(/longer than the limit/)
+  })
+
+  it('a client that disconnects during the wait leaves no queued take-over', async () => {
+    realWait = true
+    const o = await other({ key: key() })
+    const r = http.request({ host: '127.0.0.1', port, method: 'POST', path: '/api/lease', headers: { 'Content-Type': 'application/json' } })
+    r.on('error', () => {})
+    r.end(JSON.stringify({ action: 'acquire', wait: '20s' }))
+    await until(() => lease.status({ dir, key: key() })[0].queue.length === 1, 'Studio to queue')
+    r.destroy()
+    await until(() => lease.status({ dir, key: key() })[0].queue.length === 0, 'the queued take-over to be dropped')
+    expect((await req('GET', '/api/lease')).json.queued).toBe(false)
+    o.release()
   })
 
   function sse(p) {
