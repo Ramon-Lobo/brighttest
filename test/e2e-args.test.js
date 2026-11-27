@@ -27,6 +27,18 @@ describe('parseE2eArgs lease flags and unknown options', () => {
     expect(msgs[1]).toContain('unknown option --bar for e2e run; ignored')
   })
 
+  it('does not treat the value of a space-form unknown option as a flow path', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    expect(parseE2eArgs(['run', '--foo', 'bar', 'a.e2e.yaml']).flows).toEqual(['a.e2e.yaml'])
+    expect(parseE2eArgs(['run', '--foo', 'bar', '--host', '1.2.3.4', 'a.e2e.yaml'])).toMatchObject({ host: '1.2.3.4', flows: ['a.e2e.yaml'] })
+    expect(parseE2eArgs(['run', '--foo=bar', 'a.e2e.yaml']).flows).toEqual(['a.e2e.yaml'])
+  })
+
+  it('keeps a flow-looking token after an unknown option', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    expect(parseE2eArgs(['run', '--foo', 'a.e2e.yaml', 'b.e2e.yaml']).flows).toEqual(['a.e2e.yaml', 'b.e2e.yaml'])
+  })
+
   it('does not warn for known options', () => {
     const err = vi.spyOn(console, 'error').mockImplementation(() => {})
     parseE2eArgs(['run', 'a.e2e.yaml', '--host', '1.2.3.4', '--as', 'x', '--no-lease'])
