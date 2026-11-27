@@ -68,6 +68,10 @@ The app and the session hub must share the hub token. Set `BRIGHTTEST_HUB_TOKEN`
 same value you used for `instrument build --net` (see [the hub token](./instrument#the-hub-token-net-and-brighttest-hub-token)).
 Without it the hub starts but the app's requests are refused.
 
+The session network proxy reads `instrument.net.upstreamHosts` and `instrument.net.unmatched` from `brighttest.json`,
+the same as Studio and the headless lanes. A request to a host on the allow-list passes through to the real server
+(`unmatched: "passthrough"`); a host that is not listed is still refused with a 403.
+
 Inside the window the other device tools reuse the window's lease instead of taking their own, and every device call
 renews its idle timer. The window is released after 10 minutes without a device call (the `deviceLease.sessionIdle`
 setting, never longer than that), at the lease's hard cap (`deviceLease.sessionMax`), when the lease is lost, or when

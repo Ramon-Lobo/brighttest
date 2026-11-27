@@ -123,6 +123,27 @@ describe('MCP net tools', () => {
     await hit('/p')
   })
 
+  it('reads instrument.net.upstreamHosts and unmatched like Studio: an allowed passthrough is forwarded, not refused', async () => {
+    const up = http.createServer((req, res) => { res.writeHead(200, { 'content-type': 'text/plain' }); res.end('upstream-ok') })
+    await new Promise((r) => up.listen(0, '127.0.0.1', r))
+    servers.push(up)
+    const cwd = tmpdir()
+    fs.writeFileSync(path.join(cwd, 'brighttest.json'), JSON.stringify({ instrument: { net: { upstreamHosts: [`127.0.0.1:${up.address().port}`], unmatched: 'passthrough' } } }))
+    const { stub, a } = await bootStub('healthy')
+    const c = startMcp({ a, cwd })
+    await c.initialize()
+    const proxy = c.server.session.net().proxy
+    expect(proxy.unmatched).toBe('passthrough')
+    const srv = http.createServer((req, res) => proxy.handle(req, res, `http://127.0.0.1:${up.address().port}${req.url}`))
+    await new Promise((r) => srv.listen(0, '127.0.0.1', r))
+    servers.push(srv)
+    const got = await new Promise((resolve, reject) => http.get({ host: '127.0.0.1', port: srv.address().port, path: '/x' }, (res) => { let b = ''; res.on('data', (d) => { b += d }); res.on('end', () => resolve({ status: res.statusCode, body: b })) }).on('error', reject))
+    expect(got).toEqual({ status: 200, body: 'upstream-ok' })
+    const d = payload(await c.tool('net_requests'))
+    expect(d.requests[0]).toMatchObject({ status: 200 })
+    expect(d.requests[0].source).not.toBe('refused')
+  })
+
   it('uses the project instrument.net.redact config and strips userinfo from listed URLs', async () => {
     const cwd = tmpdir('bt-mcp-proj-')
     fs.writeFileSync(path.join(cwd, 'brighttest.json'), JSON.stringify({ instrument: { net: { redact: { query: ['sid'], headers: ['x-device-code'] } } } }))
