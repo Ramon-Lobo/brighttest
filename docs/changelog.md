@@ -109,6 +109,7 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
   that gets no answer in 4 s is `504 ACK_TIMEOUT`. The node inspector UI follows.
 
 ### Improvements
+- **E2E:** with `instrument.lineMap` on, the failure bundle's crash backtrace frames gain `sourceLine` (the package `line` stays) and the crash summary shows the source line; with no usable line map, `error.json` says so in `lineMapNote`.
 - **Instrument build:** the package now includes everything under `rootDir` that the Roku packager would ship (images,
   fonts, root files, callee files outside `source/` and `components/`), minus dotfiles, tests and tool config. Before, the
   compile-only default left them out and the build still reported success with an unusable package. Set
