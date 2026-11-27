@@ -293,7 +293,7 @@ Options:
                      (needs --host; the dev password comes from ROKU_PASSWORD). Retries once after Delete.
   --reuse            With --sideload: skip the rebuild and install the newest stored build when the source fingerprint,
                      flags and hub token are unchanged; rebuild only after your own code changes. Not with --from.
-  --host <ip>        Device for --sideload (required with it; never guessed from the cache).
+  --host <ip>        Device for --sideload (or ROKU_HOST in the shell or project .env; never guessed from the cache).
   --wait/--max/--expect <dur>, --as <name>, --purpose <text>   Device lease options (see: device --help).
   -c, --config <p>   Path to brighttest.json (default: ./brighttest.json).
   -h, --help         Show this help.
@@ -790,10 +790,10 @@ async function main() {
     }
     let target = null;
     if (o.sideload) {
-      // Explicit host only (no cached-device guess); the password comes from ROKU_PASSWORD / the credential path.
-      const { splitHost } = require('../lib/device-command');
-      const inline = splitHost(o.host);
-      if (!inline.host) { console.error('[brighttest instrument] --sideload needs --host <ip> (no cached-device guess)'); process.exit(2); }
+      // --host, else ROKU_HOST (shell or project .env), as `builds install` does; no cached-device guess.
+      // The password comes from the host's :pw, ROKU_PASSWORD or the credential path.
+      const inline = require('../lib/instrument/build').resolveSideloadHost(o.host, process.env, process.cwd());
+      if (!inline) { console.error('[brighttest instrument] --sideload needs a device: pass --host <ip> or set ROKU_HOST (in the shell or the project .env); no cached-device guess'); process.exit(2); }
       target = { host: inline.host, password: require('../lib/devices').resolveDevice({ host: inline.host, password: inline.password }).password };
     }
     const cfg = loadConfig(process.cwd(), o.config);
