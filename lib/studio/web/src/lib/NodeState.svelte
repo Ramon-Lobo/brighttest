@@ -2,6 +2,7 @@
   import { onMount, onDestroy, untrack } from 'svelte';
   import { api } from './api.js';
   import { studio } from './store.svelte.js';
+  import HeldNotice from './HeldNotice.svelte';
   import {
     readOnlyReason, parseEdit, refusalText, splitError, readFailure, dupCount, dupText, nodeByIdPath,
     setAt, nodeRefOnPath, assertLine, assertStateLine, effectiveId, NO_ID_TEXT, TOO_LARGE_TEXT,
@@ -168,7 +169,11 @@
     {#if msg}<p class="msg err">{msg}</p>{/if}
 
     {#if err}
-      <p class="empty err" data-testid="node-state-reason" data-kind={err.kind}>{err.text}</p>
+      {#if err.kind === 'locked'}
+        <HeldNotice testid="node-state-reason" kind="locked" text={err.text} />
+      {:else}
+        <p class="empty err" data-testid="node-state-reason" data-kind={err.kind}>{err.text}</p>
+      {/if}
     {/if}
 
     {#if large}

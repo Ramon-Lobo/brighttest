@@ -6,6 +6,7 @@
   import Marked from './Marked.svelte';
   import { createStateSearch } from './statesearch.svelte.js';
   import AppState from './AppState.svelte';
+  import HeldNotice from './HeldNotice.svelte';
   import { studio } from './store.svelte.js';
 
   // State inspector (STA-S-T8). The live tree is the app's __bt_agent node as /api/state serves it (read over ECP,
@@ -180,7 +181,7 @@
   <p class="empty">No instrument hub is running in Studio. It starts while Studio holds the device lease and <code>BRIGHTTEST_HUB_TOKEN</code> is set. It does not start when Studio uses a device pool (<code>deviceLease.pool</code>): start Studio with <code>--host &lt;ip&gt;</code>.</p>
   <AppState {onadd} />
 {:else if st === 'locked'}
-  <p class="empty err">Device is held by another session, so the live state is unavailable. Take the device in the header to inspect and edit.</p>
+  <HeldNotice testid="state-held" text="Device is held by another session, so the live state is unavailable." />
   <AppState {onadd} />
 {:else if !info}
   {#if st === 'down'}<p class="empty err">State routes unreachable. Retrying.</p>{/if}

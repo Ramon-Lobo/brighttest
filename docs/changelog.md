@@ -113,6 +113,7 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
   that gets no answer in 4 s is `504 ACK_TIMEOUT`. The node inspector UI follows.
 
 ### Improvements
+- **Studio:** when another session holds the device, a full-width warning banner names the holder and how long it has had the device, with one **Take the device back** button (**Take the device** if Studio never held it). The same button appears in the header and in the State, Action log and Node state notices, shows "Waiting, you are #N" with a spinner while queued, and never interrupts the holder.
 - **E2E:** with `instrument.lineMap` on, the failure bundle's crash backtrace frames gain `sourceLine` (the package `line` stays) and the crash summary shows the source line; with no usable line map, `error.json` says so in `lineMapNote`.
 - **Instrument build:** the package now includes everything under `rootDir` that the Roku packager would ship (images,
   fonts, root files, callee files outside `source/` and `components/`), minus dotfiles, tests and tool config. Before, the

@@ -12,13 +12,14 @@ const read = (rel) => fs.readFileSync(path.join(SRC, rel), 'utf8');
 const STATIC = {
   'App.svelte': [
     'studio-app', 'studio-header', 'device-summary', 'sim-badge', 'sim-tail', 'lease-badge', 'lease-badge-summary',
-    'lease-queue', 'toggle-overlay', 'toggle-all-nodes', 'toggle-offscreen', 'toggle-live', 'live-status', 'lease-bar', 'lease-queued',
-    'lease-take-over', 'page-nav', 'page-inspect', 'flow-tree', 'flow-tree-show', 'flow-editor', 'flow-name',
+    'lease-queue', 'toggle-overlay', 'toggle-all-nodes', 'toggle-offscreen', 'toggle-live', 'live-status', 'lease-bar', 'lease-text',
+    'page-nav', 'page-inspect', 'flow-tree', 'flow-tree-show', 'flow-editor', 'flow-name',
     'flow-editor-text', 'flow-save', 'flow-run', 'flow-stop', 'flow-message', 'flow-run-steps', 'live-monitor',
     'monitor-needs-device', 'remote-panel', 'remote-needs-device',
     'tiles-menu', 'tiles-menu-list', 'tiles-preset-default', 'tiles-preset-monitor-info', 'tiles-reset', 'tiles-confirm', 'tiles-cancel',
     'header-run-stop',
   ],
+  'lib/LeaseTake.svelte': ['lease-queued'],
   'lib/TileGrid.svelte': ['layout-grid', 'layout-placeholder', 'layout-live', 'layout-empty', 'layout-empty-show'],
   'lib/Inspector.svelte': ['node-view-fields', 'node-view-state'],
   'lib/NodeState.svelte': [

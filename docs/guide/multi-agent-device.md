@@ -63,7 +63,7 @@ is expected.
 ## Studio next to agents
 
 Studio holds the device lease only while you use it. It yields to a waiting session after 60 seconds idle and
-releases after 5 minutes idle. A `423` response from Studio means another agent holds the device. "Take over"
+releases after 5 minutes idle. A `423` response from Studio means another agent holds the device. "Take the device back"
 in Studio is the explicit override: it queues Studio like any other lane and never preempts the holder. After
 Studio yields, the app on screen may be another agent's build, so check the installed line.
 
