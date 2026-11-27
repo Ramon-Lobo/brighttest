@@ -17,6 +17,7 @@
   import ActionLog from './lib/ActionLog.svelte';
   import Network from './lib/Network.svelte';
   import ContextMenu from './lib/ContextMenu.svelte';
+  import { panels as panelStore, isPoppedOut, popOut, dock } from './lib/panels.svelte.js';
   import Runs from './lib/pages/Runs.svelte';
   import Devices from './lib/pages/Devices.svelte';
   import Builds from './lib/pages/Builds.svelte';
@@ -204,6 +205,7 @@
   }
   function closeTiles() { tilesOpen = false; pending = null; }
   function onWinDown(e) { if (tilesOpen && !e.target.closest?.('.tilesmenu')) closeTiles(); }
+  function onPopoutNode(n) { studio.selectedPath = n.path; popOut('node'); }
   let menu = $state(null); // node context menu { node, x, y }
   function onNodeContext(node, x, y) { menu = { node, x, y }; }
 
@@ -360,6 +362,20 @@
               {/if}
             {/each}
             <hr />
+            <div class="panelsec" data-testid="tiles-panels" role="group" aria-label="Inspector panels">
+              <span class="minmark">Panels</span>
+              {#each panelStore.order as id (id)}
+                <div class="titem">
+                  <span>{inspectRegistry.tiles[id].title}</span>
+                  {#if isPoppedOut(id)}
+                    <button class="linkish" data-testid="tiles-dock-{id}" aria-label="Dock {inspectRegistry.tiles[id].title}" onclick={() => dock(id)}>Dock</button>
+                  {:else}
+                    <button class="linkish" data-testid="tiles-popout-{id}" aria-label="Pop out {inspectRegistry.tiles[id].title}" onclick={() => popOut(id)}>Pop out</button>
+                  {/if}
+                </div>
+              {/each}
+            </div>
+            <hr />
             {#if pending}
               <div class="confirm" role="alertdialog" aria-label="Confirm layout change">
                 <span>Replace your layout with {PRESET_LABEL[pending]}? There is no undo.</span>
@@ -485,7 +501,7 @@
   </div>
 
   {#if menu}
-    <ContextMenu node={menu.node} x={menu.x} y={menu.y} onpick={onMenuPick} onclose={() => (menu = null)} oninspect={onInspectState} />
+    <ContextMenu node={menu.node} x={menu.x} y={menu.y} onpick={onMenuPick} onclose={() => (menu = null)} oninspect={onInspectState} onpopout={onPopoutNode} />
   {/if}
 
   {#if promptState}
@@ -554,6 +570,8 @@
   .tileslist hr { border: none; border-top: 1px solid var(--color-line); margin: 4px 0; width: 100%; }
   .titem { display: flex; align-items: center; gap: 8px; }
   .titem label { flex: 1; cursor: pointer; }
+  .panelsec { display: flex; flex-direction: column; gap: 2px; }
+  .panelsec .titem span:first-child { flex: 1; }
   .minmark { color: var(--color-amber); font-size: 11px; }
   .linkish { background: transparent; border: none; color: var(--color-violet); cursor: pointer; font-size: 12px; text-align: left; padding: 2px 0; }
   .linkish:hover { text-decoration: underline; }
