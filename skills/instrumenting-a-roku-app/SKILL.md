@@ -55,6 +55,11 @@ limit is researched from Roku's public docs, not verified here (see `references/
    (`references/instrument-config.md`). Defaults already skip `source/vendor/**`, `roku_modules/**` and Rooibos paths.
 3. Build: `npx brighttest instrument build --out .brighttest/debug.bt-instrumented.zip`. Exit 0 means the package exists. Any other
    code: `references/errors-and-exit-codes.md`. A failed build writes nothing new at `--out`.
+   The package holds everything under `rootDir` the Roku packager ships (images, fonts, root files) minus dotfiles, tests and tool
+   config; `instrument.files` overrides it. Read the warnings: `images/: N not packaged` or a `pkg:/` path that points at
+   a missing file means the package is unusable. bsc validation errors (1104, 1140, ...) print as warnings with a
+   `"diagnosticFilters": [...]` line to paste into `brighttest.json` (it also applies to the headless lanes); they are
+   compiler checks, not Roku runtime errors. `--fail-on-bsc-errors` makes them fail the build.
 4. Try strict once: `npx brighttest instrument build --strict --out .brighttest/debug.bt-instrumented.zip`. Strict is off by default.
    Exit 4 is a strict failure: the build is valid but an entry could not instrument cleanly; show the human the list. Do not turn
    strict on in their config without their OK.
@@ -81,7 +86,7 @@ Guide: `docs/guide/instrument.md`, "In headless tests".
 | Command | Code | Meaning |
 |---|---|---|
 | build | 0 | package written |
-| build | 1 | build failure (bsc or plugin error, `BT9003`); with `--sideload` also auth, port 80 or installer failure; or `--net` with `BRIGHTTEST_HUB_TOKEN` unset or not 32 hex |
+| build | 1 | build failure (plugin error, `BT9003`, a parse error, or any bsc error with `--fail-on-bsc-errors`); with `--sideload` also auth, port 80 or installer failure; or `--net` with `BRIGHTTEST_HUB_TOKEN` unset or not 32 hex |
 | build, verify, census | 2 | usage error (verify: missing or unreadable input) |
 | verify | 3 | instrumentation markers found: do not release |
 | build | 4 | strict mode: a could-not-instrument entry |

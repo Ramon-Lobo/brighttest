@@ -9,7 +9,7 @@ zip and on an unknown option). Not device-verified.
 | Command | Code | Meaning | Next step |
 |---|---|---|---|
 | `instrument build` | 0 | package written | `instrument verify` on it must exit 3 |
-| `instrument build` | 1 | build failure: bsc or plugin error, `BT9003 staged-output-invalid`; with `--sideload` also auth, port 80 closed, installer failure; or `--net` with `BRIGHTTEST_HUB_TOKEN` unset or not 32 hex | read stderr, one line per blocking item |
+| `instrument build` | 1 | build failure: plugin error, `BT9003 staged-output-invalid`, a parse error, or any bsc error with `--fail-on-bsc-errors` (other bsc errors are warnings); with `--sideload` also auth, port 80 closed, installer failure; or `--net` with `BRIGHTTEST_HUB_TOKEN` unset or not 32 hex | read stderr, one line per blocking item |
 | any `instrument` action | 2 | usage error: unknown action or option, `verify` without a path or with a missing or unreadable one, a census failure | fix the command |
 | `instrument verify` | 3 | instrumentation markers found: do not release this package | rebuild the store package without `instrument build` |
 | `instrument build` | 4 | strict mode: valid build, but something could not be instrumented | read the `strict:` lines |
@@ -31,8 +31,8 @@ A failed build writes nothing new at `--out`; an older file there is kept, so ch
 | `BT9004` | plugin reused for a second Program | a plugin bug or custom wiring: one build needs one fresh Program. Report it |
 | `BT9005` | `net-config-invalid`: bad `instrument.net` value | fix the `instrument.net` block in `brighttest.json` (see `docs/guide/instrument.md`) |
 
-Stderr ends with `instrument build failed: N error(s), no package written`. Plain bsc errors are the app's own
-compile errors: they exit 1 too. Report them; do not fix app code without the human's OK.
+Stderr ends with `instrument build failed: N error(s), no package written`. Plain bsc validation errors are warnings by default (histogram plus a `diagnosticFilters` line); with `--fail-on-bsc-errors`, or
+for a parse error, they exit 1 too. Report them; do not fix app code without the human's OK.
 
 ## Strict failures (exit 4)
 

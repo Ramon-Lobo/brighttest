@@ -191,7 +191,7 @@ function parseSkillsArgs(rest) {
 // `brighttest instrument build [--out <zip>] [--strict|--no-strict] [--verbose] [--config <path>]`
 const INSTRUMENT_ACTIONS = ['build', 'verify', 'census'];
 function parseInstrumentArgs(rest) {
-  const o = { instrumentAction: null, out: null, strict: null, verbose: false, config: null, sideload: false, net: false, host: null, wait: null, max: null, expect: null, as: null, purpose: null, json: false, target: null, help: false, unknown: [] };
+  const o = { instrumentAction: null, out: null, strict: null, failOnBsc: false, verbose: false, config: null, sideload: false, net: false, host: null, wait: null, max: null, expect: null, as: null, purpose: null, json: false, target: null, help: false, unknown: [] };
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
     if (i === 0 && !a.startsWith('-')) { o.instrumentAction = a; continue; }
@@ -201,6 +201,7 @@ function parseInstrumentArgs(rest) {
     else if (a.startsWith('--out=')) o.out = a.slice(6);
     else if (a === '--strict') o.strict = true;
     else if (a === '--no-strict') o.strict = false;
+    else if (a === '--fail-on-bsc-errors') o.failOnBsc = true;
     else if (a === '--verbose') o.verbose = true;
     else if (a === '--config' || a === '-c') { o.config = rest[++i]; if (o.config === undefined) o.unknown.push(`${a} (needs a value)`); }
     else if (a.startsWith('--config=')) o.config = a.slice(9);
@@ -247,7 +248,7 @@ brighttest instrument — build an instrumented (debug-only) package of your app
   it carries the instrumentation runtime and a per-build token (the release gate \`instrument verify\` finds it).
 
 Usage:
-  brighttest instrument build [--out <zip>] [--strict | --no-strict] [--net] [--verbose] [--config <path>]
+  brighttest instrument build [--out <zip>] [--strict | --no-strict] [--fail-on-bsc-errors] [--net] [--verbose] [--config <path>]
   brighttest instrument verify <zip|dir>                      Release gate: exit 3 if instrumentation markers are found, 0 if clean
   brighttest instrument census [--json] [--out <dir>] [--config <path>]
                                                               Static census of the app in the current directory (no device)
@@ -259,13 +260,24 @@ Options:
                      fails (exit 1) when it is unset or malformed. The run reads the same variable.
   --strict           Fail (exit 4) when something could not be instrumented, even though the build is valid.
   --no-strict        Turn strict off (overrides brighttest.json). Default: "instrument": { "strict": false }.
-  --verbose          List every informational entry of the report.
+  --fail-on-bsc-errors  Fail on every brighterscript error. By default only plugin errors (BT9xxx), BT9003 and parse errors
+                     in files the plugin may rewrite fail the build; other bsc validation errors (1104, 1140, 1067, ...) are
+                     compiler checks, not Roku runtime errors, so they print as warnings with a per-code histogram and a
+                     ready-to-paste \`"diagnosticFilters": [...]\` line. \`diagnosticFilters\` (brighttest.json, array of
+                     bsc codes) silences those codes and also applies to the headless lanes.
+  --verbose          List every informational entry and every bsc warning of the report.
   --sideload         After a successful build, install the package on the device under the device lease
                      (needs --host; the dev password comes from ROKU_PASSWORD). Retries once after Delete.
   --host <ip>        Device for --sideload (required with it; never guessed from the cache).
   --wait/--max/--expect <dur>, --as <name>, --purpose <text>   Device lease options (see: device --help).
   -c, --config <p>   Path to brighttest.json (default: ./brighttest.json).
   -h, --help         Show this help.
+
+Package contents: everything under rootDir the Roku packager would ship (images, fonts, root files), minus dotfiles,
+node_modules, tests and tool config; set "instrument": { "files": [globs] } to choose another set (sourceGlobs only
+selects the headless lanes' compile set). After a build, files under rootDir that are not in the package and pkg:/ paths
+in the code that point at missing files are listed as warnings. "instrument.exclude" files are not rewritten but are
+still packaged (and still compiled by bsc).
 
 Plugin order: the instrument plugin runs after the Rooibos coverage plugin; this command builds the app only (no Rooibos).
 One build = one fresh Program and plugin (no watch support).
@@ -274,7 +286,7 @@ Exit codes: 0 ok, 1 build failure (bsc or plugin error, BT9003 staged-output-inv
 4 strict-mode failure (a could-not-instrument entry with strict on). Exit 3 belongs to \`instrument verify\`.
 With --sideload: 1 also covers auth, TCP-80 and installer failures; 75/77/78 are device-lease codes.
 
-stderr on failure: one line per blocking item, \`BT9003 staged-output-invalid <file>:<line> (...)\` or
+stderr on failure: one line per blocking item (with --fail-on-bsc-errors, every bsc error), \`BT9003 staged-output-invalid <file>:<line> (...)\` or
 \`strict: <kind> <file>:<line> <reason>\`, then \`instrument build failed: N error(s), no package written\`.
 `;
 
@@ -735,7 +747,7 @@ async function main() {
       target = { host: inline.host, password: require('../lib/devices').resolveDevice({ host: inline.host, password: inline.password }).password };
     }
     const cfg = loadConfig(process.cwd(), o.config);
-    const r = await require('../lib/instrument/build').build(cfg, { out: o.out, strict: o.strict, verbose: o.verbose, net: o.net });
+    const r = await require('../lib/instrument/build').build(cfg, { out: o.out, strict: o.strict, verbose: o.verbose, net: o.net, failOnBscErrors: o.failOnBsc });
     if (r.exitCode !== 0 || !target) process.exit(r.exitCode);
     const code = await require('../lib/instrument/sideload').sideload(cfg, { zip: r.out, ...target, wait: o.wait, max: o.max, expect: o.expect, as: o.as, purpose: o.purpose });
     process.exit(code);
