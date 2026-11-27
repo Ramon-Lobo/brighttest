@@ -61,13 +61,13 @@
     "jszip": "^3.10.2"
   },
   "devDependencies": {
-    "@types/node": "22.20.7",
-    "mermaid": "11.17.0",
+    "@types/node": "26.6.6",
+    "mermaid": "12.3.0",
     "typescript": "7.0.2",
     "vite": "^6.4.4",
     "vitepress": "1.6.4",
     "vitepress-plugin-mermaid": "2.0.17",
-    "vitest": "^4.1.12"
+    "vitest": "^5.1.1"
   },
   "//overrides": [
     "Transitive security fixes not reachable through a direct dependency bump.",
