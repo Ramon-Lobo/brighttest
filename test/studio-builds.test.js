@@ -347,6 +347,23 @@ describe('install job', () => {
     await second.done
     expect(second.events.at(-1)).toMatchObject({ type: 'done', ok: true })
   })
+  it('releases the stream slot when a streamed install finishes: 10 in a row never hit 429', async () => {
+    await start()
+    const b = await addBuild()
+    gateway.hold = true
+    for (let i = 1; i <= 10; i++) {
+      const r = await api('POST', `/api/builds/${b.id}/install`, {})
+      expect(r.status, `install ${i}`).toBe(202)
+      await until(() => installs.length === i)
+      const ev = openJob(r.json.jobId)
+      await until(() => ev.status !== null)
+      expect(ev.status, `stream ${i}`).toBe(200)
+      await until(() => ev.events.length >= 1)
+      gateway.release()
+      await ev.done
+      expect(ev.events.at(-1)).toMatchObject({ type: 'done' })
+    }
+  })
   it('caps open streams at 8 with 429', async () => {
     await start()
     const b = await addBuild()
