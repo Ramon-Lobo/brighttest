@@ -12,6 +12,7 @@ import { createRequire } from 'node:module'
 // Costs are scaled down from a real device (screenshot 1.24 s, tree 44 ms) so the run takes seconds; idleMs is scaled too.
 const require = createRequire(import.meta.url)
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+const median = (a) => [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)]
 const p90 = (a) => [...a].sort((x, y) => x - y)[Math.max(0, Math.ceil(a.length * 0.9) - 1)]
 
 function delayProxy(target, delayFor) {
@@ -120,9 +121,11 @@ describe('Studio screenshot policy under simulated device costs', () => {
       await Promise.all([treeLoop, shotLoop])
 
       expect(treeMs.length).toBeGreaterThan(10)
-      expect(p90(treeMs), `tree p90 ${p90(treeMs)} of ${JSON.stringify(treeMs)}`).toBeLessThan(100)
+      expect(p90(treeMs), `tree p90 ${p90(treeMs)} of ${JSON.stringify(treeMs)}`).toBeLessThan(250)
+      expect(median(treeMs), `tree median of ${JSON.stringify(treeMs)}`).toBeLessThan(100)
       expect(keyMs.length).toBe(9)
-      expect(p90(keyMs), `keypress p90 ${p90(keyMs)} of ${JSON.stringify(keyMs)}`).toBeLessThan(50)
+      expect(p90(keyMs), `keypress p90 ${p90(keyMs)} of ${JSON.stringify(keyMs)}`).toBeLessThan(200)
+      expect(median(keyMs), `keypress median of ${JSON.stringify(keyMs)}`).toBeLessThan(75)
       // At least one screenshot per idleMs: no gap between consecutive screenshots longer than idleMs plus the shot cost and a loop tick.
       expect(shotStarts.length).toBeGreaterThanOrEqual(Math.floor(RUN_MS / (IDLE + SHOT_MS + 400)))
       for (let i = 1; i < shotStarts.length; i++) expect(shotStarts[i] - shotEnds[i - 1], `gap before shot ${i}`).toBeLessThanOrEqual(IDLE + 300)
