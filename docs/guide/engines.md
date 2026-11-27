@@ -55,8 +55,10 @@ simulator. Scene lanes (`@SGNode` specs and `--coverage`) pass it when the flag 
 (stock, or a patched build older than `2.7.1-bt.1`) brighttest prints a one-time warning and the scene lanes keep the
 engine's own identity. See [Headless vs device](/writing-tests/headless-vs-device).
 
-The `rooibos-roku` stamp lists `coverage-dir`. On the device lane brighttest uses the LCOV from the console first;
-when the console has none and the engine supports `coverage-dir`, it reads `lcov.info` from that directory instead.
+The `rooibos-roku` stamp lists `coverage-dir`. On the device lane, when the engine supports `coverage-dir`,
+brighttest writes that directory's `lcov.info` to the `--lcov` path, so it carries function (`FN`/`FNDA`) and branch
+(`BRDA`) records as well as lines (framework records are dropped). When the file is missing or empty, or the engine
+has no `coverage-dir` (rooibos below 5.17.0), it falls back to the console LCOV, which has line records only.
 
 ## Changing engine behavior
 

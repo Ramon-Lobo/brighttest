@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { parseLcov, compressRanges, printCoverageTable } from '../lib/coverage-report.js'
 
 describe('parseLcov', () => {
@@ -78,5 +78,17 @@ describe('printCoverageTable', () => {
   it('reports 100% when every line is hit', () => {
     const lcov = ['SF:a.brs', 'DA:1,2', 'DA:2,5', 'end_of_record'].join('\n')
     expect(printCoverageTable(lcov, { rootDir: '.' }, false)).toBe(100)
+  })
+
+  it('the table note says function and branch records are in the LCOV file only when FN: lines are present', () => {
+    const out = []
+    const spy = vi.spyOn(process.stdout, 'write').mockImplementation((x) => { out.push(String(x)); return true })
+    try {
+      printCoverageTable(['SF:a.brs', 'FN:1,f', 'FNDA:1,f', 'DA:1,1', 'end_of_record'].join('\n'), { rootDir: '.' }, false)
+      printCoverageTable(['SF:a.brs', 'DA:1,1', 'end_of_record'].join('\n'), { rootDir: '.' }, false)
+    } finally { spy.mockRestore() }
+    const all = out.join('')
+    expect(all).toMatch(/function and branch records are in the LCOV file/)
+    expect(all).toMatch(/branch & function coverage not emitted by Rooibos/)
   })
 })

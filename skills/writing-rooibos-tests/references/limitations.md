@@ -20,8 +20,9 @@ headless. Only behavior tied to real wall-clock timing genuinely needs hardware.
 
 ## Coverage is line-based only
 
-- Coverage is line/statement coverage (LCOV `DA/LF/LH`). There is **no branch or function coverage** — the
-  underlying interpreter doesn't instrument it.
+- Headless `--coverage` is line/statement coverage (LCOV `DA/LF/LH`). There is **no branch or function coverage**
+  there — the underlying interpreter doesn't instrument it. The device lane (`--device --lcov`) with a rooibos 5.17
+  engine also writes function (`FN/FNDA`) and branch (`BRDA`) records to the LCOV file; the printed table stays line-only.
 - Coverage reflects only the lines your tests actually exercised; a low percentage on a big untested file is
   accurate, not a bug.
 - Get coverage with `brighttest --coverage --lcov coverage/lcov.info`. The default lane never produces it.
