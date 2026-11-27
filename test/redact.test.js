@@ -127,6 +127,19 @@ describe('allocator, idempotence, lines', () => {
   })
 })
 
+describe('long lines', () => {
+  test('a 1 MB single line redacts in bounded time', () => {
+    const shapes = ['a', 'abcdefghij0123456789', 'ab.cd.ef.', 'hello world foo=bar x.y ', 'http://a.b.c/x?y=1 ']
+    for (const unit of shapes) {
+      const line = unit.repeat(Math.ceil(1048576 / unit.length)).slice(0, 1048576)
+      const t0 = Date.now()
+      const out = R.redact(line, ctx({ denyTerms: ['Examplecorp'] }))
+      expect(Date.now() - t0).toBeLessThan(30000)
+      expect(out.includes('\n')).toBe(false)
+    }
+  }, 120000)
+})
+
 describe('deny terms and stop list', () => {
   test('stop-list and short terms are skipped and counted', () => {
     const c = ctx({ denyTerms: ['app', 'Roku', 'ab', 'Examplecorp'] })
