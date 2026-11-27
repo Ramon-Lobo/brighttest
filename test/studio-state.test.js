@@ -76,6 +76,12 @@ const publish = (layers, truncated = []) => fake.setAgentText(JSON.stringify({ v
 const until = async (fn, what) => { for (let i = 0; i < 250 && !fn(); i++) await new Promise((r) => setTimeout(r, 20)); if (!fn()) throw new Error(`timed out waiting for ${what}`) }
 
 describe('GET /api/state', () => {
+  it('asks the hub to watch (subscribe for the fast cadence) when a viewer reads state', async () => {
+    hub.watch = () => { hub.watched = (hub.watched || 0) + 1 }
+    publish({ global: { a: 1 } })
+    await req('GET', '/api/state')
+    expect(hub.watched).toBe(1)
+  })
   it('serves the agent layers read over ECP (not a hub event), redacted by default and by the configured mask; ?raw=1 returns raw values', async () => {
     publish({ global: { user: { tier: 'free', password: 'pw-secret', nickname: 'Zed' } }, registry: { prefs: { cardlast4: '4242', a: 1 } } })
     const r = await req('GET', '/api/state')

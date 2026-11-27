@@ -574,3 +574,48 @@ describe('quiet push (internal reads)', () => {
     } finally { await hub.stop() }
   })
 })
+
+describe('watch(): subscribe for the fast state cadence', () => {
+  async function cmds(hub, after = 0) {
+    const r = await req(hub, 'GET', `/bt/${TOKEN}/cmd?after=${after}`);
+    return r.status === 200 ? JSON.parse(r.body) : [];
+  }
+  it('sends a quiet subscribe when a consumer attaches after the agent hello', async () => {
+    const hub = await start({ longPollMs: 40 });
+    await req(hub, 'GET', `/bt/${TOKEN}/hello`);
+    expect(await cmds(hub)).toEqual([]);
+    hub.watch();
+    const out = await cmds(hub);
+    expect(out.map((c) => c.op)).toEqual(['subscribe']);
+    expect(out[0].id.startsWith('sr-')).toBe(true);
+    expect(out[0].args).toEqual({});
+    hub.watch(); // extending does not send again
+    expect((await cmds(hub)).length).toBe(1);
+  });
+  it('waits for the hello when the consumer attached first, and resends after an agent restart', async () => {
+    const hub = await start({ longPollMs: 40 });
+    hub.watch();
+    expect(await cmds(hub)).toEqual([]);
+    const h = JSON.parse((await req(hub, 'GET', `/bt/${TOKEN}/hello`)).body);
+    const out = await cmds(hub, h.seq);
+    expect(out.map((c) => c.op)).toEqual(['subscribe']);
+    const h2 = JSON.parse((await req(hub, 'GET', `/bt/${TOKEN}/hello`)).body);
+    expect((await cmds(hub, h2.seq)).map((c) => c.op)).toEqual(['subscribe']);
+  });
+  it('sends subscribe off once the watch lapses', async () => {
+    const hub = await start({ tickMs: 20, longPollMs: 40 });
+    await req(hub, 'GET', `/bt/${TOKEN}/hello`);
+    hub.watch(60);
+    expect(hub.watching).toBe(true);
+    await new Promise((r) => setTimeout(r, 250));
+    const out = await cmds(hub);
+    expect(out.map((c) => [c.op, c.args.on])).toEqual([['subscribe', undefined], ['subscribe', false]]);
+    expect(hub.watching).toBe(false);
+  });
+  it('sends nothing without a watcher', async () => {
+    const hub = await start({ tickMs: 20, longPollMs: 40 });
+    await req(hub, 'GET', `/bt/${TOKEN}/hello`);
+    await new Promise((r) => setTimeout(r, 80));
+    expect(await cmds(hub)).toEqual([]);
+  });
+});

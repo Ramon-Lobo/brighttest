@@ -671,8 +671,15 @@ republished (only when the command asked for `ack: reflected`). A session mismat
   were cut, redacted (`<redacted:...>`) or are node references are skipped and listed, fields added after the snapshot
   are listed in `added` and left in place, and an object field comes back whole.
 - Payloads over 64 KB, in a command or in a result, fail with `STATE_TOO_LARGE` and are never truncated.
-- With a live hub session and no `subscribe`r the agent samples every 5 s (ten times `publish.intervalMs`); subscribed,
-  or with no hub, it samples every `publish.intervalMs` (500 ms by default).
+- With a live hub session and no `subscribe`r the agent samples every ten times `publish.intervalMs` (10 s at the
+  1000 ms setting, 5 s at the 500 ms default); subscribed, or with no hub, it samples every `publish.intervalMs`
+  (500 ms by default). The host sends the `subscribe` itself: the hub's `watch()` (called by Studio on every
+  `GET /api/state`) queues a quiet `subscribe` command, keeps it for 15 s after the last watch, then sends
+  `subscribe {on:false}`, and sends it again after an agent restart (a new hello). A plain `e2e run` never watches, so
+  its snapshots stay at the slow cadence unless a step reads state directly.
+- A string value in a published snapshot is cut at about 2000 characters (the agent's per-string cap), without a
+  marker. Longer strings are never seen whole in the state view; a snapshot over `publish.maxBytes` drops whole fields
+  and lists them under `truncated`.
 
 Agent `cmd.ack` events on `POST events` complete commands. Queued commands are logged as `cmd.sent` events with values
 under sensitive keys (and `instrument.state.redact.paths`) masked before they reach `events.ndjson`.
