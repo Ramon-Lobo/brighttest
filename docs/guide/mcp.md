@@ -94,8 +94,8 @@ new window. If the hub cannot start (for example its port is in use), the window
 `instrument build --net` and `BRIGHTTEST_HUB_TOKEN` in the server environment (same value as the build; without it they
 fail with `STATE_NO_HUB_TOKEN` before any lease is taken). The first write checks that the running app publishes the
 `__bt_agent` node (`STATE_NOT_INSTRUMENTED` otherwise, no hub started, no session lease held), opens the window, and
-**waits up to 35 s for the app's agent to connect**: the agent dials the hub on its own 30 s retry, so the first write
-can take that long. The call budget is 45 s (30 s for the other tools). The wait is expected, not a hang: the app agent only retries its hello every 30 s, so it may have just missed the hub when the window opened. Later writes in the same window find the agent
+**waits up to 35 s for the app's agent to connect**: the agent retries a failed hello after 2, 2, 5 and 5 s and then every 30 s, so the first write
+typically waits a few seconds (an app built before this change retries only every 30 s and must be rebuilt). The call budget is 45 s (30 s for the other tools). The wait is expected, not a hang: the app agent may have just missed the hub when the window opened and retries its hello shortly. Later writes in the same window find the agent
 connected and return in about the time of the ack. If the agent never dials, the call fails with
 `STATE_AGENT_UNREACHABLE` (check the baked token, port and LAN address; `brighttest doctor` with
 `BRIGHTTEST_DOCTOR_HUB_PROBE=1` probes hub reach) and the window stays open until its idle timeout, so a fixed build can

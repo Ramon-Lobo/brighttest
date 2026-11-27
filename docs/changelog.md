@@ -167,6 +167,8 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
 - **Studio:** started through `npx brighttest studio`, Studio now stops within a few seconds when the npm process that
   started it dies from a signal npm cannot forward (SIGKILL, a timeout wrapper), instead of keeping the port and the
   lease. Studio also shuts down cleanly on SIGHUP.
+- **Instrument:** the app agent retries a failed hello to the hub after 2, 2, 5 and 5 s (then every 30 s) instead of 30 s,
+  so the first `app_state_set` no longer waits about 22 s. Rebuild the instrumented app.
 - **Instrument:** `instrument.state.redact.paths` is now applied on the device to dispatch-payload values of a wrapped
   dispatch, so those values no longer cross the LAN and `?raw=1` shows the placeholder. Rebuild the instrumented app.
 - **Docs:** the device lease guide, the multi-agent guide and the device-safety skill now give the order of operations: `device lock` presses Home twice, so lock, install, then launch (or `device lock --no-hygiene`), and `e2e run` launches but never installs.
