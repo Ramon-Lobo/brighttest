@@ -59,6 +59,7 @@ npx brighttest device watch                 # interactive screen (needs a termin
 npx brighttest device watch --once          # one static board, then exit
 npx brighttest device watch --json          # the same board as JSON (schema brighttest-lease-board/v1)
 npx brighttest device watch --plain         # one static board every interval, no screen control (for tee and logs)
+npx brighttest device watch --plain --for 10m   # stop after a duration (no terminal and no --for: the plain loop stops after 10 minutes)
 npx brighttest device watch --host 192.168.1.50 --interval 5s --tail 20 --all
 ```
 
