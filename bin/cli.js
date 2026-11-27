@@ -90,6 +90,17 @@ function parseDoctorArgs(rest) {
   return o;
 }
 
+const DEVICES_HELP = `
+brighttest devices — discover Rokus on the network and cache one's credentials
+
+Usage:
+  brighttest devices            Scan the LAN for Rokus, list them, and (in a terminal) offer to save one so commands
+                                default to it (no --host needed). The dev password is prompted for, never printed.
+  brighttest devices --help     Show this help (no network scan).
+
+To see who is using a device, run: brighttest device status
+`;
+
 // `brighttest setup`: find or take a Roku host, check it, and save it as ROKU_HOST in the project .env.
 const SETUP_HELP = `
 brighttest setup — make a Roku the project's default device (ROKU_HOST in .env)
@@ -952,6 +963,7 @@ async function main() {
     return;
   }
   if (argv[0] === 'devices') {
+    if (argv.slice(1).some((a) => a === '--help' || a === '-h')) { console.log(DEVICES_HELP); process.exit(0); }
     const d = require('../lib/devices');
     process.stderr.write('(to see who is using a device, run: brighttest device status)\n');
     process.stdout.write('discovering Roku devices on the network…\n');
