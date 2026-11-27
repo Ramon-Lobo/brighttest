@@ -355,6 +355,35 @@ describe('instrument build: strict (R5 table)', () => {
     const off = await run(app, 'userex-off', { strict: false })
     expect(off.exitCode).toBe(0)
   })
+  it('instrument.strictAccept: an accepted exclude passes strict, an unaccepted one still fails', async () => {
+    const files = { 'source/vendor2/x.brs': setUrl, 'source/vendor3/y.brs': setUrl }
+    const ex = ['source/vendor2/**', 'source/vendor3/**']
+    const one = mkapp('accept-one', files, { instrument: { exclude: ex, strictAccept: ['source/vendor2/**'] } })
+    const r1 = await run(one, 'accept-one', { strict: true })
+    expect(r1.exitCode).toBe(4)
+    expect(r1.strictTrips.map((e) => e.file)).toEqual(['source/vendor3/y.brs'])
+    expect(r1.informational.some((e) => e.file === 'source/vendor2/x.brs')).toBe(true)
+    const both = mkapp('accept-both', files, { instrument: { exclude: ex, strictAccept: ['source/vendor*/**'] } })
+    const r2 = await run(both, 'accept-both', { strict: true })
+    expect(r2.exitCode).toBe(0)
+    expect(r2.strictTrips).toEqual([])
+    expect(fs.existsSync(r2.out)).toBe(true)
+  })
+  it('instrument.strictAccept does not accept other kinds', () => {
+    const acc = createPlugin.makeMatcher(['components/**'])
+    expect(tripsStrict({ kind: 'empty-init', file: 'components/s.brs' }, acc)).toBe(true)
+    expect(tripsStrict({ kind: 'excluded-candidate', excludedBy: 'user', file: 'components/s.brs' }, acc)).toBe(false)
+    expect(tripsStrict({ kind: 'excluded-candidate', excludedBy: 'user', file: 'source/s.brs' }, acc)).toBe(true)
+  })
+  it('instrument.strictAccept of the wrong type is a clear config error', async () => {
+    const app = mkapp('accept-bad', { 'source/a.brs': 'sub f()\nend sub\n' }, { instrument: { strictAccept: 'source/**' } })
+    const r = await run(app, 'accept-bad', { strict: true })
+    expect(r.exitCode).toBe(1)
+    expect(r.log.join('\n')).toMatch(/instrument\.strictAccept must be an array of non-empty glob strings \(got "source\/\*\*"\)/)
+    expect(fs.existsSync(r.out)).toBe(false)
+    const { resolveHeadlessInstrument } = require('../lib/config')
+    expect(() => resolveHeadlessInstrument({ instrument: { enabled: true, strictAccept: [1] } })).toThrow(/strictAccept must be an array/)
+  })
   it('strict comes from instrument.strict in brighttest.json; the default is off', async () => {
     const files = { 'components/S.xml': '<?xml version="1.0" encoding="utf-8" ?>\n<component name="S" extends="Scene">\n  <script type="text/brightscript" uri="pkg:/components/s.brs" />\n</component>\n', 'components/s.brs': 'sub init()\nend sub\n' }
     const off = mkapp('empty-off', files)
