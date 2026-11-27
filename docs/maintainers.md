@@ -711,8 +711,8 @@ Pages get a "New" or "Updated" tag (page header and sidebar) between releases. T
 ## Publishing
 
 `dependencies` (not devDependencies) list the runtime toolchain so a normal `npm i -D brighttest` pulls it
-transitively (the two forks, `brighterscript` and `jszip`). Docs tooling (`vitepress`, `mermaid`) are devDependencies
-and aren't shipped. For local development use `file:` linking and run `npm install` inside `brighttest/`
+transitively (the two forks, `brighterscript` and `jszip`). Docs tooling (`vitepress`, `mermaid`, `vite`) are devDependencies
+and aren't shipped. VitePress 1.6.4 pins vite 5, so the root `package.json` adds `vite` ^6.4.4 as a devDependency and overrides `vitepress.vite` to `$vite` (ADR 0060); vitest keeps its own vite. Remove both when VitePress 2 is stable and adopted. For local development use `file:` linking and run `npm install` inside `brighttest/`
 once so its `node_modules` is populated.
 
 Changelog first. Every release needs a curated section in `docs/changelog.md`, and `npm version` and `npm publish` refuse to continue without one:

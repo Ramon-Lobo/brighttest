@@ -64,6 +64,7 @@
     "@types/node": "22.20.7",
     "mermaid": "11.17.0",
     "typescript": "7.0.2",
+    "vite": "^6.4.4",
     "vitepress": "1.6.4",
     "vitepress-plugin-mermaid": "2.0.17",
     "vitest": "^4.1.12"
@@ -76,17 +77,16 @@
     "reinstalling the stale versions this lockfile used to hold. postcss + dompurify are dev-only",
     "(vitepress / mermaid). Do NOT run `npm audit fix` here: it 'fixes' the postman-request chain",
     "by downgrading it to 2.88.1-postman.8-beta.1 and pulling back a critical form-data advisory.",
-    "vitest > vite > esbuild 0.21.5 (added with the vitest 4.1.12 bump, 7dea3aa) is dev-only and ships nothing: it pins esbuild under vite for the test and docs toolchain. Drop it once `npm ls esbuild` resolves cleanly without it after a vitest or vitepress bump."
+    "vite 6 + katex are dev-only (docs toolchain, ADR 0060): vitepress 1.6.4 pins vite ^5.4.14 (5.4.21 ends the 5.x line, every advisory is fixed only in 6.4.x), so vite is a direct devDependency and `vitepress.vite: $vite` makes VitePress and @vitejs/plugin-vue use it. vitest keeps its own vite 8. Drop the vite devDependency and that override once VitePress 2 is stable and adopted. katex ^0.18.2 lifts mermaid's transitive katex past its advisory."
   ],
   "overrides": {
     "brace-expansion": "^1.1.18",
     "ip-address": "^10.7.6",
     "postcss": "^8.5.25",
     "dompurify": "^3.4.18",
-    "vitest": {
-      "vite": {
-        "esbuild": "0.21.5"
-      }
+    "katex": "^0.18.2",
+    "vitepress": {
+      "vite": "$vite"
     }
   },
   "optionalDependencies": {

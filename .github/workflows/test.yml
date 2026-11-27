@@ -93,8 +93,8 @@ jobs:
   # Dependency security gate.
   #
   # Scoped to --omit=dev on purpose. Auditing the full tree would pin this job permanently red on
-  # advisories we cannot act on: VitePress 1.6.4 pins vite to ^5.4.14 and 5.4.21 ends the 5.x line
-  # (the fix is in 6.4.3), and the vitest UI critical needs a 2.x -> 4.x major. Gating on the
+  # advisories we cannot act on: the docs toolchain is dev-only and its pins (the vite 6 override for
+  # VitePress 1.6.4, ADR 0060) move on their own schedule, and the vitest UI critical needs a 2.x -> 4.x major. Gating on the
   # production tree instead means a failure here is always actionable and always about code we
   # actually ship. Run `npm audit` locally for the full picture.
   #

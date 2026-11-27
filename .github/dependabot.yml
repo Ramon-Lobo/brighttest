@@ -25,11 +25,11 @@ updates:
         patterns:
           - "*"
     ignore:
-      # vitepress 1.6.4 pins vite ^5.4.14 and 5.4.21 ends the 5.x line, so the open vite
-      # advisories are unfixable until VitePress 2. Let Dependabot bump vite freely inside
-      # 5.x, but don't let it open a 6.x PR that can never merge.
+      # vitepress 1.6.4 pins vite ^5.4.14, so the docs toolchain runs on vite 6 through the
+      # `vitepress.vite: $vite` override in package.json (ADR 0060). Let Dependabot bump vite
+      # inside 6.x, but hold 7.x and 8.x until VitePress 2 is adopted.
       - dependency-name: vite
-        versions: ["6.x", "7.x"]
+        versions: ["7.x", "8.x"]
     commit-message:
       prefix: "chore(deps)"
       prefix-development: "chore(deps-dev)"
