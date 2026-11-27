@@ -5,7 +5,7 @@ SceneGraph node** — the UI layer of a Roku app. This page explains when you ne
 and how to keep them rare.
 
 ::: tip How it runs
-`@SGNode` suites run in two of the three lanes:
+`@SGNode` suites run in all three lanes:
 
 - **Default lane** (`brighttest`) — runs `@SGNode` suites headless when your project has them (it boots a
   SceneGraph scene). Pass `--no-sgnode` to skip them and use the faster SceneGraph-off driver (handy for a
@@ -158,8 +158,8 @@ gate the device lane to merges/nightly on a self-hosted runner — see [CI integ
 | Behavior | Where to test |
 |---|---|
 | Calculations, parsing, formatting, validation, state transitions | Default headless (pure functions) |
-| A node's own functions/subs + computed state (call directly, assert) | Headless `--coverage` or device |
-| **`onChange` observer cascades** (set field → handler reacts) | Headless `--coverage` or device |
+| A node's own functions/subs + computed state (call directly, assert) | Headless (default or `--coverage`) or device |
+| **`onChange` observer cascades** (set field → handler reacts) | Headless (default or `--coverage`) or device |
 | Real wall-clock render timing — animations, Task I/O, live remote input | Device (`@SGNode`) — the fidelity reference |
 
 ::: tip Assert floats against floats

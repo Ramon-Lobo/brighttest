@@ -73,7 +73,7 @@ your everyday feedback loop.
 A test you've never seen fail is a test you don't trust. Change the assertion to expect the wrong answer:
 
 ```brightscript
-m.assertEqual(result, 6)   // wrong on purpose
+m.assertEqual(result, 6)   ' wrong on purpose
 ```
 
 Run again:

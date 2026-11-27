@@ -177,7 +177,7 @@ the correct hash on the simulator). To keep the fast headless lane trustworthy, 
 npx brighttest --cross-check --host <roku-ip> --password <dev-pw>
 ```
 
-It runs every non-node suite **both** headless and on the device, matches tests by name, and reports:
+It runs every suite, `@SGNode` node suites included, **both** headless and on the device, matches tests by name, and reports:
 
 ```
 agree            : 76   (same result in both lanes)

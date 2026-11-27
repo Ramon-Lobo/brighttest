@@ -120,7 +120,7 @@ function _()
 end function
 ```
 
-## A thin SceneGraph node test (device lane)
+## A thin SceneGraph node test (runs headless by default)
 
 ```brightscript
 @suite("Hud")

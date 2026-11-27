@@ -95,7 +95,7 @@ npx brighttest --coverage --lcov coverage/lcov.info
 npx brighttest --device --host <roku-ip> --password <dev-pw> --lcov coverage/lcov.info
 ```
 
-Every device command (`--device`, `--cross-check`, `e2e`, `doctor`, `device`, Studio, MCP) resolves the target in one order: `--host` (also `ip:pw`), then `ROKU_HOST` in the shell, then `ROKU_HOST` in the project `.env`, then the cached device (only when exactly one device is cached; with several, pass `--host` or run `brighttest setup`). The shell variable wins over `.env`. The password comes from `--password`, the inline `ip:pw`, `ROKU_PASSWORD`, or the cache. `doctor` and `brighttest setup` show where the host came from.
+Every device command (`--device`, `--cross-check`, `e2e`, `doctor`, `device`, Studio, MCP) resolves the target in one order: `--host` (also `ip:pw`), then `ROKU_HOST` in the shell, then `ROKU_HOST` in the project `.env`, then the cached device (only when exactly one device is cached; with several, device commands ask you to pass `--host` or run `brighttest setup`, while `doctor` warns and uses the last one). The shell variable wins over `.env`. The password comes from `--password`, the inline `ip:pw`, `ROKU_PASSWORD`, or the cache. `doctor` and `brighttest setup` show where the host came from.
 
 
 Add scripts to `package.json`:

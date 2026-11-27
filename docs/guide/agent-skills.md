@@ -21,7 +21,7 @@ plus `references/`), and the content is authored once and adapted to whichever a
 | `reporting-a-brighttest-issue` | Writing up a brighttest finding: pick what matters, one issue per finding, a generic reproduction, `issue redact` and `issue check`, the field-report format, and a hand-off that never files on its own. |
 | `testing-app-state` | Reading, setting, snapshotting and asserting app state (`m.global`, scene fields, registry) with `__bt_state`, `assertState`, and the state flow steps. |
 | `mocking-network-and-store` | Faking what the app talks to in headless specs: BTNet rules and faults, HAR record and replay, `csfake` roChannelStore fixtures and the `BTMedia_*` Video/Audio driver, and what none of them prove about a device. |
-| `using-brighttest-mcp` | Driving a real Roku through the `brighttest mcp` server: the ten tools, the per-call device lease, budgets, and typed errors. |
+| `using-brighttest-mcp` | Driving a real Roku through the `brighttest mcp` server: the sixteen tools, the per-call device lease, budgets, and typed errors. |
 | `using-a-roku-device-safely` | Before any command that touches a real Roku: the device lease, exit codes 75, 77 and 78, doctor, ECP Permissive, ports, keepalive and the 10-minute stall, secrets, and what an agent must never do. |
 | `using-brighttest-studio` | Using `brighttest studio` in the browser: live SceneGraph, remote, flow runs with a step trace, and the Profile page. |
 | `writing-e2e-flows` | Authoring/running on-device UI flows (`*.e2e.yaml`): the inspect → write → run workflow, steps, selectors (`id` not `testId`), focus navigation, `record`/`stamp`, multi-device sharding, and CI. |
@@ -76,7 +76,7 @@ The four bundled agents, each preloaded with the skills it needs:
 
 All four bundled agents are written for Claude only (`hosts: [claude]`). Copilot gets skills and the instructions
 block; it would also get `.github/agents/<name>.agent.md` for any definition that lists `copilot` in `hosts`, but none
-do in this release. No other target gets agent files. Copilot cannot preload skills, so a rendered Copilot agent opens with a line telling it to load the listed skills first. Tool names are mapped to Copilot aliases (`Read` to `read`, `Edit`/`Write` to `edit`, `Grep`/`Glob` to `search`, `Bash` to `execute`); these aliases are not yet verified on a Copilot install.
+do in this release. No other target gets agent files. `brighttest skills --check` compares `skills/manifest.json` with the `skills/` tree without writing and exits 1 on drift (for CI). Copilot cannot preload skills, so a rendered Copilot agent opens with a line telling it to load the listed skills first. Tool names are mapped to Copilot aliases (`Read` to `read`, `Edit`/`Write` to `edit`, `Grep`/`Glob` to `search`, `Bash` to `execute`); these aliases are not yet verified on a Copilot install.
 
 New to brighttest on an existing app? Start with the [adoption guide](./adopting.md).
 

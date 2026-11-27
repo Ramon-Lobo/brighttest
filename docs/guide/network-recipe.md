@@ -2,8 +2,9 @@
 
 A short, manual recipe for working on one endpoint at the network level: answer it with a mock, watch the requests
 the app makes, then make it fail. It uses the same rule format as the [network fixtures](/writing-tests/http-fixtures)
-and the [fault model](/guide/net-faults). The build must be instrumented for the network (`brighttest instrument build
---net`) so the app's HTTP calls go through the brighttest hub.
+and the [fault model](/guide/net-faults). The build must be instrumented for the network and must carry the hub token (`brighttest instrument build
+--net` bakes `BRIGHTTEST_HUB_TOKEN`, so the hub accepts the build). The app's HTTP calls go through the brighttest
+hub when the instrumented build is configured for the network (`instrument.net`).
 
 ## 1. Mock one endpoint
 
