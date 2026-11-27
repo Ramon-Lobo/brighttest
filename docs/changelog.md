@@ -59,6 +59,7 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
   through the app's agent (value tree, ack chip, refusal hints, node links, **+ setState step**), opened from the Node
   tab switch, a Tree row (**state**) or the right-click menu (**Inspect state**). New test ids `node-view-state`,
   `tree-node-state`, `menu-inspect-state` and `node-state-*`. Needs an instrumented build and the hub.
+- **Studio:** the node overlay is now sized correctly on an hd app (manifest `ui_resolutions=hd`) on a 1080p output on firmware 16, where the root scene and its built-in Poster report 1920x1080 next to the app's 1280x720 content. The boxes were drawn at two thirds scale there.
 - **Studio:** an **overlay** switch in the header (Inspect and Record) hides the node outlines to show only the device
   picture. It is on by default and remembered per browser. While off, clicking the picture selects nothing (the selection
   is kept) and Studio stops reading the tree unless the Node, Tree or Selector tab is open (then once a second), which

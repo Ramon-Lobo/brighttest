@@ -1,0 +1,17 @@
+{
+  "_note": "RECONSTRUCTED from measured facts, not a recording. No raw /api/tree dump was kept from the Geometry Fixture check on a Roku Ultra, firmware 16.0.4 (manifest ui_resolutions=hd, 1920x1080 output). Facts used: the root scene and its built-in Poster both report bounds 1920x1080 at the origin, the app's black Rectangle is 1280x720, box_red is at 100,80 size 200x120, and the app lays out in 1280x720. Positions of the green box, blue box and label are illustrative.",
+  "screen": { "w": 1920, "h": 1080 },
+  "roots": [
+    {
+      "subtype": "Scene", "id": "MainScene", "bounds": { "x": 0, "y": 0, "w": 1920, "h": 1080 },
+      "children": [
+        { "subtype": "Poster", "id": null, "bounds": { "x": 0, "y": 0, "w": 1920, "h": 1080 }, "children": [] },
+        { "subtype": "Rectangle", "id": "bg", "bounds": { "x": 0, "y": 0, "w": 1280, "h": 720 }, "children": [] },
+        { "subtype": "Rectangle", "id": "box_red", "bounds": { "x": 100, "y": 80, "w": 200, "h": 120 }, "translation": { "x": 100, "y": 80 }, "children": [] },
+        { "subtype": "Rectangle", "id": "box_green", "bounds": { "x": 400, "y": 200, "w": 300, "h": 180 }, "translation": { "x": 400, "y": 200 }, "children": [] },
+        { "subtype": "Rectangle", "id": "box_blue", "bounds": { "x": 800, "y": 400, "w": 240, "h": 160 }, "translation": { "x": 800, "y": 400 }, "children": [] },
+        { "subtype": "Label", "id": "label_a", "text": "A", "bounds": { "x": 100, "y": 600, "w": 160, "h": 40 }, "translation": { "x": 100, "y": 600 }, "children": [] }
+      ]
+    }
+  ]
+}
