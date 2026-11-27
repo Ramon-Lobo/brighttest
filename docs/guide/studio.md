@@ -222,7 +222,7 @@ server or in config.
 
 ## Builds page
 
-The Builds page lists the [build store](/guide/builds): drop zips to add them, edit label, tags and notes, pin, download, delete, or install a build on the connected device (after a confirmation, under the device lease; Studio compares the build's hub token with its own and warns on a mismatch). It is not available for installs in simulator mode.
+The Builds page lists the [build store](/guide/builds): drop zips to add them, edit label, tags and notes, pin, download, delete, or install a build on the connected device (after a confirmation, under the device lease; Studio compares the build's hub token with its own and warns on a mismatch). It is not available for installs in simulator mode. A direct link opens it: `http://localhost:<port>/#/builds`. Every page id works the same way (`#/inspect`, `#/runs`, `#/record`, `#/devices`, `#/profile`, `#/settings`), and the address bar follows the nav.
 
 ## Builds API
 
