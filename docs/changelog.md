@@ -131,6 +131,7 @@ Versions follow semver; while on 0.x, a minor release may contain breaking chang
   a device prints them, so output that compared against the old float text may differ.
 
 ### Fixes
+- **Sideload:** `instrument build --sideload` (and the installer calls behind `e2e` Delete, screenshots and inspect) no longer fails with `fetch failed` / EPIPE when the device closes the connection after its authentication challenge. Both requests send `Connection: close`, the challenge for a package is a bodyless request so the package is uploaded once, and a failed install request now goes through the documented Delete-and-retry-once path. The message names the failing step and the error code (for example `POST /plugin_install (authenticated) failed: EPIPE`), never the password.
 - **CLI:** `brighttest skills list | head` (any command whose reader closes the pipe early) no longer prints an `Error: write EPIPE` stack trace; it exits 0 quietly. Other stdout write errors still show.
 - **CLI:** `brighttest mcp --help` now lists all 15 tools (it left out `app_state_get`, `app_state_set` and `app_state_snapshot`); the list is read from the tool registry.
 - **Feature report:** the Notes column of the members table showed `[object Object]` for nodes with notes (for example a node that was not classified). Notes now render as readable text for a string, a list, or an object with `text` or `message`.
