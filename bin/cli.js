@@ -902,7 +902,7 @@ async function main() {
     return;
   }
   if (argv[0] === 'issue') {
-    const code = require('../lib/issue').run(argv.slice(1));
+    const code = await require('../lib/issue').run(argv.slice(1));
     process.stdout.write('', () => process.exit(code));
     return;
   }
