@@ -21,6 +21,7 @@
   import Runs from './lib/pages/Runs.svelte';
   import Devices from './lib/pages/Devices.svelte';
   import Builds from './lib/pages/Builds.svelte';
+  import { pageFromHash, hashToWrite } from './lib/route.js';
   import Record from './lib/pages/Record.svelte';
   import Settings from './lib/pages/Settings.svelte';
   import Profile from './lib/pages/Profile.svelte';
@@ -46,6 +47,15 @@
     { id: 'profile', label: 'Profile' },
     { id: 'settings', label: 'Settings' },
   ];
+
+  // Direct links: #/builds (any page id) opens that page; the hash follows the page after that.
+  const startPage = pageFromHash(location.hash, PAGES.map((p) => p.id));
+  if (startPage) studio.page = startPage;
+  $effect(() => {
+    const w = hashToWrite(studio.page, location.hash);
+    if (w) location.hash = w;
+  });
+  const onHashChange = () => { const p = pageFromHash(location.hash, PAGES.map((x) => x.id)); if (p && p !== studio.page) studio.page = p; };
 
   let shotSrc = $state('');
   let flows = $state([]);
@@ -307,7 +317,7 @@
   });
 </script>
 
-<svelte:window onkeydown={onWinKey} onpointerdown={onWinDown} />
+<svelte:window onkeydown={onWinKey} onpointerdown={onWinDown} onhashchange={onHashChange} />
 
 <div class="app" data-testid="studio-app">
   <header data-testid="studio-header" aria-label="Studio status">
