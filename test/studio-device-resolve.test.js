@@ -3,6 +3,8 @@ import { createRequire } from 'node:module'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import http from 'node:http'
+import net from 'node:net'
 
 const require = createRequire(import.meta.url)
 const studio = require('../lib/studio/server.js')
@@ -62,5 +64,53 @@ describe('studio device resolution', () => {
   })
   it('nothing cached, no host: device-less', () => {
     expect(studio.resolveStudioTarget({})).toEqual({ host: null, password: null })
+  })
+})
+
+// LMA-T1: Studio caches its startup host only after reaching it (fake device-info on loopback).
+describe('studio caches the host only after a successful device-info read', () => {
+  const freshFake = () => new Promise((r) => {
+    const s = http.createServer((q, res) => res.end('<device-info><serial-number>FAKE-SN</serial-number><model-name>Fake</model-name></device-info>'))
+    s.listen(0, '127.0.0.1', () => r(s))
+  })
+  const closedPort = () => new Promise((r) => { const s = net.createServer(); s.listen(0, '127.0.0.1', () => { const p = s.address().port; s.close(() => r(p)) }) })
+  const get = (srv, p) => new Promise((resolve, reject) => {
+    http.get({ host: '127.0.0.1', port: srv.address().port, path: p }, (res) => { let b = ''; res.on('data', (d) => { b += d }); res.on('end', () => resolve(JSON.parse(b))) }).on('error', reject)
+  })
+  const stop = (srv) => new Promise((r) => { srv.close(r); srv.closeAllConnections && srv.closeAllConnections() })
+  let leaseDirSaved
+  beforeEach(() => { leaseDirSaved = process.env.BRIGHTTEST_LEASE_DIR; saved.ROKU_ECP_PORT = process.env.ROKU_ECP_PORT; process.env.BRIGHTTEST_LEASE_DIR = path.join(dir, 'leases') })
+  afterEach(() => { if (leaseDirSaved === undefined) delete process.env.BRIGHTTEST_LEASE_DIR; else process.env.BRIGHTTEST_LEASE_DIR = leaseDirSaved })
+
+  it('started on an unreachable host: the devices cache file is not created or changed', async () => {
+    process.env.ROKU_ECP_PORT = String(await closedPort())
+    const srv = await studio.start({ port: 0, rootDir: dir, host: '127.0.0.1', password: 'pw' })
+    try {
+      expect(fs.existsSync(process.env.BRIGHTTEST_CACHE)).toBe(false)
+      const body = await get(srv, '/api/device')
+      expect(body.connected).toBe(false)
+      expect(fs.existsSync(process.env.BRIGHTTEST_CACHE)).toBe(false)
+    } finally { await stop(srv) }
+  })
+  it('unreachable host with an existing cache: the file is byte-identical', async () => {
+    seed({ '192.0.2.1': { password: 'a', lastUsed: 1 } }, '192.0.2.1')
+    const before = fs.readFileSync(process.env.BRIGHTTEST_CACHE, 'utf8')
+    process.env.ROKU_ECP_PORT = String(await closedPort())
+    const srv = await studio.start({ port: 0, rootDir: dir, host: '127.0.0.1', password: 'pw' })
+    try { await get(srv, '/api/device') } finally { await stop(srv) }
+    expect(fs.readFileSync(process.env.BRIGHTTEST_CACHE, 'utf8')).toBe(before)
+  })
+  it('writes the cache after the first successful device-info read, not before', async () => {
+    const fake = await freshFake()
+    process.env.ROKU_ECP_PORT = String(fake.address().port)
+    const srv = await studio.start({ port: 0, rootDir: dir, host: '127.0.0.1', password: 'pw' })
+    try {
+      expect(fs.existsSync(process.env.BRIGHTTEST_CACHE)).toBe(false)
+      const body = await get(srv, '/api/device')
+      expect(body.connected).toBe(true)
+      const c = JSON.parse(fs.readFileSync(process.env.BRIGHTTEST_CACHE, 'utf8'))
+      expect(c.lastHost).toBe('127.0.0.1')
+      expect(c.devices['127.0.0.1'].password).toBe('pw')
+    } finally { await stop(srv); await stop(fake) }
   })
 })
