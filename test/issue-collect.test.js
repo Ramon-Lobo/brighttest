@@ -109,7 +109,7 @@ describe('issue collect', () => {
     const r = bt(['collect', '--include', b])
     expect(r.status).toBe(0)
     const d = outDir()
-    expect(walk(path.join(d, 'attachments')).map((f) => path.relative(d, f)).sort()).toEqual([
+    expect(walk(path.join(d, 'attachments')).map((f) => path.relative(d, f).split(path.sep).join('/')).sort()).toEqual([
       'attachments/failure-bundle-1/error.json', 'attachments/failure-bundle-1/log-tail.txt', 'attachments/failure-bundle-1/net-refused.txt',
     ])
     expect(r.stderr).toMatch(/tree\.xml and screenshots left out on purpose/)
