@@ -635,7 +635,7 @@ describe('ticket adoption, ETA and --expect (LSE-T11, TP-LSE-23)', () => {
     return p
   }
   const heldBy = async (pid, extra = {}) => acquire(opts({ pid, pidStartValue: `start-${pid}`, ...extra }))
-  const logReleased = (purpose, heldMs) => createStore(seams()).logEvent(KEY, { ev: 'released', leaseId: 'x', agent: 'a', purpose, heldMs })
+  const logReleased = (verb, heldMs) => createStore(seams()).logEvent(KEY, { ev: 'released', leaseId: 'x', agent: 'a', purpose: `${verb} job`, verb, heldMs })
 
   it('adopts a dead same-agent/purpose ticket inside the 60 s window and keeps its place', async () => {
     const holder = await heldBy(1001, { agent: 'h', purpose: 'hold' })
@@ -680,21 +680,21 @@ describe('ticket adoption, ETA and --expect (LSE-T11, TP-LSE-23)', () => {
   })
 
   it('ETA: median heldMs of the last 10 released events with the same purpose verb', () => {
-    for (const ms of [999999, 1000, 3000, 2000]) logReleased('e2e run --suite a', ms) // 999999 is the 11th-oldest below
-    for (let i = 0; i < 9; i++) logReleased('e2e run --suite b', 2000)
-    logReleased('device with -- x', 77)
+    for (const ms of [999999, 1000, 3000, 2000]) logReleased('e2e', ms) // 999999 is the 11th-oldest below
+    for (let i = 0; i < 9; i++) logReleased('e2e', 2000)
+    logReleased('with', 77)
     const s = createStore(seams())
     // last 10 of "e2e run": 1000,3000,2000 + nine 2000 -> drop the oldest outlier(s); median 2000
-    const hold = { acquiredAt: iso(clock.t - 500), holder: { purpose: 'e2e run --suite z' }, leaseId: 'h' }
+    const hold = { acquiredAt: iso(clock.t - 500), holder: { purpose: 'e2e run --suite z', verb: 'e2e' }, leaseId: 'h' }
     fs.mkdirSync(path.join(dir, KEY), { recursive: true })
     fs.writeFileSync(holderFile(), JSON.stringify({ ...hold, schema: 'brighttest-lease/v1', mode: 'command', deadline: iso(clock.t + 9e6), holder: { ...hold.holder, pid: 1001, pidStart: 'start-1001', hostname: 'this-host' } }))
     expect(s.statusOf(KEY).etaMs).toBe(1500) // median 2000 - 500 elapsed
   })
 
   it('ETA adds the expected hold of each ticket ahead; a waiter sees its own wait; unknown history gives null', async () => {
-    for (const ms of [2000, 4000, 6000]) logReleased('e2e run', ms) // median 4000
-    const h = await heldBy(1001, { agent: 'h', purpose: 'e2e run', expectMs: 10000 })
-    writeTicket('000000000000100-a.json', { leaseId: 'a', agent: 'a', purpose: 'e2e run', pid: 1003 })
+    for (const ms of [2000, 4000, 6000]) logReleased('e2e', ms) // median 4000
+    const h = await heldBy(1001, { agent: 'h', purpose: 'e2e run', verb: 'e2e', expectMs: 10000 })
+    writeTicket('000000000000100-a.json', { leaseId: 'a', agent: 'a', purpose: 'e2e run', verb: 'e2e', pid: 1003 })
     writeTicket('000000000000200-b.json', { leaseId: 'b', agent: 'b', purpose: 'mystery job', pid: 1004 })
     clock.t += 3000
     const st = createStore(seams()).statusOf(KEY)
@@ -703,14 +703,33 @@ describe('ticket adoption, ETA and --expect (LSE-T11, TP-LSE-23)', () => {
     h.release()
   })
 
+  it('an overdue holder and a holder with no data get honest ETA notes; the verb is recorded and an old holder file still reads', async () => {
+    const h = await heldBy(1001, { agent: 'h', purpose: 'p', verb: 'Sideload', expectMs: 2000 })
+    expect(readHolder().holder.verb).toBe('sideload')
+    writeTicket('000000000000100-a.json', { leaseId: 'a', agent: 'a', purpose: 'p', pid: 1003 })
+    clock.t += 5000
+    let st = createStore(seams()).statusOf(KEY)
+    expect(st.etaMs).toBeNull()
+    expect(st.etaNote).toBe('past expected hold by 3s; ETA unknown')
+    expect(st.queue[0].etaNote).toBe('past expected hold by 3s; ETA unknown')
+    h.release()
+    // a holder file written before the verb field existed, and no --expect: no data
+    const old = { acquiredAt: iso(clock.t - 500), holder: { purpose: 'old text', pid: 1001, pidStart: 'start-1001', hostname: 'this-host' }, leaseId: 'h2' }
+    fs.writeFileSync(holderFile(), JSON.stringify({ ...old, schema: 'brighttest-lease/v1', mode: 'command', deadline: iso(clock.t + 9e6) }))
+    st = createStore(seams()).statusOf(KEY)
+    expect(st.holder.holder.purpose).toBe('old text')
+    expect(st.etaMs).toBeNull()
+    expect(st.etaNote).toBe('ETA unknown (no --expect)')
+  })
+
   it('--expect: the holder expectMs drives the ETA over history, and the wait line shows it; ETA never blocks', async () => {
-    for (const ms of [2000, 2000, 2000]) logReleased('device with', ms)
-    const h = await heldBy(1001, { agent: 'h', purpose: 'device with', expectMs: 30000 })
+    for (const ms of [2000, 2000, 2000]) logReleased('with', ms)
+    const h = await heldBy(1001, { agent: 'h', purpose: 'device with', verb: 'with', expectMs: 30000 })
     expect(readHolder().expectMs).toBe(30000)
     clock.t += 5000
     const waits = []
     let n = 0
-    const p = acquire(opts({ pid: 1002, pidStartValue: 'start-1002', agent: 'w', purpose: 'device with', waitMs: 600000,
+    const p = acquire(opts({ pid: 1002, pidStartValue: 'start-1002', agent: 'w', purpose: 'device with', verb: 'with', waitMs: 600000,
       onWait: (snap) => waits.push(snap),
       sleep: async (ms) => { clock.t += ms; if (++n === 3) h.release() } }))
     const l = await p

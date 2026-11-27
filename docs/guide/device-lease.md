@@ -104,9 +104,11 @@ brighttest command started inside it re-uses the same lease instead of waiting f
 | `--lease <token>` | Run under that session lease (see below) instead of queueing; same as `BRIGHTTEST_LEASE=<token>` |
 
 **Estimated wait.** The waiting line and `device status` show "est. wait". It is the holder's remaining time
-(its `--expect`, else the median of the last 10 holds in `events.log` with the same first two words of purpose,
-for example `e2e run`) plus the expected hold of each ticket ahead. With no history it is left out. It is only
-an estimate: it never makes a lane give up or skip the queue.
+(its `--expect`, else the median of the last 10 holds in `events.log` with the same command verb, for example
+`e2e`; events without a verb count as `other`) plus the expected hold of each ticket ahead. A holder past its
+expected hold shows `past expected hold by <duration>; ETA unknown`, and with no data it shows
+`ETA unknown (no --expect)`; no ETA is ever invented. It is only an estimate: it never makes a lane give up or
+skip the queue.
 
 Durations are `90s`, `10m`, `1h` or plain milliseconds. The device lanes (`--device`, `--cross-check`,
 `e2e`) accept `--wait`, `--as`, `--purpose` and `--no-lease`.
