@@ -259,6 +259,49 @@ describe('acquire / release', () => {
   })
 })
 
+describe('interactive holder marker (D5)', () => {
+  const rec = () => JSON.parse(fs.readFileSync(holderFile(), 'utf8'))
+
+  it('a command holder has no interactive fields and its wait line is unchanged', async () => {
+    const a = await acquire(opts({ agent: 'dev#1', purpose: 'e2e run' }))
+    const h = rec().holder
+    for (const k of ['kind', 'yieldAfterMs', 'idleReleaseMs', 'activityAt', 'busy']) expect(h).not.toHaveProperty(k)
+    const snaps = []
+    await expect(acquire(opts({ pid: 1002, waitMs: 300, onWait: (s) => snaps.push(s) }))).rejects.toMatchObject({ code: 'TIMEOUT' })
+    expect(formatWaitLine(snaps[0])).not.toMatch(/interactive|yields to waiters/)
+    expect(lease.describeInteractive(h)).toBeNull()
+    a.release()
+  })
+
+  it('records kind and timings, and the wait line says it yields to waiters after its last action', async () => {
+    const a = await acquire(opts({ agent: 'dev#2', purpose: 'studio :8711', kind: 'interactive', yieldAfterMs: 60000, idleReleaseMs: 300000 }))
+    expect(rec().holder).toMatchObject({ kind: 'interactive', yieldAfterMs: 60000, idleReleaseMs: 300000, busy: false })
+    expect(typeof rec().holder.activityAt).toBe('string')
+    const snaps = []
+    await expect(acquire(opts({ pid: 1002, waitMs: 300, onWait: (s) => snaps.push(s) }))).rejects.toMatchObject({ code: 'TIMEOUT' })
+    expect(formatWaitLine(snaps[0])).toContain('interactive: yields to waiters 60s after its last action')
+    a.release()
+  })
+
+  it('annotate merges fields, writes at once then throttles to 5 s, and never changes id or deadline', async () => {
+    const a = await acquire(opts({ kind: 'interactive', yieldAfterMs: 60000 }))
+    const before = rec()
+    clock.t += 6000
+    a.annotate({ busy: true, activityAt: 'x1', leaseId: 'evil', deadline: 'evil', pid: 1 })
+    expect(rec().holder).toMatchObject({ busy: true, activityAt: 'x1' })
+    expect(rec().holder.pid).toBe(before.holder.pid)
+    expect(rec().leaseId).toBe(before.leaseId)
+    expect(rec().deadline).toBe(before.deadline)
+    clock.t += 1000
+    a.annotate({ busy: false })
+    expect(rec().holder.busy).toBe(true) // throttled: in memory only
+    expect(a.record.holder.busy).toBe(false)
+    a.heartbeat()
+    expect(rec().holder.busy).toBe(false) // the next heartbeat writes it
+    a.release()
+  })
+})
+
 describe('staleness and reclaim (D8, D9)', () => {
   it('F2/F3: dead holder is reclaimed once under the mutex; a second reclaimer is a no-op', async () => {
     const a = await acquire(opts())

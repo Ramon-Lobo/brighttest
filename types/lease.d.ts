@@ -12,6 +12,14 @@ export interface LeaseHolder {
   worktree?: string | null;
   branch?: string | null;
   claudeSessionId?: string | null;
+  /** "interactive" for Studio; absent for a command holder. */
+  kind?: 'interactive';
+  yieldAfterMs?: number;
+  idleReleaseMs?: number;
+  /** ISO time of the last user action (interactive holders). */
+  activityAt?: string;
+  /** A run or install is in flight (interactive holders). */
+  busy?: boolean;
   [key: string]: unknown;
 }
 

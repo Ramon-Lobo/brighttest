@@ -230,7 +230,7 @@ function parseInstrumentArgs(rest) {
 
 // Options for studio's start(): the raw parsed flags, never a host resolved here (the server decides the device).
 function studioStartOptions(o, extra) {
-  return { host: o.host, password: o.password, app: o.app, flowsDir: o.flowsDir, simulator: o.simulator === true, ...extra };
+  return { host: o.host, password: o.password, app: o.app, flowsDir: o.flowsDir, simulator: o.simulator === true, ...(o.as ? { leaseOpts: { acquireOpts: { agent: o.as } } } : {}), ...extra };
 }
 
 // Studio start failure -> exit code: usage mistakes and a missing UI bundle are 2, everything else 1.
@@ -523,7 +523,7 @@ Exit codes: the command's own code · 75 busy / wait timed out · 77 lease lost,
 
 // `brighttest studio` — visual studio (web app) for authoring & debugging e2e flows on a device.
 function parseStudioArgs(rest) {
-  const o = { host: null, password: null, port: null, app: 'dev', flowsDir: null, open: false, simulator: false, help: false };
+  const o = { host: null, password: null, port: null, app: 'dev', flowsDir: null, open: false, simulator: false, as: null, help: false };
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
     if (a === '--simulator') o.simulator = true;
@@ -538,6 +538,8 @@ function parseStudioArgs(rest) {
     else if (a.startsWith('--app=')) o.app = a.slice(6);
     else if (a === '--flows-dir') o.flowsDir = rest[++i];
     else if (a.startsWith('--flows-dir=')) o.flowsDir = a.slice(12);
+    else if (a === '--as') o.as = rest[++i];
+    else if (a.startsWith('--as=')) o.as = a.slice(5);
     else if (a === '--open' || a === '-o') o.open = true;
     else if (a === '--help' || a === '-h') o.help = true;
   }
@@ -552,7 +554,7 @@ brighttest studio — visual studio for authoring & debugging e2e flows on a dev
   Requires a Roku in developer mode with ECP Network access = Permissive.
 
 Usage:
-  brighttest studio --host <ip> [--port 8700] [--app dev] [--flows-dir flows] [--open]
+  brighttest studio --host <ip> [--port 8700] [--app dev] [--as <agent>] [--flows-dir flows] [--open]
   brighttest studio --simulator [--port 8700] [--flows-dir flows] [--open]
 
 Options:
@@ -560,6 +562,7 @@ Options:
   --password <pw>    Roku dev password — discouraged (it shows in the process list); set ROKU_PASSWORD instead. Enables screenshots
   --port <n>         Local port for the studio (default 8700; if busy, the first free of 8701-8709)
   --app <id>         Channel to launch / drive (default: dev)
+  --as <agent>       Device lease: holder label for this Studio (or BRIGHTTEST_AGENT), e.g. dev#2, qa:run-123
   --flows-dir <dir>  Where flows are read and written (default: ./flows)
   --simulator        Run against the local brs-node simulator instead of a device (state-only). Uses the stock
                      engine (npm i brs-node) unless engines.brsNode or BRIGHTTEST_ENGINES picks another one.
@@ -569,7 +572,7 @@ Options:
 
 Device lease:
   Studio holds the device lease only while you use it. It yields to a waiting session after 60 seconds
-  idle and releases after 5 minutes idle. A 423 response means another agent holds the device; use
+  idle and releases after 5 minutes idle; the lease record marks it interactive so waiters see that. A 423 response means another agent holds the device; use
   "Take over" in the Studio to override it explicitly.
 
 Source checkouts:
@@ -817,6 +820,7 @@ async function main() {
     const o = parseStudioArgs(argv.slice(1));
     if (o.help) { console.log(STUDIO_HELP); process.exit(0); }
     if (o.badSimulator) { console.error(`[brighttest studio] ${o.badSimulator}: --simulator is a flag and takes no value`); process.exit(2); }
+    if (o.as !== null && !String(o.as || '').trim()) { console.error('[brighttest studio] --as needs an agent name, e.g. --as dev#2'); process.exit(2); }
     if (o.simulator && o.password) console.error('[brighttest studio] warning: --password is ignored with --simulator');
     if (o.simulator && o.host) { console.error('[brighttest studio] --simulator cannot be combined with --host'); process.exit(2); }
     // The raw --host/--password go to the server, which owns the device rules (explicit host wins, several cached

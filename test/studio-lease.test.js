@@ -55,6 +55,29 @@ describe('StudioLease', () => {
     s.release()
   })
 
+  it('the lease record is marked interactive with timings, activity and busy', async () => {
+    const s = mk()
+    const read = () => JSON.parse(fs.readFileSync(path.join(dir, '127.0.0.1', 'holder.json'), 'utf8')).holder
+    expect(await s.ensure({ user: true })).toBe(true)
+    expect(read()).toMatchObject({ kind: 'interactive', yieldAfterMs: 5000, idleReleaseMs: 10000, busy: false })
+    clock.t += 6000
+    let release
+    const run = s.during(() => new Promise((r) => { release = r }))
+    expect(read().busy).toBe(true)
+    expect(Date.parse(read().activityAt)).toBe(clock.t)
+    clock.t += 6000
+    release(); await run
+    expect(s.lease.record.holder.busy).toBe(false)
+    s.release()
+  })
+
+  it('--as sets the holder label', async () => {
+    const s = track(new StudioLease({ host: '127.0.0.1', cfg, env: env(), now: () => clock.t, log: () => {}, acquireOpts: { ...seams(), agent: 'dev#7' } }))
+    expect(await s.ensure({ user: true })).toBe(true)
+    expect(JSON.parse(fs.readFileSync(path.join(dir, '127.0.0.1', 'holder.json'), 'utf8')).holder.agent).toBe('dev#7')
+    s.release()
+  })
+
   it('describe: a yield is not an idle release', () => {
     const base = { host: '127.0.0.1', holding: false, holder: null, queue: [], queued: false }
     for (const pool of [false, true]) {
