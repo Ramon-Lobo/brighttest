@@ -169,13 +169,65 @@ describe('studio layout engine', () => {
     const st = fake()
     const l = L.move(L.defaultLayout(R), 'a', 6, 0, R)
     expect(L.save(st, 'k', l, R)).toBe(true)
-    expect(JSON.parse(st.m.get('k'))).toMatchObject({ v: 1, reg: 1 })
+    expect(JSON.parse(st.m.get('k'))).toMatchObject({ v: 2, reg: 1 })
     expect(L.load(st, 'k', R)).toEqual(l)
     const R2 = mini(2, { d: { title: 'D', minW: 2, minH: 2, default: { x: 0, y: 9, w: 4, h: 3 }, newState: 'open' } })
     const got = L.load(st, 'k', R2)
     expect(got.map((t) => t.id).sort()).toEqual(['a', 'b', 'c', 'd'])
     expect(JSON.parse(st.m.get('k')).reg).toBe(2)
     expect(L.save({ setItem() { throw new Error('quota') } }, 'k', l, R)).toBe(false)
+  })
+
+  it('v1 documents migrate to v2 on load without moving a tile, and are re-saved as v2', async () => {
+    const L = await load(); const R = mini()
+    const moved = L.move(L.defaultLayout(R), 'a', 6, 0, R)
+    const st = fake({ k: JSON.stringify({ v: 1, reg: 1, tiles: moved }) })
+    const got = L.load(st, 'k', R)
+    expect(got).toEqual(moved)
+    const doc = JSON.parse(st.m.get('k'))
+    expect(doc).toMatchObject({ v: 2, reg: 1 })
+    expect(doc.tiles).toEqual(moved)
+    expect(doc.panels).toBeUndefined()
+    // a v1 document from an older registry also migrates and keeps the placed tiles
+    const R2 = mini(2, { d: { title: 'D', minW: 2, minH: 2, default: { x: 0, y: 9, w: 4, h: 3 }, newState: 'open' } })
+    const st2 = fake({ k: JSON.stringify({ v: 1, reg: 1, tiles: moved }) })
+    const got2 = L.load(st2, 'k', R2)
+    for (const id of ['a', 'b', 'c']) expect(by(got2, id)).toMatchObject({ x: by(moved, id).x, y: by(moved, id).y, w: by(moved, id).w })
+    expect(by(got2, 'd')).toBeTruthy()
+    expect(JSON.parse(st2.m.get('k'))).toMatchObject({ v: 2, reg: 2 })
+  })
+
+  it('v2 keeps the panel order across layout saves; bad orders are cleaned; corrupt v2 falls back', async () => {
+    const L = await load(); const R = mini()
+    const known = ['a', 'b', 'c']
+    const st = fake()
+    expect(L.loadPanelOrder(st, 'k', known)).toEqual(known)
+    expect(L.save(st, 'k', L.defaultLayout(R), R, { order: ['c', 'a', 'x', 'a'] })).toBe(true)
+    expect(L.loadPanelOrder(st, 'k', known)).toEqual(['c', 'a', 'b'])
+    L.save(st, 'k', L.move(L.defaultLayout(R), 'a', 6, 0, R), R) // a layout commit does not drop the order
+    expect(JSON.parse(st.m.get('k')).panels).toEqual({ order: ['c', 'a', 'x', 'a'] })
+    expect(L.loadPanelOrder(st, 'k', known)).toEqual(['c', 'a', 'b'])
+    expect(L.loadPanelOrder(fake({ k: '{nope' }), 'k', known)).toEqual(known)
+    expect(L.loadPanelOrder(fake({ k: JSON.stringify({ v: 1, reg: 1, tiles: [], panels: { order: ['c'] } }) }), 'k', known)).toEqual(known)
+    expect(L.loadPanelOrder({ getItem() { throw new Error('denied') } }, 'k', known)).toEqual(known)
+    const def = L.defaultLayout(R)
+    expect(L.load(fake({ k: JSON.stringify({ v: 2, reg: 1, tiles: 'x', panels: 5 }) }), 'k', R)).toEqual(def)
+    expect(L.load(fake({ k: JSON.stringify({ v: 2, reg: 1, tiles: [null, 3, { id: 7 }] }) }), 'k', R)).toEqual(def)
+  })
+
+  it('dock then pop out restores the previous slot when free, else the next free slot', async () => {
+    const L = await load(); const R = mini()
+    const l = L.defaultLayout(R) // a (0,0) b (6,0) c (0,4)
+    const docked = L.setState(l, 'b', 'hidden', R)
+    expect(by(docked, 'b').state).toBe('hidden')
+    const back = L.setState(docked, 'b', 'open', R)
+    expect(by(back, 'b')).toMatchObject({ x: 6, y: 0, state: 'open' })
+    // the old slot is taken while docked: a moves onto it; b returns to the next free slot, never overlapping
+    const taken = L.move(docked, 'a', 6, 0, R)
+    const back2 = L.setState(taken, 'b', 'open', R)
+    expect(overlap(back2)).toBe(false)
+    expect(by(back2, 'b').state).toBe('open')
+    expect(by(back2, 'b').x === 6 && by(back2, 'b').y === 0).toBe(false)
   })
 
   it('presets are valid layouts; unknown name gives the default; unlisted tiles are hidden', async () => {

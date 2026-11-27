@@ -183,7 +183,11 @@ Selector, State, Actions, Network). There are no tabs; every panel is on screen 
   (monitor large, Node and State beside it, everything else hidden), and **Reset layout**. Presets and Reset ask for a
   confirmation because there is no undo. The tile menu also moves a tile one cell and makes it wider, narrower, taller or
   shorter, for use without dragging.
-- **Remembered per browser** in `localStorage` key `bt.studio.layout.inspect` (`{"v":1,"reg":1,"tiles":[...]}`), saved after
+- **Pop out and dock** the six inspector panels: the **Tiles** menu has a **Panels** list with **Dock** (the tile leaves the
+  grid) and **Pop out** (the tile comes back) for each panel. Pop out puts the panel back in its previous slot when that slot
+  is free, otherwise in the next free slot. Right-click a node and choose **Pop out Node panel** to bring the Node tile up.
+  Node next to State is two popped-out tiles side by side. Docked panels list most recently docked first.
+- **Remembered per browser** in `localStorage` key `bt.studio.layout.inspect` (`{"v":2,"reg":2,"tiles":[...],"panels":{"order":[...]}}`; a stored v1 layout loads unchanged and is saved as v2), saved after
   each completed change, never during a drag. Nothing is stored on the server or in config. Clearing the key, or an
   unreadable value, gives the default layout.
 - **Feed:** the monitor keeps 16:9 at any tile size (the largest 16:9 box that fits, letterboxed), and the node outlines

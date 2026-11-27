@@ -1,7 +1,7 @@
 <script>
   import { assertion, focusStep, pressStep, selectorFor } from './steps.js';
 
-  let { node, x, y, onpick, onclose, oninspect = null } = $props();
+  let { node, x, y, onpick, onclose, oninspect = null, onpopout = null } = $props();
 
   const items = $derived.by(() => {
     const n = node;
@@ -16,6 +16,7 @@
       ] },
       { label: 'Focus this node', line: focusStep(n) },
       ...(oninspect ? [{ label: 'Inspect state', act: 'inspect', testid: 'menu-inspect-state' }] : []),
+      ...(onpopout ? [{ label: 'Pop out Node panel', act: 'popout', testid: 'menu-popout-node' }] : []),
       { label: 'Press', children: ['Up', 'Down', 'Left', 'Right', 'Select', 'Back', 'Home'].map((k) => ({ label: k, line: pressStep(k) })) },
       { sep: true },
       { label: 'Copy selector', act: 'copy' },
@@ -25,6 +26,7 @@
   function choose(it) {
     if (it.children) return;
     if (it.act === 'inspect') oninspect(node);
+    else if (it.act === 'popout') onpopout(node);
     else if (it.act === 'copy') navigator.clipboard?.writeText(selectorFor(node)).catch(() => {});
     else if (it.line) onpick(it.line);
     onclose();
