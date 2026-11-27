@@ -10,7 +10,7 @@ const require = createRequire(import.meta.url)
 const { createNetWindow, MAX_IDLE_MS } = require('../lib/mcp/net-window.js')
 
 // NET-N-T15: the net window lease, headless, on a fake clock and an in-memory lease library.
-function fakeLeaseLib({ busy = false } = {}) {
+function fakeLeaseLib({ busy = false, command = false } = {}) {
   // Models the lease FILE: expiresAt moves only on acquire, a token re-entry or a renew (as the real session lease does).
   const st = { held: false, leaseId: 'lease-abc', idleMs: 0, expiresAt: 0, acquires: [], released: [], renews: 0 }
   const live = () => st.held && Date.now() < st.expiresAt
@@ -26,6 +26,11 @@ function fakeLeaseLib({ busy = false } = {}) {
         return { leaseId: st.leaseId, reentrant: true, release() {} }
       }
       if (busy) throw Object.assign(new Error('busy'), { code: 'BUSY' })
+      if (command) {
+        // nested in `device with`: a re-entrant view of the outer command lease; renew on it is refused
+        st.held = true; st.idleMs = 1e12; touch()
+        return { leaseId: st.leaseId, mode: 'command', reentrant: true, release() { st.released.push('noop') }, assertHeld: () => { if (!st.held) throw lost() } }
+      }
       st.held = true; st.idleMs = o.idleMs; touch()
       return {
         leaseId: st.leaseId,
@@ -33,7 +38,7 @@ function fakeLeaseLib({ busy = false } = {}) {
         assertHeld: () => { if (!st.held) throw lost() },
       }
     },
-    renew(token) { if (token !== st.leaseId || !live()) throw lost(); st.renews++; touch() },
+    renew(token) { if (command) { st.renewRefused = (st.renewRefused || 0) + 1; throw Object.assign(new Error('only session leases are renewed'), { code: 'USAGE' }) } if (token !== st.leaseId || !live()) throw lost(); st.renews++; touch() },
     tokenValid(token) { return token === st.leaseId && live() },
   }
 }
@@ -412,4 +417,30 @@ describe('net window lease on process stop', () => {
       expect(x.holders()).toHaveLength(0)
     } finally { x.p.kill('SIGKILL'); fs.rmSync(x.dir, { recursive: true, force: true }) }
   }, 20000)
+})
+
+describe('net window inside device with (ADR 0058)', () => {
+  it('stays open across checks with a command lease, never calling renew', async () => {
+    const lib = fakeLeaseLib({ command: true })
+    const w = await mk(lib, { idleMs: 60000 }).open()
+    const end = w.begin()
+    await vi.advanceTimersByTimeAsync(20000) // several checks while a call runs
+    end()
+    await vi.advanceTimersByTimeAsync(20000) // and while idle
+    expect(w.isOpen).toBe(true)
+    expect(w.lostWhy).toBe(null)
+    expect(lib.st.renewRefused || 0).toBe(0)
+    w.release()
+  })
+
+  it('reports LEASE_LOST when the outer command lease ends', async () => {
+    const lib = fakeLeaseLib({ command: true })
+    const w = await mk(lib, { idleMs: 60000 }).open()
+    const end = w.begin()
+    lib.st.held = false
+    await vi.advanceTimersByTimeAsync(6000)
+    expect(w.isOpen).toBe(false)
+    expect(w.lostWhy).toMatch(/lease lost/)
+    end()
+  })
 })

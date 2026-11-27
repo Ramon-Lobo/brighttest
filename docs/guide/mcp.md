@@ -183,7 +183,8 @@ A typed code raised by the flow or state layer inside `run_flow`, `inspect_tree`
   on timeout (outside the session hub window; `net_requests`, `net_mock`, `app_state_set` and `app_state_snapshot` always run inside
   it and open it if none is open). Nothing is held between calls, so a human or another agent can use the device in between. If another
   party holds it, the call fails at once with `DEVICE_BUSY` and sends no request. A lost lease becomes a `LEASE_LOST`
-  tool error; the server never exits because of the lease. `list_devices`, `device_doctor` and `perf_trace_summary` are read-only and take
+  tool error; the server never exits because of the lease. Inside `brighttest device with` the window reuses that command lease
+  (it is not renewed; the window is lost only when the outer command ends or its deadline passes). `list_devices`, `device_doctor` and `perf_trace_summary` are read-only and take
   no lease.
 - **Queue.** Device calls of a session run one at a time, and every request goes through the per-device ECP queue.
   A call that waits more than 30 s behind earlier ones is dropped with `QUEUE_TIMEOUT` and never runs. Keypresses are
