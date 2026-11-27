@@ -2,14 +2,25 @@
   import { studio } from './store.svelte.js';
   import { matchesSel as matches } from './match.js';
   import { formatShotAge } from './treepolicy.js';
+  import { cropTransform, boxAgeText } from './feed.js';
   // fit 'width' (Record): the box takes the width and grows in height. 'contain' (tiles): the largest 16:9 box that
   // fits the container, letterboxed; the picture and the overlay fill that one box, so they stay aligned at any size.
-  let { shotSrc, oncontext, fit = 'width', shotAt = 0, onrefresh } = $props();
+  // source: { kind: 'feed', stream, rect } shows a live capture-card video instead of the screenshot (shotSrc).
+  // treeAt: when the boxes were read; settling: a press is still moving things; aid: calibration guides.
+  let { shotSrc, oncontext, fit = 'width', shotAt = 0, onrefresh, source = null, treeAt = 0, settling = false, aid = false } = $props();
+  const isFeed = $derived(source?.kind === 'feed');
 
-  // The age of the shown picture, redrawn once a second so a stale monitor is visible.
+  // The age of the shown picture, redrawn once a second so a stale monitor is visible (four times a second for a feed's box age).
   let now = $state(Date.now());
-  $effect(() => { const t = setInterval(() => { now = Date.now(); }, 1000); return () => clearInterval(t); });
+  $effect(() => { const t = setInterval(() => { now = Date.now(); }, isFeed ? 250 : 1000); return () => clearInterval(t); });
   const age = $derived(shotAt ? formatShotAge(Math.max(0, now - shotAt)) : '');
+  const boxAge = $derived(isFeed && treeAt ? boxAgeText(Math.max(0, now - treeAt)) : '');
+  // The stream is set as a property, not an attribute.
+  function attach(node, stream) {
+    node.srcObject = stream;
+    return { update(s) { node.srcObject = s; }, destroy() { node.srcObject = null; } };
+  }
+  const focusedNodes = $derived(studio.nodes.filter((n) => n.focused && n.abs));
 
   // sgnodes/all dumps the whole tree, so most nodes with bounds are NOT on screen — hidden drawers,
   // preloaded sibling screens, ArrayGrid items scrolled out of view. The server derives `onScreen`
@@ -39,9 +50,21 @@
 
 <div class="monitor" class:contain={fit === 'contain'} data-testid="monitor-stage" role="presentation" onclick={() => { if (studio.overlay) studio.selectedPath = null; }}>
   <div class="bezel">
+    {#if isFeed}
+      <div class="vwrap">
+        <!-- svelte-ignore a11y_media_has_caption -->
+        <video autoplay muted playsinline data-testid="monitor-video" aria-label="live capture-card feed" use:attach={source.stream} style="transform: {cropTransform(source.rect)}"></video>
+      </div>
+    {:else}
     <img src={shotSrc} data-testid="monitor-screenshot" alt="live device screen" draggable="false" />
-    {#if studio.overlay}
-    <svg viewBox="0 0 {studio.scene.w} {studio.scene.h}" preserveAspectRatio="none" data-testid="monitor-overlay" aria-label="node overlay">
+    {/if}
+    {#if studio.overlay || aid}
+    <svg viewBox="0 0 {studio.scene.w} {studio.scene.h}" preserveAspectRatio="none" data-testid="monitor-overlay" class:settling={isFeed && settling} aria-label="node overlay">
+      {#if aid}
+        <rect class="aidframe" data-testid="feed-aid-frame" x="0" y="0" width={studio.scene.w} height={studio.scene.h}></rect>
+        {#each focusedNodes as n (n.path)}<rect class="aidnode" x={n.abs.x} y={n.abs.y} width={n.abs.w} height={n.abs.h}></rect>{/each}
+      {/if}
+      {#if studio.overlay}
       {#each studio.nodes as n (n.path)}
         {#if drawable(n)}
           {@const r = rectOf(n)}
@@ -65,9 +88,15 @@
           ></rect>
         {/if}
       {/each}
+      {/if}
     </svg>
     {/if}
-    {#if onrefresh}
+    {#if isFeed}
+    <div class="shotbar">
+      {#if settling}<span class="shotage" data-testid="monitor-settling" role="status">settling</span>{/if}
+      {#if boxAge}<span class="shotage" data-testid="monitor-box-age" role="status">{boxAge}</span>{/if}
+    </div>
+    {:else if onrefresh}
     <div class="shotbar">
       {#if age}<span class="shotage" data-testid="monitor-shot-age" role="status">{age}</span>{/if}
       <button type="button" class="shotrefresh" data-testid="monitor-refresh" title="Take a new screenshot now" aria-label="Refresh screenshot" onclick={(e) => { e.stopPropagation(); onrefresh(); }}>refresh</button>
@@ -89,6 +118,11 @@
     border-radius: 14px; padding: 10px; border: 1px solid var(--color-line2);
     box-shadow: 0 24px 60px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.02);
   }
+  .vwrap { position: absolute; inset: 10px; overflow: hidden; border-radius: 6px; }
+  .vwrap video { width: 100%; height: 100%; object-fit: fill; transform-origin: 0 0; display: block; }
+  svg.settling .box { opacity: .35; }
+  .aidframe { fill: none; stroke: #4cd7ff; stroke-width: 1.5; stroke-dasharray: 8 6; vector-effect: non-scaling-stroke; pointer-events: none; }
+  .aidnode { fill: none; stroke: #ff5ca8; stroke-width: 1.5; vector-effect: non-scaling-stroke; pointer-events: none; }
   .bezel img { position: absolute; inset: 10px; width: calc(100% - 20px); height: calc(100% - 20px); object-fit: fill; border-radius: 6px; }
   svg { position: absolute; inset: 10px; width: calc(100% - 20px); height: calc(100% - 20px); }
 
