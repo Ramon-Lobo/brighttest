@@ -269,7 +269,7 @@ Studio contract: they do not change between releases without a changelog note, a
 
 | Area | Ids |
 |---|---|
-| Shell and device | `studio-app`, `studio-header`, `device-summary` (model and firmware, or "no device"), `page-nav`, `nav-inspect`, `nav-runs`, `nav-record`, `nav-devices`, `nav-profile`, `nav-settings` |
+| Shell and device | `studio-app`, `studio-header`, `device-summary` (model and firmware, or "no device"), `page-nav`, `nav-inspect`, `nav-runs`, `nav-record`, `nav-devices`, `nav-builds`, `nav-profile`, `nav-settings` |
 | Settings page | `settings-page`, `settings-device-source`, `settings-test-connection`, `settings-password-status`, `settings-hub-status`, `settings-token-status`, `settings-save-host`, `settings-save-result`, `settings-reset-prefs`, `settings-about-copy` |
 | Lease and device status | `lease-badge`, `lease-badge-summary`, `lease-queue`, `lease-bar` (banner while another holder has the device), `lease-queued`, `lease-take-over`, `sim-badge`, `sim-tail` |
 | Live monitor | `live-monitor`, `monitor-stage`, `monitor-screenshot` (the live screenshot), `monitor-overlay` (the node outlines), `monitor-needs-device`, `toggle-live`, `toggle-overlay`, `toggle-all-nodes`, `toggle-offscreen`, `live-status` |
