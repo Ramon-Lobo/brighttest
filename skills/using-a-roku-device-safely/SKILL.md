@@ -56,6 +56,8 @@ Run anything that can take minutes in the background with a deadline, and poll w
 - Rebuild only after your own code changes. Otherwise put your last package back with
   `npx brighttest builds install --latest --host <ip> --as "$BRIGHTTEST_AGENT" --purpose "<task>: re-sideload"`
   (takes the lease and queues). An "identical package already installed; relaunched the dev channel" result is success.
+- `builds install` (and the Studio Builds page Install) replaces the dev channel: run it only under the lease, only when your
+  task needs that build, and never over another agent's active session. `builds list` and the `builds_list` MCP tool only read.
 - When queued, wait within a bounded `--wait`, or use `--wait 0` and retry later on exit 75. Do not force.
 - Always pass `--host` (or `ROKU_HOST`) when more than one device is cached.
 

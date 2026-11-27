@@ -220,6 +220,10 @@ server or in config.
   Otherwise it reads nothing, which frees the device for screenshots and key presses.
 - Turning the overlay on reads the tree at once.
 
+## Builds page
+
+The Builds page lists the [build store](/guide/builds): drop zips to add them, edit label, tags and notes, pin, download, delete, or install a build on the connected device (after a confirmation, under the device lease; Studio compares the build's hub token with its own and warns on a mismatch). It is not available for installs in simulator mode.
+
 ## Builds API
 
 Studio serves the build history store (`brighttest builds`) over `/api/builds`; the Builds page uses it. Every route goes through the same loopback and origin guard as the rest of Studio; `POST /api/builds` is the only route that takes a raw body (`application/zip` or `application/octet-stream`).

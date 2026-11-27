@@ -220,6 +220,8 @@ builds rm <id> [--force]  builds prune [--dry-run] [--json]
 
 The build history store (project `.brighttest/builds`, or `BRIGHTTEST_BUILDS_DIR` / `--builds-dir`). An id is `b` plus 12 hex; any unique prefix of 4+ characters works. `install --latest` re-installs the newest build made by `instrument build`; a zip path is added to the store first. The host comes only from `--host` or `ROKU_HOST` (shell or project `.env`), never the device cache; the install takes the [device lease](/guide/device-lease). Exit codes: 0 ok, 1 failed (install, pinned `rm`), 2 usage, no host, unknown or ambiguous id, 5 package rejected (invalid, unsafe, no manifest, blob missing or corrupt), 75 lease busy, 77 store unusable or lease lost, 78 configuration error.
 
+See [Builds](/guide/builds) for the store, retention and the Studio Builds page.
+
 ## `brighttest net convert`
 
 ```text

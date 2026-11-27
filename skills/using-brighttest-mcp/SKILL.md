@@ -25,13 +25,14 @@ one.** Pin it: ask the human to run `brighttest setup` (saves `ROKU_HOST` to the
 
 ## Tools
 
-Read-only, no lease: `list_devices`, `device_doctor`, `perf_trace_summary`. Every other tool is leased: each call takes its own lease, except
+Read-only, no lease: `list_devices`, `device_doctor`, `builds_list`, `perf_trace_summary`. Every other tool is leased: each call takes its own lease, except
 that the first `net_*` call or state write (`app_state_set`, `app_state_snapshot`) opens the session hub window (see Lease and ordering).
 
 | Tool | Parameters | Use it to |
 |---|---|---|
 | `list_devices` | none | See known devices and which one this session targets (model, firmware, reachability). |
 | `device_doctor` | none | Check developer mode, ECP mode, firmware, video mode; returns exact fix text. |
+| `builds_list` | `kind` (optional), `tag` (optional), `pinned` (optional), `limit` (optional, 1-500, default 50) | List the build store (id, title, version, kind, size, date, pinned, tags, last install result), newest first. No host or path is returned. It cannot install: ask the human or use `brighttest builds install <id>` under the device lease. |
 | `inspect_tree` | `selector` (optional), `maxNodes` (optional, 1-500) | Read the live SceneGraph. With a selector returns only matches; an empty match is a normal result. |
 | `press` | `key` (required), `count` (optional, 1-20, default 1) | Press a remote key: `Up`, `Down`, `Left`, `Right`, `Select`, `Back`, `Home`, or `Lit_<char>`. |
 | `navigate_to` | `selector` (required), `maxPresses` (optional, 1-30) | Move D-pad focus onto the first matching node. Returns keys pressed and the final focused node. |

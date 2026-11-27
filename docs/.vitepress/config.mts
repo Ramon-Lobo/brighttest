@@ -178,6 +178,7 @@ export default withMermaid({
         items: [
           { text: 'Instrumented builds', link: '/guide/instrument' },
           { text: 'Studio', link: '/guide/studio' },
+          { text: 'Builds', link: '/guide/builds' },
         ],
       },
       { text: 'E2E', link: '/e2e/' },
@@ -258,6 +259,7 @@ export default withMermaid({
         items: [
           { text: 'Instrumented builds', link: '/guide/instrument' },
           { text: 'Studio', link: '/guide/studio' },
+          { text: 'Builds', link: '/guide/builds' },
         ],
       },
       {

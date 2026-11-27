@@ -78,6 +78,7 @@ inside the device lease so it never collides with another brighttest lane on the
   record. On success the command prints the build now on the device (`on the device now: ...`).
 - Lease options: `--wait`, `--max`, `--expect`, `--as`, `--purpose` (same meaning as `brighttest device with`).
   The lease cannot be bypassed for this command.
+- To put a recorded build back on a device later, use `brighttest builds install <id|--latest>`; see [Builds](/guide/builds).
 
 ## Release gate: `instrument verify`
 

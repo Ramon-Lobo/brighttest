@@ -94,6 +94,34 @@
       "name": "app_state_snapshot"
     },
     {
+      "description": "List the packages in the brighttest build store (built or sideloaded zips), newest first: id, title, version, kind (store or instrumented), size, date, pinned state, tags and the last install result. Read-only; takes no lease and never touches a device. Returns no host, store path, token or hub URL. To install one on a device, ask the human or run \"brighttest builds install <id>\" (it takes the device lease); there is no install tool.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "description": "Only builds of this kind: store or instrumented",
+            "type": "string"
+          },
+          "limit": {
+            "description": "Builds to return, at most 500 (default 50)",
+            "maximum": 500,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "pinned": {
+            "description": "true: only pinned builds",
+            "type": "boolean"
+          },
+          "tag": {
+            "description": "Only builds carrying this tag",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "builds_list"
+    },
+    {
       "description": "Read-only capability check of the target device (developer mode, ECP mode, firmware, video mode) with the exact fix text for anything wrong. Does not take the device lease.",
       "inputSchema": {
         "additionalProperties": false,
