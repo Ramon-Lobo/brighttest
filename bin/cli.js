@@ -647,7 +647,7 @@ Options:
   -f, --force       Overwrite files not created by brighttest
   -h, --help        Show this help
 
-Skills (Agent Skills / agentskills.io format): adopting-brighttest, adopting-brighttest-brownfield, adopting-brighttest-greenfield, assessing-a-roku-app, debugging-failing-tests, instrumenting-a-roku-app, mapping-a-roku-app, mocking-network-and-store, setting-up-brighttest, testing-app-state, using-a-roku-device-safely,
+Skills (Agent Skills / agentskills.io format): adopting-brighttest, adopting-brighttest-brownfield, adopting-brighttest-greenfield, assessing-a-roku-app, debugging-failing-tests, instrumenting-a-roku-app, mapping-a-roku-app, mocking-network-and-store, reporting-a-brighttest-issue, setting-up-brighttest, testing-app-state, using-a-roku-device-safely,
   using-brighttest-mcp, using-brighttest-studio, wiring-brighttest-into-ci, writing-e2e-flows, writing-rooibos-tests.
 
 Auto-detection (no --agent) writes to whichever the project already uses: .claude/ or CLAUDE.md, .cursor/,
@@ -672,6 +672,7 @@ Usage:
   brighttest --cross-check --host <ip> --password <pw>   Diff headless vs device (fidelity check)
   brighttest init                                    Scaffold a project for testing (see: init --help)
   brighttest skills install                          Install AI-agent test-writing skills (see: skills --help)
+  brighttest issue redact|check <file…>              Mask private data in a bug report and lint it before filing
   brighttest instrument build                        Build an instrumented debug package, never for release (see: instrument --help)
   brighttest builds list|show|add|install|…          The build history store; install --latest re-sideloads (see: builds --help)
   brighttest e2e run <flow…> --host <ip>             On-device UI e2e tests from YAML flows (see: e2e --help)

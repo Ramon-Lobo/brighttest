@@ -18,6 +18,7 @@ plus `references/`), and the content is authored once and adapted to whichever a
 | `writing-rooibos-tests` | Suite/test annotations, assertions, test doubles, parameterized tests, headless-vs-device rules, and the pitfalls that make specs silently fail. |
 | `setting-up-brighttest` | Installing the package, `brighttest.json`, where specs live, choosing a lane, npm scripts, and CI. |
 | `debugging-failing-tests` | Reading the output, isolating causes, `--cross-check` fidelity, `globalFields` seeding, and testing the Task/API layer. |
+| `reporting-a-brighttest-issue` | Writing up a brighttest finding: pick what matters, one issue per finding, a generic reproduction, `issue redact` and `issue check`, the field-report format, and a hand-off that never files on its own. |
 | `testing-app-state` | Reading, setting, snapshotting and asserting app state (`m.global`, scene fields, registry) with `__bt_state`, `assertState`, and the state flow steps. |
 | `mocking-network-and-store` | Faking what the app talks to in headless specs: BTNet rules and faults, HAR record and replay, `csfake` roChannelStore fixtures and the `BTMedia_*` Video/Audio driver, and what none of them prove about a device. |
 | `using-brighttest-mcp` | Driving a real Roku through the `brighttest mcp` server: the ten tools, the per-call device lease, budgets, and typed errors. |

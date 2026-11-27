@@ -126,3 +126,5 @@ In the headless lanes brighttest can answer HTTP calls from rules (full guide: `
 Isolate the failing suite with a cut-down `--config` `brighttest.json` (or a temporary `@only`; never commit it).
 
 For device stalls at about 10 minutes, Limited ECP, port 8085 conflicts and lease exit codes, see the `using-a-roku-device-safely` skill.
+
+To write up a brighttest bug you found, use the `reporting-a-brighttest-issue` skill.
