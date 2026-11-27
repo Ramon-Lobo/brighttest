@@ -49,7 +49,7 @@ describe('doctor against the fake', () => {
   const runDoctor = async (scenario, extra = {}) => {
     const { a } = await boot(scenario)
     const get = capture()
-    const code = await doctor.run({ host: '127.0.0.1', ecpPort: a.ecpPort, ...extra })
+    const code = await doctor.run({ host: '127.0.0.1', ecpPort: a.ecpPort, ...extra }, { probeBind: async () => ({ ok: true }) })
     return { code, out: get() }
   }
 
@@ -362,15 +362,101 @@ describe('doctor environment section (QS-T4)', () => {
     process.env.ROKU_PASSWORD = 'super-secret-pw'
     try {
       const get = capture()
-      await doctor.run({ host: '127.0.0.1', ecpPort: a.ecpPort, json: true })
+      await doctor.run({ host: '127.0.0.1', ecpPort: a.ecpPort, json: true }, { probeBind: async () => ({ ok: true }) })
       const j = JSON.parse(get())
       expect(j.environment.find((i) => i.name === 'ROKU_PASSWORD').set).toBe(true)
       expect(get()).not.toContain('super-secret-pw')
       vi.restoreAllMocks()
       const get2 = capture()
-      await doctor.run({ host: '127.0.0.1', ecpPort: a.ecpPort })
+      await doctor.run({ host: '127.0.0.1', ecpPort: a.ecpPort }, { probeBind: async () => ({ ok: true }) })
       expect(get2()).toContain('environment:')
       expect(get2()).not.toContain('super-secret-pw')
     } finally { delete process.env.ROKU_PASSWORD }
+  })
+})
+
+describe('doctor hub address from brighttest.json (ADR 0024 OQ-3)', () => {
+  const net = require('net')
+  const caps = { model: 'x', softwareVersion: '16.0.4', developerEnabled: true, ecpSettingMode: 'permissive', videoMode: '720p', videoModeSource: 'video-mode' }
+  const mk = (config, extra = {}) => {
+    const bindPorts = []
+    const deps = {
+      env: {}, config, lanHost: () => '192.0.2.7',
+      createDevice: () => ({ deviceCapabilities: async () => caps, keypress: async () => {} }),
+      probeBind: async (p) => { bindPorts.push(p); return { ok: true, address: '0.0.0.0', port: p } },
+      resolveDevice: () => ({ host: '127.0.0.1', password: 'pw-x' }),
+      acquireForLane: vi.fn(async () => ({ lease: { leaseId: 'l', release() {} } })),
+      sideload: vi.fn(async () => 0),
+      listen: vi.fn(async () => ({ ok: true, waitHit: async () => true, close: async () => {} })),
+      waitMs: 10, ...extra,
+    }
+    return { deps, bindPorts }
+  }
+  const go = async (deps, opts = {}) => {
+    const get = capture()
+    const code = await doctor.run({ host: '127.0.0.1', json: true, ...opts }, deps)
+    return { code, j: JSON.parse(get()) }
+  }
+
+  it('1. no config: default port, LAN host, sources default', async () => {
+    const { deps, bindPorts } = mk({})
+    const r = await go(deps)
+    expect(r.code).toBe(0)
+    expect(bindPorts).toEqual([8790])
+    expect(r.j.hub).toMatchObject({ port: 8790, advertisedHost: '192.0.2.7', portSource: 'default', hostSource: 'default' })
+    const get = capture()
+    await doctor.run({ host: '127.0.0.1' }, mk({}).deps)
+    expect(get()).toContain('(default port; instrument.hub.port overrides)')
+  })
+  it('2. instrument.hub.port: bind and probe use it; text and JSON say config', async () => {
+    const { deps, bindPorts } = mk({ instrument: { hub: { port: 8899 } } }, { env: { BRIGHTTEST_DOCTOR_HUB_PROBE: '1' } })
+    const r = await go(deps)
+    expect(bindPorts).toEqual([8899])
+    expect(deps.listen.mock.calls[0][0]).toMatchObject({ port: 8899 })
+    expect(r.j.hub).toMatchObject({ port: 8899, portSource: 'config', reach: 'reached' })
+    const get = capture()
+    await doctor.run({ host: '127.0.0.1' }, mk({ instrument: { hub: { port: 8899 } } }).deps)
+    expect(get()).toContain('bind 0.0.0.0:8899 (from brighttest.json instrument.hub)')
+  })
+  it('3. instrument.hub.host is the advertised host', async () => {
+    const { deps } = mk({ instrument: { hub: { host: '192.0.2.5' } } })
+    const r = await go(deps)
+    expect(r.j.hub).toMatchObject({ advertisedHost: '192.0.2.5', hostSource: 'config', portSource: 'default' })
+  })
+  it('4. busy configured port: hub-bind fails naming the port (real bind)', async () => {
+    const holder = net.createServer()
+    await new Promise((res) => holder.listen(0, '0.0.0.0', res))
+    const port = holder.address().port
+    try {
+      const { deps } = mk({ instrument: { hub: { port } } })
+      delete deps.probeBind
+      const r = await go(deps)
+      expect(r.code).toBe(1)
+      const k = r.j.checks.find((c) => c.id === 'hub-bind')
+      expect(k.ok).toBe(false)
+      expect(k.fix).toContain(`TCP port ${port}`)
+    } finally { await new Promise((res) => holder.close(res)) }
+  })
+  it('5. invalid port: failing hub-config check, no bind or probe, exit 1', async () => {
+    for (const bad of [0, 'x']) {
+      const { deps, bindPorts } = mk({ instrument: { hub: { port: bad } } }, { env: { BRIGHTTEST_DOCTOR_HUB_PROBE: '1' } })
+      const r = await go(deps)
+      expect(r.code).toBe(1)
+      expect(r.j.checks.find((c) => c.id === 'hub-config')).toMatchObject({ ok: false })
+      expect(r.j.checks.find((c) => c.id === 'hub-config').fix).toContain('instrument.hub.port')
+      expect(r.j.hub).toMatchObject({ reach: 'not-tested', reachReason: 'bad-config' })
+      expect(bindPorts).toEqual([])
+      expect(deps.acquireForLane).not.toHaveBeenCalled()
+      expect(deps.listen).not.toHaveBeenCalled()
+      expect(deps.sideload).not.toHaveBeenCalled()
+    }
+  })
+  it('6. default doctor stays read-only: no password read, no lease', async () => {
+    const { deps } = mk({ instrument: { hub: { port: 8899 } } })
+    const rd = vi.fn(() => ({ host: '127.0.0.1', password: 'pw-x' }))
+    deps.resolveDevice = rd
+    await go(deps)
+    expect(deps.acquireForLane).not.toHaveBeenCalled()
+    expect(deps.sideload).not.toHaveBeenCalled()
   })
 })
