@@ -14,7 +14,7 @@ const STATIC = {
     'studio-app', 'studio-header', 'device-summary', 'sim-badge', 'sim-tail', 'lease-badge', 'lease-badge-summary',
     'lease-queue', 'toggle-overlay', 'toggle-all-nodes', 'toggle-offscreen', 'toggle-live', 'live-status', 'lease-bar', 'lease-queued',
     'lease-take-over', 'page-nav', 'page-inspect', 'flow-tree', 'flow-tree-show', 'flow-editor', 'flow-name',
-    'flow-editor-text', 'flow-save', 'flow-run', 'flow-message', 'flow-run-steps', 'live-monitor',
+    'flow-editor-text', 'flow-save', 'flow-run', 'flow-stop', 'flow-message', 'flow-run-steps', 'live-monitor',
     'monitor-needs-device', 'inspector-panel', 'remote-panel', 'remote-needs-device',
     'tab-node', 'tab-tree', 'tab-selector', 'tab-state', 'tab-actions', 'tab-net',
   ],
@@ -34,7 +34,7 @@ const STATIC = {
   'lib/LeaseBoard.svelte': ['lease-board', 'lease-device'],
   'lib/pages/Record.svelte': ['page-record', 'record-start', 'record-stop', 'record-clear', 'record-save', 'record-message', 'record-doc'],
   'lib/pages/Runs.svelte': [
-    'page-runs', 'run-history', 'run-history-item', 'trace-viewer', 'trace-frame', 'trace-scrubber', 'trace-prev',
+    'page-runs', 'run-history', 'run-history-item', 'run-stopped-badge', 'trace-viewer', 'trace-frame', 'trace-scrubber', 'trace-prev',
     'trace-slider', 'trace-next', 'trace-position', 'trace-steps', 'trace-step',
   ],
   'lib/pages/Profile.svelte': [
@@ -65,6 +65,14 @@ describe('Studio agent labels', () => {
   it('the nav ids match the page list', () => {
     const pages = [...read('App.svelte').matchAll(/\{ id: '(\w+)', label:/g)].map((m) => `nav-${m[1]}`);
     expect(pages).toEqual(DYNAMIC[0][2]);
+  });
+  it('Stop keeps its accessible name, shortcut and 409 handling (STUDIO-STOP-T2)', () => {
+    const app = read('App.svelte')
+    expect(app).toMatch(/data-testid="flow-stop" aria-label="Stop run"/)
+    expect(app).toContain("e.key === '.'") // Mod+. at window level; Escape stays with the editor
+    expect(app).toContain('RUN_IN_PROGRESS')
+    expect(read('lib/Editor.svelte')).toContain("key: 'Mod-.'")
+    expect(read('lib/api.js')).toContain("'/api/run/stop'")
   });
   it('has no duplicate ids in the list', () => expect(new Set(ALL).size).toBe(ALL.length));
   it('every control that has no visible text keeps an accessible name', () => {

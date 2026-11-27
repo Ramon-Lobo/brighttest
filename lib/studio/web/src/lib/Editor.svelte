@@ -10,7 +10,7 @@
   import { flowCompletions, setSteps } from './completions.js';
   import { api } from './api.js';
 
-  let { value = $bindable(''), getSelected } = $props();
+  let { value = $bindable(''), getSelected, onStop = () => {} } = $props();
   let el, view;
 
   const theme = EditorView.theme({
@@ -58,7 +58,7 @@
           lineNumbers(), highlightActiveLineGutter(), highlightActiveLine(), history(),
           yaml(), highlight,
           autocompletion({ override: [flowCompletions(getSelected)], activateOnTyping: true, icons: false }),
-          keymap.of([indentWithTab, ...completionKeymap, ...defaultKeymap, ...historyKeymap]),
+          keymap.of([{ key: 'Mod-.', run: () => { onStop(); return true; } }, indentWithTab, ...completionKeymap, ...defaultKeymap, ...historyKeymap]),
           EditorView.updateListener.of((u) => { if (u.docChanged) value = u.state.doc.toString(); }),
           theme,
         ],
