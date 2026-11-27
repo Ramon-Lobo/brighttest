@@ -3,13 +3,17 @@
   // The body is unmounted while the tile is minimized, except for `keepMounted` tiles (the flow editor).
   let { tile, title, keepMounted = false, narrow = false, dragging = false, content, onhandledown, ongripdown, onaction, onkey } = $props();
 
+  import { PANELS, dock } from './panels.svelte.js';
+
   let menuOpen = $state(false);
+  const isPanel = $derived(PANELS.includes(tile.id));
   const open = $derived(tile.state === 'open');
   const hidden = $derived(tile.state === 'hidden');
   const pos = $derived(narrow
     ? `grid-column: 1; grid-row: auto / span ${tile.h};`
     : `grid-column: ${tile.x + 1} / span ${tile.w}; grid-row: ${tile.y + 1} / span ${tile.h};`);
 
+  function dockIt() { menuOpen = false; dock(tile.id); }
   function act(a) { menuOpen = false; onaction?.(tile.id, a); }
   function onWindowDown(e) { if (menuOpen && !e.target.closest?.(`[data-menuof="${tile.id}"]`)) menuOpen = false; }
   function onKey(e) { if (e.key === 'Escape' && menuOpen) { menuOpen = false; } }
@@ -32,6 +36,7 @@
       {#if menuOpen}
         <div class="menu" role="menu" aria-label="{title} tile actions">
           <button role="menuitem" onclick={() => act(open ? 'min' : 'open')}>{open ? 'Minimize' : 'Restore'}</button>
+          {#if isPanel}<button role="menuitem" data-testid="tile-{tile.id}-dock" onclick={dockIt}>Dock</button>{/if}
           <button role="menuitem" data-testid="tile-{tile.id}-hide" onclick={() => act('hide')}>Hide</button>
           {#if !narrow}
             <hr />

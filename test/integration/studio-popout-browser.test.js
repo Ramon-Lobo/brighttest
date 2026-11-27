@@ -152,6 +152,19 @@ describe.skipIf(!chrome || !built)('Studio panel pop-out and dock (headless Chro
       await sleep(1000)
       expect((await stored()).panels.order[0]).toBe('state')
 
+      // Dock from the tile's own menu (Tree), then pop it out again from the Tiles menu.
+      await click('tile-tree-menu')
+      await click('tile-tree-dock')
+      await until(`!${q('tile-tree')} || getComputedStyle(${q('tile-tree')}).display === 'none'`, 'tree docked from tile')
+      expect((await tileOf('tree')).state).toBe('hidden')
+      expect((await stored()).panels.order[0]).toBe('tree')
+      expect(await js(`!!${q('tile-flow-dock')}`)).toBe(false) // only inspector panels have it
+      await click('tiles-menu')
+      await click('tiles-popout-tree')
+      await until(`${q('tile-tree')}.getBoundingClientRect().width > 0`, 'tree back')
+      await shot('04b-tree-docked-from-tile-menu.png')
+      await click('tiles-menu')
+
       // Dock Node: Tree (below it) moves up into the slot, so Node comes back to the next free slot.
       await click('tiles-menu')
       await click('tiles-dock-node')
