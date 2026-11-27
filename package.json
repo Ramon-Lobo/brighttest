@@ -58,7 +58,7 @@
     "@ramonlobo/rooibos-roku": "5.17.0-bt.1",
     "brighterscript": "^0.73.8",
     "brs-node": "~2.7.1",
-    "jszip": "3.10.2"
+    "jszip": "^3.10.2"
   },
   "devDependencies": {
     "@types/node": "22.20.7",
@@ -75,7 +75,8 @@
     "so these pins exist to make that guaranteed rather than incidental, and to stop `npm ci` from",
     "reinstalling the stale versions this lockfile used to hold. postcss + dompurify are dev-only",
     "(vitepress / mermaid). Do NOT run `npm audit fix` here: it 'fixes' the postman-request chain",
-    "by downgrading it to 2.88.1-postman.8-beta.1 and pulling back a critical form-data advisory."
+    "by downgrading it to 2.88.1-postman.8-beta.1 and pulling back a critical form-data advisory.",
+    "vitest > vite > esbuild 0.21.5 (added with the vitest 4.1.12 bump, 7dea3aa) is dev-only and ships nothing: it pins esbuild under vite for the test and docs toolchain. Drop it once `npm ls esbuild` resolves cleanly without it after a vitest or vitepress bump."
   ],
   "overrides": {
     "brace-expansion": "^1.1.18",
