@@ -228,6 +228,10 @@
   ],
   "subcommands": [
     "assess",
+    "builds add",
+    "builds install",
+    "builds list",
+    "builds show",
     "device hook",
     "device lock",
     "device log",
