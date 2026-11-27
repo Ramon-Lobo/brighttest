@@ -123,6 +123,89 @@ describe('Studio settings route', () => {
   });
 });
 
+describe('Studio save project host (STUDIO-SET-T2)', () => {
+  let dir, server, port, saved;
+  const post = (body, headers = {}) => new Promise((resolve, reject) => {
+    const r = http.request({ host: '127.0.0.1', port, method: 'POST', path: '/api/settings/host', headers: { 'Content-Type': 'application/json', ...headers } }, (res) => {
+      let b = ''; res.on('data', (c) => (b += c)); res.on('end', () => resolve({ status: res.statusCode, json: (() => { try { return JSON.parse(b); } catch { return null; } })() }));
+    });
+    r.on('error', reject); r.end(JSON.stringify(body));
+  });
+  const envFile = () => path.join(dir, '.env');
+  beforeEach(async () => {
+    saved = Object.fromEntries(KEYS.map((k) => [k, process.env[k]])); KEYS.forEach((k) => delete process.env[k]);
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-savehost-'));
+    process.env.BRIGHTTEST_LEASE_DIR = path.join(dir, 'lease'); process.env.BRIGHTTEST_CACHE = path.join(dir, 'devices.json');
+    fs.writeFileSync(process.env.BRIGHTTEST_CACHE, JSON.stringify({ devices: { '192.0.2.50': { password: 'x', name: 'Cached', model: 'M' } } }));
+    server = await studio.start({ port: 0, rootDir: dir, host: '192.0.2.10', password: PW }); port = server.address().port;
+  });
+  afterEach(async () => {
+    if (server) await new Promise((r) => server.close(r)); server = null;
+    for (const k of KEYS) if (saved[k] === undefined) delete process.env[k]; else process.env[k] = saved[k];
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('saves the current target to <rootDir>/.env and keeps other lines', async () => {
+    fs.writeFileSync(envFile(), 'ROKU_PASSWORD=keep-me\n');
+    const r = await post({ host: '192.0.2.10' });
+    expect(r.status).toBe(200);
+    expect(r.json.wrote).toBe(envFile());
+    expect(fs.readFileSync(envFile(), 'utf8')).toBe('ROKU_PASSWORD=keep-me\nROKU_HOST=192.0.2.10\n');
+  });
+  it('saves a cached host', async () => {
+    expect(devicesCached()).toContain('192.0.2.50');
+    const r = await post({ host: '192.0.2.50' });
+    expect(r.status).toBe(200);
+    expect(fs.readFileSync(envFile(), 'utf8')).toBe('ROKU_HOST=192.0.2.50\n');
+  });
+  it('refuses any other host and writes nothing', async () => {
+    const r = await post({ host: '192.0.2.99' });
+    expect(r.status).toBe(403);
+    expect(fs.existsSync(envFile())).toBe(false);
+  });
+  it('refuses a bad host (port, credentials, list, empty) with 400', async () => {
+    for (const host of ['192.0.2.10:8060', '192.0.2.10:pw', '192.0.2.10,192.0.2.50', '', 'a b', 5, undefined]) {
+      const r = await post({ host });
+      expect(r.status).toBe(400);
+    }
+    expect(fs.existsSync(envFile())).toBe(false);
+  });
+  it('refuses a cross-origin request with 403 and writes nothing', async () => {
+    const r = await post({ host: '192.0.2.10' }, { Origin: 'https://evil.example' });
+    expect(r.status).toBe(403);
+    expect(fs.existsSync(envFile())).toBe(false);
+  });
+  it('the response and file never carry the password', async () => {
+    const r = await post({ host: '192.0.2.10' });
+    expect(JSON.stringify(r.json)).not.toContain(PW);
+    expect(fs.readFileSync(envFile(), 'utf8')).not.toContain(PW);
+  });
+  function devicesCached() { return require('../lib/devices').cachedDevices().map((d) => d.host); }
+});
+
+describe('resetPrefs (client helper)', async () => {
+  const { resetPrefs, prefKeys } = await import('../lib/studio/web/src/lib/settings.js');
+  const fakeStorage = (init) => {
+    const m = new Map(Object.entries(init));
+    return { get length() { return m.size; }, key: (i) => [...m.keys()][i] ?? null, removeItem: (k) => m.delete(k), getItem: (k) => m.get(k) ?? null, keys: () => [...m.keys()].sort() };
+  };
+  it('removes only bt.studio.* keys after confirm', () => {
+    const st = fakeStorage({ 'bt.studio.overlay': '1', 'bt.studio.feed': 'x', theme: 'dark', 'other.bt.studio.': 'y' });
+    expect(resetPrefs(st, () => true)).toEqual(['bt.studio.feed', 'bt.studio.overlay']);
+    expect(st.keys()).toEqual(['other.bt.studio.', 'theme']);
+  });
+  it('cancel leaves every key in place', () => {
+    const st = fakeStorage({ 'bt.studio.overlay': '1', theme: 'dark' });
+    expect(resetPrefs(st, () => false)).toEqual([]);
+    expect(prefKeys(st)).toEqual(['bt.studio.overlay']); expect(st.keys()).toEqual(['bt.studio.overlay', 'theme']);
+  });
+  it('does not even ask when there is nothing to reset', () => {
+    let asked = false;
+    expect(resetPrefs(fakeStorage({ theme: 'dark' }), () => { asked = true; return true; })).toEqual([]);
+    expect(asked).toBe(false);
+  });
+});
+
 describe('buildSettings', () => {
   it('pool and simulator targets', () => {
     const base = { rootDir: os.tmpdir(), flowsRoot: os.tmpdir(), cfg: null, port: 1, env: {} };
