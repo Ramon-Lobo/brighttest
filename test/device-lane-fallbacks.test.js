@@ -225,25 +225,40 @@ describe('--coverage-dir fallback', () => {
     await device.run(cfg, opts, base({ spawn: (_n, args) => { seen = args; return fakeChild({ out: RESULT }) } }))
     expect(covDirOf(seen)).toBeUndefined()
   })
-  it('prefers console lcov; falls back to the coverage-dir lcov.info when the console has none', async () => {
+  it('prefers the coverage-dir lcov.info (full records); the console LCOV is the line-only fallback', async () => {
     sup('5.17.0')
     const dest = path.join(dir, 'out', 'lcov.info')
-    // console lcov wins
+    const FULL = 'TN:\nSF:pkg:/source/disk.brs\nFN:1,main\nFNDA:1,main\nFNF:1\nFNH:1\nDA:1,1\nLF:1\nLH:1\nBRDA:1,0,0,1\nBRF:1\nBRH:1\nend_of_record\n'
+    const put = (args, text) => { fs.mkdirSync(covDirOf(args), { recursive: true }); fs.writeFileSync(path.join(covDirOf(args), 'lcov.info'), text) }
+    // folder wins over the console, function and branch records kept, framework records dropped
     let code = await device.run(cfg, { ...opts, lcov: dest }, base({ spawn: (_n, args) => {
-      fs.mkdirSync(covDirOf(args), { recursive: true }); fs.writeFileSync(path.join(covDirOf(args), 'lcov.info'), 'TN:\nSF:pkg:/source/disk.brs\nDA:1,1\nLF:1\nLH:1\nend_of_record\n')
+      put(args, FULL + 'TN:\nSF:pkg:/components/rooibos/x.brs\nDA:1,1\nLF:1\nLH:1\nend_of_record\n')
       return fakeChild({ out: RESULT + LCOV }) } }))
     expect(code).toBe(0)
-    expect(fs.readFileSync(dest, 'utf8')).toContain('a.brs')
-    // console empty: read the directory, framework records dropped
-    fs.rmSync(dest)
-    code = await device.run(cfg, { ...opts, lcov: dest }, base({ spawn: (_n, args) => {
-      fs.mkdirSync(covDirOf(args), { recursive: true })
-      fs.writeFileSync(path.join(covDirOf(args), 'lcov.info'), 'TN:\nSF:pkg:/source/disk.brs\nDA:1,1\nLF:1\nLH:1\nend_of_record\nTN:\nSF:pkg:/components/rooibos/x.brs\nDA:1,1\nLF:1\nLH:1\nend_of_record\n')
-      return fakeChild({ out: RESULT }) } }))
-    expect(code).toBe(0)
-    const text = fs.readFileSync(dest, 'utf8')
+    let text = fs.readFileSync(dest, 'utf8')
     expect(text).toContain('disk.brs')
+    expect(text).toContain('FNDA:1,main')
+    expect(text).toContain('BRDA:1,0,0,1')
+    expect(text).not.toContain('a.brs')
     expect(text).not.toContain('rooibos/')
+    // empty folder file: console LCOV, line records only
+    fs.rmSync(dest)
+    code = await device.run(cfg, { ...opts, lcov: dest }, base({ spawn: (_n, args) => { put(args, ''); return fakeChild({ out: RESULT + LCOV }) } }))
+    expect(code).toBe(0)
+    text = fs.readFileSync(dest, 'utf8')
+    expect(text).toContain('a.brs')
+    expect(text).not.toMatch(/^(FN|BRDA)/m)
+    // missing folder file: console LCOV
+    fs.rmSync(dest)
+    code = await device.run(cfg, { ...opts, lcov: dest }, base({ spawn: () => fakeChild({ out: RESULT + LCOV }) }))
+    expect(code).toBe(0)
+    expect(fs.readFileSync(dest, 'utf8')).toContain('a.brs')
+    // engine without coverage-dir: console LCOV, line records only
+    sup('5.16.4')
+    fs.rmSync(dest)
+    code = await device.run(cfg, { ...opts, lcov: dest }, base({ spawn: () => fakeChild({ out: RESULT + LCOV }) }))
+    expect(code).toBe(0)
+    expect(fs.readFileSync(dest, 'utf8')).not.toMatch(/^(FN|BRDA)/m)
   })
   it('fails when both console and coverage-dir are empty', async () => {
     sup('5.17.0')

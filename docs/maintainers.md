@@ -205,12 +205,13 @@ flowchart TD
   and deadline timers must keep running.
 - Output is streamed line by line through the shared reporter (`makeReporter` + `lineSplitter`) and kept for parsing;
   failures are counted with `laneFailures` (streamed cases, summary, report tree).
-- With `--lcov`: LCOV comes from the console through `extractLcov(output)`, or from `--coverage-dir` (below) when the
-  console has none:
+- With `--lcov`: LCOV comes from `--coverage-dir` (below) through `extractLcovFull`, which keeps `FN/FNDA/FNF/FNH`
+  and `BRDA/BRF/BRH` too; when that file is missing or empty (or the engine lacks the flag) it comes from the console
+  through `extractLcov(output)`, line records only:
   - accumulate `TN:/SF:/DA:\d+,\d+/LF:\d+/LH:\d+` into a record until `end_of_record`;
   - drop records whose `SF:` path matches `(^|/)rooibos/` (framework-injected);
   - join and write to the `--lcov` path.
-- `extractLcov` is exported for unit testing.
+- `extractLcov` and `extractLcovFull` are exported for unit testing. The coverage table stays line-only.
 - Fallbacks: one best-effort Home key press (through the ECP key path) runs after the lease is held and
   before deploy; a failed Home only warns. The watchdog (`--timeout`) kills the CLI's process group and the run
   fails even if the child never closes. No `[Rooibos Result]` is a failure, even when cases streamed. An idle (output-silence) watchdog
@@ -221,8 +222,8 @@ flowchart TD
   never calls done prints `[Rooibos Result]: PASS` after about 5 s, which the lane cannot tell from a real pass (the
   device is not silent); catching it needs an opt-in idle flag in the rooibos fork. When the rooibos CLI supports
   `--coverage-dir` (`supportsFlag` in `engines.js`: stamp `flags`, else rooibos >= 5.17.0), `--lcov` also passes
-  `--coverage-dir=<staging>/device/coverage`; console lcov is preferred, and `<dir>/lcov.info` (run through
-  `extractLcov`) is read only when the console yields nothing.
+  `--coverage-dir=<staging>/device/coverage`; `<dir>/lcov.info` (run through
+  `extractLcovFull`) is preferred, and the console LCOV is read only when that file yields nothing.
 
 ## E2E lane (`lib/e2e/`)
 
