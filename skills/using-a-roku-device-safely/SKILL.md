@@ -42,6 +42,7 @@ Run anything that can take minutes in the background with a deadline, and poll w
 - Any other command (a script, `curl`, a runner) goes inside `device with --`.
 - Several steps in a row: `device lock` prints a token; run each step with `device with --lease <token>`;
   end with `device unlock --lease <token>`. The token expires on idle, so renew it with `device renew`.
+- `device lock` presses Home twice, closing a running app: lock, then install (`instrument build --sideload` or `builds install --latest`), then launch; or `device lock --no-hygiene`. `e2e run` launches but never installs.
 - Hold one device at a time. Holding device A and then locking device B queues for B while still holding A;
   two commands doing this in opposite order wait for each other until `--wait` ends (exit 75).
 - Reads that cannot disturb a run (`doctor`, `devices`, `query/device-info`) need no lease.

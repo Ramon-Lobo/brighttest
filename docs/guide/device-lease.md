@@ -180,6 +180,12 @@ npx brighttest device unlock --lease "$TOKEN"
   lease does the Home presses and `e2e run` adds none.
 - Treat the token like a password: it lets anything that has it use the device. Do not write it to files or logs.
 
+::: tip Order of operations
+`device lock` presses Home twice after it acquires, which closes a running app. So: lock, then install
+(`instrument build --sideload`, or `builds install --latest`), then launch, then work. If the app is already where
+you want it, take the lock with `device lock --no-hygiene` instead. `e2e run` launches the app but never installs it.
+:::
+
 ## Exit codes
 
 | Code | Meaning |
