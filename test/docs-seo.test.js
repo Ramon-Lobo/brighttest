@@ -35,6 +35,22 @@ describe('seo helpers', () => {
   })
 })
 
+describe('seoHead filePath', () => {
+  test('reads the description from the source file while the canonical uses the routed path', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'docs-seo-fp-'))
+    try {
+      fs.mkdirSync(path.join(dir, 'lite', 'guide'), { recursive: true })
+      fs.writeFileSync(path.join(dir, 'lite', 'guide', 'x.md'), '# X\n\nShort page text for the description.\n')
+      const head = seo.seoHead({
+        repoRoot: ROOT, srcDir: dir, relativePath: 'guide/x.md', filePath: 'lite/guide/x.md', base: '/b/', origin: ORIGIN,
+        title: 'X', siteTitle: 'S', siteDescription: 'Site',
+      })
+      expect(head).toContainEqual(['link', { rel: 'canonical', href: ORIGIN + '/b/guide/x' }])
+      expect(head).toContainEqual(['meta', { name: 'description', content: 'Short page text for the description.' }])
+    } finally { fs.rmSync(dir, { recursive: true, force: true }) }
+  })
+})
+
 describe('built released docs', () => {
   let out
   const read = (...p) => fs.readFileSync(path.join(out, ...p), 'utf8')

@@ -536,10 +536,10 @@ function main(argv, env) {
       const r = e.run('git', ['ls-tree', '-r', '--name-only', tag, 'docs'], { cwd: e.root });
       if (r.status !== 0) { err(`git ls-tree ${tag} failed (${(r.stderr || '').trim() || 'unknown tag'}); fetch tags first`); return 1; }
       const files = (r.stdout || '').split('\n').map((s) => s.trim()).filter((s) => s.startsWith('docs/')).map((s) => s.slice(5));
-      pages = badges.pagesFromFiles(files);
+      pages = badges.pagesFromFiles(files, { srcExclude: ['lite/**'] });
       version = tag.replace(/^v/, '');
     } else {
-      pages = badges.listPages(path.join(e.root, 'docs'));
+      pages = badges.listPages(path.join(e.root, 'docs'), { srcExclude: ['lite/**'] });
       version = opts.version || e.env.npm_package_version;
       if (!version || !VER_RE.test(version)) return usage2('pages without --from-tag needs --version X.Y.Z (or npm_package_version)');
       version = version.replace(/^v/, '');
@@ -598,7 +598,7 @@ function main(argv, env) {
       out(`changelog: stamped v${version.replace(/^v/, '')}`);
       const docsDir = path.join(e.root, 'docs');
       if (!opts['no-pages'] && fs.existsSync(docsDir)) {
-        const pages = badges.listPages(docsDir);
+        const pages = badges.listPages(docsDir, { srcExclude: ['lite/**'] });
         const pagesFile = pagesFileOf(e.root);
         if (fs.existsSync(pagesFile)) {
           try { JSON.parse(fs.readFileSync(pagesFile, 'utf8')); } catch (ex) {

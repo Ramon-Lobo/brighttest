@@ -117,3 +117,19 @@ describe('labelSidebar', () => {
     expect(side[0].items[0].text).toBe('MCP')
   })
 })
+
+describe('two-tier docs', () => {
+  it('a /full/ link is the same page as the plain link', () => {
+    const pages = new Set(['guide/mcp', 'index'])
+    expect(b.normalizeTarget('/full/guide/mcp', '', pages)).toBe('guide/mcp')
+    expect(b.normalizeTarget('/full/', '', pages)).toBe('index')
+  })
+  it('labelSidebar badges /full/ links like the plain ones', () => {
+    const out = b.labelSidebar([{ text: 'MCP', link: '/full/guide/mcp' }], { 'guide/mcp': 'new' })
+    expect(out[0].text).toContain('New')
+  })
+  it('lite/ pages are excluded from the page list with srcExclude, so they are never baselined', () => {
+    const files = ['index.md', 'guide/mcp.md', 'lite/index.md', 'lite/guide/mcp.md']
+    expect(b.pagesFromFiles(files, { srcExclude: ['lite/**'] })).toEqual(['guide/mcp', 'index'])
+  })
+})

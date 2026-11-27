@@ -2,7 +2,7 @@
 import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useData } from 'vitepress'
 import { useVersions } from './useVersions'
-import { pagePathOf } from './versionContext'
+import { pagePathOf, switchCandidates } from './versionContext'
 const { data, current, site } = useVersions()
 const open = ref(false)
 const rel = ref('')
@@ -32,12 +32,15 @@ async function go(e: MouseEvent, v: { path: string }) {
   if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || e.button !== 0) return
   e.preventDefault()
   close()
-  const same = hrefFor(v)
   const hash = window.location.hash
-  try {
-    const head = await fetch(same, { method: 'HEAD' })
-    if (head.ok) { window.location.href = same + hash; return }
-  } catch { /* fall through */ }
+  // A /full/ page maps to the plain page in a version that has no full tier.
+  for (const cand of switchCandidates(rel.value)) {
+    const same = v.path + cand
+    try {
+      const head = await fetch(same, { method: 'HEAD' })
+      if (head.ok) { window.location.href = same + hash; return }
+    } catch { /* try the next candidate */ }
+  }
   window.location.href = v.path
 }
 

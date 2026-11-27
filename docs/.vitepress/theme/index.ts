@@ -6,6 +6,7 @@ import VersionSwitcher from './VersionSwitcher.vue'
 import VersionBanner from './VersionBanner.vue'
 import NotFoundFallback from './NotFoundFallback.vue'
 import PageBadge from './PageBadge.vue'
+import TierLink from './TierLink.vue'
 import './badges.css'
 import './layout.css'
 
@@ -26,7 +27,7 @@ export default {
         h(DefaultTheme.Layout, null, {
           'layout-top': () => h(VersionBanner),
           'nav-bar-content-before': () => h(VersionSwitcher),
-          'doc-before': () => h(PageBadge),
+          'doc-before': () => [h(PageBadge), h(TierLink)],
           'not-found': () => h(NotFoundFallback),
         })
     },
