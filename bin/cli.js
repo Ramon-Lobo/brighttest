@@ -197,7 +197,7 @@ function parseSkillsArgs(rest) {
 // `brighttest instrument build [--out <zip>] [--strict|--no-strict] [--verbose] [--config <path>]`
 const INSTRUMENT_ACTIONS = ['build', 'verify', 'census'];
 function parseInstrumentArgs(rest) {
-  const o = { instrumentAction: null, out: null, strict: null, failOnBsc: false, verbose: false, config: null, sideload: false, net: false, from: null, host: null, wait: null, max: null, expect: null, as: null, purpose: null, json: false, target: null, help: false, unknown: [] };
+  const o = { instrumentAction: null, out: null, strict: null, failOnBsc: false, verbose: false, config: null, sideload: false, reuse: false, net: false, from: null, host: null, wait: null, max: null, expect: null, as: null, purpose: null, json: false, target: null, help: false, unknown: [] };
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
     if (i === 0 && !a.startsWith('-')) { o.instrumentAction = a; continue; }
@@ -212,6 +212,7 @@ function parseInstrumentArgs(rest) {
     else if (a === '--config' || a === '-c') { o.config = rest[++i]; if (o.config === undefined) o.unknown.push(`${a} (needs a value)`); }
     else if (a.startsWith('--config=')) o.config = a.slice(9);
     else if (a === '--sideload') o.sideload = true;
+    else if (a === '--reuse') o.reuse = true;
     else if (a === '--net') o.net = true;
     else if (a === '--from') { o.from = rest[++i]; if (o.from === undefined) o.unknown.push('--from (needs a value)'); }
     else if (a.startsWith('--from=')) o.from = a.slice(7);
@@ -256,7 +257,7 @@ brighttest instrument — build an instrumented (debug-only) package of your app
   it carries the instrumentation runtime and a per-build token (the release gate \`instrument verify\` finds it).
 
 Usage:
-  brighttest instrument build [--out <zip>] [--strict | --no-strict] [--from <dir|zip>] [--fail-on-bsc-errors] [--net] [--verbose] [--config <path>]
+  brighttest instrument build [--out <zip>] [--strict | --no-strict] [--from <dir|zip>] [--fail-on-bsc-errors] [--net] [--sideload [--reuse]] [--verbose] [--config <path>]
   brighttest instrument verify <zip|dir>                      Release gate: exit 3 if instrumentation markers are found, 0 if clean
   brighttest instrument census [--json] [--out <dir>] [--config <path>]
                                                               Static census of the app in the current directory (no device)
@@ -279,6 +280,8 @@ Options:
   --verbose          List every informational entry and every bsc warning of the report.
   --sideload         After a successful build, install the package on the device under the device lease
                      (needs --host; the dev password comes from ROKU_PASSWORD). Retries once after Delete.
+  --reuse            With --sideload: skip the rebuild and install the newest stored build when the source fingerprint,
+                     flags and hub token are unchanged; rebuild only after your own code changes. Not with --from.
   --host <ip>        Device for --sideload (required with it; never guessed from the cache).
   --wait/--max/--expect <dur>, --as <name>, --purpose <text>   Device lease options (see: device --help).
   -c, --config <p>   Path to brighttest.json (default: ./brighttest.json).
@@ -782,6 +785,12 @@ async function main() {
       target = { host: inline.host, password: require('../lib/devices').resolveDevice({ host: inline.host, password: inline.password }).password };
     }
     const cfg = loadConfig(process.cwd(), o.config);
+    if (o.reuse && o.from) { console.error('[brighttest instrument] --reuse cannot be combined with --from (no fingerprint of a prebuilt input); drop one of them'); process.exit(2); }
+    if (o.reuse && !target) console.error('instrument build: --reuse only applies with --sideload; building as usual');
+    if (o.reuse && target) {
+      const rr = await require('../lib/instrument/build').tryReuse(cfg, { out: o.out, strict: o.strict, net: o.net, failOnBscErrors: o.failOnBsc }, { ...target, wait: o.wait, max: o.max, expect: o.expect, as: o.as, purpose: o.purpose || 'instrument build --reuse' });
+      if (rr.reused) process.exit(rr.exitCode);
+    }
     const r = await require('../lib/instrument/build').build(cfg, { out: o.out, strict: o.strict, verbose: o.verbose, net: o.net, from: o.from, failOnBscErrors: o.failOnBsc });
     if (r.exitCode !== 0 || !target) process.exit(r.exitCode);
     const code = await require('../lib/instrument/sideload').sideload(cfg, { zip: r.out, ...target, record: r.record ? { store: r.record.store, id: r.record.id, via: 'build' } : null, wait: o.wait, max: o.max, expect: o.expect, as: o.as, purpose: o.purpose });
