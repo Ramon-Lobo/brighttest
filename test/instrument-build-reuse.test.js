@@ -119,11 +119,12 @@ describe('tryReuse', () => {
     const before = fs.statSync(a.out).mtimeMs
     const calls = []
     const lines = []
-    const res = await tryReuse(a.cfg, { out: a.out, store: a.store, env: a.env, log: (l) => lines.push(l) }, target, { install: async (argv, d) => { calls.push({ argv, pw: d.resolvePassword() }); return 0 } })
+    const res = await tryReuse(a.cfg, { out: a.out, store: a.store, env: a.env, log: (l) => lines.push(l) }, target, { install: async (argv, d) => { calls.push({ argv, pw: d.resolvePassword(), implicit: d.tokenAllowImplicit }); return 0 } })
     expect(res).toEqual({ reused: true, exitCode: 0 })
     expect(calls).toHaveLength(1)
     expect(calls[0].argv.slice(0, 4)).toEqual(['install', r.record.id, '--host', '192.0.2.5'])
     expect(calls[0].argv).toContain('--allow-token-mismatch')
+    expect(calls[0].implicit).toBe(true)
     expect(fs.statSync(a.out).mtimeMs).toBe(before)
     expect(lines.join('\n')).toMatch(/no rebuild/)
     expect(JSON.stringify(calls[0].argv) + lines.join('')).not.toContain('sentinel-pw')

@@ -165,6 +165,19 @@ describe('builds install (in process, fake installer and lease)', () => {
       r = await go(['install', 'inst.zip', '--allow-token-mismatch'], { BRIGHTTEST_HUB_TOKEN: OTHER })
       expect(r.code).toBe(0)
       expect(r.lines.join('\n')).toMatch(/warning: TOKEN_MISMATCH \(mismatch\) allowed/)
+      expect(r.lines.join('\n')).toMatch(/allowed by --allow-token-mismatch/)
+      // the flag passed internally by instrument build --reuse: accepted the same, but no "allowed by" wording
+      {
+        const m = mkDeps(f, { env: { BRIGHTTEST_HUB_TOKEN: OTHER } })
+        m.deps.tokenAllowImplicit = true
+        const code = await run(['install', 'inst.zip', '--allow-token-mismatch'], m.deps)
+        expect(code).toBe(0)
+        expect(m.lines.join('\n')).toMatch(/TOKEN_MISMATCH \(mismatch\)/)
+        expect(m.lines.join('\n')).not.toMatch(/allowed by/)
+        const m2 = mkDeps(f, { env: { BRIGHTTEST_HUB_TOKEN: OTHER } })
+        m2.deps.tokenAllowImplicit = true
+        expect(await run(['install', 'inst.zip'], m2.deps)).toBe(2) // still rejected without the flag
+      }
       // match from the environment: no warning
       r = await go(['install', 'inst.zip'], { BRIGHTTEST_HUB_TOKEN: TOK })
       expect(r.code).toBe(0)
