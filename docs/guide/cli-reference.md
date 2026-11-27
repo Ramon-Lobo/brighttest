@@ -327,6 +327,7 @@ the probe failed or disagrees with the package metadata), `2` usage. See [troubl
 ```text
 issue redact [<file>... | -] [-o <file|dir>] [--project <dir>] [--json]
 issue check  [<file>... | -] [--project <dir>] [--json]
+issue collect [--host <ip>] [--include <path>]... [--out <dir>] [--area <area>] [--project <dir>] [--json]
 ```
 
 Prepares text for a public issue. Both run locally: files or stdin (`-`, the default) in, files or stdout out; no
@@ -338,8 +339,19 @@ a [field report](/guide/reporting-issues) (missing required sections, empty Actu
 and not linted. Findings print as `file:line kind` on stderr and never include the matched value. It ends with
 `fingerprint: bt-xxxxxxxx`, stable for the same area and first error line.
 
+`collect` writes `<stagingDir>/issue/<YYYYMMDD-HHMMSS>/` (or `--out`) with `environment.json`, an `ISSUE.md` skeleton with
+the Environment section filled in, `attachments/` and `redaction.json`. The environment block holds brighttest, Node
+and OS versions, the engine flavours and versions, the names (never values) of the `BRIGHTTEST_*` and `ROKU_*`
+variables that are set, the keys of `brighttest.json`, and file counts. Each `--include` file is redacted and copied
+(text only, 1 MB each, 5 MB total, no line over 64 KB); an e2e failure bundle directory contributes `error.json`,
+`log-tail.txt` and `net-refused.txt` only, never `tree.xml` or screenshots, and any other directory is refused.
+`--host` adds the device model, firmware, class, ECP mode and developer mode from one device-info read (no lease, no
+password, no serial; the address is never written). `redaction.json` has counts per kind and what was left out, never
+a value. `collect` warns when `.brighttest/` is not in `.gitignore`, checks the whole folder before it exits, and
+takes no network path except the `--host` read.
+
 Exit `0` no findings (structure warnings alone do not fail), `1` findings (`redact` still writes its output so you can
-fix the rest by hand), `2` usage. `--json` prints `{ leaks: [{file,line,kind}], warnings, fingerprint, sections }`
+fix the rest by hand; `collect` found something that survived redaction), `2` usage. `--json` prints `{ leaks: [{file,line,kind}], warnings, fingerprint, sections }`
 (`redact` adds `summary`). Names to mask beyond the automatic ones go in `.brighttest/issue-deny.txt`, one per line.
 
 ## `brighttest mcp`
